@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { Link, useForm } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { Search } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import ProjectIcon from '@/components/ProjectIcon.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import projectRoutes from '@/routes/projects/index';
 
-defineProps<{
+// 1. Assign defineProps to a variable so we can use it in script
+const props = defineProps<{
     project: {
         id: string | number;
         name: string;
@@ -15,13 +16,16 @@ defineProps<{
             name: string;
             icon: string;
         };
-        client?: { company_name: string; };
+        client?: { id: string | number; company_name: string; };
     };
     showClient?: boolean;
 }>();
-// Delete Modal State (This stays here because it's specific to the Index page)
+
+const page = usePage();
+
+// Delete Modal State
 const isDeleteModalOpen = ref(false);
-const projectToDelete = ref<{ id: string; name: string } | null>(null);
+const projectToDelete = ref<{ id: string | number; name: string } | null>(null);
 const deleteForm = useForm({});
 
 const confirmDelete = (project: any) => {
@@ -31,13 +35,32 @@ const confirmDelete = (project: any) => {
 
 const executeDelete = () => {
     if (!projectToDelete.value) return;
-    deleteForm.delete(projectRoutes.destroy.url(projectToDelete.value.id), {
+
+    const projectId = String(projectToDelete.value.id);
+
+    deleteForm.delete(projectRoutes.destroy.url(projectId), {
         onSuccess: () => {
             isDeleteModalOpen.value = false;
             projectToDelete.value = null;
         },
     });
 };
+
+// 2. Fixed projectLink logic
+const projectLink = computed(() => {
+    const isClient = page.url.startsWith('/clients');
+    const isIndex = page.url.startsWith('/projects');
+
+    // Use isIndex and isClient to determine the origin tag
+    let origin = 'index';
+    if (isClient) {
+        origin = 'client';
+    } else if (isIndex) {
+        origin = 'index';
+    }
+
+    return `/projects/${props.project.id}?from=${origin}`;
+});
 </script>
 
 <template>
@@ -72,7 +95,7 @@ const executeDelete = () => {
 
         <div class="flex items-center gap-4 shrink-0">
             <Link
-                :href="`/projects/${project.id}`"
+                :href="projectLink"
                 class="flex items-center gap-1.5 text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors whitespace-nowrap group/link"
             >
                 <Search class="w-4 h-4 transition-transform group-hover/link:scale-110" />
@@ -93,8 +116,8 @@ const executeDelete = () => {
 
     <ConfirmDeleteModal
         :open="isDeleteModalOpen"
-        :title="`Delete ${projectToDelete?.name}?`"
-        description="Are you sure? This will permanently remove this project and its association with the DNA record."
+        :title="`Delete ${projectToDelete?.name}`"
+        description="Are you sure you want to delete this project? This action cannot be undone."
         :loading="deleteForm.processing"
         @close="isDeleteModalOpen = false"
         @confirm="executeDelete"

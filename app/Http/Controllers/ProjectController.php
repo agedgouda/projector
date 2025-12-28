@@ -24,11 +24,27 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
-        $project->load('client');
+        $project->load(['client', 'type']);
 
         return inertia('Projects/Show', [
             'project' => $project,
+            'projectTypes' => \App\Models\ProjectType::all(),
         ]);
+    }
+
+    public function update(Request $request, Project $project)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'project_type_id' => 'required|exists:project_types,id',
+            'client_id' => 'sometimes|required|exists:clients,id',
+            'status' => 'sometimes|string',
+        ]);
+
+        $project->update($validated);
+
+        return redirect()->back()->with('success', 'Project updated successfully.');
     }
 
     public function store(Request $request)
@@ -49,6 +65,14 @@ class ProjectController extends Controller
     public function destroy(Project $project)
     {
         $project->delete();
-        return redirect()->back();
+        $message = 'Project was successfully deleted.';
+
+        // 1. Check if the frontend requested a specific destination
+        if (request()->has('redirect_to')) {
+            return redirect(request()->get('redirect_to'))->with('success', $message);
+        }
+
+        // 2. Fallback for the ClientProjects list (where 'back' is safe)
+        return redirect()->back()->with('success', $message);
     }
 }
