@@ -1,72 +1,91 @@
 <script setup lang="ts">
+import { useForm } from '@inertiajs/vue3';
+import projectRoutes from '@/routes/projects/index';
+
 const props = defineProps<{
-    modelValue: {
-        name: string;
-        client_id: string | number;
-        project_type_id: string | number;
-        description: string;
-    };
-    clients?: any[]; // Pass this to show the Client dropdown
+    project?: any;
+    clients?: any[];
     projectTypes: any[];
-    processing: boolean;
+    documents?: any[];
+    initialClientId?: string | number;
 }>();
 
-const emit = defineEmits(['update:modelValue', 'submit']);
+const emit = defineEmits(['success']);
 
-const updateField = (field: string, value: any) => {
-    emit('update:modelValue', { ...props.modelValue, [field]: value });
+const form = useForm({
+    name: props.project?.name ?? '',
+    client_id: props.project?.client_id ?? props.initialClientId ?? '',
+    project_type_id: props.project?.project_type_id ?? '',
+    document_id: props.project?.document_id ?? '',
+    description: props.project?.description ?? '',
+});
+
+const submit = () => {
+    // Determine the route and method dynamically
+    const url = props.project
+        ? projectRoutes.update.url(props.project.id)
+        : projectRoutes.store.url();
+
+    const method = props.project ? 'put' : 'post';
+
+    form[method](url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            if (!props.project) {
+                form.reset(); // Clear form on create
+            }
+            emit('success'); // Notify parent
+        },
+    });
 };
 </script>
 
 <template>
-    <form @submit.prevent="$emit('submit')" class="space-y-4">
+    <form @submit.prevent="submit" class="space-y-4">
         <input
-            :value="modelValue.name"
-            @input="updateField('name', ($event.target as HTMLInputElement).value)"
+            v-model="form.name"
+            type="text"
             placeholder="Project Name"
-            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-sm focus:ring-indigo-500"
+            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700 dark:text-white text-sm focus:ring-indigo-500"
             required
         />
 
         <select
-            v-if="clients"
-            :value="modelValue.client_id"
-            @change="updateField('client_id', ($event.target as HTMLSelectElement).value)"
-            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-sm focus:ring-indigo-500"
+            v-if="!initialClientId && !project && clients"
+            v-model="form.client_id"
+            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700 dark:text-white text-sm"
             required
         >
-            <option value="" disabled selected>Select Client</option>
+            <option value="" disabled>Select Client</option>
             <option v-for="client in clients" :key="client.id" :value="client.id">
                 {{ client.company_name }}
             </option>
         </select>
 
         <select
-            :value="modelValue.project_type_id"
-            @change="updateField('project_type_id', ($event.target as HTMLSelectElement).value)"
-            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-sm focus:ring-indigo-500"
+            v-model="form.project_type_id"
+            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700 dark:text-white text-sm"
             required
         >
-            <option value="" disabled selected>Select Type</option>
+            <option value="" disabled>Select Type</option>
             <option v-for="type in projectTypes" :key="type.id" :value="type.id">
                 {{ type.name }}
             </option>
         </select>
 
         <textarea
-            :value="modelValue.description"
-            @input="updateField('description', ($event.target as HTMLTextAreaElement).value)"
+            v-model="form.description"
             placeholder="Description..."
-            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-sm focus:ring-indigo-500"
-            rows="2"
+            class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700 dark:text-white text-sm"
+            rows="3"
         ></textarea>
 
         <button
             type="submit"
-            :disabled="processing"
-            class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition disabled:opacity-50"
+            :disabled="form.processing"
+            class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition"
         >
-            {{ processing ? 'Saving...' : 'Save Project' }}
+            {{ form.processing ? 'Saving...' : (project ? 'Update Project' : 'Save Project') }}
         </button>
     </form>
 </template>

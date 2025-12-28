@@ -15,7 +15,7 @@ class ProjectController extends Controller
     public function index()
     {
         return Inertia::render('Projects/Index', [
-            'projects' => Project::with(['client', 'dna'])->latest()->get(),
+            'projects' => Project::with(['client', 'dna','type'])->latest()->get(),
             'clients' => Client::all(),
             'projectTypes' => ProjectType::all(),
             'documents' => Document::all(),
