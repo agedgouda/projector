@@ -15,16 +15,15 @@ class ProjectController extends Controller
     public function index()
     {
         return Inertia::render('Projects/Index', [
-            'projects' => Project::with(['client', 'dna','type'])->latest()->get(),
+            'projects' => Project::with(['client', 'documents','type'])->latest()->get(),
             'clients' => Client::all(),
             'projectTypes' => ProjectType::all(),
-            'documents' => Document::all(),
         ]);
     }
 
     public function show(Project $project)
     {
-        $project->load(['client', 'type']);
+        $project->load(['client', 'type', 'documents']);
 
         return inertia('Projects/Show', [
             'project' => $project,
@@ -54,7 +53,6 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'client_id' => 'required|exists:clients,id',
             'project_type_id' => 'nullable|exists:project_types,id',
-            'document_id' => 'nullable|exists:documents,id',
         ]);
 
         Project::create($validated);
@@ -74,5 +72,17 @@ class ProjectController extends Controller
 
         // 2. Fallback for the ClientProjects list (where 'back' is safe)
         return redirect()->back()->with('success', $message);
+    }
+
+    public function storeDocument(Request $request, Project $project)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string',
+            'type' => 'required|string', // tech_spec, functional_spec, etc.
+            'content' => 'required|string',
+        ]);
+
+        $document = $project->documents()->create($validated);
+        return back()->with('success', 'Document added and indexed.');
     }
 }

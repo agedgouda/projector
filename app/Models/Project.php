@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
@@ -30,11 +31,11 @@ class Project extends Model
     }
 
     /**
-     * Get the DNA snippet associated with the project.
+     * Get the documents associated with the project.
      */
-    public function dna(): BelongsTo
+    public function documents(): HasMany
     {
-        return $this->belongsTo(Document::class, 'document_id');
+        return $this->hasMany(Document::class, 'project_id');
     }
 
     /**

@@ -1,147 +1,134 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head,router } from '@inertiajs/vue3';
+import ProjectHeader from './Partials/ProjectHeader.vue';
+import DocumentManager from './Partials/DocumentManager.vue';
 import { computed, ref } from 'vue';
-import { type BreadcrumbItem } from '@/types';
+import { router, useForm, Head } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-vue-next';
-import projectRoutes from '@/routes/projects/index';
-import ProjectIcon from '@/components/ProjectIcon.vue';
-import ProjectForm from '@/components/ProjectForm.vue'
-import { Dialog, DialogContent, DialogHeader, DialogTitle,DialogDescription } from '@/components/ui/dialog';
-import ToastNotification from '@/components/ToastNotification.vue';
 import { Trash2 } from 'lucide-vue-next';
+import projectRoutes from '@/routes/projects/index';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import ProjectForm from '@/components/ProjectForm.vue';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter
+} from '@/components/ui/dialog';
 
 const props = defineProps<{
     project: any;
     projectTypes: any[];
+    breadcrumbs: any[];
 }>();
 
-
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Projects', href: projectRoutes.index.url() },
-    { title: props.project.name, href: '#' },
-];
-
-const origin = computed(() => {
-    return new URLSearchParams(window.location.search).get('from');
-});
-
-const handleBack = () => {
-    if (origin.value === 'index') {
-        router.visit('/projects');
-    } else {
-        // Default to the client page if 'client' or if the tag is missing
-        router.visit(`/clients/${props.project.client_id}`);
-    }
-};
-
-const backLabel = computed(() => {
-    return origin.value === 'index' ? 'Back to Projects' : 'Back to Client';
-});
-
 const isEditModalOpen = ref(false);
-
-const handleSuccess = () => {
-    isEditModalOpen.value = false;
-};
-
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
+const isUploadModalOpen = ref(false);
+const isGenerating = ref(false);
+const documentToDelete = ref<any>(null);
 
-const handleDeleteConfirmed = () => {
-    // Determine where to go based on your existing 'origin' logic
-    const destination = origin.value === 'index'
-        ? projectRoutes.index.url()
-        : `/clients/${props.project.client_id}`;
+const uploadForm = useForm({
+    name: '',
+    type: '',
+    content: '',
+});
 
-    router.delete(projectRoutes.destroy.url(props.project.id), {
-        // Pass the destination to the controller
-        data: {
-            redirect_to: destination
-        },
-        onBefore: () => {
-            isDeleting.value = true;
-        },
+const origin = computed(() => new URLSearchParams(window.location.search).get('from'));
+
+const requirementStatus = computed(() => {
+    const schema = (props.project.type.document_schema as any[]) || [];
+    const allDocs = (props.project.documents as any[]) || [];
+    return schema.map((req) => {
+        const matchingDocs = allDocs.filter((doc) => doc.type === req.key);
+        return { ...req, documents: matchingDocs, isUploaded: matchingDocs.length > 0 };
+    });
+});
+
+const canGenerate = computed(() => requirementStatus.value.filter(r => r.required).every(r => r.isUploaded));
+
+
+const openUploadModal = (requirement?: any) => {
+    uploadForm.type = requirement?.key || '';
+    uploadForm.name = '';
+    uploadForm.content = '';
+    isUploadModalOpen.value = true;
+};
+
+const submitDocument = () => {
+    uploadForm.post(projectDocumentsRoutes.store.url(props.project.id), {
         onSuccess: () => {
-            isDeleteModalOpen.value = false;
-        },
-        onFinish: () => {
-            isDeleting.value = false;
+            isUploadModalOpen.value = false;
+            uploadForm.reset();
         },
     });
 };
-</script>
 
+const confirmDocumentDeletion = (doc: any) => {
+    documentToDelete.value = doc;
+    isDeleteModalOpen.value = true;
+};
+
+const handleDeleteConfirmed = () => {
+    isDeleting.value = true;
+
+    if (documentToDelete.value) {
+        router.delete(projectDocumentsRoutes.destroy.url(props.project.id, documentToDelete.value.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                isDeleteModalOpen.value = false;
+                documentToDelete.value = null;
+            },
+            onFinish: () => (isDeleting.value = false),
+        });
+    } else {
+        // Project Deletion Route
+        const destination = origin.value === 'index'
+            ? projectRoutes.index.url()
+            : `/clients/${props.project.client_id}`;
+
+        router.delete(projectRoutes.destroy.url(props.project.id), {
+            data: { redirect_to: destination },
+            onSuccess: () => {
+                isDeleteModalOpen.value = false;
+            },
+            onFinish: () => (isDeleting.value = false),
+        });
+    }
+};
+
+const generateDeliverables = () => {
+    router.post(projectRoutes.generate.url(props.project.id), {}, {
+        onBefore: () => { isGenerating.value = true; },
+        onFinish: () => { isGenerating.value = false; }
+    });
+};
+
+const handleSuccess = () => { isEditModalOpen.value = false; };
+</script>
 
 <template>
     <Head :title="project.name" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 max-w-7xl mx-auto w-full">
-            <button
-                @click="handleBack"
-                class="inline-flex items-center text-sm text-gray-500 hover:text-indigo-600 transition-colors mb-6 focus:outline-none group"
-            >
-                <ChevronLeft class="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-                {{ backLabel }}
-            </button>
+            <ProjectHeader :project="project" :project-types="projectTypes" :origin="origin" />
 
-            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-8">
-                <div class="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div class="flex items-start md:items-center gap-5">
-                        <div class="p-3.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400 shadow-sm">
-                            <ProjectIcon :name="project.type?.icon" class="w-9 h-9" />
-                        </div>
 
-                        <div>
-                            <div class="flex flex-wrap items-center gap-3 mb-1.5">
-                                <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
-                                    {{ project.name }}
-                                </h1>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
-                                    {{ project.status || 'Active' }}
-                                </span>
-                            </div>
+            <DocumentManager
+                :requirement-status="requirementStatus"
+                :can-generate="canGenerate"
+                :is-generating="isGenerating"
+                @open-upload="openUploadModal"
+                @confirm-delete="confirmDocumentDeletion"
+                @generate="generateDeliverables"
+            />
 
-                            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                <p class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                                    <span class="text-gray-400 uppercase text-[10px] font-bold tracking-wider">Client</span>
-                                    <span class="font-bold text-gray-700 dark:text-gray-200">{{ project.client.company_name }}</span>
-                                </p>
-                                <div class="hidden md:block w-1.5 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-                                <p class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                                    <span class="text-gray-400 uppercase text-[10px] font-bold tracking-wider">Type</span>
-                                    <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ project.type?.name || 'General' }}</span>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="flex items-center gap-3 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-700">
-                        <Button @click="isEditModalOpen = true" variant="outline" class="font-bold text-xs uppercase tracking-widest px-6 shadow-sm border-gray-200 dark:border-gray-700">
-                            Edit Project
-                        </Button>
-                    </div>
 
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-3">
-                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-                            <h2 class="font-black text-gray-400 uppercase text-[10px] tracking-[0.2em]">Project Description</h2>
-                        </div>
-                        <div class="p-6">
-                            <p class="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap text-base">
-                                {{ project.description || 'No description provided for this project.' }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
             <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-red-100 dark:border-red-900/30 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-red-50 dark:border-red-900/20 bg-red-50/50 dark:bg-red-900/10">
                     <h2 class="font-black text-red-600 dark:text-red-400 uppercase text-[10px] tracking-[0.2em]">Danger Zone</h2>
@@ -149,15 +136,10 @@ const handleDeleteConfirmed = () => {
                 <div class="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <p class="text-sm font-bold text-gray-900 dark:text-white">Delete this project</p>
-                        <p class="text-sm text-gray-500">Once you delete a project, there is no going back. Please be certain.</p>
+                        <p class="text-sm text-gray-500">Once you delete a project, there is no going back.</p>
                     </div>
-                    <Button
-                        variant="destructive"
-                        @click="isDeleteModalOpen = true"
-                        class="font-bold text-xs uppercase tracking-widest px-6 shadow-sm"
-                    >
-                        <Trash2 class="w-4 h-4 mr-2" />
-                        Delete Project
+                    <Button variant="destructive" @click="isDeleteModalOpen = true" class="font-bold text-xs uppercase tracking-widest px-6 shadow-sm">
+                        <Trash2 class="w-4 h-4 mr-2" /> Delete Project
                     </Button>
                 </div>
             </div>
@@ -167,33 +149,49 @@ const handleDeleteConfirmed = () => {
             <DialogContent class="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Edit Project Details</DialogTitle>
-                    <DialogDescription>
-                        Update the project information below.
-                    </DialogDescription>
                 </DialogHeader>
-
                 <div class="py-4">
-                    <ProjectForm
-                        :project="project"
-                        :project-types="projectTypes"
-                        @success="handleSuccess"
-                    />
+                    <ProjectForm :project="project" :project-types="projectTypes" @success="handleSuccess" />
                 </div>
             </DialogContent>
         </Dialog>
 
-=
+        <Dialog v-model:open="isUploadModalOpen">
+            <DialogContent class="sm:max-w-[600px]">
+                <DialogHeader>
+                    <DialogTitle>Upload {{ requirementStatus.find(r => r.key === uploadForm.type)?.label || 'Document' }}</DialogTitle>
+                </DialogHeader>
+                <form @submit.prevent="submitDocument" class="space-y-4 py-4">
+                    <div>
+                        <label class="text-sm font-medium">Document Type</label>
+                        <select v-model="uploadForm.type" class="w-full mt-1 border-slate-200 rounded-md">
+                            <option value="" disabled>Select a type...</option>
+                            <option v-for="req in requirementStatus" :key="req.key" :value="req.key">{{ req.label }}</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Document Name</label>
+                        <input v-model="uploadForm.name" type="text" class="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Content</label>
+                        <textarea v-model="uploadForm.content" rows="12" class="flex min-h-[200px] w-full rounded-md border border-input px-3 py-2 text-sm"></textarea>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="isUploadModalOpen = false">Cancel</Button>
+                        <Button type="submit" :disabled="uploadForm.processing">Save Document</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
         <ConfirmDeleteModal
             :open="isDeleteModalOpen"
-            :title="'Delete ' + project.name"
-            :description="'Are you sure you want to delete this project? This action cannot be undone.'"
+            :title="documentToDelete ? 'Delete Document' : 'Delete ' + project.name"
+            :description="documentToDelete ? `Are you sure you want to delete '${documentToDelete.name}'?` : 'Are you sure you want to delete this project?'"
             :loading="isDeleting"
             @confirm="handleDeleteConfirmed"
-            @close="isDeleteModalOpen = false"
+            @close="isDeleteModalOpen = false; documentToDelete = null"
         />
-
-
-
-        <ToastNotification />
     </AppLayout>
 </template>

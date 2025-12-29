@@ -20,11 +20,15 @@ class ProjectTypeController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|unique:project_types,name|max:255',
             'icon' => 'nullable|string|max:100',
+            'document_schema' => 'nullable|array',
+            'document_schema.*.label' => 'required|string',
+            'document_schema.*.key' => 'required|string',
+            'document_schema.*.required' => 'required|boolean',
         ]);
 
         ProjectType::create($validated);
 
-        return redirect()->back()->with('message', 'Type created.');
+        return redirect()->back()->with('success', 'Type created.');
     }
 
     public function update(Request $request, ProjectType $projectType)
@@ -32,11 +36,15 @@ class ProjectTypeController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:project_types,name,' . $projectType->id,
             'icon' => 'nullable|string|max:100',
+            'document_schema' => 'nullable|array',
+            'document_schema.*.label' => 'required|string',
+            'document_schema.*.key' => 'required|string',
+            'document_schema.*.required' => 'required|boolean',
         ]);
 
         $projectType->update($validated);
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Type updated.');
     }
 
     public function destroy(ProjectType $projectType)

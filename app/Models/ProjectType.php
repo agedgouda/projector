@@ -13,6 +13,11 @@ class ProjectType extends Model
     protected $fillable = [
         'name',
         'icon',
+        'document_schema',
+    ];
+
+    protected $casts = [
+        'document_schema' => 'array',
     ];
 
     /**

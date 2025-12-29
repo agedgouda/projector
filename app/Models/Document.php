@@ -19,13 +19,27 @@ class Document extends Model
         'embedding' => Vector::class,
     ];
 
-    protected $fillable = ['content', 'embedding', 'type'];
+    protected $fillable = ['name','content', 'embedding', 'type'];
 
     /**
-     * Get the project associated with this DNA snippet.
+     * Get the project associated with this document.
      */
-    public function project(): HasOne
+    public function project(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->hasOne(Project::class, 'document_id');
+        // We use belongsTo because the 'project_id' column is in THIS table (documents)
+        return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    /**
+     * Scope to find documents most similar to the provided vector.
+     */
+    public function scopeNearestNeighbors(Builder $query, array $vector, int $limit = 5): void
+    {
+        // Convert the PHP array to a format PostgreSQL understands
+        $vectorString = '[' . implode(',', $vector) . ']';
+
+        // '<=>' is the pgvector operator for Cosine Distance
+        $query->orderByRaw("embedding <=> ?::vector", [$vectorString])
+              ->limit($limit);
     }
 }

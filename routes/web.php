@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
-use App\Http\Controllers\DnaController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTypeController;
@@ -21,16 +21,19 @@ Route::get('dashboard', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::prefix('dna')->name('dna.')->group(function () {
-        Route::get('/', [DnaController::class, 'index'])->name('index');
-        Route::post('/', [DnaController::class, 'store'])->name('store');
-        Route::patch('/{document}', [DnaController::class, 'update'])->name('update');
-        Route::delete('/{document}', [DnaController::class, 'destroy'])->name('destroy');
-        Route::match(['get', 'post'], '/search', [DnaController::class, 'search'])->name('search');
+    Route::prefix('projects/{project}')->name('projects.')->group(function () {
+        Route::resource('documents', DocumentController::class)
+            ->only(['store', 'update', 'destroy'])
+            ->names('documents');
+
+        // Custom Search Route (Project-scoped)
+        Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
+            ->name('documents.search');
     });
 
     Route::resource('clients', ClientController::class);
     Route::resource('projects', ProjectController::class);
+    Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])->name('projects.generate');
     Route::resource('project-types', ProjectTypeController::class);
 
 });
