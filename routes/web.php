@@ -22,14 +22,13 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('projects/{project}')->name('projects.')->group(function () {
-        Route::resource('documents', DocumentController::class)
-            ->only(['store', 'update', 'destroy'])
-            ->names('documents');
+    // This will generate projects.documents.store, projects.documents.update, etc.
+    Route::resource('documents', DocumentController::class)
+        ->only(['store', 'update', 'destroy']);
 
-        // Custom Search Route (Project-scoped)
-        Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
-            ->name('documents.search');
-    });
+    Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
+        ->name('documents.search');
+});
 
     Route::resource('clients', ClientController::class);
     Route::resource('projects', ProjectController::class);

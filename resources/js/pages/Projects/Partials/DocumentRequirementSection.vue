@@ -8,7 +8,8 @@ defineProps<{
     expandedDocId: string | number | null;
 }>();
 
-const emit = defineEmits(['openUpload', 'toggleExpand', 'confirmDelete']);
+// Added 'openEdit' to the emits list
+const emit = defineEmits(['openUpload', 'openEdit', 'toggleExpand', 'confirmDelete']);
 </script>
 
 <template>
@@ -39,9 +40,10 @@ const emit = defineEmits(['openUpload', 'toggleExpand', 'confirmDelete']);
                 :doc="doc"
                 :is-expanded="expandedDocId === doc.id"
                 @toggle="emit('toggleExpand', doc.id)"
+                @edit="emit('openEdit', $event)"
                 @delete="emit('confirmDelete', doc)"
             />
-        </ul>
+            </ul>
 
         <p v-else class="text-xs text-gray-400 italic mt-1">
             No documents uploaded for this requirement.

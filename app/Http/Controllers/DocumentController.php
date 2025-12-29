@@ -19,24 +19,55 @@ class DocumentController extends Controller
     public function store(Request $request, Project $project, VectorService $vectorService)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255', // Added name validation
             'content' => 'required|string|min:10',
-            'type' => 'required|string',
+            'type' => 'required|string', // e.g., 'tech_spec' from your schema
         ]);
 
         // 1. Get the vector for the content
         $embedding = $vectorService->getEmbedding($validated['content']);
 
         // 2. Use the relationship to create the document
+        // This automatically handles the project_id assignment
         $project->documents()->create([
-            'name' => $validated['name'], // Added name here
             'content' => $validated['content'],
             'type' => $validated['type'],
             'embedding' => $embedding,
         ]);
 
-        return back()->with('success', "Document '{$validated['name']}' added to project context.");
+        return back()->with('success', 'Context document added to project.');
     }
+
+/**
+ * Update the specified document in storage.
+ */
+public function update(Request $request, Project $project, Document $document)
+{
+
+    $validated = $request->validate([
+        'name'    => ['required', 'string', 'max:255'],
+        'type'    => ['required', 'string'],
+        'content' => ['nullable', 'string'],
+    ]);
+
+
+    if ($document->project_id !== $project->id) {
+        abort(403, 'Unauthorized action.');
+    }
+
+    $document->update($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'message' => 'Document updated successfully',
+            'document' => $document
+        ]);
+    }
+
+    return back()->with('success', 'Document updated.');
+}
+
+
+
 
     /**
      * Search within a specific Project's context.
