@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\ProjectType;
+use App\Services\Ai\ProjectAiService;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -84,5 +85,16 @@ class ProjectController extends Controller
 
         $document = $project->documents()->create($validated);
         return back()->with('success', 'Document added and indexed.');
+    }
+
+
+    public function generate(Project $project, ProjectAiService $aiService)
+    {
+        // For now, we use the SoftwareStrategy explicitly
+        $strategy = new \App\Services\Ai\Strategies\SoftwareStrategy();
+
+        $results = $aiService->generateDeliverables($project, $strategy);
+
+        return back()->with('aiResults', $results);
     }
 }

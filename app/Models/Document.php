@@ -19,7 +19,7 @@ class Document extends Model
         'embedding' => Vector::class,
     ];
 
-    protected $fillable = ['name','content', 'embedding', 'type'];
+    protected $fillable = ['name','content', 'embedding', 'type','processed_at'];
 
     /**
      * Get the project associated with this document.

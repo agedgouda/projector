@@ -22,13 +22,20 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('projects/{project}')->name('projects.')->group(function () {
-    // This will generate projects.documents.store, projects.documents.update, etc.
-    Route::resource('documents', DocumentController::class)
-        ->only(['store', 'update', 'destroy']);
+        // This handles the AI generation process
+        Route::post('/generate', [ProjectController::class, 'generate'])
+            ->name('generate');
 
-    Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
-        ->name('documents.search');
-});
+        // Your existing document routes
+        Route::resource('documents', DocumentController::class)
+            ->only(['store', 'update', 'destroy']);
+
+        Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
+            ->name('documents.search');
+
+        Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
+            ->name('documents.reprocess');
+    });
 
     Route::resource('clients', ClientController::class);
     Route::resource('projects', ProjectController::class);

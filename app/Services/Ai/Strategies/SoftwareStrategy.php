@@ -8,29 +8,28 @@ class SoftwareStrategy implements ProjectGeneratorStrategy
 {
     public function getRequiredDocumentTypes(): array
     {
-        return collect($project->type->document_schema)->pluck('key')->toArray();
+        // Specifically looking for the 'intake' key we just standardized
+        return ['intake'];
     }
 
-    /**
-     * This defines what the Vector Search is actually looking for.
-     */
     public function getVectorSearchQuery(Project $project): string
     {
-        return "Functional requirements, technical specifications, and system architecture for: " . $project->description;
+        return "User requirements, feature requests, and project goals from meeting notes for: " . $project->name;
     }
-
 
     public function getTaskExtractionPrompt(): string
     {
         return <<<PROMPT
-            You are a Technical Project Manager.
-            Analyze the provided Business Requirements, Tech Spec, and Functional Spec.
+            You are an expert Agile Product Owner.
+            Your task is to analyze raw meeting notes (Intake) and extract discrete User Stories.
 
-            Your goal is to output a flat list of technical deliverables.
-            Each deliverable must be:
-            1. Actionable.
-            2. Focused on a specific feature or infrastructure component.
-            3. Derived directly from the Functional Requirements.
+            Format every story exactly like this:
+            - **Title**: A short name for the story.
+            - **Story**: As a [user persona], I want to [action] so that [value].
+            - **Acceptance Criteria**: 3-5 bullet points of what 'done' looks like.
+
+            Output the result as a JSON array of objects with keys: 'title', 'story', 'criteria'.
+            Focus only on functional needs. Ignore small talk or administrative notes from the transcript.
         PROMPT;
     }
 }

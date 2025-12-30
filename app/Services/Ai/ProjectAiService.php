@@ -3,64 +3,151 @@
 namespace App\Services\Ai;
 
 use App\Models\Project;
+use App\Models\Document;
+use App\Models\ProjectType;
 use App\Services\VectorService;
 use App\Services\Ai\Strategies\ProjectGeneratorStrategy;
-use Illuminate\Support\Facades\Http; // Or your preferred LLM client
+use App\Services\Ai\Strategies\SoftwareStrategy;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ProjectAiService
 {
+    /**
+     * Map project types to their specific AI Strategies.
+     */
+    protected array $strategyMap = [
+        'software' => SoftwareStrategy::class,
+    ];
+
     public function __construct(
         protected VectorService $vectorService
     ) {}
 
     /**
-     * This is the only method your Controller needs to call.
+     * Generic entry point for background jobs.
      */
-    public function generateDeliverables(Project $project, ProjectGeneratorStrategy $strategy)
+    public function process(Document $document)
     {
-        // 1. Ask Strategy what to search for, then get the Vector from Gemini
-        $queryText = $strategy->getVectorSearchQuery($project);
-        $queryVector = $this->vectorService->getEmbedding($queryText);
+        // 1. Load project AND its type relationship
+        $document->loadMissing('project.type');
+        $project = $document->project;
+        $typeModel = $project->type;
 
-        // 2. RETRIEVAL: Find the specific documents in the Database
-        // We use the Strategy to filter which types (e.g., 'tech_spec')
-        $contextDocs = $project->documents()
-            ->whereIn('type', $strategy->getRequiredDocumentTypes())
-            ->whereNotNull('embedding')
-            ->nearestNeighbors($queryVector)
-            ->limit(5)
-            ->get();
+        // 2. Resolve the string key from the ProjectType model
+        $typeKey = null;
 
-        // 3. PREPARATION: Combine found docs into a string for the AI
-        $retrievedContent = $contextDocs->map(function ($doc) {
-            return "[Document Type: {$doc->type}]\nContent: {$doc->content}";
-        })->implode("\n\n---\n\n");
+        if ($typeModel instanceof ProjectType) {
+            // Use the "name" field as requested, lowercased to match our map
+            $typeKey = strtolower($typeModel->name);
+        } elseif (is_array($typeModel)) {
+            $typeKey = strtolower($typeModel['name'] ?? '');
+        } else {
+            $typeKey = strtolower((string)$typeModel);
+        }
 
-        // 4. GENERATION: Send everything to the LLM
-        return $this->callLlm($project, $strategy, $retrievedContent);
+        // 3. Resolve the Strategy class from the map
+        $strategyClass = $this->strategyMap[$typeKey] ?? null;
+
+        if (!$strategyClass || !class_exists($strategyClass)) {
+            Log::warning("No AI Strategy found for project type: {$typeKey}. Skipping AI process.");
+            return;
+        }
+
+        Log::info("AI Strategy Resolved", [
+            'document_id' => $document->id,
+            'type_key' => $typeKey,
+            'strategy' => $strategyClass
+        ]);
+
+        $strategy = new $strategyClass();
+
+        // 4. Pass the document content to the LLM logic
+        return $this->callLlm($project, $strategy, $document->content);
     }
 
     /**
-     * Internal method to handle the actual AI chat.
+     * Core communication with Gemini 2.5 Flash.
      */
     protected function callLlm(Project $project, ProjectGeneratorStrategy $strategy, string $context)
     {
+        $apiKey = config('services.gemini.key');
         $systemMessage = $strategy->getTaskExtractionPrompt();
 
-        $userMessage = "
-            Project: {$project->name}
-            Business Requirements: {$project->description}
+        $url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={$apiKey}";
 
-            Additional Context from Documents:
-            {$context}
+        $userMessage = "
+            {$systemMessage}
+
+            Project: {$project->name}
+            Context: {$context}
+
+            INSTRUCTIONS:
+            - Output a valid JSON array of objects.
+            - Each object MUST have: 'title', 'story', and 'criteria' (array of strings).
+            - Do not include markdown tags like ```json.
+            - Start your response with [ and end with ].
         ";
 
-        // This is a placeholder for your LLM call (OpenAI, Gemini, etc.)
-        // We will configure the actual API call once this structure is saved.
-        return [
-            'system' => $systemMessage,
-            'user' => $userMessage,
-            'status' => 'ready_for_llm_integration'
-        ];
+        try {
+            $response = Http::post($url, [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['text' => $userMessage]
+                        ]
+                    ]
+                ]
+            ]);
+
+            if ($response->failed()) {
+                Log::error("Gemini API Error Body: " . $response->body());
+                throw new \Exception("Gemini API Error: " . $response->status());
+            }
+
+            $data = $response->json();
+            $textResponse = $data['candidates'][0]['content']['parts'][0]['text'] ?? '[]';
+
+            // Clean up any markdown formatting
+            $cleanJson = trim(preg_replace('/^```json\s*|```$/m', '', $textResponse));
+
+            Log::info("AI Generation Results:", ['response' => $cleanJson]);
+
+            return [
+                'project_name' => $project->name,
+                'mock_response' => json_decode($cleanJson, true) ?? [],
+                'status' => 'success'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error("AI Generation Error: " . $e->getMessage());
+            return [
+                'project_name' => $project->name,
+                'error' => 'AI Service Error: ' . $e->getMessage(),
+                'mock_response' => []
+            ];
+        }
+    }
+
+    /**
+     * Manual trigger for generating deliverables.
+     */
+    public function generateDeliverables(Project $project, ProjectGeneratorStrategy $strategy)
+    {
+        $types = $strategy->getRequiredDocumentTypes();
+
+        $contextDocs = $project->documents()
+            ->whereIn('type', $types)
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        if ($contextDocs->isEmpty()) {
+            return ['error' => 'No docs found', 'mock_response' => []];
+        }
+
+        $retrievedContent = $contextDocs->map(fn($doc) => "[Type: {$doc->type}]\nContent: {$doc->content}")->implode("\n\n---\n\n");
+
+        return $this->callLlm($project, $strategy, $retrievedContent);
     }
 }

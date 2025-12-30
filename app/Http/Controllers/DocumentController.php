@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessDocumentAI;
 use App\Models\Project;
 use App\Models\Document;
 use App\Services\VectorService;
@@ -19,6 +20,7 @@ class DocumentController extends Controller
     public function store(Request $request, Project $project, VectorService $vectorService)
     {
         $validated = $request->validate([
+            'name' => 'required|string|max:255',
             'content' => 'required|string|min:10',
             'type' => 'required|string', // e.g., 'tech_spec' from your schema
         ]);
@@ -29,6 +31,7 @@ class DocumentController extends Controller
         // 2. Use the relationship to create the document
         // This automatically handles the project_id assignment
         $project->documents()->create([
+            'name' => $validated['name'],
             'content' => $validated['content'],
             'type' => $validated['type'],
             'embedding' => $embedding,
@@ -37,37 +40,34 @@ class DocumentController extends Controller
         return back()->with('success', 'Context document added to project.');
     }
 
-/**
- * Update the specified document in storage.
- */
-public function update(Request $request, Project $project, Document $document)
-{
+    /**
+     * Update the specified document in storage.
+     */
+    public function update(Request $request, Project $project, Document $document)
+    {
 
-    $validated = $request->validate([
-        'name'    => ['required', 'string', 'max:255'],
-        'type'    => ['required', 'string'],
-        'content' => ['nullable', 'string'],
-    ]);
-
-
-    if ($document->project_id !== $project->id) {
-        abort(403, 'Unauthorized action.');
-    }
-
-    $document->update($validated);
-
-    if ($request->expectsJson()) {
-        return response()->json([
-            'message' => 'Document updated successfully',
-            'document' => $document
+        $validated = $request->validate([
+            'name'    => ['required', 'string', 'max:255'],
+            'type'    => ['required', 'string'],
+            'content' => ['nullable', 'string'],
         ]);
+
+
+        if ($document->project_id !== $project->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $document->update($validated);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Document updated successfully',
+                'document' => $document
+            ]);
+        }
+
+        return back()->with('success', 'Document updated.');
     }
-
-    return back()->with('success', 'Document updated.');
-}
-
-
-
 
     /**
      * Search within a specific Project's context.
@@ -112,5 +112,16 @@ public function update(Request $request, Project $project, Document $document)
         $document->delete();
 
         return back()->with('success', 'Document removed.');
+    }
+
+    public function reprocess(Project $project, Document $document)
+    {
+        // Now $document is a fully loaded Model, not just a string ID
+        \App\Jobs\ProcessDocumentAI::dispatch($document);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'AI analysis has been restarted.'
+        ]);
     }
 }

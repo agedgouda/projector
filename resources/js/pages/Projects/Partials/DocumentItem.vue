@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+import axios from 'axios';
 import {
     ChevronRightIcon,
     ChevronDownIcon,
     TrashIcon,
     PencilIcon,
-    FileTextIcon
+    FileTextIcon,
+    RefreshCwIcon,
+    Loader2Icon
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 
-defineProps<{
+const props = defineProps<{
     doc: any;
     isExpanded: boolean;
 }>();
@@ -18,6 +22,27 @@ const emit = defineEmits<{
     (e: 'delete'): void;
     (e: 'edit', doc: any): void;
 }>();
+
+const isProcessing = ref(false);
+
+const handleReprocess = async () => {
+    if (isProcessing.value) return;
+    if (!confirm('Re-run AI analysis on this intake document?')) return;
+
+    isProcessing.value = true;
+    try {
+        // Updated URL to match: projects/{project}/documents/{document}/reprocess
+        await axios.post(`/projects/${props.doc.project_id}/documents/${props.doc.id}/reprocess`);
+
+        // Success feedback
+    } catch (error) {
+        console.error('AI Reprocess failed:', error);
+        alert('Failed to start AI process. Check console for details.');
+    } finally {
+        isProcessing.value = false;
+    }
+};
+
 </script>
 
 <template>
@@ -44,6 +69,20 @@ const emit = defineEmits<{
 
             <div class="flex items-center gap-1">
                 <div :class="['flex items-center gap-1 transition-opacity duration-200', isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']">
+
+                    <Button
+                        v-if="doc.type === 'intake'"
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                        :disabled="isProcessing"
+                        title="Reprocess with AI"
+                        @click.stop="handleReprocess"
+                    >
+                        <Loader2Icon v-if="isProcessing" class="w-4 h-4 animate-spin text-emerald-600" />
+                        <RefreshCwIcon v-else class="w-4 h-4" />
+                    </Button>
+
                     <Button
                         variant="ghost"
                         size="icon"

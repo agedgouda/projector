@@ -2,6 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectHeader from './Partials/ProjectHeader.vue';
 import DocumentManager from './Partials/DocumentManager.vue';
+import ProposedStories from './Partials/ProposedStories.vue';
 import { type BreadcrumbItem } from '@/types';
 import { computed, ref } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
@@ -108,6 +109,7 @@ const handleSuccess = () => { isEditModalOpen.value = false; };
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 max-w-7xl mx-auto w-full">
 
+            <ProposedStories :project-id="project.id" />
             <ProjectHeader
                 :project="project"
                 :project-types="projectTypes"
@@ -123,6 +125,7 @@ const handleSuccess = () => { isEditModalOpen.value = false; };
                 @confirm-delete="confirmDocumentDeletion"
                 @generate="generateDeliverables"
             />
+
 
             <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-red-100 dark:border-red-900/30 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-red-50 dark:border-red-900/20 bg-red-50/50 dark:bg-red-900/10">
