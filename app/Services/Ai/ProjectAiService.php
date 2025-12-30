@@ -37,8 +37,8 @@ class ProjectAiService
         // 2. Resolve the string key from the ProjectType model
         $typeKey = null;
 
-        if ($typeModel instanceof ProjectType) {
-            // Use the "name" field as requested, lowercased to match our map
+        if ($typeModel instanceof \App\Models\ProjectType) {
+            // Use the "name" field, lowercased to match our map
             $typeKey = strtolower($typeModel->name);
         } elseif (is_array($typeModel)) {
             $typeKey = strtolower($typeModel['name'] ?? '');
@@ -54,18 +54,25 @@ class ProjectAiService
             return;
         }
 
+        $strategy = new $strategyClass();
+
         Log::info("AI Strategy Resolved", [
             'document_id' => $document->id,
             'type_key' => $typeKey,
-            'strategy' => $strategyClass
+            'strategy' => $strategyClass,
+            'expects_output' => $strategy->getOutputDocumentType() // New: visibility on output
         ]);
 
-        $strategy = new $strategyClass();
+        // 4. Call the LLM and merge the output type into the response
+        $result = $this->callLlm($project, $strategy, $document->content);
 
-        // 4. Pass the document content to the LLM logic
-        return $this->callLlm($project, $strategy, $document->content);
+        // 5. Inject the dynamic output type so the Job knows what to create
+        if (isset($result['status']) && $result['status'] === 'success') {
+            $result['output_type'] = $strategy->getOutputDocumentType();
+        }
+
+        return $result;
     }
-
     /**
      * Core communication with Gemini 2.5 Flash.
      */
@@ -110,8 +117,6 @@ class ProjectAiService
 
             // Clean up any markdown formatting
             $cleanJson = trim(preg_replace('/^```json\s*|```$/m', '', $textResponse));
-
-            Log::info("AI Generation Results:", ['response' => $cleanJson]);
 
             return [
                 'project_name' => $project->name,

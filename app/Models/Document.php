@@ -17,9 +17,20 @@ class Document extends Model
 
     protected $casts = [
         'embedding' => Vector::class,
+        'metadata' => 'array',
+        'processed_at' => 'datetime',
     ];
 
-    protected $fillable = ['name','content', 'embedding', 'type','processed_at'];
+    protected $fillable = [
+        'project_id',
+        'parent_id',
+        'name',
+        'type',
+        'content',
+        'metadata',
+        'processed_at',
+        'embedding'
+    ];
 
     /**
      * Get the project associated with this document.

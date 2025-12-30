@@ -8,8 +8,12 @@ class SoftwareStrategy implements ProjectGeneratorStrategy
 {
     public function getRequiredDocumentTypes(): array
     {
-        // Specifically looking for the 'intake' key we just standardized
         return ['intake'];
+    }
+
+    public function getOutputDocumentType(): string
+    {
+        return 'user_story';
     }
 
     public function getVectorSearchQuery(Project $project): string

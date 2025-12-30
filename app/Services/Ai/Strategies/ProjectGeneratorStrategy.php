@@ -21,4 +21,10 @@ interface ProjectGeneratorStrategy
      * e.g., "Functional requirements and system architecture"
      */
     public function getVectorSearchQuery(Project $project): string;
+
+    /**
+     * Define what type of document the output creates
+     */
+
+    public function getOutputDocumentType(): string;
 }

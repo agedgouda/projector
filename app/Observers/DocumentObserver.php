@@ -12,8 +12,15 @@ class DocumentObserver
      */
     public function created(Document $document)
     {
+        // A. Trigger AI Generation for Intakes
         if ($document->type === 'intake' && !$document->processed_at) {
             \App\Jobs\ProcessDocumentAI::dispatch($document);
+        }
+
+        // 2) Trigger Vectorization for anything else missing an embedding
+        // This catches AI stories created in the Job that don't have embeddings yet
+        if ($document->content && is_null($document->embedding)) {
+            \App\Jobs\GenerateDocumentEmbedding::dispatch($document);
         }
     }
     /**
@@ -21,7 +28,10 @@ class DocumentObserver
      */
     public function updated(Document $document): void
     {
-        //
+        //revectorize
+        if ($document->isDirty('content') && $document->content) {
+            \App\Jobs\GenerateDocumentEmbedding::dispatch($document);
+        }
     }
 
     /**
