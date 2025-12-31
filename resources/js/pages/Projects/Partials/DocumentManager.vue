@@ -1,28 +1,20 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import axios, { AxiosError } from 'axios';
 import {
-    PlusIcon,
-    Sparkles,
-    Search,
-    Loader2,
-    RefreshCw,
-    CheckCircle2
+    PlusIcon, Sparkles, Search, Loader2, RefreshCw, CheckCircle2
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import DocumentRequirementSection from './DocumentRequirementSection.vue';
+import { useEcho } from '@laravel/echo-vue';
 
+// --- 1. PROPS & TYPES ---
 const props = defineProps<{
     project: any;
     requirementStatus: any[];
@@ -33,119 +25,62 @@ const props = defineProps<{
 
 const emit = defineEmits(['confirmDelete', 'generate']);
 
-// --- UI State ---
+interface Document {
+    id: string;
+    project_id: string;
+    name: string;
+    type: string;
+    content: string;
+    embedding: string | null;
+    metadata: any;
+}
+
+// --- 2. REACTIVE STATE ---
+const localRequirements = ref([...props.requirementStatus]);
 const searchQuery = ref('');
 const isUploadModalOpen = ref(false);
 const isEditModalOpen = ref(false);
-const editingDocumentId = ref<number | null>(null);
+const editingDocumentId = ref<string | number | null>(null);
 const expandedDocId = ref<string | number | null>(null);
 const selectedTypes = ref<string[]>(props.requirementStatus.map(r => r.key));
 const showSuccessToast = ref(false);
 
-// --- Form Logic ---
 const form = useForm({
     name: '',
     type: '',
     content: '',
 });
 
-// --- Toast Logic ---
-const triggerToast = () => {
-    showSuccessToast.value = true;
-    setTimeout(() => { showSuccessToast.value = false; }, 3000);
-};
+// --- 3. WATCHERS & REAL-TIME (ECHO) ---
+watch(() => props.requirementStatus, (newVal) => {
+    localRequirements.value = [...newVal];
+}, { deep: true });
 
-// --- Add Logic ---
-const openUploadModal = (requirement?: any) => {
-    form.reset();
-    form.clearErrors();
-    if (requirement) {
-        form.type = requirement.key;
-        form.name = `New ${requirement.label.replace(/s$/, '')}`;
-    }
-    isUploadModalOpen.value = true;
-};
+useEcho(
+    `project.${props.project.id}`,
+    '.document.vectorized',
+    (payload: { document: Document }) => {
+        const doc = payload.document;
+        const group = localRequirements.value.find(r => r.key === doc.type);
 
-const submitDocument = async () => {
-    form.processing = true;
-    const formData = { ...form.data() };
-    isUploadModalOpen.value = false;
-
-    try {
-        const url = props.projectDocumentsRoutes.store.url(props.project.id);
-        await axios.post(url, formData);
-        form.reset();
-        router.reload({
-            only: ['project', 'requirementStatus'],
-            onFinish: () => {
-                form.processing = false;
-                triggerToast();
+        if (group) {
+            const index = group.documents.findIndex((d: any) => d.id == doc.id);
+            if (index !== -1) {
+                group.documents.splice(index, 1, doc);
+            } else {
+                group.documents.unshift(doc);
             }
-        });
-    } catch (err: any) {
-        form.processing = false;
-        const error = err as AxiosError<{ errors: any }>;
-        if (error.response?.status === 422) {
-            form.errors = error.response.data.errors;
-            isUploadModalOpen.value = true;
+            localRequirements.value = [...localRequirements.value];
         }
-    }
-};
+    },
+    [props.project.id],
+    'private'
+);
 
-// --- Edit Logic ---
-const openEditModal = (doc: any) => {
-    form.clearErrors();
-    editingDocumentId.value = doc.id;
-    form.name = doc.name;
-    form.type = doc.type;
-    form.content = doc.content || '';
-    isEditModalOpen.value = true;
-};
-
-const updateDocument = async () => {
-    form.processing = true;
-
-    try {
-        const url = props.projectDocumentsRoutes.update.url({
-            project: props.project.id,
-            document: editingDocumentId.value
-        });
-        // Change .put to .post and add _method: 'put'
-        await axios.post(url, {
-            ...form.data(),
-            _method: 'put'
-        });
-
-        isEditModalOpen.value = false;
-        form.reset();
-
-        router.reload({
-            only: ['project', 'requirementStatus'],
-            onFinish: () => {
-                form.processing = false;
-                triggerToast();
-            }
-        });
-    } catch (err: any) {
-        form.processing = false;
-        const error = err as AxiosError<{ errors: any }>;
-        if (error.response?.status === 422) {
-            form.errors = error.response.data.errors;
-            isEditModalOpen.value = true;
-        }
-    }
-};
-
-// --- Filtering & UI Logic ---
-const toggleType = (key: string) => {
-    const index = selectedTypes.value.indexOf(key);
-    if (index > -1) selectedTypes.value.splice(index, 1);
-    else selectedTypes.value.push(key);
-};
-
+// --- 4. COMPUTED ---
 const filteredRequirements = computed(() => {
     const query = searchQuery.value.toLowerCase();
-    return props.requirementStatus
+    return localRequirements.value
         .filter(req => selectedTypes.value.includes(req.key))
         .map(req => ({
             ...req,
@@ -157,8 +92,92 @@ const filteredRequirements = computed(() => {
         .filter(req => req.documents.length > 0 || (query === '' && selectedTypes.value.includes(req.key)));
 });
 
+// --- 5. METHODS (ACTIONS) ---
+const triggerToast = () => {
+    showSuccessToast.value = true;
+    setTimeout(() => { showSuccessToast.value = false; }, 3000);
+};
+
+const openUploadModal = (requirement?: any) => {
+    form.reset();
+    form.clearErrors();
+    if (requirement) {
+        form.type = requirement.key;
+        form.name = `New ${requirement.label.replace(/s$/, '')}`;
+    }
+    isUploadModalOpen.value = true;
+};
+
+const openEditModal = (doc: any) => {
+    form.clearErrors();
+    editingDocumentId.value = doc.id;
+    form.name = doc.name;
+    form.type = doc.type;
+    form.content = doc.content || '';
+    isEditModalOpen.value = true;
+};
+
+const toggleType = (key: string) => {
+    const index = selectedTypes.value.indexOf(key);
+    if (index > -1) selectedTypes.value.splice(index, 1);
+    else selectedTypes.value.push(key);
+};
+
 const toggleExpand = (id: string | number) => {
     expandedDocId.value = expandedDocId.value === id ? null : id;
+};
+
+// --- 6. API SUBMISSIONS ---
+const submitDocument = async () => {
+    form.processing = true;
+    try {
+        const url = props.projectDocumentsRoutes.store.url(props.project.id);
+        await axios.post(url, form.data());
+
+        isUploadModalOpen.value = false;
+        form.reset();
+
+        router.reload({
+            only: ['project', 'requirementStatus'],
+            onFinish: () => {
+                form.processing = false;
+                triggerToast();
+            }
+        });
+    } catch (err) {
+        // cast the error to AxiosError with a generic for the Laravel error structure
+        const error = err as AxiosError<{ errors: any }>;
+        form.processing = false;
+
+        if (error.response?.status === 422) {
+            form.errors = error.response.data.errors;
+            // Keep the modal open so they can fix the errors
+            isUploadModalOpen.value = true;
+        }
+    }
+};
+
+const updateDocument = async () => {
+    form.processing = true;
+    try {
+        const url = props.projectDocumentsRoutes.update.url({
+            project: props.project.id,
+            document: editingDocumentId.value
+        });
+        await axios.post(url, { ...form.data(), _method: 'put' });
+
+        isEditModalOpen.value = false;
+        form.reset();
+        router.reload({
+            only: ['project', 'requirementStatus'],
+            onFinish: () => { form.processing = false; triggerToast(); }
+        });
+    } catch (err: any) {
+        form.processing = false;
+        if (err.response?.status === 422) {
+            form.errors = err.response.data.errors;
+        }
+    }
 };
 </script>
 

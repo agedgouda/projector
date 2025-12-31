@@ -29,5 +29,13 @@ class GenerateDocumentEmbedding implements ShouldQueue
         $this->document->updateQuietly([
             'embedding' => $embedding
         ]);
+
+        if ($embedding) {
+            $this->document->updateQuietly(['embedding' => $embedding]);
+
+            // Broadcast to the UI
+            event(new \App\Events\DocumentVectorized($this->document));
+        }
+
     }
 }

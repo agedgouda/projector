@@ -115,6 +115,7 @@ const handleReprocess = async () => {
                 <div class="prose prose-sm max-w-none flex-1">
                     <p class="text-slate-600 whitespace-pre-wrap leading-relaxed text-sm italic border-l-2 border-slate-200 pl-4">
                         {{ doc.content || 'No content provided for this document.' }}
+                        {{ doc.metadata}}
                     </p>
                 </div>
             </div>
