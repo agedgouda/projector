@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Document;
 use App\Jobs\ProcessDocumentAI;
+use App\Events\DocumentVectorized;
 
 class DocumentObserver
 {
@@ -31,6 +32,10 @@ class DocumentObserver
         //revectorize
         if ($document->isDirty('content') && $document->content) {
             \App\Jobs\GenerateDocumentEmbedding::dispatch($document);
+        }
+
+        if ($document->wasChanged('processed_at') && $document->processed_at !== null) {
+            broadcast(new DocumentVectorized($document))->toOthers();
         }
     }
 

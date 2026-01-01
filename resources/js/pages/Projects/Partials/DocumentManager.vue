@@ -1,23 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
-import axios, { AxiosError } from 'axios';
-import {
-    PlusIcon, Sparkles, Search, Loader2, RefreshCw, CheckCircle2
-} from 'lucide-vue-next';
+import { toast } from 'vue-sonner';
+import { useEcho } from '@laravel/echo-vue';
+import { useDocumentActions } from '@/composables/useDocumentActions';
+
+// UI Imports
+import { PlusIcon, Sparkles, Search, Loader2, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import DocumentRequirementSection from './DocumentRequirementSection.vue';
-import { useEcho } from '@laravel/echo-vue';
+import DocumentFormModal from './DocumentFormModal.vue';
 
-// --- 1. PROPS & TYPES ---
+// --- 1. PROPS & EMITS ---
 const props = defineProps<{
     project: any;
-    requirementStatus: any[];
+    requirementStatus: RequirementStatus[];
     canGenerate: boolean;
     isGenerating: boolean;
     projectDocumentsRoutes: any;
@@ -25,66 +22,74 @@ const props = defineProps<{
 
 const emit = defineEmits(['confirmDelete', 'generate']);
 
-interface Document {
-    id: string;
-    project_id: string;
-    name: string;
-    type: string;
-    content: string;
-    embedding: string | null;
-    metadata: any;
-}
+// --- 2. COMPOSABLE (Action Logic) ---
+const {
+    form,
+    isUploadModalOpen,
+    isEditModalOpen,
+    openUploadModal,
+    openEditModal,
+    submitDocument,
+    updateDocument
+} = useDocumentActions(props);
 
-// --- 2. REACTIVE STATE ---
-const localRequirements = ref([...props.requirementStatus]);
+// --- 3. LOCAL UI STATE ---
+const localRequirements = ref<RequirementStatus[]>([...props.requirementStatus]);
 const searchQuery = ref('');
-const isUploadModalOpen = ref(false);
-const isEditModalOpen = ref(false);
-const editingDocumentId = ref<string | number | null>(null);
 const expandedDocId = ref<string | number | null>(null);
 const selectedTypes = ref<string[]>(props.requirementStatus.map(r => r.key));
-const showSuccessToast = ref(false);
 
-const form = useForm({
-    name: '',
-    type: '',
-    content: '',
-});
-
-// --- 3. WATCHERS & REAL-TIME (ECHO) ---
+// --- 4. WATCHERS & REAL-TIME (ECHO) ---
 watch(() => props.requirementStatus, (newVal) => {
-    localRequirements.value = [...newVal];
-}, { deep: true });
+    // We use a deep clone to ensure Vue detects the nested 'processed_at' changes
+    localRequirements.value = JSON.parse(JSON.stringify(newVal));
+}, { deep: true, immediate: true });
 
 useEcho(
     `project.${props.project.id}`,
     '.document.vectorized',
-    (payload: { document: Document }) => {
-        const doc = payload.document;
-        const group = localRequirements.value.find(r => r.key === doc.type);
+    (payload: DocumentVectorizedEvent) => {
+        const updatedDoc = payload.document;
 
-        if (group) {
-            const index = group.documents.findIndex((d: any) => d.id == doc.id);
+        console.group('🔔 ECHO RECEIVED');
+        console.log('Document:', updatedDoc.name, 'Processed At:', updatedDoc.processed_at);
+
+        localRequirements.value = localRequirements.value.map(group => {
+            // We only care about the group this document belongs to
+            if (group.key !== updatedDoc.type) return group;
+
+            const newDocs = [...group.documents];
+            const index = newDocs.findIndex(d => d.id === updatedDoc.id);
+
             if (index !== -1) {
-                group.documents.splice(index, 1, doc);
+                console.log('✅ UPDATING: Replacing existing doc to clear notice.');
+                newDocs[index] = updatedDoc;
             } else {
-                group.documents.unshift(doc);
+                console.log('➕ ADDING: Inserting new story/deliverable.');
+                newDocs.unshift(updatedDoc);
             }
-            localRequirements.value = [...localRequirements.value];
-        }
+
+            return { ...group, documents: newDocs };
+        });
+
+        console.groupEnd();
+
+        // Ensure the computed isAiProcessing property sees the change
+        localRequirements.value = [...localRequirements.value];
+        toast.success('Project Updated');
     },
     [props.project.id],
     'private'
 );
 
-// --- 4. COMPUTED ---
+// --- 5. COMPUTED ---
 const filteredRequirements = computed(() => {
     const query = searchQuery.value.toLowerCase();
     return localRequirements.value
         .filter(req => selectedTypes.value.includes(req.key))
         .map(req => ({
             ...req,
-            documents: req.documents.filter((doc: any) =>
+            documents: req.documents.filter((doc) =>
                 doc.name.toLowerCase().includes(query) ||
                 (doc.content && doc.content.toLowerCase().includes(query))
             )
@@ -92,31 +97,17 @@ const filteredRequirements = computed(() => {
         .filter(req => req.documents.length > 0 || (query === '' && selectedTypes.value.includes(req.key)));
 });
 
-// --- 5. METHODS (ACTIONS) ---
-const triggerToast = () => {
-    showSuccessToast.value = true;
-    setTimeout(() => { showSuccessToast.value = false; }, 3000);
-};
+const isAiProcessing = computed(() => {
+    const intakeGroup = localRequirements.value.find(req => req.key === 'intake');
+    if (!intakeGroup) return false;
 
-const openUploadModal = (requirement?: any) => {
-    form.reset();
-    form.clearErrors();
-    if (requirement) {
-        form.type = requirement.key;
-        form.name = `New ${requirement.label.replace(/s$/, '')}`;
-    }
-    isUploadModalOpen.value = true;
-};
+    // The notice stays as long as the parent (intake) doc has a null timestamp
+    return intakeGroup.documents.some(doc =>
+        doc.parent_id === null && doc.processed_at === null
+    );
+});
 
-const openEditModal = (doc: any) => {
-    form.clearErrors();
-    editingDocumentId.value = doc.id;
-    form.name = doc.name;
-    form.type = doc.type;
-    form.content = doc.content || '';
-    isEditModalOpen.value = true;
-};
-
+// --- 6. UI-ONLY METHODS ---
 const toggleType = (key: string) => {
     const index = selectedTypes.value.indexOf(key);
     if (index > -1) selectedTypes.value.splice(index, 1);
@@ -126,62 +117,34 @@ const toggleType = (key: string) => {
 const toggleExpand = (id: string | number) => {
     expandedDocId.value = expandedDocId.value === id ? null : id;
 };
-
-// --- 6. API SUBMISSIONS ---
-const submitDocument = async () => {
-    form.processing = true;
-    try {
-        const url = props.projectDocumentsRoutes.store.url(props.project.id);
-        await axios.post(url, form.data());
-
-        isUploadModalOpen.value = false;
-        form.reset();
-
-        router.reload({
-            only: ['project', 'requirementStatus'],
-            onFinish: () => {
-                form.processing = false;
-                triggerToast();
-            }
-        });
-    } catch (err) {
-        // cast the error to AxiosError with a generic for the Laravel error structure
-        const error = err as AxiosError<{ errors: any }>;
-        form.processing = false;
-
-        if (error.response?.status === 422) {
-            form.errors = error.response.data.errors;
-            // Keep the modal open so they can fix the errors
-            isUploadModalOpen.value = true;
-        }
-    }
-};
-
-const updateDocument = async () => {
-    form.processing = true;
-    try {
-        const url = props.projectDocumentsRoutes.update.url({
-            project: props.project.id,
-            document: editingDocumentId.value
-        });
-        await axios.post(url, { ...form.data(), _method: 'put' });
-
-        isEditModalOpen.value = false;
-        form.reset();
-        router.reload({
-            only: ['project', 'requirementStatus'],
-            onFinish: () => { form.processing = false; triggerToast(); }
-        });
-    } catch (err: any) {
-        form.processing = false;
-        if (err.response?.status === 422) {
-            form.errors = err.response.data.errors;
-        }
-    }
-};
 </script>
 
 <template>
+    <transition
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="transform -translate-y-4 opacity-0"
+        enter-to-class="transform translate-y-0 opacity-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+    >
+        <div v-if="isAiProcessing" class="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-indigo-400 rounded-full animate-ping opacity-25"></div>
+                    <Loader2 class="w-5 h-5 text-indigo-600 animate-spin relative" />
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-indigo-900">AI Pipeline Active</p>
+                    <p class="text-xs text-indigo-600/80">Gemini is analyzing requirements and generating deliverables...</p>
+                </div>
+            </div>
+            <div class="px-2 py-1 bg-indigo-600 text-[10px] font-bold text-white rounded uppercase tracking-wider animate-pulse">
+                In Progress
+            </div>
+        </div>
+    </transition>
+
     <div class="bg-white p-6 rounded-xl mt-8 border border-gray-200 shadow-sm relative">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
@@ -200,7 +163,12 @@ const updateDocument = async () => {
 
         <div class="bg-slate-50/80 p-3 rounded-lg border border-slate-200/60 mb-6 space-y-3">
             <div class="flex flex-wrap gap-1.5">
-                <button v-for="req in requirementStatus" :key="req.key" @click="toggleType(req.key)" :class="['px-2.5 py-1 rounded-md border text-[10px] font-bold uppercase tracking-tight transition-all flex items-center gap-2', selectedTypes.includes(req.key) ? 'bg-white border-slate-300 text-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-400 hover:text-slate-600']">
+                <button
+                    v-for="req in requirementStatus"
+                    :key="req.key"
+                    @click="toggleType(req.key)"
+                    :class="['px-2.5 py-1 rounded-md border text-[10px] font-bold uppercase tracking-tight transition-all flex items-center gap-2', selectedTypes.includes(req.key) ? 'bg-white border-slate-300 text-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-400 hover:text-slate-600']"
+                >
                     <div :class="['w-1.5 h-1.5 rounded-full', selectedTypes.includes(req.key) ? 'bg-indigo-500' : 'bg-slate-300']"></div>
                     {{ req.label }}
                 </button>
@@ -234,73 +202,21 @@ const updateDocument = async () => {
                 {{ isGenerating ? 'Processing AI...' : (canGenerate ? 'Generate Deliverables' : 'Upload Required Specs to Start') }}
             </Button>
         </div>
-
-        <Dialog :open="isUploadModalOpen" @update:open="isUploadModalOpen = $event">
-            <DialogContent class="sm:max-w-[525px]">
-                <DialogHeader>
-                    <DialogTitle>Add Document</DialogTitle>
-                    <DialogDescription>Create a new document for this project.</DialogDescription>
-                </DialogHeader>
-                <div class="grid gap-4 py-4">
-                    <div class="grid gap-2">
-                        <Label for="name">Document Name</Label>
-                        <Input id="name" v-model="form.name" :class="{ 'border-red-500': form.errors.name }" />
-                        <p v-if="form.errors.name" class="text-[11px] text-red-500 font-medium">{{ form.errors.name }}</p>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="type">Category</Label>
-                        <select id="type" v-model="form.type" class="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm" :class="{ 'border-red-500': form.errors.type }">
-                            <option value="" disabled>Select a category</option>
-                            <option v-for="req in requirementStatus" :key="req.key" :value="req.key">{{ req.label }}</option>
-                        </select>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="content">Content</Label>
-                        <textarea id="content" v-model="form.content" class="flex min-h-[150px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"></textarea>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" @click="isUploadModalOpen = false">Cancel</Button>
-                    <Button @click="submitDocument" :disabled="form.processing" class="bg-indigo-600">Save</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        <Dialog :open="isEditModalOpen" @update:open="isEditModalOpen = $event">
-            <DialogContent class="sm:max-w-[525px]">
-                <DialogHeader>
-                    <DialogTitle>Edit Document</DialogTitle>
-                    <DialogDescription>Update the details of your document.</DialogDescription>
-                </DialogHeader>
-                <div class="grid gap-4 py-4">
-                    <div class="grid gap-2">
-                        <Label for="edit-name">Document Name</Label>
-                        <Input id="edit-name" v-model="form.name" :class="{ 'border-red-500': form.errors.name }" />
-                        <p v-if="form.errors.name" class="text-[11px] text-red-500 font-medium">{{ form.errors.name }}</p>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="edit-type">Category</Label>
-                        <select id="edit-type" v-model="form.type" class="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-                            <option v-for="req in requirementStatus" :key="req.key" :value="req.key">{{ req.label }}</option>
-                        </select>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="edit-content">Content</Label>
-                        <textarea id="edit-content" v-model="form.content" class="flex min-h-[200px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-slate-950"></textarea>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" @click="isEditModalOpen = false">Cancel</Button>
-                    <Button @click="updateDocument" :disabled="form.processing" class="bg-indigo-600">Update</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        <transition enter-active-class="transform ease-out duration-300 transition" enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2" enter-to-class="translate-y-0 opacity-100 sm:translate-x-0" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100" leave-to-class="opacity-0">
-            <div v-if="showSuccessToast" class="fixed bottom-8 right-8 z-[100] bg-gray-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-gray-700">
-                <CheckCircle2 class="w-5 h-5 text-green-400" />
-                <span class="text-sm font-semibold tracking-tight">Changes synced successfully</span>
-            </div>
-        </transition>
     </div>
+
+    <DocumentFormModal
+        v-model:open="isUploadModalOpen"
+        mode="create"
+        :form="form"
+        :requirement-status="requirementStatus"
+        @submit="submitDocument"
+    />
+
+    <DocumentFormModal
+        v-model:open="isEditModalOpen"
+        mode="edit"
+        :form="form"
+        :requirement-status="requirementStatus"
+        @submit="updateDocument"
+    />
 </template>

@@ -39,4 +39,12 @@ return [
         'key' => env('GEMINI_API_KEY'),
     ],
 
+
+    'ollama' => [
+        'host' => env('OLLAMA_HOST'),
+    ],
+
+    'vector_driver' => env('VECTOR_DRIVER', 'gemini'),
+    'llm_driver' => env('LLM_DRIVER', 'gemini'),
+
 ];
