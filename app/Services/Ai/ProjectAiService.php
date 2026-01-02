@@ -76,62 +76,40 @@ class ProjectAiService
     /**
      * Core communication with Gemini 2.5 Flash.
      */
-    protected function callLlm(Project $project, ProjectGeneratorStrategy $strategy, string $context)
+   protected function callLlm(Project $project, ProjectGeneratorStrategy $strategy, string $context)
     {
-        $apiKey = config('services.gemini.key');
+        // 1. Determine which driver to use from config/services.php
+        $driverName = config('services.llm_driver', 'gemini');
+
+        /** @var \App\Contracts\LlmDriver $driver */
+        $driver = match ($driverName) {
+            'ollama' => new \App\Services\Ai\Drivers\OllamaLlmDriver(),
+            'gemini' => new \App\Services\Ai\Drivers\GeminiLlmDriver(),
+            default  => throw new \Exception("Unsupported LLM Driver: {$driverName}"),
+        };
+
+        // 2. Prepare the prompts
         $systemMessage = $strategy->getTaskExtractionPrompt();
-
-        $url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={$apiKey}";
-
         $userMessage = "
-            {$systemMessage}
-
             Project: {$project->name}
             Context: {$context}
 
             INSTRUCTIONS:
             - Output a valid JSON array of objects.
-            - Each object MUST have: 'title', 'story', and 'criteria' (array of strings).
-            - Do not include markdown tags like ```json.
-            - Start your response with [ and end with ].
+            - Example: [{\"title\": \"Example\", \"story\": \"As a...\", \"criteria\": [\"one\", \"two\"]}]
+            - Do not include any text before or after the JSON array.
         ";
 
-        try {
-            $response = Http::post($url, [
-                'contents' => [
-                    [
-                        'parts' => [
-                            ['text' => $userMessage]
-                        ]
-                    ]
-                ]
-            ]);
+        // 3. Call the driver (All the HTTP/Regex logic is now inside the Driver files)
+        $result = $driver->call($systemMessage, $userMessage);
 
-            if ($response->failed()) {
-                Log::error("Gemini API Error Body: " . $response->body());
-                throw new \Exception("Gemini API Error: " . $response->status());
-            }
-
-            $data = $response->json();
-            $textResponse = $data['candidates'][0]['content']['parts'][0]['text'] ?? '[]';
-
-            // Clean up any markdown formatting
-            $cleanJson = trim(preg_replace('/^```json\s*|```$/m', '', $textResponse));
-
-            return [
-                'project_name' => $project->name,
-                'mock_response' => json_decode($cleanJson, true) ?? [],
-                'status' => 'success'
-            ];
-
-        } catch (\Exception $e) {
-            Log::error("AI Generation Error: " . $e->getMessage());
-            return [
-                'project_name' => $project->name,
-                'error' => 'AI Service Error: ' . $e->getMessage(),
-                'mock_response' => []
-            ];
-        }
+        // 4. Return the standard format the rest of your app expects
+        return [
+            'project_name'  => $project->name,
+            'mock_response' => $result['content'] ?? [],
+            'status'        => $result['status'],
+            'output_type'   => $strategy->getOutputDocumentType(),
+        ];
     }
 
     /**
