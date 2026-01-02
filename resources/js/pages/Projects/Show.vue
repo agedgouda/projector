@@ -2,7 +2,6 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectHeader from './Partials/ProjectHeader.vue';
 import DocumentManager from './Partials/DocumentManager.vue';
-import ProposedStories from './Partials/ProposedStories.vue';
 import { type BreadcrumbItem } from '@/types';
 import { computed, ref } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
@@ -108,8 +107,6 @@ const handleSuccess = () => { isEditModalOpen.value = false; };
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 max-w-7xl mx-auto w-full">
-
-            <ProposedStories :project-id="project.id" />
             <ProjectHeader
                 :project="project"
                 :project-types="projectTypes"

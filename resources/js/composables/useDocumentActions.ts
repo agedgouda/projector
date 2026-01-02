@@ -2,7 +2,12 @@ import { ref, type Ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import axios, { AxiosError } from 'axios';
 
-export function useDocumentActions(props: any, localRequirements: Ref<any[]>) {
+export function useDocumentActions(
+        props: any,
+        localRequirements: Ref<any[]>,
+        aiStatusMessage: Ref<string>
+    )
+    {
     const isUploadModalOpen = ref(false);
     const isEditModalOpen = ref(false);
     const editingDocumentId = ref<string | number | null>(null);
@@ -38,17 +43,17 @@ export function useDocumentActions(props: any, localRequirements: Ref<any[]>) {
         form.post(url, {
             preserveScroll: true,
             preserveState: true,
-            // Optional: use this if you eventually add file uploads
             forceFormData: true,
-
+            onBefore: () => {
+                aiStatusMessage.value = 'Establishing Secure Uplink...';
+            },
             onSuccess: () => {
                 isUploadModalOpen.value = false;
                 form.reset();
+                // We keep the message visible until Reverb takes over
             },
-
             onError: () => {
-                // No need to pass 'errors' here;
-                // Inertia handles form.errors automatically.
+                aiStatusMessage.value = ''; // Clear on error
                 isUploadModalOpen.value = true;
             }
         });
@@ -85,12 +90,14 @@ export function useDocumentActions(props: any, localRequirements: Ref<any[]>) {
     const setDocToProcessing = (incomingId: string): void => {
         if (!incomingId) return;
 
+        aiStatusMessage.value = 'Initializing Neural Interface...';
+
         localRequirements.value = localRequirements.value.map(group => {
             if (group.key !== 'intake') return group;
 
             return {
                 ...group,
-                documents: group.documents.map((d: ProjectDocument) =>
+                documents: group.documents.map((d: any) =>
                     d.id === incomingId ? { ...d, processed_at: null } : d
                 )
             };

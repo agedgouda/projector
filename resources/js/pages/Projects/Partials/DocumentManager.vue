@@ -5,7 +5,7 @@ import { useEcho } from '@laravel/echo-vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 
 // UI Imports
-import { PlusIcon, Sparkles, Search, Loader2, RefreshCw } from 'lucide-vue-next';
+import { PlusIcon, Sparkles, Search, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,6 +23,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['confirmDelete', 'generate']);
+const aiStatusMessage = ref<string>('');
 
 // --- 2. LOCAL UI STATE ---
 const localRequirements = ref<RequirementStatus[]>([...props.requirementStatus]);
@@ -40,7 +41,7 @@ const {
     submitDocument,
     updateDocument,
     setDocToProcessing
-} = useDocumentActions(props, localRequirements);
+} = useDocumentActions(props, localRequirements, aiStatusMessage);
 
 
 // --- 4. WATCHERS & REAL-TIME (ECHO) ---
@@ -51,28 +52,34 @@ watch(() => props.requirementStatus, (newVal) => {
 
 useEcho(
     `project.${props.project.id}`,
-    '.document.vectorized',
-    (payload: DocumentVectorizedEvent) => {
-        const updatedDoc = payload.document;
-        localRequirements.value = localRequirements.value.map(group => {
-            // We only care about the group this document belongs to
-            if (group.key !== updatedDoc.type) return group;
+    [
+        '.document.vectorized',
+        '.DocumentProcessingUpdate',
+        '.App\\Events\\DocumentProcessingUpdate'
+    ],
+    (payload: any) => {
+        // Check if this is the progress update
+        if (payload.statusMessage) {
+            aiStatusMessage.value = payload.statusMessage;
+        }
 
-            const newDocs = [...group.documents];
-            const index = newDocs.findIndex(d => d.id === updatedDoc.id);
+        // Check if this is the final vectorized document
+        else if (payload.document) {
+            aiStatusMessage.value = ''; // Reset the status banner
 
-            if (index !== -1) {
-                newDocs[index] = updatedDoc;
-            } else {
-                newDocs.unshift(updatedDoc);
-            }
-
-            return { ...group, documents: newDocs };
-        });
-
-        // Ensure the computed isAiProcessing property sees the change
-        localRequirements.value = [...localRequirements.value];
-        toast.success('Project Updated');
+            // Your original mapping logic follows...
+            const updatedDoc = payload.document;
+            localRequirements.value = localRequirements.value.map(group => {
+                if (group.key !== updatedDoc.type) return group;
+                const newDocs = [...group.documents];
+                const index = newDocs.findIndex(d => d.id === updatedDoc.id);
+                if (index !== -1) newDocs[index] = updatedDoc;
+                else newDocs.unshift(updatedDoc);
+                return { ...group, documents: newDocs };
+            });
+            localRequirements.value = [...localRequirements.value];
+            toast.success('Project Updated');
+        }
     },
     [props.project.id],
     'private'
@@ -144,7 +151,9 @@ const handleDocReprocessing = (id: string) => {
                             AI Pipeline Active
                         </AlertTitle>
                         <AlertDescription class="text-xs text-indigo-700/70 m-0 leading-normal">
-                            Gemini is analyzing requirements and generating deliverables...
+
+                                {{ aiStatusMessage }}
+
                         </AlertDescription>
                     </div>
                 </div>
@@ -187,6 +196,7 @@ const handleDocReprocessing = (id: string) => {
                     <div :class="['w-1.5 h-1.5 rounded-full', selectedTypes.includes(req.key) ? 'bg-indigo-500' : 'bg-slate-300']"></div>
                     {{ req.label }}
                 </button>
+
             </div>
             <div class="relative">
                 <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -210,14 +220,6 @@ const handleDocReprocessing = (id: string) => {
             <div v-if="filteredRequirements.length === 0" class="py-12 text-center border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/30">
                 <p class="text-sm text-slate-400 italic">No documents match your selection.</p>
             </div>
-        </div>
-
-        <div class="mt-6 pt-6 border-t border-gray-100">
-            <Button @click="emit('generate')" class="w-full py-6 font-bold uppercase tracking-widest text-xs shadow-sm bg-indigo-600 hover:bg-indigo-700" :disabled="!canGenerate || isGenerating">
-                <Sparkles v-if="!isGenerating" class="w-4 h-4 mr-2" />
-                <Loader2 v-else class="w-4 h-4 mr-2 animate-spin" />
-                {{ isGenerating ? 'Processing AI...' : (canGenerate ? 'Generate Deliverables' : 'Upload Required Specs to Start') }}
-            </Button>
         </div>
     </div>
 

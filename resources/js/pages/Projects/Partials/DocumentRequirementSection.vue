@@ -31,7 +31,7 @@ const handleMiddleReprocess = (payload: string): void => {
     <div class="border-b py-4 last:border-0">
         <div class="flex items-center justify-between mb-2">
             <div>
-                <h4 class="font-medium text-gray-900">{{ req.label }}s</h4>
+                <h4 class="font-medium text-gray-900">{{ req.plural_label }}</h4>
                 <p class="text-xs text-gray-500">
                     {{ req.required ? 'Required' : 'Optional' }}
                 </p>
