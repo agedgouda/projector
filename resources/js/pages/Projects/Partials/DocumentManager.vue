@@ -116,16 +116,7 @@ const toggleExpand = (id: string | number) => {
 const handleDocReprocessing = (id: string) => {
     setDocToProcessing(id);
 };
-const activeProcessingDocName = computed(() => {
-    // Look through all groups for a doc that is currently in the pipeline
-    for (const group of localRequirements.value) {
-        const processingDoc = group.documents.find(doc =>
-            doc.parent_id === null && doc.processed_at === null
-        );
-        if (processingDoc) return processingDoc.name;
-    }
-    return null;
-});
+
 </script>
 
 <template>
@@ -169,7 +160,6 @@ const activeProcessingDocName = computed(() => {
         </Alert>
     </transition>
 
-{{activeProcessingDocName}}
     <div class="bg-white p-6 rounded-xl mt-8 border border-gray-200 shadow-sm relative">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
