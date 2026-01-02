@@ -37,12 +37,12 @@ class ProcessDocumentAI implements ShouldQueue
 
                 foreach ($generatedItems as $data) {
                     $this->document->project->documents()->create([
-                        'parent_id' => $this->document->id,
-                        'type'      => $outputType,
-                        'name'      => $data['title'] ?? 'Untitled Deliverable',
-                        'content'   => $data['story'] ?? '',
-                        // Save criteria or extra AI data in the metadata JSON column
-                        'metadata'  => [
+                        'parent_id'    => $this->document->id,
+                        'type'         => $outputType,
+                        'name'         => $data['title'] ?? 'Untitled Deliverable',
+                        'content'      => $data['story'] ?? '',
+                        'processed_at' => now(), // <--- Add this line
+                        'metadata'     => [
                             'criteria' => $data['criteria'] ?? []
                         ],
                     ]);

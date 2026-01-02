@@ -37,16 +37,20 @@ class DocumentVectorized implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
-        // Log the actual DB state vs the Model state at this moment
-        $dbValue = \DB::table('documents')->where('id', $this->document->id)->value('processed_at');
+        // Since attempts are 0, a simple refresh is sufficient.
+        $this->document->refresh();
 
         return [
             'document' => [
-                'id' => $this->document->id,
-                'name' => $this->document->name,
-                'type' => $this->document->type,
-                'parent_id' => $this->document->parent_id,
-                'processed_at' => $this->document->processed_at ? $this->document->processed_at->toIso8601String() : null,
+                'id'           => $this->document->id,
+                'name'         => $this->document->name,
+                'type'         => $this->document->type,
+                'parent_id'    => $this->document->parent_id,
+                'content'      => $this->document->content,
+                'metadata'     => $this->document->metadata, // Criteria lives here
+                'processed_at' => $this->document->processed_at?->toIso8601String(),
+                'created_at'   => $this->document->created_at?->toIso8601String(),
+                'updated_at'   => $this->document->updated_at?->toIso8601String(),
             ],
         ];
     }

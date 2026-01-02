@@ -6,7 +6,6 @@ import {
     ChevronDownIcon,
     TrashIcon,
     PencilIcon,
-    FileTextIcon,
     RefreshCwIcon,
     Loader2Icon
 } from 'lucide-vue-next';
@@ -69,7 +68,6 @@ const handleReprocess = async () => {
 
             <div class="flex items-center gap-1">
                 <div :class="['flex items-center gap-1 transition-opacity duration-200', isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']">
-
                     <Button
                         v-if="doc.type === 'intake'"
                         variant="ghost"
@@ -110,17 +108,29 @@ const handleReprocess = async () => {
             v-if="isExpanded"
             class="border-t border-slate-100 bg-slate-50/50 p-4 animate-in fade-in slide-in-from-top-1 duration-200"
         >
-            <div class="flex items-start gap-3 mb-3">
-                <FileTextIcon class="w-4 h-4 text-slate-400 mt-0.5" />
-                <div class="prose prose-sm max-w-none flex-1">
+            <div class="flex flex-col gap-4">
+                <div class="prose prose-sm max-w-none">
                     <p class="text-slate-600 whitespace-pre-wrap leading-relaxed text-sm italic border-l-2 border-slate-200 pl-4">
                         {{ doc.content || 'No content provided for this document.' }}
-                        {{ doc.metadata}}
                     </p>
+                </div>
+
+                <div v-if="doc.metadata?.criteria?.length" class="space-y-3 pt-2">
+                    <h4 class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Acceptance Criteria</h4>
+                    <ul class="grid gap-2">
+                        <li
+                            v-for="(criterion, index) in doc.metadata.criteria"
+                            :key="index"
+                            class="flex items-start gap-2.5 text-sm text-slate-600"
+                        >
+                            <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0"></div>
+                            <span class="leading-snug">{{ criterion }}</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
 
-            <div class="flex justify-end pt-2">
+            <div class="flex justify-end pt-4 mt-2 border-t border-slate-100/50">
                 <Button
                     variant="link"
                     size="sm"

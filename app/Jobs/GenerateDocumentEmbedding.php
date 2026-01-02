@@ -39,7 +39,11 @@ class GenerateDocumentEmbedding implements ShouldQueue
                 'processed_at' => $this->document->processed_at
             ]);
 
-            event(new \App\Events\DocumentVectorized($this->document));
+           // event(new \App\Events\DocumentVectorized($this->document));
+           \Illuminate\Support\Facades\DB::afterCommit(function () {
+                \Log::info('Broadcasting after commit for: ' . $this->document);
+                event(new \App\Events\DocumentVectorized($this->document));
+            });
         }
     }
 
