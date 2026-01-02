@@ -1,7 +1,6 @@
 import { ref, type Ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import axios, { AxiosError } from 'axios';
-import { toast } from 'vue-sonner';
 
 export function useDocumentActions(props: any, localRequirements: Ref<any[]>) {
     const isUploadModalOpen = ref(false);
@@ -45,9 +44,6 @@ export function useDocumentActions(props: any, localRequirements: Ref<any[]>) {
             onSuccess: () => {
                 isUploadModalOpen.value = false;
                 form.reset();
-                toast.success('Document Saved', {
-                    description: 'AI processing has started...'
-                });
             },
 
             onError: () => {
@@ -70,7 +66,7 @@ export function useDocumentActions(props: any, localRequirements: Ref<any[]>) {
             form.reset();
             router.reload({
                 only: ['requirementStatus'],
-                onFinish: () => { form.processing = false; toast.success('Document Updated'); }
+                onFinish: () => { form.processing = false; }
             });
         } catch (err) {
             handleError(err, () => isEditModalOpen.value = true);

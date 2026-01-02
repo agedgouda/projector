@@ -8,6 +8,8 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 import { PlusIcon, Sparkles, Search, Loader2, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import DocumentRequirementSection from './DocumentRequirementSection.vue';
 import DocumentFormModal from './DocumentFormModal.vue';
 
@@ -114,35 +116,60 @@ const toggleExpand = (id: string | number) => {
 const handleDocReprocessing = (id: string) => {
     setDocToProcessing(id);
 };
-
+const activeProcessingDocName = computed(() => {
+    // Look through all groups for a doc that is currently in the pipeline
+    for (const group of localRequirements.value) {
+        const processingDoc = group.documents.find(doc =>
+            doc.parent_id === null && doc.processed_at === null
+        );
+        if (processingDoc) return processingDoc.name;
+    }
+    return null;
+});
 </script>
 
 <template>
     <transition
-        enter-active-class="transition duration-300 ease-out"
-        enter-from-class="transform -translate-y-4 opacity-0"
-        enter-to-class="transform translate-y-0 opacity-100"
-        leave-active-class="transition duration-200 ease-in"
+        enter-active-class="transition duration-500 ease-out"
+        enter-from-class="opacity-0 -translate-y-2"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition duration-300 ease-in"
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
     >
-        <div v-if="isAiProcessing" class="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <div class="absolute inset-0 bg-indigo-400 rounded-full animate-ping opacity-25"></div>
-                    <Loader2 class="w-5 h-5 text-indigo-600 animate-spin relative" />
+        <Alert
+            v-if="!isAiProcessing"
+            class="mb-6 border-indigo-200 bg-indigo-50/50 overflow-hidden p-0 block"
+        >
+            <div class="relative w-full p-4 flex items-center justify-between">
+
+                <div class="flex items-center gap-4">
+                    <div class="shrink-0">
+                        <Sparkles class="h-5 w-5 text-indigo-600" />
+                    </div>
+
+                    <div class="flex flex-col">
+                        <AlertTitle class="text-sm font-bold text-indigo-900 m-0 leading-tight animate-pulse">
+                            AI Pipeline Active
+                        </AlertTitle>
+                        <AlertDescription class="text-xs text-indigo-700/70 m-0 leading-normal">
+                            Gemini is analyzing requirements and generating deliverables...
+                        </AlertDescription>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-sm font-bold text-indigo-900">AI Pipeline Active</p>
-                    <p class="text-xs text-indigo-600/80">Gemini is analyzing requirements and generating deliverables...</p>
+
+                <div class="shrink-0">
+                    <div class="bg-indigo-600 text-[10px] font-black text-white px-2.5 py-1 rounded-md uppercase tracking-widest shadow-sm animate-pulse">
+                        In Progress
+                    </div>
                 </div>
             </div>
-            <div class="px-2 py-1 bg-indigo-600 text-[10px] font-bold text-white rounded uppercase tracking-wider animate-pulse">
-                In Progress
-            </div>
-        </div>
+
+            <Skeleton class="h-[3px] w-full rounded-none bg-indigo-200" />
+        </Alert>
     </transition>
 
+{{activeProcessingDocName}}
     <div class="bg-white p-6 rounded-xl mt-8 border border-gray-200 shadow-sm relative">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
