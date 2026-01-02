@@ -52,10 +52,6 @@ useEcho(
     '.document.vectorized',
     (payload: DocumentVectorizedEvent) => {
         const updatedDoc = payload.document;
-
-        console.group('🔔 ECHO RECEIVED');
-        console.log('Document:', updatedDoc.name, 'Processed At:', updatedDoc.processed_at);
-
         localRequirements.value = localRequirements.value.map(group => {
             // We only care about the group this document belongs to
             if (group.key !== updatedDoc.type) return group;
@@ -187,6 +183,7 @@ const handleDocReprocessing = (id: string) => {
                 :key="req.key"
                 :req="req"
                 :expanded-doc-id="expandedDocId"
+                :is-ai-processing="isAiProcessing"
                 @open-upload="openUploadModal"
                 @open-edit="openEditModal"
                 @toggle-expand="toggleExpand"
