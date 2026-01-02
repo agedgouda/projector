@@ -1,9 +1,9 @@
-import { ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import axios, { AxiosError } from 'axios';
 import { toast } from 'vue-sonner';
 
-export function useDocumentActions(props: any) {
+export function useDocumentActions(props: any, localRequirements: Ref<any[]>) {
     const isUploadModalOpen = ref(false);
     const isEditModalOpen = ref(false);
     const editingDocumentId = ref<string | number | null>(null);
@@ -86,8 +86,23 @@ export function useDocumentActions(props: any) {
         }
     };
 
+    const setDocToProcessing = (incomingId: string): void => {
+        if (!incomingId) return;
+
+        localRequirements.value = localRequirements.value.map(group => {
+            if (group.key !== 'intake') return group;
+
+            return {
+                ...group,
+                documents: group.documents.map((d: ProjectDocument) =>
+                    d.id === incomingId ? { ...d, processed_at: null } : d
+                )
+            };
+        });
+    };
+
     return {
         form, isUploadModalOpen, isEditModalOpen,
-        openUploadModal, openEditModal, submitDocument, updateDocument
+        openUploadModal, openEditModal, submitDocument, updateDocument, setDocToProcessing
     };
 }

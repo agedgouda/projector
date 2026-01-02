@@ -22,7 +22,13 @@ const props = defineProps<{
 
 const emit = defineEmits(['confirmDelete', 'generate']);
 
-// --- 2. COMPOSABLE (Action Logic) ---
+// --- 2. LOCAL UI STATE ---
+const localRequirements = ref<RequirementStatus[]>([...props.requirementStatus]);
+const searchQuery = ref('');
+const expandedDocId = ref<string | number | null>(null);
+const selectedTypes = ref<string[]>(props.requirementStatus.map(r => r.key));
+
+// --- 3. COMPOSABLE (Action Logic) ---
 const {
     form,
     isUploadModalOpen,
@@ -30,14 +36,10 @@ const {
     openUploadModal,
     openEditModal,
     submitDocument,
-    updateDocument
-} = useDocumentActions(props);
+    updateDocument,
+    setDocToProcessing
+} = useDocumentActions(props, localRequirements);
 
-// --- 3. LOCAL UI STATE ---
-const localRequirements = ref<RequirementStatus[]>([...props.requirementStatus]);
-const searchQuery = ref('');
-const expandedDocId = ref<string | number | null>(null);
-const selectedTypes = ref<string[]>(props.requirementStatus.map(r => r.key));
 
 // --- 4. WATCHERS & REAL-TIME (ECHO) ---
 watch(() => props.requirementStatus, (newVal) => {
@@ -62,17 +64,13 @@ useEcho(
             const index = newDocs.findIndex(d => d.id === updatedDoc.id);
 
             if (index !== -1) {
-                console.log('✅ UPDATING: Replacing existing doc to clear notice.');
                 newDocs[index] = updatedDoc;
             } else {
-                console.log('➕ ADDING: Inserting new story/deliverable.');
                 newDocs.unshift(updatedDoc);
             }
 
             return { ...group, documents: newDocs };
         });
-
-        console.groupEnd();
 
         // Ensure the computed isAiProcessing property sees the change
         localRequirements.value = [...localRequirements.value];
@@ -101,7 +99,6 @@ const isAiProcessing = computed(() => {
     const intakeGroup = localRequirements.value.find(req => req.key === 'intake');
     if (!intakeGroup) return false;
 
-    // The notice stays as long as the parent (intake) doc has a null timestamp
     return intakeGroup.documents.some(doc =>
         doc.parent_id === null && doc.processed_at === null
     );
@@ -117,6 +114,11 @@ const toggleType = (key: string) => {
 const toggleExpand = (id: string | number) => {
     expandedDocId.value = expandedDocId.value === id ? null : id;
 };
+
+const handleDocReprocessing = (id: string) => {
+    setDocToProcessing(id);
+};
+
 </script>
 
 <template>
@@ -189,6 +191,7 @@ const toggleExpand = (id: string | number) => {
                 @open-edit="openEditModal"
                 @toggle-expand="toggleExpand"
                 @confirm-delete="(doc) => emit('confirmDelete', doc)"
+                @reprocessing="handleDocReprocessing"
             />
             <div v-if="filteredRequirements.length === 0" class="py-12 text-center border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/30">
                 <p class="text-sm text-slate-400 italic">No documents match your selection.</p>

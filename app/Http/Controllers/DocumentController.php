@@ -116,6 +116,9 @@ class DocumentController extends Controller
 
     public function reprocess(Project $project, Document $document)
     {
+        //nullify processed_at to the client knows when the process changes
+        $document->update(['processed_at' => null]);
+
         // Now $document is a fully loaded Model, not just a string ID
         \App\Jobs\ProcessDocumentAI::dispatch($document);
 

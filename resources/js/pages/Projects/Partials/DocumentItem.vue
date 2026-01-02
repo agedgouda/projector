@@ -20,6 +20,7 @@ const emit = defineEmits<{
     (e: 'toggle'): void;
     (e: 'delete'): void;
     (e: 'edit', doc: any): void;
+    (e: 'reprocessing', doc: any): void;
 }>();
 
 const isProcessing = ref(false);
@@ -32,6 +33,9 @@ const handleReprocess = async () => {
     try {
         // Updated URL to match: projects/{project}/documents/{document}/reprocess
         await axios.post(`/projects/${props.doc.project_id}/documents/${props.doc.id}/reprocess`);
+
+        // Emit the event to the parent manager
+        emit('reprocessing', props.doc.id);
 
         // Success feedback
     } catch (error) {

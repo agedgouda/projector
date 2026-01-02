@@ -41,7 +41,6 @@ class GenerateDocumentEmbedding implements ShouldQueue
 
            // event(new \App\Events\DocumentVectorized($this->document));
            \Illuminate\Support\Facades\DB::afterCommit(function () {
-                \Log::info('Broadcasting after commit for: ' . $this->document);
                 event(new \App\Events\DocumentVectorized($this->document));
             });
         }

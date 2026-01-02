@@ -9,7 +9,19 @@ defineProps<{
 }>();
 
 // Added 'openEdit' to the emits list
-const emit = defineEmits(['openUpload', 'openEdit', 'toggleExpand', 'confirmDelete']);
+//const emit = defineEmits(['openUpload', 'openEdit', 'toggleExpand', 'confirmDelete', 'reprocessing']);
+const emit = defineEmits<{
+    (e: 'openUpload', req: any): void;
+    (e: 'openEdit', doc: any): void;
+    (e: 'toggleExpand', id: string): void;
+    (e: 'confirmDelete', doc: ProjectDocument): void;
+    (e: 'reprocessing', id: string): void; // <--- This types the emit itself
+}>();
+
+const handleMiddleReprocess = (payload: string): void => {
+    emit('reprocessing', payload);
+};
+
 </script>
 
 <template>
@@ -42,6 +54,7 @@ const emit = defineEmits(['openUpload', 'openEdit', 'toggleExpand', 'confirmDele
                 @toggle="emit('toggleExpand', doc.id)"
                 @edit="emit('openEdit', $event)"
                 @delete="emit('confirmDelete', doc)"
+                @reprocessing="handleMiddleReprocess"
             />
             </ul>
 
