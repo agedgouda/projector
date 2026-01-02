@@ -48,7 +48,6 @@ const updateField = <K extends keyof ProjectDocument>(field: K, value: any) => {
                     {{ mode === 'create' ? 'Create a new document.' : 'Update document details.' }}
                 </DialogDescription>
             </DialogHeader>
-
             <div class="grid gap-4 py-4">
                 <div class="grid gap-2">
                     <Label :class="{ 'text-destructive': form.errors.name }">Document Name</Label>
@@ -81,10 +80,12 @@ const updateField = <K extends keyof ProjectDocument>(field: K, value: any) => {
                     <Label>Content</Label>
                     <Textarea
                         :model-value="form.content ?? ''"
+                        :class="{ 'text-destructive': form.errors.content }"
                         @update:model-value="(v) => updateField('content', v)"
                         class="min-h-[150px]"
                     />
                 </div>
+                <p v-if="form.errors.content" class="text-xs text-destructive">{{ form.errors.content }}</p>
             </div>
 
             <DialogFooter>
