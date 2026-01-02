@@ -138,7 +138,7 @@ const activeProcessingDocName = computed(() => {
         leave-to-class="opacity-0"
     >
         <Alert
-            v-if="!isAiProcessing"
+            v-if="isAiProcessing"
             class="mb-6 border-indigo-200 bg-indigo-50/50 overflow-hidden p-0 block"
         >
             <div class="relative w-full p-4 flex items-center justify-between">
