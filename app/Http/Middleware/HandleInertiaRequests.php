@@ -43,7 +43,13 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'first_name' => $request->user()->first_name,
+                    'last_name' => $request->user()->last_name,
+                    'name' => $request->user()->name, // This uses your new Accessor
+                    'email' => $request->user()->email,
+                ] : null,
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),

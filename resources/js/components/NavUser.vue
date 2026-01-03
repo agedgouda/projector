@@ -15,7 +15,8 @@ import { usePage } from '@inertiajs/vue3';
 import { ChevronsUpDown } from 'lucide-vue-next';
 import UserMenuContent from './UserMenuContent.vue';
 
-const page = usePage();
+// Use the global AppPageProps we defined in types/index.d.ts
+const page = usePage<AppPageProps>();
 const user = page.props.auth.user;
 const { isMobile, state } = useSidebar();
 </script>
@@ -27,24 +28,19 @@ const { isMobile, state } = useSidebar();
                 <DropdownMenuTrigger as-child>
                     <SidebarMenuButton
                         size="lg"
-                        class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group"
                         data-test="sidebar-menu-button"
                     >
                         <UserInfo :user="user" />
-                        <ChevronsUpDown class="ml-auto size-4" />
+                        <ChevronsUpDown class="ml-auto size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     </SidebarMenuButton>
                 </DropdownMenuTrigger>
+
                 <DropdownMenuContent
-                    class="w-(--reka-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                    :side="
-                        isMobile
-                            ? 'bottom'
-                            : state === 'collapsed'
-                              ? 'left'
-                              : 'bottom'
-                    "
+                    class="w-(--reka-dropdown-menu-trigger-width) min-w-56 rounded-xl shadow-xl border-sidebar-border"
+                    :side="isMobile ? 'bottom' : state === 'collapsed' ? 'left' : 'bottom'"
                     align="end"
-                    :side-offset="4"
+                    :side-offset="8"
                 >
                     <UserMenuContent :user="user" />
                 </DropdownMenuContent>

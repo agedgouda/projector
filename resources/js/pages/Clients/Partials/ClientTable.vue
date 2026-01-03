@@ -94,7 +94,7 @@ const handleDelete = () => {
                                     class="w-4 h-4 mr-2 transition-transform duration-300"
                                     :class="{ 'rotate-180': selectedClientId === client.id }"
                                 />
-                                {{ selectedClientId === client.id ? 'Hide' : 'Show' }} Projects
+                                {{ selectedClientId === client.id ? 'Hide' : 'Show' }} {{ client.projects?.length === 1 ? 'Project' : 'Projects' }}
                                 <span
                                     class="ml-2 px-1.5 py-0.5 rounded-md text-[10px] transition-colors"
                                     :class="selectedClientId === client.id

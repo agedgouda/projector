@@ -11,7 +11,9 @@ class ProjectTypeController extends Controller
     public function index()
     {
         return Inertia::render('ProjectTypes/Index', [
-            'projectTypes' => ProjectType::orderBy('name')->get()
+            'projectTypes' => ProjectType::withCount('projects')
+                ->orderBy('name')
+                ->get()
         ]);
     }
 
@@ -50,11 +52,14 @@ class ProjectTypeController extends Controller
     public function destroy(ProjectType $projectType)
     {
         if ($projectType->projects()->exists()) {
-            return redirect()->back()->withErrors(['delete' => 'Type is in use.']);
+            // We use a specific key for the error so the UI can catch it
+            return back()->withErrors([
+                'delete' => "The type '{$projectType->name}' is currently in use by active projects and cannot be deleted."
+            ]);
         }
 
         $projectType->delete();
 
-        return redirect()->back();
+        return back();
     }
 }

@@ -14,6 +14,21 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { type BreadcrumbItem } from '@/types';
 
+// 1. Define the shape of your Page Props to fix the 'unknown' error
+interface AuthProps {
+    auth: {
+        user: {
+            id: number;
+            first_name: string;
+            last_name: string;
+            name: string;
+            email: string;
+            email_verified_at: string | null;
+        };
+    };
+    [key: string]: any;
+}
+
 interface Props {
     mustVerifyEmail: boolean;
     status?: string;
@@ -28,7 +43,8 @@ const breadcrumbItems: BreadcrumbItem[] = [
     },
 ];
 
-const page = usePage();
+// 2. Cast usePage with the interface
+const page = usePage<AuthProps>();
 const user = page.props.auth.user;
 </script>
 
@@ -48,18 +64,34 @@ const user = page.props.auth.user;
                     class="space-y-6"
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
-                    <div class="grid gap-2">
-                        <Label for="name">Name</Label>
-                        <Input
-                            id="name"
-                            class="mt-1 block w-full"
-                            name="name"
-                            :default-value="user.name"
-                            required
-                            autocomplete="name"
-                            placeholder="Full name"
-                        />
-                        <InputError class="mt-2" :message="errors.name" />
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label for="first_name">First name</Label>
+                            <Input
+                                id="first_name"
+                                class="mt-1 block w-full"
+                                name="first_name"
+                                :default-value="user.first_name"
+                                required
+                                autocomplete="given-name"
+                                placeholder="First name"
+                            />
+                            <InputError class="mt-2" :message="errors.first_name" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="last_name">Last name</Label>
+                            <Input
+                                id="last_name"
+                                class="mt-1 block w-full"
+                                name="last_name"
+                                :default-value="user.last_name"
+                                required
+                                autocomplete="family-name"
+                                placeholder="Last name"
+                            />
+                            <InputError class="mt-2" :message="errors.last_name" />
+                        </div>
                     </div>
 
                     <div class="grid gap-2">
@@ -102,8 +134,7 @@ const user = page.props.auth.user;
                         <Button
                             :disabled="processing"
                             data-test="update-profile-button"
-                            >Save</Button
-                        >
+                        >Save</Button>
 
                         <Transition
                             enter-active-class="transition ease-in-out"

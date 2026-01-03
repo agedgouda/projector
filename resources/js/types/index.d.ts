@@ -1,20 +1,19 @@
 import { InertiaLinkProps } from '@inertiajs/vue3';
 import type { LucideIcon } from 'lucide-vue-next';
 
-// 1. Move everything inside this block
 declare global {
-    export interface Auth {
-        user: User;
-    }
-
     export interface User {
         id: number;
-        name: string;
+        first_name: string;
+        last_name: string;
+        name: string; // The virtual accessor from Laravel
         email: string;
         avatar?: string;
         email_verified_at: string | null;
-        created_at: string;
-        updated_at: string;
+    }
+
+    export interface Auth {
+        user: User;
     }
 
     export interface ProjectDocument {
@@ -46,20 +45,28 @@ declare global {
         document: ProjectDocument;
     }
 
-    // This ensures Inertia props are typed globally
+    /**
+     * This defines the shape of all props passed from HandleInertiaRequests.php
+     * The [key: string]: unknown ensures it satisfies the Inertia constraint.
+     */
     export type AppPageProps<
         T extends Record<string, unknown> = Record<string, unknown>,
     > = T & {
+        auth: Auth;
         name: string;
         quote: { message: string; author: string };
-        auth: Auth;
         sidebarOpen: boolean;
         requirementStatus: RequirementStatus[];
-        flash: { success: string | null; error: string | null };
+        flash: {
+            success: string | null;
+            error: string | null;
+            aiResults?: any;
+        };
+        [key: string]: unknown;
     };
 }
 
-// 2. These can stay outside or inside, but usually stay here for Lucide compatibility
+// These are exported normally for use in component props/definitions
 export interface BreadcrumbItem {
     title: string;
     href: string;
