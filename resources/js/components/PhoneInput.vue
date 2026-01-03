@@ -32,6 +32,5 @@ const internalValue = computed({
         type="text"
         placeholder="(###) ###-####"
         maxlength="14"
-        class="font-mono"
     />
 </template>

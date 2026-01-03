@@ -2,10 +2,9 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import ClientEntryForm from './Partials/ClientEntryForm.vue';
 import ClientTable from './Partials/ClientTable.vue';
-import ClientProjects from './Partials/ClientProjects.vue';
 import clientRoutes from '@/routes/clients/index';
-import { Head, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { Head } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
 import { type BreadcrumbItem } from '@/types';
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger
@@ -16,7 +15,6 @@ import { Plus } from 'lucide-vue-next';
 // Received from the Laravel Controller via Inertia
 const props = defineProps<{
     clients: any[];
-    projects: any[];
     projectTypes: any[];
     activeClientId?: string;
 }>();
@@ -40,27 +38,11 @@ watch(() => props.activeClientId, (newId) => {
     selectedClientId.value = newId || null;
 }, { immediate: true });
 
-// --- COMPUTED ---
-// Find the active client object based on the ID in the URL
-const activeClient = computed(() =>
-    props.clients.find(c => c.id === selectedClientId.value)
-);
-
-// Source of truth for projects (passed down to ClientProjects partial)
-const activeClientProjects = computed(() => props.projects);
 
 // --- NAVIGATION METHODS ---
 const toggleProjects = (id: string) => {
-    if (selectedClientId.value === id) {
-        // If clicking the already active client, close it
-        router.get(clientRoutes.index.url(), {}, { preserveState: true });
-    } else {
-        // Navigate to the show route for that client
-        router.get(clientRoutes.show.url(id), {}, {
-            preserveState: true,
-            preserveScroll: true,
-        });
-    }
+    selectedClientId.value = selectedClientId.value === id ? null : id;
+    // No router call needed = 0ms latency
 };
 
 const isFormOpen = ref(false);
@@ -115,31 +97,15 @@ const handleFormSuccess = () => {
                 </Dialog>
             </div>
 
-            <div class="w-full bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+            <div class="w-full">
                 <ClientTable
                     :clients="clients"
+                    :projectTypes="projectTypes"
                     :selected-client-id="selectedClientId"
                     @toggle-projects="toggleProjects"
                     @edit="handleEditRequest"
                 />
             </div>
-
-            <div v-if="activeClient" class="mt-12 border-t dark:border-gray-800 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="h-8 w-1 bg-indigo-600 rounded-full"></div>
-                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                        Projects for {{ activeClient.company_name }}
-                    </h2>
-                </div>
-
-                 <ClientProjects
-                    :key="activeClient.id"
-                    :client="activeClient"
-                    :projects="activeClientProjects"
-                    :projectTypes="projectTypes"
-                />
-            </div>
-
         </div>
     </AppLayout>
 </template>

@@ -13,7 +13,7 @@ class ClientController extends Controller
     public function index()
     {
         return Inertia::render('Clients/Index', [
-            'clients' => Client::latest()->get(),
+            'clients' => Client::latest()->with(['projects'])->get(),
             'projects' => [],
             'projectTypes' => ProjectType::all(),
         ]);
