@@ -2,7 +2,16 @@
 import { ref, computed } from 'vue';
 import ProjectFolio from '@/components/ProjectFolio.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
-import { Search, X } from 'lucide-vue-next';
+import { Search, X, Plus } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 
 const props = defineProps<{
     client: { id: string | number, company_name: string };
@@ -10,96 +19,89 @@ const props = defineProps<{
     projectTypes: any[];
 }>();
 
-// --- Search State ---
+// --- State ---
 const searchQuery = ref('');
+const isProjectModalOpen = ref(false);
+
+const handleSuccess = () => {
+    isProjectModalOpen.value = false;
+};
 
 // --- Filter & Sort Logic ---
 const filteredProjects = computed(() => {
     let list = [...props.projects];
 
-    // 1. Filter by Name
     if (searchQuery.value.trim()) {
         const query = searchQuery.value.toLowerCase();
         list = list.filter(p => p.name.toLowerCase().includes(query));
     }
 
-    // 2. Sort by Name
     return list.sort((a, b) => a.name.localeCompare(b.name));
 });
 </script>
 
 <template>
-    <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div class="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-        <div class="bg-indigo-50 dark:bg-indigo-900/10 p-6 rounded-xl border border-indigo-100 dark:border-indigo-900/30 h-fit">
-            <h3 class="font-bold text-indigo-900 dark:text-indigo-300 mb-4 text-sm uppercase tracking-wider">
-                Add Project to {{ client.company_name }}
-            </h3>
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+                <h3 class="font-bold text-gray-500 text-sm uppercase tracking-widest">Active Projects</h3>
+                <p class="text-xs text-gray-400">Showing {{ filteredProjects.length }} records for {{ client.company_name }}</p>
+            </div>
 
-            <ProjectForm
-                :initialClientId="client.id"
-                :projectTypes="projectTypes"
-            />
-        </div>
-
-        <div class="lg:col-span-2 space-y-4">
-
-            <div class="flex items-center justify-between gap-4 mb-2">
-                <h3 class="font-bold text-gray-500 text-sm uppercase tracking-wider">Active Projects</h3>
-
-                <div class="relative w-64 group">
-                    <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="relative flex-1 md:w-64 group">
+                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                         v-model="searchQuery"
                         type="text"
-                        placeholder="Filter by name..."
-                        class="block w-full pl-8 pr-8 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                        placeholder="Filter projects..."
+                        class="block w-full pl-9 pr-9 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
                     />
-                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        <X class="w-3.5 h-3.5" />
+                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <X class="w-4 h-4" />
                     </button>
                 </div>
-            </div>
 
-            <div v-if="filteredProjects.length === 0" class="text-center py-10 border-2 border-dashed rounded-xl border-gray-200 dark:border-gray-800 text-gray-400 text-sm">
-                {{ searchQuery ? `No results for "${searchQuery}"` : `No active records for ${client.company_name}.` }}
+                <Dialog v-model:open="isProjectModalOpen">
+                    <DialogTrigger asChild>
+                        <Button variant="outline" class="border-indigo-200 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-bold rounded-xl">
+                            <Plus class="w-4 h-4 mr-2" />
+                            Add Project
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent class="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Add Project</DialogTitle>
+                            <DialogDescription>
+                                Create a new project record for {{ client.company_name }}.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <ProjectForm
+                            :initialClientId="client.id"
+                            :projectTypes="projectTypes"
+                            @success="handleSuccess"
+                        />
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </div>
+
+        <div class="relative w-full">
+            <div v-if="filteredProjects.length === 0" class="text-center py-16 border-2 border-dashed rounded-2xl border-gray-100 dark:border-gray-800 text-gray-400 text-sm">
+                {{ searchQuery ? `No results for "${searchQuery}"` : `No active records found.` }}
             </div>
 
             <TransitionGroup
                 name="list"
                 tag="div"
-                class="space-y-3 relative"
+                class="space-y-3 relative w-full"
             >
-                <div v-for="project in filteredProjects" :key="project.id">
-                    <ProjectFolio :project="project" />
+                <div v-for="project in filteredProjects" :key="project.id" class="w-full">
+                    <ProjectFolio :project="project" class="w-full" />
                 </div>
             </TransitionGroup>
         </div>
     </div>
 </template>
 
-<style scoped>
-.list-enter-active,
-.list-leave-active {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.list-enter-from {
-    opacity: 0;
-    transform: translateX(20px);
-}
-
-.list-leave-to {
-    opacity: 0;
-    transform: translateX(-20px);
-}
-
-.list-move {
-    transition: transform 0.4s ease;
-}
-
-.list-leave-active {
-    position: absolute;
-    width: 100%;
-}
-</style>

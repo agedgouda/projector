@@ -51,9 +51,9 @@ class ProjectController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'required|string',
             'client_id' => 'required|exists:clients,id',
-            'project_type_id' => 'nullable|exists:project_types,id',
+            'project_type_id' => 'required|exists:project_types,id',
         ]);
 
         Project::create($validated);

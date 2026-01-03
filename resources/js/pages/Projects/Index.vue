@@ -7,6 +7,16 @@ import ProjectFolio from '@/components/ProjectFolio.vue';
 import projectRoutes from '@/routes/projects/index';
 import { type BreadcrumbItem } from '@/types';
 import { Search, X, ChevronDown } from 'lucide-vue-next';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-vue-next';
 
 const props = defineProps<{
     projects: any[];
@@ -23,6 +33,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 const searchQuery = ref('');
 const statusFilter = ref('all');
 const collapsedGroups = ref<Record<number | string, boolean>>({});
+// State to control Dialog
+const isProjectModalOpen = ref(false);
+const handleSuccess = () => {
+    isProjectModalOpen.value = false;
+};
 
 // --- The Master List Logic ---
 // We flatten the data into a single array of "rows" (Headers and Projects)
@@ -97,120 +112,106 @@ watch(searchQuery, (newVal) => {
     <Head title="Projects" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="p-6 w-full">
 
-                <div class="space-y-6">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm h-fit">
-                        <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">New Project</h3>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">Project Portfolio</h1>
+                    <p class="text-sm text-gray-500">Global overview of all active client engagements and document status.</p>
+                </div>
+
+                <Dialog v-model:open="isProjectModalOpen">
+                    <DialogTrigger asChild>
+                        <Button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                            <PlusIcon class="w-5 h-5 mr-2" />
+                            New Project
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent class="sm:max-w-[500px] border-gray-200 dark:border-gray-800">
+                        <DialogHeader>
+                            <DialogTitle>Create Project</DialogTitle>
+                            <DialogDescription>
+                                Enter the project details below to initialize the document workspace.
+                            </DialogDescription>
+                        </DialogHeader>
                         <ProjectForm
                             :clients="clients"
                             :projectTypes="projectTypes"
                             :documents="documents"
+                            @success="handleSuccess"
                         />
-                    </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-4 mb-8">
+                <div class="relative flex-1 group">
+                    <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Search projects, clients, or descriptions..."
+                        class="block w-full pl-11 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900 dark:text-gray-200 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+                    />
+                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                        <X class="w-4 h-4" />
+                    </button>
                 </div>
 
-                <div class="lg:col-span-2 space-y-6">
+                <div class="flex bg-gray-100/50 dark:bg-gray-800/50 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-fit">
+                    <button
+                        v-for="status in ['all', 'active', 'completed']"
+                        :key="status"
+                        @click="statusFilter = status"
+                        :class="[
+                            'px-6 py-2 text-xs font-black rounded-xl transition-all capitalize tracking-wider',
+                            statusFilter === status
+                                ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        ]"
+                    >
+                        {{ status }}
+                    </button>
+                </div>
+            </div>
 
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <div class="relative flex-1 group">
-                            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-                            <input
-                                v-model="searchQuery"
-                                type="text"
-                                placeholder="Search projects or clients..."
-                                class="block w-full pl-10 pr-10 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                            />
-                            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                                <X class="w-4 h-4" />
-                            </button>
-                        </div>
+            <div class="relative w-full">
+                <div v-if="displayItems.length === 0" class="text-center py-20 border-2 border-dashed rounded-3xl border-gray-100 dark:border-gray-800/50">
+                    <p class="text-gray-400 font-medium">No projects found matching your criteria.</p>
+                </div>
 
-                        <div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700">
-                            <button
-                                v-for="status in ['all', 'active', 'completed']"
-                                :key="status"
-                                @click="statusFilter = status"
-                                :class="[
-                                    'px-4 py-1.5 text-xs font-bold rounded-lg transition-all capitalize',
-                                    statusFilter === status ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                                ]"
-                            >
-                                {{ status }}
-                            </button>
-                        </div>
-                    </div>
+                <TransitionGroup name="list" tag="div" class="space-y-2 relative">
+                    <div v-for="item in displayItems" :key="item.domId" class="w-full">
 
-                    <div class="relative">
-                        <div v-if="displayItems.length === 0" class="text-center py-20 border-2 border-dashed rounded-2xl border-gray-100 dark:border-gray-800 text-gray-400">
-                            No projects found matching your criteria.
-                        </div>
-
-                        <TransitionGroup name="list" tag="div" class="space-y-1">
-                            <div v-for="item in displayItems" :key="item.id">
-
-                                <div
-                                    v-if="item.isHeader"
-                                    @click="toggleGroup(item.clientId)"
-                                    class="flex items-center gap-3 mt-8 mb-4 cursor-pointer group/header select-none"
-                                >
-                                    <div class="flex items-center justify-center w-5 h-5 rounded bg-gray-100 dark:bg-gray-800 group-hover/header:bg-indigo-50 transition-colors">
-                                        <ChevronDown
-                                            class="w-3 h-3 text-gray-500 transition-transform duration-300"
-                                            :class="{ '-rotate-90': collapsedGroups[item.clientId] }"
-                                        />
-                                    </div>
-                                    <div class="flex items-baseline gap-2">
-                                        <h3 class="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 group-hover/header:text-indigo-600 transition-colors">
-                                            {{ item.name }}
-                                        </h3>
-                                        <span class="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-gray-900 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-800">
-                                            {{ getProjectCount(item.clientId) }}
-                                        </span>
-                                    </div>
-                                    <div class="h-px bg-gray-100 dark:bg-gray-800 flex-1"></div>
-                                </div>
-
-                                <div v-else class="mb-3">
-                                    <ProjectFolio :project="item" />
-                                </div>
-
+                        <div
+                            v-if="item.isHeader"
+                            @click="toggleGroup(item.clientId)"
+                            class="flex items-center gap-4 mt-10 mb-6 cursor-pointer group/header select-none w-full"
+                        >
+                            <div class="flex items-center justify-center w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover/header:bg-indigo-500 group-hover/header:text-white transition-all">
+                                <ChevronDown
+                                    class="w-3.5 h-3.5 transition-transform duration-300"
+                                    :class="{ '-rotate-90': collapsedGroups[item.clientId] }"
+                                />
                             </div>
-                        </TransitionGroup>
+                            <div class="flex items-center gap-3">
+                                <h3 class="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 group-hover/header:text-indigo-600 transition-colors">
+                                    {{ item.name }}
+                                </h3>
+                                <span class="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-500/20">
+                                    {{ getProjectCount(item.clientId) }}
+                                </span>
+                            </div>
+                            <div class="h-px bg-gradient-to-r from-gray-200 to-transparent dark:from-gray-700 flex-1"></div>
+                        </div>
+
+                        <div v-else class="w-full">
+                            <ProjectFolio :project="item" class="w-full" />
+                        </div>
+
                     </div>
-                </div>
+                </TransitionGroup>
             </div>
         </div>
     </AppLayout>
 </template>
-
-<style scoped>
-/* Core List Transition */
-.list-enter-active,
-.list-leave-active {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.list-enter-from {
-    opacity: 0;
-    transform: translateX(30px);
-}
-
-.list-leave-to {
-    opacity: 0;
-    transform: translateX(-30px);
-}
-
-/* Move transition handles the "sliding up" of items when one is deleted */
-.list-move {
-    transition: transform 0.4s ease;
-}
-
-/* Absolute position for leaving items ensures they don't "block" the sliding animation */
-.list-leave-active {
-    position: absolute;
-    width: 100%;
-    z-index: 0;
-}
-</style>
