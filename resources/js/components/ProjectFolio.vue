@@ -64,6 +64,7 @@ const projectLink = computed(() => {
 </script>
 
 <template>
+    <div v-bind="$attrs">
     <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors group">
 
         <div class="min-w-0 flex-1 mr-4">
@@ -122,4 +123,5 @@ const projectLink = computed(() => {
         @close="isDeleteModalOpen = false"
         @confirm="executeDelete"
     />
+    </div>
 </template>

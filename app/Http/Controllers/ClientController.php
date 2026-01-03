@@ -14,7 +14,8 @@ class ClientController extends Controller
     {
         return Inertia::render('Clients/Index', [
             'clients' => Client::latest()->get(),
-            'projects' => [], // Empty on initial load
+            'projects' => [],
+            'projectTypes' => ProjectType::all(),
         ]);
     }
 
@@ -36,7 +37,6 @@ class ClientController extends Controller
         $client->load('projects.type');
         return Inertia::render('Clients/Index', [
             'clients' => Client::latest()->get(),
-            // Load projects specifically for this client
             'projects' => Project::where('client_id', $client->id)->with('type')->get(),
             'activeClientId' => $client->id,
             'projectTypes' => ProjectType::all(),

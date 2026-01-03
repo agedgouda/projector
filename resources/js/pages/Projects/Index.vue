@@ -21,7 +21,6 @@ import { PlusIcon } from 'lucide-vue-next';
 const props = defineProps<{
     projects: any[];
     clients: any[];
-    documents: any[];
     projectTypes: any[];
 }>();
 
@@ -137,7 +136,6 @@ watch(searchQuery, (newVal) => {
                         <ProjectForm
                             :clients="clients"
                             :projectTypes="projectTypes"
-                            :documents="documents"
                             @success="handleSuccess"
                         />
                     </DialogContent>

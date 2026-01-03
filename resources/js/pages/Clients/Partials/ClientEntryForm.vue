@@ -2,7 +2,10 @@
 import { useForm } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import clientRoutes from '@/routes/clients/index';
-import { usePhoneFormatting } from '@/composables/usePhoneFormatting';
+import PhoneInput from '@/components/PhoneInput.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // We define 'editData' as the prop. When this is null, we are in "Create" mode.
 // When this has a client object, we are in "Edit" mode.
@@ -12,7 +15,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['clear-edit']);
 
-const { handlePhoneInput } = usePhoneFormatting();
 const isEditing = ref(false);
 
 // The form now lives INSIDE the partial
@@ -54,20 +56,14 @@ const submit = () => {
     });
 };
 
-const onPhoneInput = (e: Event) => {
-    handlePhoneInput(e, (val) => form.contact_phone = val);
-};
 </script>
 
 <template>
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm h-fit">
-        <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">
-            {{ isEditing ? 'Update Client' : 'New Client' }}
-        </h3>
-
+    <div>
         <form @submit.prevent="submit" class="space-y-4">
             <div>
-                <input
+                <Label :class="{ 'text-destructive': form.errors.company_name }">Company Name</Label>
+                <Input
                     v-model="form.company_name"
                     placeholder="Company Name"
                     class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
@@ -76,7 +72,8 @@ const onPhoneInput = (e: Event) => {
             </div>
 
             <div>
-                <input
+                <Label :class="{ 'text-destructive': form.errors.contact_name }">Contact Name</Label>
+                <Input
                     v-model="form.contact_name"
                     placeholder="Contact Name"
                     class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
@@ -85,33 +82,30 @@ const onPhoneInput = (e: Event) => {
             </div>
 
             <div>
-                <input
-                    :value="form.contact_phone"
-                    @input="onPhoneInput"
-                    type="text"
-                    maxlength="14"
-                    placeholder="(###) ###-####"
-                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
+                <Label :class="{ 'text-destructive': form.errors.contact_phone }">Contact Phone</Label>
+                <PhoneInput
+                    v-model="form.contact_phone"
+                    :class="{ 'border-destructive': form.errors.contact_phone }"
                 />
             </div>
 
             <div class="flex gap-2 pt-2 items-center">
-                <button
+                <Button
                     type="submit"
                     :disabled="form.processing"
                     class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition disabled:opacity-50"
                 >
                     {{ isEditing ? 'Update' : 'Save' }}
-                </button>
+                </Button>
 
-                <button
+                <Button
                     v-if="isEditing"
                     @click="resetForm"
                     type="button"
                     class="text-sm text-gray-400 hover:text-gray-600 transition"
                 >
                     Cancel
-                </button>
+                </Button>
             </div>
         </form>
     </div>

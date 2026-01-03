@@ -3,6 +3,7 @@ import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import clientRoutes from '@/routes/clients/index';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { router } from '@inertiajs/vue3';
+import { formatPhoneNumber } from '@/lib/utils';
 
 // We use defineProps directly since we only need these for the template
 const props = defineProps<{
@@ -61,7 +62,7 @@ const handleDelete = () => {
                         <div class="font-medium text-gray-700 dark:text-gray-300">
                             {{ client.contact_name }}
                         </div>
-                        <div>{{ client.contact_phone }}</div>
+                        <div>{{ formatPhoneNumber(client.contact_phone) }}</div>
                     </td>
                     <td class="p-4 text-right space-x-3 whitespace-nowrap">
                         <button

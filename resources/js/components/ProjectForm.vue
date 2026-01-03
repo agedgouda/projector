@@ -14,7 +14,6 @@ const props = defineProps<{
     project?: any;
     clients?: any[];
     projectTypes: any[];
-    documents?: any[];
     initialClientId?: string | number;
 }>();
 
