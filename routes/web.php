@@ -8,6 +8,8 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTypeController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\RoleController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -20,6 +22,9 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::post('/users/{user}/roles', [UserController::class, 'updateRole'])->name('users.roles.update');
 
     Route::prefix('projects/{project}')->name('projects.')->group(function () {
         // This handles the AI generation process
@@ -38,6 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::resource('clients', ClientController::class);
+    Route::resource('roles', RoleController::class);
     Route::resource('projects', ProjectController::class);
     Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])->name('projects.generate');
     Route::resource('project-types', ProjectTypeController::class);

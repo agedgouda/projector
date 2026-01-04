@@ -15,10 +15,16 @@ import { Input } from "@/components/ui/input";
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { type BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     projectTypes: any[];
 }>();
+
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Project Types', href: '#' },
+];
+
 
 // --- Search Logic ---
 const searchQuery = ref('');
@@ -70,7 +76,7 @@ const handleSuccess = () => {
 <template>
     <Head title="Project Types" />
 
-    <AppLayout>
+    <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 max-w-7xl mx-auto w-full">
 
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
@@ -91,13 +97,13 @@ const handleSuccess = () => {
                             placeholder="Search types..."
                             class="pl-10 pr-10 rounded-xl bg-white border-gray-200 focus:ring-indigo-500 h-11"
                         />
-                        <button
+                        <Button
                             v-if="searchQuery"
                             @click="searchQuery = ''"
                             class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded-full text-gray-400"
                         >
                             <X class="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                     </div>
 
                     <Button

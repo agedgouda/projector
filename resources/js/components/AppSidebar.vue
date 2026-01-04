@@ -15,13 +15,15 @@ import {
 // 1. Import your Wayfinder routes
 import { dashboard } from '@/routes';
 import clientRoutes from '@/routes/clients/index';
+import userRoutes from '@/routes/users/index';
 import projectRoutes from '@/routes/projects/index';
 import projectTypeRoutes from '@/routes/project-types/index';
+import roleRoutes from '@/routes/roles/index';
 
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
 
-import { BookOpen, Folder, LayoutGrid, Users, Briefcase, Workflow } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Users, User, Briefcase, Workflow, Settings2 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -44,6 +46,16 @@ const mainNavItems: NavItem[] = [
         title: 'Project Types',
         href: projectTypeRoutes.index(),
         icon: Workflow,
+    },
+    {
+        title: 'Users',
+        href: userRoutes.index(),
+        icon: User,
+    },
+    {
+        title: 'Roles',
+        href: roleRoutes.index(),
+        icon: Settings2,
     },
 ];
 

@@ -6,10 +6,12 @@ declare global {
         id: number;
         first_name: string;
         last_name: string;
-        name: string; // The virtual accessor from Laravel
+        name: string;
         email: string;
         avatar?: string;
         email_verified_at: string | null;
+        roles: string[];
+        permissions: string[];
     }
 
     export interface Auth {

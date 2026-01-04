@@ -47,8 +47,10 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'first_name' => $request->user()->first_name,
                     'last_name' => $request->user()->last_name,
-                    'name' => $request->user()->name, // This uses your new Accessor
+                    'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'roles' => $request->user()->getRoleNames(),
+                    'permissions' => $request->user()->getAllPermissions()->pluck('name'),
                 ] : null,
             ],
             'flash' => [
@@ -57,6 +59,7 @@ class HandleInertiaRequests extends Middleware
                 'aiResults' => fn () => $request->session()->get('aiResults'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+
         ];
     }
 }
