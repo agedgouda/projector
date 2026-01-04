@@ -25,7 +25,7 @@ const toggleRole = (roleName: string) => {
     isUpdating.value = true;
 
     // Wayfinder pattern: accessing the url property of the route definition
-    router.post(userRoutes.roles.update(props.user.id).url, {
+    router.put(userRoutes.update(props.user.id).url, {
         role: roleName
     }, {
         preserveScroll: true,

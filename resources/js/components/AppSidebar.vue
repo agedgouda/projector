@@ -31,6 +31,8 @@ import AppLogo from './AppLogo.vue';
 const page = usePage<AppPageProps>();
 const userRoles = computed(() => page.props.auth.user.roles);
 const isAdmin = computed(() => userRoles.value.includes('admin'));
+const hasClients = computed(() => (page.props.auth.user.clients?.length ?? 0) > 0);
+const canAccessWorkspace = computed(() => isAdmin.value || hasClients.value);
 
 const mainNavItems: NavItem[] = [
     {
@@ -42,11 +44,13 @@ const mainNavItems: NavItem[] = [
         title: 'Clients',
         href: clientRoutes.index(),
         icon: Users,
+        hidden: !canAccessWorkspace.value,
     },
     {
         title: 'Projects',
         href: projectRoutes.index(),
         icon: Briefcase,
+        hidden: !canAccessWorkspace.value,
     },
     {
         title: 'Project Types',

@@ -45,4 +45,17 @@ class Project extends Model
     {
         return $this->belongsTo(ProjectType::class, 'project_type_id');
     }
+
+    public function scopeVisibleTo($query, $user)
+    {
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        // A Project is visible if its PARENT CLIENT is visible to the user
+        return $query->whereHas('client.users', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        });
+    }
+
 }

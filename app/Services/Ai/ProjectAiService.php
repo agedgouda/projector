@@ -74,7 +74,7 @@ class ProjectAiService
         return $result;
     }
     /**
-     * Core communication with Gemini 2.5 Flash.
+     * Core communication
      */
    protected function callLlm(Project $project, ProjectGeneratorStrategy $strategy, string $context)
     {

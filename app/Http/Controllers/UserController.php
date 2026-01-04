@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Client;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
@@ -20,22 +21,29 @@ class UserController extends Controller
                 'email' => $user->email,
                 'avatar' => $user->avatar,
                 'roles' => $user->getRoleNames(),
+                'clients' => $user->clients->pluck('id')->map(fn($id) => (string) $id),
             ]),
             'allRoles' => Role::all()->pluck('name'),
+            'allClients' => Client::select('id', 'company_name')->get()->map(fn($client) => [
+                'id' => (string) $client->id,
+                'company_name' => $client->company_name,
+            ]),
         ]);
     }
 
-    public function updateRole(Request $request, User $user)
+    public function update(Request $request, User $user)
     {
-        // Ensure the admin isn't removing their own admin role (safety first!)
-        if ($user->id === auth()->id() && $request->role === 'admin' && $user->hasRole('admin')) {
-            return back()->with('error', 'You cannot remove your own admin role.');
+        // Handle Role Toggle (from your existing logic)
+        if ($request->has('role')) {
+            $user->hasRole($request->role)
+                ? $user->removeRole($request->role)
+                : $user->assignRole($request->role);
         }
 
-        // Spatie's toggle logic
-        $user->hasRole($request->role)
-            ? $user->removeRole($request->role)
-            : $user->assignRole($request->role);
+        // Handle Client Syncing
+        if ($request->has('client_ids')) {
+            $user->clients()->sync($request->client_ids);
+        }
 
         return back();
     }

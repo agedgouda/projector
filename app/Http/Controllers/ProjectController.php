@@ -13,11 +13,25 @@ use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $user = $request->user();
+
+        // Use scopes for both projects AND the client list (for dropdowns)
+        $projects = Project::visibleTo($user)
+            ->with(['client', 'documents', 'type'])
+            ->latest()
+            ->get();
+
+        $clients = Client::visibleTo($user)->get();
+
+        if (!$user->hasRole('admin') && $projects->isEmpty() && $clients->isEmpty()) {
+            abort(404);
+        }
+
         return Inertia::render('Projects/Index', [
-            'projects' => Project::with(['client', 'documents','type'])->latest()->get(),
-            'clients' => Client::all(),
+            'projects' => $projects,
+            'clients' => $clients,
             'projectTypes' => ProjectType::all(),
         ]);
     }

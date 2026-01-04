@@ -2,60 +2,58 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ProcessDocumentAI;
 use App\Models\Project;
 use App\Models\Document;
 use App\Services\VectorService;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DocumentController extends Controller
 {
     /**
-     * Store a new document and associate it with a Project.
-     * Triggered by the Upload Modal in the Project Show page.
+     * Store a new document.
      */
     public function store(Request $request, Project $project, VectorService $vectorService)
     {
+        // 1. Security Check: Can the user see this project?
+        if (!Project::visibleTo($request->user())->where('id', $project->id)->exists()) {
+            abort(404);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'content' => 'required|string|min:10',
-            'type' => 'required|string', // e.g., 'tech_spec' from your schema
+            'type' => 'required|string',
         ]);
 
-        // 1. Get the vector for the content
-        $embedding = $vectorService->getEmbedding($validated['content']);
-
-        // 2. Use the relationship to create the document
-        // This automatically handles the project_id assignment
-        $project->documents()->create([
+        // 2. Create via Model directly to ensure Observer gets full data
+        // This avoids relationship-level scoping issues during the 'created' event
+        Document::create([
+            'project_id' => $project->id,
             'name' => $validated['name'],
             'content' => $validated['content'],
             'type' => $validated['type'],
-            'embedding' => $embedding,
         ]);
 
         return back()->with('success', 'Context document added to project.');
     }
 
     /**
-     * Update the specified document in storage.
+     * Update the specified document.
      */
     public function update(Request $request, Project $project, Document $document)
     {
+        // Security: Ensure document belongs to the project AND is visible to user
+        if ($document->project_id !== $project->id ||
+            !Document::visibleTo($request->user())->where('id', $document->id)->exists()) {
+            abort(404);
+        }
 
         $validated = $request->validate([
             'name'    => ['required', 'string', 'max:255'],
             'type'    => ['required', 'string'],
             'content' => ['nullable', 'string'],
         ]);
-
-
-        if ($document->project_id !== $project->id) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $document->update($validated);
 
@@ -74,18 +72,21 @@ class DocumentController extends Controller
      */
     public function search(Request $request, Project $project, VectorService $vectorService)
     {
-        $queryText = $request->input('query');
-
-        if (!$queryText) {
-            return back();
+        // Security: Check project access
+        if (!Project::visibleTo($request->user())->where('id', $project->id)->exists()) {
+            abort(404);
         }
+
+        $queryText = $request->input('query');
+        if (!$queryText) return back();
 
         $queryVector = $vectorService->getEmbedding($queryText);
         $vectorString = '[' . implode(',', $queryVector) . ']';
 
-        // Scoped search: only documents related to this project
+        // Apply visibleTo scope to the search query
         $results = Document::query()
-            ->whereHas('project', fn($q) => $q->where('id', $project->id))
+            ->visibleTo($request->user())
+            ->where('project_id', $project->id)
             ->select('id', 'content', 'type')
             ->selectRaw('1 - (embedding <=> ?::vector) AS similarity', [$vectorString])
             ->whereRaw('1 - (embedding <=> ?::vector) > 0.45', [$vectorString])
@@ -102,11 +103,11 @@ class DocumentController extends Controller
     /**
      * Remove a document context.
      */
-    public function destroy(Project $project, Document $document)
+    public function destroy(Request $request, Project $project, Document $document)
     {
-        // Safety: Ensure the document actually belongs to the project provided in the URL
-        if ($document->project_id !== $project->id) {
-            abort(403);
+        if ($document->project_id !== $project->id ||
+            !Document::visibleTo($request->user())->where('id', $document->id)->exists()) {
+            abort(404);
         }
 
         $document->delete();
@@ -114,12 +115,19 @@ class DocumentController extends Controller
         return back()->with('success', 'Document removed.');
     }
 
-    public function reprocess(Project $project, Document $document)
+    /**
+     * Restart AI analysis.
+     */
+    public function reprocess(Request $request, Project $project, Document $document)
     {
-        //nullify processed_at to the client knows when the process changes
+        if ($document->project_id !== $project->id ||
+            !Document::visibleTo($request->user())->where('id', $document->id)->exists()) {
+            abort(404);
+        }
+
         $document->update(['processed_at' => null]);
 
-        // Now $document is a fully loaded Model, not just a string ID
+        // Dispatching the Job (Ensure Job has public $document and __construct)
         \App\Jobs\ProcessDocumentAI::dispatch($document);
 
         return response()->json([

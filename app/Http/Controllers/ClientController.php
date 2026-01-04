@@ -10,10 +10,23 @@ use Inertia\Inertia;
 
 class ClientController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $user = $request->user();
+
+        // Use the scope to filter
+        $clients = Client::visibleTo($user)
+            ->latest()
+            ->with(['projects'])
+            ->get();
+
+        // If a non-admin has 0 clients, they shouldn't be here
+        if (!$user->hasRole('admin') && $clients->isEmpty()) {
+            abort(404);
+        }
+
         return Inertia::render('Clients/Index', [
-            'clients' => Client::latest()->with(['projects'])->get(),
+            'clients' => $clients,
             'projects' => [],
             'projectTypes' => ProjectType::all(),
         ]);

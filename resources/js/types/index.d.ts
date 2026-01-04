@@ -11,11 +11,13 @@ declare global {
         avatar?: string;
         email_verified_at: string | null;
         roles: string[];
+        clients: string[];
         permissions: string[];
     }
 
     export interface Auth {
         user: User;
+        [key: string]: any;
     }
 
     export interface ProjectDocument {

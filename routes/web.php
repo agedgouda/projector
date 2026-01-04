@@ -23,35 +23,36 @@ Route::get('dashboard', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // 1. Admin Management Section
+    // 1. Admin ONLY
     Route::middleware(['role:admin'])->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
-        Route::post('/users/{user}/roles', [UserController::class, 'updateRole'])->name('users.roles.update');
-
+        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::resource('roles', RoleController::class);
         Route::resource('project-types', ProjectTypeController::class);
     });
 
-    // 2. Client Management
-    Route::resource('clients', ClientController::class);
+    // 2. Client & Project Management (PROTECTED BY MIDDLEWARE)
+    // We apply the middleware to these groups
+    Route::middleware(['client.access'])->group(function () {
 
-    // 3. Project & Sub-Resource Management
-    // Define specific project routes before the resource to ensure correct matching
-    Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])->name('projects.generate');
-    Route::resource('projects', ProjectController::class);
+        Route::resource('clients', ClientController::class);
 
-    // 4. Project Documents (Nested Prefix Group)
-    Route::prefix('projects/{project}')->name('projects.')->group(function () {
+        // This keeps the name 'projects.index', so Wayfinder is happy
+        Route::resource('projects', ProjectController::class);
 
-        // Document Search & Reprocess
-        Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
-            ->name('documents.search');
-        Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
-            ->name('documents.reprocess');
+        Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])
+            ->name('projects.generate');
 
-        // Document CRUD
-        Route::resource('documents', DocumentController::class)
-            ->only(['store', 'update', 'destroy']);
+        // 3. Project Documents (Using the existing prefix)
+        Route::prefix('projects/{project}')->name('projects.')->group(function () {
+            Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
+                ->name('documents.search');
+            Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
+                ->name('documents.reprocess');
+
+            Route::resource('documents', DocumentController::class)
+                ->only(['store', 'update', 'destroy']);
+        });
     });
 });
 

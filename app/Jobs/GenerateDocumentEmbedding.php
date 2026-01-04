@@ -18,7 +18,12 @@ class GenerateDocumentEmbedding implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(){}
+    public $document; // DECLARE THIS
+
+    public function __construct(Document $document)
+    {
+        $this->document = $document; // ASSIGN THIS
+    }
 
     public function handle(VectorService $vectorService)
     {

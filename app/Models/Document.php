@@ -53,4 +53,16 @@ class Document extends Model
         $query->orderByRaw("embedding <=> ?::vector", [$vectorString])
               ->limit($limit);
     }
+
+    public function scopeVisibleTo($query, $user)
+    {
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        // Reach: Document -> Project -> Client -> User Pivot
+        return $query->whereHas('project.client.users', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        });
+    }
 }
