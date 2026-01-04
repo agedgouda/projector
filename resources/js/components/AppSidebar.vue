@@ -21,10 +21,16 @@ import projectTypeRoutes from '@/routes/project-types/index';
 import roleRoutes from '@/routes/roles/index';
 
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 import { BookOpen, Folder, LayoutGrid, Users, User, Briefcase, Workflow, Settings2 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
+
+
+const page = usePage<AppPageProps>();
+const userRoles = computed(() => page.props.auth.user.roles);
+const isAdmin = computed(() => userRoles.value.includes('admin'));
 
 const mainNavItems: NavItem[] = [
     {
@@ -46,18 +52,23 @@ const mainNavItems: NavItem[] = [
         title: 'Project Types',
         href: projectTypeRoutes.index(),
         icon: Workflow,
+        hidden: !isAdmin.value,
     },
     {
         title: 'Users',
         href: userRoutes.index(),
         icon: User,
+        hidden: !isAdmin.value,
     },
     {
         title: 'Roles',
         href: roleRoutes.index(),
         icon: Settings2,
+        hidden: !isAdmin.value,
     },
 ];
+
+const filteredNavItems = computed(() => mainNavItems.filter(item => !item.hidden));
 
 const footerNavItems: NavItem[] = [
     {
@@ -88,7 +99,7 @@ const footerNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain :items="filteredNavItems" />
         </SidebarContent>
 
         <SidebarFooter>
