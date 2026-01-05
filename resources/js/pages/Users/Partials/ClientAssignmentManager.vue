@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
+import { useForm, router, Link } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
-import { Plus, X } from 'lucide-vue-next';
+import { Plus, Briefcase, ExternalLink } from 'lucide-vue-next';
 import userRoutes from '@/routes/users/index';
-import { router } from '@inertiajs/vue3';
+import ResourceCard from '@/components/ResourceCard.vue';
 
 const props = defineProps<{
     user: any;
@@ -15,15 +15,13 @@ const form = useForm({
 });
 
 /**
- * Assigns a new client.
- * We send the new full list of client_ids to the generic update route.
+ * Assigns a new client to the user.
  */
 const assignClient = () => {
     if (!form.client_id) return;
 
     const newIds = [...props.user.clients, form.client_id];
 
-    // Using router.put to match Option 1 and the specific Wayfinder property access
     router.put(userRoutes.update(props.user.id).url, {
         client_ids: newIds
     }, {
@@ -33,8 +31,7 @@ const assignClient = () => {
 };
 
 /**
- * Removes a client.
- * We send the filtered list to the same generic update route.
+ * Removes a client from the user's assignment.
  */
 const removeClient = (clientId: string) => {
     const remainingIds = props.user.clients.filter((id: string) => id !== clientId);
@@ -47,8 +44,7 @@ const removeClient = (clientId: string) => {
 };
 
 /**
- * Helper to resolve the company name from the ID
- * since the user object only stores the ID strings.
+ * Resolves the company name from the ID.
  */
 const getClientName = (id: string) => {
     return props.allClients.find(c => c.id === id)?.company_name || 'Unknown Client';
@@ -56,11 +52,11 @@ const getClientName = (id: string) => {
 </script>
 
 <template>
-    <div class="space-y-4">
-        <div class="flex gap-2">
+    <div class="space-y-4 w-full">
+        <div class="flex gap-2 w-full">
             <select
                 v-model="form.client_id"
-                class="flex-1 rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm font-medium h-10 px-3 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                class="flex-1 rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm font-medium h-10 px-3 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-gray-900 dark:text-gray-100"
             >
                 <option value="" disabled>Assign a client...</option>
                 <option
@@ -82,26 +78,38 @@ const getClientName = (id: string) => {
             </Button>
         </div>
 
-        <div class="flex flex-wrap gap-2 min-h-[40px]">
-            <div
-                v-for="clientId in user.clients"
-                :key="clientId"
-                class="flex items-center gap-2 pl-3 pr-1 py-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:border-indigo-200 transition-colors"
-            >
-                <span class="text-[11px] font-bold text-gray-700 dark:text-gray-300">
-                    {{ getClientName(clientId) }}
-                </span>
-                <button
-                    @click="removeClient(clientId)"
-                    class="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                    <X class="w-3 h-3" />
-                </button>
-            </div>
+        <div class="w-full">
+            <div class="space-y-2 w-full">
+                <div v-if="user.clients.length === 0" class="p-8 text-center border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl">
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                        No Clients Assigned
+                    </p>
+                </div>
 
-            <p v-if="user.clients.length === 0" class="text-[11px] text-gray-400 italic py-2">
-                No clients currently assigned.
-            </p>
+                <ResourceCard
+                    v-for="clientId in user.clients"
+                    :key="clientId"
+                    :title="getClientName(clientId)"
+                    :show-delete="true"
+                    @delete="removeClient(clientId)"
+                    class="w-full"
+                >
+                    <template #icon>
+                        <div class="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-400">
+                            <Briefcase class="w-3.5 h-3.5" />
+                        </div>
+                    </template>
+
+                    <template #actions>
+                        <Link
+                            :href="`/clients/${clientId}`"
+                            class="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                        >
+                            <ExternalLink class="w-3.5 h-3.5" />
+                        </Link>
+                    </template>
+                </ResourceCard>
+            </div>
         </div>
     </div>
 </template>

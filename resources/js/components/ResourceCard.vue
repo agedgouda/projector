@@ -5,6 +5,7 @@ defineProps<{
     title: string;
     description?: string;
     pillText?: string;
+    showDelete?: boolean; // Add this prop
 }>();
 
 defineEmits(['delete', 'click']);
@@ -25,15 +26,18 @@ defineEmits(['delete', 'click']);
                 </span>
             </div>
 
-            <p class="text-xs text-gray-500 mt-1 line-clamp-1">
+            <p v-if="description" class="text-xs text-gray-500 mt-1 line-clamp-1">
                 {{ description }}
             </p>
+
+            <slot />
         </div>
 
         <div class="flex items-center gap-4 shrink-0">
             <slot name="actions"></slot>
 
             <button
+                v-if="showDelete !== false"
                 @click.stop="$emit('delete')"
                 class="text-gray-300 hover:text-red-500 transition-colors p-1"
             >

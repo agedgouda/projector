@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch  } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import ProjectFolio from '@/components/ProjectFolio.vue';
+import ResourceHeader from '@/components/ResourceHeader.vue';
+import ResourceList from '@/components/ResourceList.vue';
 import projectRoutes from '@/routes/projects/index';
 import { type BreadcrumbItem } from '@/types';
-import { Search, X, ChevronDown } from 'lucide-vue-next';
+import { Search, X } from 'lucide-vue-next';
 import {
     Dialog,
     DialogContent,
@@ -31,20 +33,19 @@ const breadcrumbs: BreadcrumbItem[] = [
 // --- State Management ---
 const searchQuery = ref('');
 const statusFilter = ref('all');
-const collapsedGroups = ref<Record<number | string, boolean>>({});
-// State to control Dialog
+const collapsedGroups = ref<Record<number | string, boolean>>(
+    Object.fromEntries(props.clients.map(client => [client.id, true]))
+);
 const isProjectModalOpen = ref(false);
+
 const handleSuccess = () => {
     isProjectModalOpen.value = false;
 };
 
-// --- The Master List Logic ---
-// We flatten the data into a single array of "rows" (Headers and Projects)
-// This allows TransitionGroup to animate every single element change.
+// --- The Master List Logic (Preserved) ---
 const displayItems = computed(() => {
     let list = [...props.projects];
 
-    // 1. Search Filter
     if (searchQuery.value.trim()) {
         const query = searchQuery.value.toLowerCase();
         list = list.filter(p =>
@@ -53,7 +54,6 @@ const displayItems = computed(() => {
         );
     }
 
-    // 2. Double Sort (Client Name then Project Name)
     list.sort((a, b) => {
         const clientA = a.client?.company_name || '';
         const clientB = b.client?.company_name || '';
@@ -62,7 +62,6 @@ const displayItems = computed(() => {
         return a.name.localeCompare(b.name);
     });
 
-    // 3. Build Flattened List
     const flattened: any[] = [];
     let lastClientId: any = null;
 
@@ -70,7 +69,7 @@ const displayItems = computed(() => {
         if (project.client?.id !== lastClientId) {
             flattened.push({
                 isHeader: true,
-                domId: `header-${project.client?.id}`, // Changed 'id' to 'domId'
+                domId: `header-${project.client?.id}`,
                 clientId: project.client?.id,
                 name: project.client?.company_name || 'Unassigned'
             });
@@ -79,9 +78,9 @@ const displayItems = computed(() => {
 
         if (!collapsedGroups.value[project.client?.id]) {
             flattened.push({
-                ...project, // This keeps the original project.id (e.g., 123)
+                ...project,
                 isHeader: false,
-                domId: `project-${project.id}` // We add a separate domId for Vue's :key
+                domId: `project-${project.id}`
             });
         }
     });
@@ -98,13 +97,11 @@ const toggleGroup = (clientId: any) => {
     collapsedGroups.value[clientId] = !collapsedGroups.value[clientId];
 };
 
-// Auto-expand everything when searching
 watch(searchQuery, (newVal) => {
     if (newVal.trim() !== '') {
         collapsedGroups.value = {};
     }
 });
-
 </script>
 
 <template>
@@ -116,21 +113,21 @@ watch(searchQuery, (newVal) => {
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
                     <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">Project Portfolio</h1>
-                    <p class="text-sm text-gray-500">Global overview of all active client engagements and document status.</p>
+                    <p class="text-sm text-gray-500">Global overview of all active client engagements.</p>
                 </div>
 
                 <Dialog v-model:open="isProjectModalOpen">
                     <DialogTrigger asChild>
-                        <Button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                        <Button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
                             <PlusIcon class="w-5 h-5 mr-2" />
                             New Project
                         </Button>
                     </DialogTrigger>
-                    <DialogContent class="sm:max-w-[500px] border-gray-200 dark:border-gray-800">
+                    <DialogContent class="sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle>Create Project</DialogTitle>
                             <DialogDescription>
-                                Enter the project details below to initialize the document workspace.
+                                Enter project details to initialize the workspace.
                             </DialogDescription>
                         </DialogHeader>
                         <ProjectForm
@@ -148,10 +145,10 @@ watch(searchQuery, (newVal) => {
                     <input
                         v-model="searchQuery"
                         type="text"
-                        placeholder="Search projects, clients, or descriptions..."
-                        class="block w-full pl-11 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900 dark:text-gray-200 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+                        placeholder="Search projects, clients..."
+                        class="block w-full pl-11 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
                     />
-                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
                         <X class="w-4 h-4" />
                     </button>
                 </div>
@@ -165,7 +162,7 @@ watch(searchQuery, (newVal) => {
                             'px-6 py-2 text-xs font-black rounded-xl transition-all capitalize tracking-wider',
                             statusFilter === status
                                 ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                : 'text-gray-500'
                         ]"
                     >
                         {{ status }}
@@ -178,37 +175,21 @@ watch(searchQuery, (newVal) => {
                     <p class="text-gray-400 font-medium">No projects found matching your criteria.</p>
                 </div>
 
-                <TransitionGroup name="list" tag="div" class="space-y-2 relative">
-                    <div v-for="item in displayItems" :key="item.domId" class="w-full">
-
-                        <div
+                <ResourceList :items="displayItems">
+                    <template #default="{ item }">
+                        <ResourceHeader
                             v-if="item.isHeader"
-                            @click="toggleGroup(item.clientId)"
-                            class="flex items-center gap-4 mt-10 mb-6 cursor-pointer group/header select-none w-full"
-                        >
-                            <div class="flex items-center justify-center w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover/header:bg-indigo-500 group-hover/header:text-white transition-all">
-                                <ChevronDown
-                                    class="w-3.5 h-3.5 transition-transform duration-300"
-                                    :class="{ '-rotate-90': collapsedGroups[item.clientId] }"
-                                />
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <h3 class="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 group-hover/header:text-indigo-600 transition-colors">
-                                    {{ item.name }}
-                                </h3>
-                                <span class="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-500/20">
-                                    {{ getProjectCount(item.clientId) }}
-                                </span>
-                            </div>
-                            <div class="h-px bg-gradient-to-r from-gray-200 to-transparent dark:from-gray-700 flex-1"></div>
-                        </div>
+                            :title="item.name"
+                            :count="getProjectCount(item.clientId)"
+                            :collapsed="collapsedGroups[item.clientId]"
+                            @toggle="toggleGroup(item.clientId)"
+                        />
 
                         <div v-else class="w-full">
                             <ProjectFolio :project="item" class="w-full" />
                         </div>
-
-                    </div>
-                </TransitionGroup>
+                    </template>
+                </ResourceList>
             </div>
         </div>
     </AppLayout>

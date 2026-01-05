@@ -4,7 +4,7 @@ import { useInitials } from '@/composables/useInitials';
 import { computed } from 'vue';
 
 interface Props {
-    user: User; // Global type from types/index.d.ts
+    user: any;
     showEmail?: boolean;
 }
 
@@ -14,15 +14,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { getInitials } = useInitials();
 
-// Compute whether we should show the avatar image
 const showAvatar = computed(
     () => props.user.avatar && props.user.avatar !== '',
 );
 
-/**
- * Fallback to manual initials if the helper expects a single string
- * and user.name isn't behaving.
- */
 const userInitials = computed(() => {
     if (props.user.first_name && props.user.last_name) {
         return (props.user.first_name[0] + props.user.last_name[0]).toUpperCase();
@@ -32,17 +27,21 @@ const userInitials = computed(() => {
 </script>
 
 <template>
-    <Avatar class="h-8 w-8 overflow-hidden rounded-lg">
-        <AvatarImage v-if="showAvatar" :src="user.avatar!" :alt="user.name" />
-        <AvatarFallback class="rounded-lg bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
-            {{ userInitials }}
-        </AvatarFallback>
-    </Avatar>
+    <div class="flex items-center gap-3 overflow-hidden">
+        <Avatar class="h-9 w-9 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
+            <AvatarImage v-if="showAvatar" :src="user.avatar!" :alt="user.name" />
+            <AvatarFallback class="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black">
+                {{ userInitials }}
+            </AvatarFallback>
+        </Avatar>
 
-    <div class="grid flex-1 text-left text-sm leading-tight">
-        <span class="truncate font-semibold">{{ user.name }}</span>
-        <span v-if="showEmail" class="truncate text-xs text-muted-foreground">
-            {{ user.email }}
-        </span>
+        <div class="flex flex-col min-w-0 leading-tight">
+            <span class="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 group-hover/header:text-indigo-600 transition-colors">
+                {{ user.name }}
+            </span>
+            <span v-if="showEmail" class="truncate text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                {{ user.email }}
+            </span>
+        </div>
     </div>
 </template>

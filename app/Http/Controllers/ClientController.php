@@ -17,7 +17,7 @@ class ClientController extends Controller
         // Use the scope to filter
         $clients = Client::visibleTo($user)
             ->latest()
-            ->with(['projects'])
+            ->with(['projects.type','users'])
             ->get();
 
         // If a non-admin has 0 clients, they shouldn't be here

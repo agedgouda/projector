@@ -7,17 +7,22 @@ import { Input } from '@/components/ui/input';
 import { ShieldPlus, UserMinus, Trash2, User as UserIcon } from 'lucide-vue-next';
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
+import ResourceList from '@/components/ResourceList.vue'; // Unified List component
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import roleRoutes from '@/routes/roles/index';
 
-defineProps<{
+const props = defineProps<{
     roles: any[];
 }>();
 
 const page = usePage<AppPageProps>();
 const authUser = page.props.auth.user;
 
-const collapsedRoles = ref<Record<number, boolean>>({});
+// Default to collapsed (matching project logic)
+const collapsedRoles = ref<Record<number, boolean>>(
+    Object.fromEntries(props.roles.map(role => [role.id, true]))
+);
+
 const toggleRole = (roleId: number) => {
     collapsedRoles.value[roleId] = !collapsedRoles.value[roleId];
 };
@@ -92,39 +97,34 @@ const breadcrumbs = [{ title: 'Roles', href: '#' }];
                 </Button>
             </form>
 
-            <div v-for="role in roles" :key="role.id" class="mb-4">
-                <div class="flex items-center gap-2 group">
-                    <ResourceHeader
-                        :title="role.name"
-                        :count="role.users_count"
-                        :collapsed="collapsedRoles[role.id]"
-                        @toggle="toggleRole(role.id)"
-                        class="flex-1"
-                    />
+            <ResourceList :items="roles">
+                <template #default="{ item: role }">
+                    <div class="flex items-center gap-2 group">
+                        <ResourceHeader
+                            :title="role.name"
+                            :count="role.users_count"
+                            :collapsed="collapsedRoles[role.id]"
+                            @toggle="toggleRole(role.id)"
+                            class="flex-1"
+                        />
 
-                    <button
-                        v-if="role.name !== 'admin'"
-                        @click="deleteRole(role.id)"
-                        class="mt-4 opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
-                    >
-                        <Trash2 class="w-4 h-4" />
-                    </button>
-                </div>
+                        <button
+                            v-if="role.name !== 'admin'"
+                            type="button"
+                            @click="deleteRole(role.id)"
+                            class="mt-4 opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
+                        >
+                            <Trash2 class="w-4 h-4" />
+                        </button>
+                    </div>
 
-                <TransitionGroup
-                    enter-active-class="transition duration-300 ease-out"
-                    enter-from-class="transform opacity-0 -translate-y-2"
-                    enter-to-class="transform opacity-100 translate-y-0"
-                    leave-active-class="transition duration-200 ease-in"
-                    leave-from-class="transform opacity-100 translate-y-0"
-                    leave-to-class="transform opacity-0 -translate-y-2"
-                >
-                    <div v-if="!collapsedRoles[role.id]" class="space-y-1 ml-10 mt-2">
+                    <div v-if="!collapsedRoles[role.id]" class="space-y-2 ml-10 mt-2">
                        <ResourceCard
                             v-for="user in role.users"
                             :key="user.id"
                             :title="user.name"
                             :description="user.email"
+                            :show-delete="true"
                             @delete="unassignUser(role.id, user.id)"
                         >
                             <template #icon>
@@ -144,8 +144,8 @@ const breadcrumbs = [{ title: 'Roles', href: '#' }];
                             </template>
                         </ResourceCard>
                     </div>
-                </TransitionGroup>
-            </div>
+                </template>
+            </ResourceList>
         </div>
 
         <ConfirmDeleteModal
