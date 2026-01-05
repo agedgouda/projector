@@ -28,6 +28,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::resource('roles', RoleController::class);
+        Route::delete('/roles/{role}/users/{user}', [RoleController::class, 'unassignUser'])
+            ->name('roles.users.destroy');
         Route::resource('project-types', ProjectTypeController::class);
     });
 

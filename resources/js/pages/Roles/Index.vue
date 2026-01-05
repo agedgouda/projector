@@ -1,89 +1,160 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { useForm, Head, router } from '@inertiajs/vue3';
+import { useForm, Head, router, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, ShieldPlus } from 'lucide-vue-next';
+import { ShieldPlus, UserMinus, Trash2, User as UserIcon } from 'lucide-vue-next';
+import ResourceHeader from '@/components/ResourceHeader.vue';
+import ResourceCard from '@/components/ResourceCard.vue';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import roleRoutes from '@/routes/roles/index';
-import { type BreadcrumbItem } from '@/types';
 
 defineProps<{
     roles: any[];
 }>();
 
-const form = useForm({
-    name: '',
-});
+const page = usePage<AppPageProps>();
+const authUser = page.props.auth.user;
 
-const submit = () => {
-    // Access the .url property of the Wayfinder route
-    form.post(roleRoutes.store().url, {
-        onSuccess: () => form.reset(),
-    });
+const collapsedRoles = ref<Record<number, boolean>>({});
+const toggleRole = (roleId: number) => {
+    collapsedRoles.value[roleId] = !collapsedRoles.value[roleId];
 };
+
+const form = useForm({ name: '' });
+const submit = () => {
+    form.post(roleRoutes.store().url, { onSuccess: () => form.reset() });
+};
+
+// --- Modal State ---
+const isDeleteModalOpen = ref(false);
+const modalLoading = ref(false);
+const modalConfig = ref({ title: '', description: '', action: () => {} });
 
 const deleteRole = (id: number) => {
-    if (confirm('Are you sure you want to delete this role?')) {
-        // Access the .url property of the Wayfinder route
-        router.delete(roleRoutes.destroy(id).url);
-    }
+    modalConfig.value = {
+        title: 'Delete Role',
+        description: 'Are you sure you want to delete this role entirely? This action cannot be undone.',
+        action: () => {
+            modalLoading.value = true;
+            router.delete(roleRoutes.destroy(id).url, {
+                onFinish: () => {
+                    isDeleteModalOpen.value = false;
+                    modalLoading.value = false;
+                }
+            });
+        }
+    };
+    isDeleteModalOpen.value = true;
 };
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Roles', href: '#' },
-];
+
+const unassignUser = (roleId: number, userId: number) => {
+    modalConfig.value = {
+        title: 'Unassign User',
+        description: 'Are you sure you want to remove this user from this role?',
+        action: () => {
+            modalLoading.value = true;
+            const targetUrl = roleRoutes.users.destroy({
+                role: roleId,
+                user: userId
+            }).url;
+
+            router.delete(targetUrl, {
+                preserveScroll: true,
+                onFinish: () => {
+                    isDeleteModalOpen.value = false;
+                    modalLoading.value = false;
+                }
+            });
+        }
+    };
+    isDeleteModalOpen.value = true;
+};
+
+const breadcrumbs = [{ title: 'Roles', href: '#' }];
 </script>
 
 <template>
     <Head title="Manage Roles" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 max-w-none">
-            <h2 class="text-2xl font-bold mb-6 text-foreground">System Roles</h2>
+        <div class="p-6 max-w-4xl">
+            <h2 class="text-2xl font-bold mb-6">System Roles</h2>
 
-            <form @submit.prevent="submit" class="flex gap-4 mb-8 items-end">
+            <form @submit.prevent="submit" class="flex gap-4 mb-12 items-end">
                 <div class="grid gap-2 w-full max-w-sm">
-                    <label class="text-sm font-medium text-foreground">New Role Name</label>
-                    <Input
-                        v-model="form.name"
-                        placeholder="e.g. manager, editor..."
-                        class="bg-background"
-                    />
+                    <label class="text-sm font-bold text-gray-500 uppercase tracking-wider">New Role Name</label>
+                    <Input v-model="form.name" class="bg-white dark:bg-gray-800" placeholder="e.g. support" />
                 </div>
-                <Button type="submit" :disabled="form.processing" class="cursor-pointer">
-                    <ShieldPlus class="w-4 h-4 mr-2" />
-                    Add Role
+                <Button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10">
+                    <ShieldPlus class="w-4 h-4 mr-2" /> Add Role
                 </Button>
             </form>
 
-            <div class="border rounded-lg bg-card overflow-hidden max-w-4xl">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Role Name</TableHead>
-                            <TableHead>Users Count</TableHead>
-                            <TableHead class="text-right pr-6">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-for="role in roles" :key="role.id">
-                            <TableCell class="font-medium capitalize">{{ role.name }}</TableCell>
-                            <TableCell class="text-muted-foreground">{{ role.users_count || 0 }}</TableCell>
-                            <TableCell class="text-right pr-6">
-                                <Button
-                                    v-if="role.name !== 'admin'"
-                                    variant="ghost"
-                                    size="icon"
-                                    class="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-                                    @click="deleteRole(role.id)"
-                                >
-                                    <Trash2 class="w-4 h-4" />
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+            <div v-for="role in roles" :key="role.id" class="mb-4">
+                <div class="flex items-center gap-2 group">
+                    <ResourceHeader
+                        :title="role.name"
+                        :count="role.users_count"
+                        :collapsed="collapsedRoles[role.id]"
+                        @toggle="toggleRole(role.id)"
+                        class="flex-1"
+                    />
+
+                    <button
+                        v-if="role.name !== 'admin'"
+                        @click="deleteRole(role.id)"
+                        class="mt-4 opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
+                    >
+                        <Trash2 class="w-4 h-4" />
+                    </button>
+                </div>
+
+                <TransitionGroup
+                    enter-active-class="transition duration-300 ease-out"
+                    enter-from-class="transform opacity-0 -translate-y-2"
+                    enter-to-class="transform opacity-100 translate-y-0"
+                    leave-active-class="transition duration-200 ease-in"
+                    leave-from-class="transform opacity-100 translate-y-0"
+                    leave-to-class="transform opacity-0 -translate-y-2"
+                >
+                    <div v-if="!collapsedRoles[role.id]" class="space-y-1 ml-10 mt-2">
+                       <ResourceCard
+                            v-for="user in role.users"
+                            :key="user.id"
+                            :title="user.name"
+                            :description="user.email"
+                            @delete="unassignUser(role.id, user.id)"
+                        >
+                            <template #icon>
+                                <div class="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600">
+                                    <UserIcon class="w-4 h-4" />
+                                </div>
+                            </template>
+
+                            <template #actions>
+                                <div v-if="role.name === 'admin' && user.id === authUser.id" class="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic pr-3">
+                                    Current User
+                                </div>
+                                <div v-else class="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-red-500 transition-colors">
+                                    <UserMinus class="w-3.5 h-3.5" />
+                                    <span>Unassign</span>
+                                </div>
+                            </template>
+                        </ResourceCard>
+                    </div>
+                </TransitionGroup>
             </div>
         </div>
+
+        <ConfirmDeleteModal
+            :open="isDeleteModalOpen"
+            :title="modalConfig.title"
+            :description="modalConfig.description"
+            :loading="modalLoading"
+            @close="isDeleteModalOpen = false"
+            @confirm="modalConfig.action"
+        />
     </AppLayout>
 </template>
