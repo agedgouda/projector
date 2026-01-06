@@ -25,19 +25,45 @@ const emit = defineEmits<{
 
 const isProcessing = ref(false);
 
+// const handleReprocess = async () => {
+//     if (isProcessing.value) return;
+//     if (!confirm('Re-run AI analysis on this intake document?')) return;
+
+//     isProcessing.value = true;
+//     try {
+//         // Updated URL to match: projects/{project}/documents/{document}/reprocess
+//         await axios.post(`/projects/${props.doc.project_id}/documents/${props.doc.id}/reprocess`);
+
+//         // Emit the event to the parent manager
+//         emit('reprocessing', props.doc.id);
+
+//         // Success feedback
+//     } catch (error) {
+//         console.error('AI Reprocess failed:', error);
+//         alert('Failed to start AI process. Check console for details.');
+//     } finally {
+//         isProcessing.value = false;
+//     }
+// };
+
 const handleReprocess = async () => {
     if (isProcessing.value) return;
-    if (!confirm('Re-run AI analysis on this intake document?')) return;
+
+    // Dynamic confirmation message
+    const actionText = props.doc.type === 'intake'
+        ? 'regenerate User Stories'
+        : 'generate Technical Tasks';
+
+    if (!confirm(`Are you sure you want to ${actionText} for this document?`)) return;
 
     isProcessing.value = true;
     try {
-        // Updated URL to match: projects/{project}/documents/{document}/reprocess
+        // The URL is already generic: /projects/{project}/documents/{document}/reprocess
         await axios.post(`/projects/${props.doc.project_id}/documents/${props.doc.id}/reprocess`);
 
-        // Emit the event to the parent manager
+        // Emit the event so the parent knows to show a loading state/refresh
         emit('reprocessing', props.doc.id);
 
-        // Success feedback
     } catch (error) {
         console.error('AI Reprocess failed:', error);
         alert('Failed to start AI process. Check console for details.');
@@ -73,7 +99,7 @@ const handleReprocess = async () => {
             <div class="flex items-center gap-1">
                 <div :class="['flex items-center gap-1 transition-opacity duration-200', isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']">
                     <Button
-                        v-if="doc.type === 'intake'"
+                        v-if="['intake', 'user_story'].includes(doc.type)"
                         variant="ghost"
                         size="icon"
                         class="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"

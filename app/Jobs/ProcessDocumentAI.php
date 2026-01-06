@@ -36,14 +36,20 @@ class ProcessDocumentAI implements ShouldQueue
                     ->delete();
 
                 foreach ($generatedItems as $data) {
+                    // Determine content: Use 'story' for user_story, or 'description' for tasks
+                    $content = $data['story'] ?? $data['description'] ?? $data['content'] ?? '';
+
                     $this->document->project->documents()->create([
                         'parent_id'    => $this->document->id,
                         'type'         => $outputType,
                         'name'         => $data['title'] ?? 'Untitled Deliverable',
-                        'content'      => $data['story'] ?? '',
-                        'processed_at' => now(), // <--- Add this line
+                        'content'      => $content,
+                        'processed_at' => now(),
                         'metadata'     => [
-                            'criteria' => $data['criteria'] ?? []
+                            // Store everything else in metadata so we don't lose data
+                            'criteria' => $data['criteria'] ?? [],
+                            'category' => $data['category'] ?? 'general',
+                            'raw_data' => $data // Optional: keeps everything just in case
                         ],
                     ]);
                 }

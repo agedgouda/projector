@@ -49,7 +49,7 @@ const requirementStatus = computed(() => {
         };
     });
 });
-
+console.log(requirementStatus.value)
 const canGenerate = computed(() =>
     requirementStatus.value.filter(r => r.required).every(r => r.isUploaded)
 );

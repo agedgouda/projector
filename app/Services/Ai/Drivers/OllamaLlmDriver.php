@@ -31,7 +31,7 @@ class OllamaLlmDriver implements LlmDriver
             }
 
             $rawText = $response->json('response');
-            Log::info("Ollama Step 1: Raw Response Received", ['length' => strlen($rawText)]);
+
 
             // 1. Remove DeepSeek reasoning <think> blocks
             $noThinking = preg_replace('/<think>.*?<\/think>/s', '', $rawText);
@@ -39,21 +39,16 @@ class OllamaLlmDriver implements LlmDriver
             // 2. Remove Markdown code blocks (matching your Gemini driver logic)
             $cleanJson = trim(preg_replace('/^```json\s*|```$/m', '', $noThinking));
 
-            Log::info("Ollama Step 2: Text cleaned of Thinking and Markdown");
-
             // 3. Attempt JSON Decode
             $decoded = json_decode($cleanJson, true);
 
             // 4. Safety Net: If AI returned a single object {}, wrap it in an array [{}]
             if ($decoded && !isset($decoded[0]) && isset($decoded['title'])) {
-                Log::info("Ollama Step 3: Single object detected. Wrapping in array.");
                 $decoded = [$decoded];
             }
 
             if (!$decoded) {
                 Log::error("Ollama Step 4: JSON Decode Failed", ['cleaned_text' => $cleanJson]);
-            } else {
-                Log::info("Ollama Step 4: Successfully decoded " . count($decoded) . " items.");
             }
 
             return [
