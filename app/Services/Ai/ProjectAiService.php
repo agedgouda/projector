@@ -4,106 +4,74 @@ namespace App\Services\Ai;
 
 use App\Models\Project;
 use App\Models\Document;
-use App\Models\ProjectType;
-use App\Services\VectorService;
-use App\Services\Ai\Strategies\ProjectGeneratorStrategy;
-use App\Services\Ai\Strategies\SoftwareStrategy;
-use Illuminate\Support\Facades\Http;
+use App\Models\AiTemplate;
+use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use Illuminate\Support\Facades\Log;
 
 class ProjectAiService
 {
-    /**
-     * Map project types to their specific AI Strategies.
-     */
-    protected array $strategyMap = [
-        'software' => SoftwareStrategy::class,
-    ];
-
-    public function __construct(
-        protected VectorService $vectorService
-    ) {}
-
-    /**
-     * Generic entry point for background jobs.
-     */
     public function process(Document $document)
     {
-        // 1. Load project AND its type relationship
         $document->loadMissing('project.type');
         $project = $document->project;
-        $typeModel = $project->type;
+        $projectType = $project->type;
 
-        // 2. Resolve the string key from the ProjectType model
-        $typeKey = null;
+        // 1. Find the workflow step that triggers from THIS document's type
+        // The workflow is the JSON array we saved: [{from_key: 'intake', to_key: 'user_story', ai_template_id: 1}]
+        $workflow = collect($projectType->workflow ?? []);
+        $step = $workflow->firstWhere('from_key', $document->type);
 
-        if ($typeModel instanceof \App\Models\ProjectType) {
-            // Use the "name" field, lowercased to match our map
-            $typeKey = strtolower($typeModel->name);
-        } elseif (is_array($typeModel)) {
-            $typeKey = strtolower($typeModel['name'] ?? '');
-        } else {
-            $typeKey = strtolower((string)$typeModel);
-        }
-
-        // 3. Resolve the Strategy class from the map
-        $strategyClass = $this->strategyMap[$typeKey] ?? null;
-
-        if (!$strategyClass || !class_exists($strategyClass)) {
-            Log::warning("No AI Strategy found for project type: {$typeKey}. Skipping AI process.");
+        if (!$step || empty($step['ai_template_id'])) {
+            Log::info("No automated AI transition defined for type: {$document->type}");
             return;
         }
 
-        $strategy = new $strategyClass();
+        // 2. Load the AI Template defined in the workflow
+        $template = AiTemplate::find($step['ai_template_id']);
 
-        Log::info("AI Strategy Resolved", [
-            'document_id' => $document->id,
-            'type_key' => $typeKey,
-            'strategy' => $strategyClass,
-            'expects_output' => $strategy->getOutputDocumentType() // New: visibility on output
-        ]);
-
-        // 4. Call the LLM and merge the output type into the response
-        $result = $this->callLlm($project, $strategy, $document->content);
-
-        // 5. Inject the dynamic output type so the Job knows what to create
-        if (isset($result['status']) && $result['status'] === 'success') {
-            $result['output_type'] = $strategy->getOutputDocumentType();
+        if (!$template) {
+            Log::error("AI Template ID {$step['ai_template_id']} not found for workflow.");
+            return;
         }
 
-        return $result;
+        // 3. Create the Dynamic Strategy
+        $strategy = new DynamicWorkflowStrategy(
+            $template,
+            $step['from_key'],
+            $step['to_key']
+        );
+
+        Log::info("Executing Dynamic Workflow", [
+            'project' => $project->name,
+            'transition' => "{$step['from_key']} -> {$step['to_key']}",
+            'template' => $template->name
+        ]);
+
+        // 4. Call the LLM (Using our enhanced logic)
+        return $this->callLlm($project, $strategy, $document->content);
     }
-    /**
-     * Core communication
-     */
-   protected function callLlm(Project $project, ProjectGeneratorStrategy $strategy, string $context)
+
+    protected function callLlm(Project $project, DynamicWorkflowStrategy $strategy, string $context)
     {
-        // 1. Determine which driver to use from config/services.php
         $driverName = config('services.llm_driver', 'gemini');
+        $driver = $this->resolveDriver($driverName);
 
-        /** @var \App\Contracts\LlmDriver $driver */
-        $driver = match ($driverName) {
-            'ollama' => new \App\Services\Ai\Drivers\OllamaLlmDriver(),
-            'gemini' => new \App\Services\Ai\Drivers\GeminiLlmDriver(),
-            default  => throw new \Exception("Unsupported LLM Driver: {$driverName}"),
-        };
-
-        // 2. Prepare the prompts
+        // Prepare the System Message (The Persona)
         $systemMessage = $strategy->getTaskExtractionPrompt();
-        $userMessage = "
-            Project: {$project->name}
-            Context: {$context}
 
-            INSTRUCTIONS:
-            - Output a valid JSON array of objects.
-            - Example: [{\"title\": \"Example\", \"story\": \"As a...\", \"criteria\": [\"one\", \"two\"]}]
-            - Do not include any text before or after the JSON array.
-        ";
+        // Prepare the User Message using the template variable replacement
+        // This replaces {{input}} with our actual document content
+        $userMessage = str_replace(
+            ['{{input}}', '{{project}}'],
+            [$context, $project->name],
+            $strategy->getUserPromptTemplate()
+        );
 
-        // 3. Call the driver (All the HTTP/Regex logic is now inside the Driver files)
+        // Standard JSON enforcement suffix
+        $userMessage .= "\n\nIMPORTANT: Output ONLY a valid JSON array. No preamble.";
+
         $result = $driver->call($systemMessage, $userMessage);
 
-        // 4. Return the standard format the rest of your app expects
         return [
             'project_name'  => $project->name,
             'mock_response' => $result['content'] ?? [],
@@ -112,25 +80,12 @@ class ProjectAiService
         ];
     }
 
-    /**
-     * Manual trigger for generating deliverables.
-     */
-    public function generateDeliverables(Project $project, ProjectGeneratorStrategy $strategy)
+    protected function resolveDriver($name)
     {
-        $types = $strategy->getRequiredDocumentTypes();
-
-        $contextDocs = $project->documents()
-            ->whereIn('type', $types)
-            ->latest()
-            ->limit(10)
-            ->get();
-
-        if ($contextDocs->isEmpty()) {
-            return ['error' => 'No docs found', 'mock_response' => []];
-        }
-
-        $retrievedContent = $contextDocs->map(fn($doc) => "[Type: {$doc->type}]\nContent: {$doc->content}")->implode("\n\n---\n\n");
-
-        return $this->callLlm($project, $strategy, $retrievedContent);
+        return match ($name) {
+            'ollama' => new \App\Services\Ai\Drivers\OllamaLlmDriver(),
+            'gemini' => new \App\Services\Ai\Drivers\GeminiLlmDriver(),
+            default  => throw new \Exception("Unsupported LLM Driver"),
+        };
     }
 }

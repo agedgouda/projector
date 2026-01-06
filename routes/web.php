@@ -10,6 +10,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\AiTemplateController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -31,6 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/roles/{role}/users/{user}', [RoleController::class, 'unassignUser'])
             ->name('roles.users.destroy');
         Route::resource('project-types', ProjectTypeController::class);
+        Route::resource('ai-templates', AiTemplateController::class);
     });
 
     // 2. Client & Project Management (PROTECTED BY MIDDLEWARE)

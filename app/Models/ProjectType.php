@@ -16,10 +16,12 @@ class ProjectType extends Model
         'name',
         'icon',
         'document_schema',
+        'workflow',
     ];
 
     protected $casts = [
         'document_schema' => 'array',
+        'workflow' => 'array',
     ];
 
     protected function documentSchema(): Attribute
