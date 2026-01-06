@@ -19,12 +19,13 @@ import userRoutes from '@/routes/users/index';
 import projectRoutes from '@/routes/projects/index';
 import projectTypeRoutes from '@/routes/project-types/index';
 import roleRoutes from '@/routes/roles/index';
+import aiRoutes from '@/routes/ai-templates/index';
 
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-import { BookOpen, Folder, LayoutGrid, Users, User, Briefcase, Workflow, Settings2 } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Users, User, Briefcase, Workflow, Settings2, Sparkles } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 
@@ -68,6 +69,12 @@ const mainNavItems: NavItem[] = [
         title: 'Roles',
         href: roleRoutes.index(),
         icon: Settings2,
+        hidden: !isAdmin.value,
+    },
+    {
+        title: 'AI Workflows',
+        href: aiRoutes.index(),
+        icon: Sparkles,
         hidden: !isAdmin.value,
     },
 ];
