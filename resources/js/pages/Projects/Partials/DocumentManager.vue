@@ -5,7 +5,8 @@ import { useEcho } from '@laravel/echo-vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 
 // UI Imports
-import { PlusIcon, Sparkles, Search, RefreshCw } from 'lucide-vue-next';
+import { PlusIcon, Search, RefreshCw } from 'lucide-vue-next';
+import AppLogoIcon from '@/components/AppLogoIcon.vue'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from "@/components/ui/skeleton"
@@ -142,7 +143,7 @@ const handleDocReprocessing = (id: string) => {
 
                 <div class="flex items-center gap-4">
                     <div class="shrink-0">
-                        <Sparkles class="h-5 w-5 text-indigo-600" />
+                        <AppLogoIcon class="h-10 w-10 text-indigo-600" />
                     </div>
 
                     <div class="flex flex-col">
@@ -238,3 +239,33 @@ const handleDocReprocessing = (id: string) => {
         @submit="updateDocument"
     />
 </template>
+
+<style scoped>
+/* Target the logo-wheel class inside the AppLogoIcon */
+:deep(.logo-wheel) {
+    /* This tells the browser to use the center of the path itself */
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: logo-spin 3s linear infinite;
+}
+
+/* Optional: Make the left and right wheels spin at slightly different speeds
+   or directions to make it look more like a "machine" */
+:deep(.left-wheel) {
+    animation-duration: 4s;
+}
+
+:deep(.right-wheel) {
+    animation-direction: reverse;
+    animation-duration: 3s;
+}
+
+@keyframes logo-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+</style>
