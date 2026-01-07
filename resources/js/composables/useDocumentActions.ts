@@ -87,22 +87,22 @@ export function useDocumentActions(
         }
     };
 
-    const setDocToProcessing = (incomingId: string): void => {
-        if (!incomingId) return;
+const setDocToProcessing = (incomingId: string | number): void => {
+    if (!incomingId) return;
 
-        aiStatusMessage.value = 'Initializing Neural Interface...';
+    aiStatusMessage.value = 'Initializing Neural Interface...';
 
-        localRequirements.value = localRequirements.value.map(group => {
-            if (group.key !== 'intake') return group;
-
-            return {
-                ...group,
-                documents: group.documents.map((d: any) =>
-                    d.id === incomingId ? { ...d, processed_at: null } : d
-                )
-            };
-        });
-    };
+    localRequirements.value = localRequirements.value.map(group => {
+        return {
+            ...group,
+            documents: group.documents.map((d: any) =>
+                String(d.id) === String(incomingId)
+                    ? { ...d, processed_at: null }
+                    : d
+            )
+        };
+    });
+};
 
     return {
         form, isUploadModalOpen, isEditModalOpen,

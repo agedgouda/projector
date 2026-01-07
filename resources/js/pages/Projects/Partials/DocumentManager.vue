@@ -101,11 +101,10 @@ const filteredRequirements = computed(() => {
 });
 
 const isAiProcessing = computed(() => {
-    const intakeGroup = localRequirements.value.find(req => req.key === 'intake');
-    if (!intakeGroup) return false;
-
-    return intakeGroup.documents.some(doc =>
-        doc.parent_id === null && doc.processed_at === null
+    // We iterate through every requirement group (intake, user_story, tech_task, etc.)
+    return localRequirements.value.some(group =>
+        // Then check if any document in that group is currently being processed
+        group.documents.some(doc => doc.processed_at === null)
     );
 });
 
