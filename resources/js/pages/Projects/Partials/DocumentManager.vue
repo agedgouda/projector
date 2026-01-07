@@ -26,11 +26,30 @@ const props = defineProps<{
 const emit = defineEmits(['confirmDelete', 'generate']);
 const aiStatusMessage = ref<string>('');
 
+
+
 // --- 2. LOCAL UI STATE ---
 const localRequirements = ref<RequirementStatus[]>([...props.requirementStatus]);
 const searchQuery = ref('');
 const expandedDocId = ref<string | number | null>(null);
 const selectedTypes = ref<string[]>(props.requirementStatus.map(r => r.key));
+const activeTargetType = computed(() => {
+    // 1. Identify the document currently being processed
+    const processingDoc = localRequirements.value
+        .flatMap(group => group.documents)
+        .find(doc => doc.processed_at === null);
+
+    if (!processingDoc || !props.project?.type?.workflow) return null;
+
+    const workflow = props.project.type.workflow;
+
+    // 2. Find the step where the 'from_key' matches the processing doc's type
+    // This assumes your workflow JSON looks like: [{ from_key: 'intake', to_key: 'user_story' }, ...]
+    const activeStep = workflow.find((step: any) => step.from_key === processingDoc.type);
+
+    // 3. The 'to_key' is our dynamic target
+    return activeStep ? activeStep.to_key : null;
+});
 
 // --- 3. COMPOSABLE (Action Logic) ---
 const {
@@ -211,6 +230,7 @@ const handleDocReprocessing = (id: string) => {
                 :req="req"
                 :expanded-doc-id="expandedDocId"
                 :is-ai-processing="isAiProcessing"
+                :is-target="activeTargetType === req.key"
                 @open-upload="openUploadModal"
                 @open-edit="openEditModal"
                 @toggle-expand="toggleExpand"

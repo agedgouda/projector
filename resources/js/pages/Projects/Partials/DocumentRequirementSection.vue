@@ -8,6 +8,7 @@ defineProps<{
     req: any;
     expandedDocId: string | number | null;
     isAiProcessing?: boolean;
+    isTarget?: boolean;
 }>();
 
 
@@ -48,7 +49,7 @@ const handleMiddleReprocess = (payload: string): void => {
         </div>
 
         <ul
-            v-if="req.documents.length > 0 || (req.key === 'user_story' && isAiProcessing)"
+            v-if="req.documents.length > 0 || isTarget"
             class="mt-2 space-y-2"
         >
             <DocumentItem
@@ -61,8 +62,7 @@ const handleMiddleReprocess = (payload: string): void => {
                 @delete="emit('confirmDelete', doc)"
                 @reprocessing="handleMiddleReprocess"
             />
-
-            <li v-if="req.key === 'user_story' && isAiProcessing" key="skeleton" class="p-4 border border-dashed rounded-lg bg-indigo-50/30 border-indigo-200">
+            <li v-if="isTarget" key="skeleton" class="p-4 border border-dashed rounded-lg bg-indigo-50/30 border-indigo-200">
 
                 <div class="flex items-center gap-2 mb-3">
                     <div class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
