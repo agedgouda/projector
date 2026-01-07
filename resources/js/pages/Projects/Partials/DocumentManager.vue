@@ -26,30 +26,11 @@ const props = defineProps<{
 const emit = defineEmits(['confirmDelete', 'generate']);
 const aiStatusMessage = ref<string>('');
 
-
-
 // --- 2. LOCAL UI STATE ---
 const localRequirements = ref<RequirementStatus[]>([...props.requirementStatus]);
 const searchQuery = ref('');
 const expandedDocId = ref<string | number | null>(null);
 const selectedTypes = ref<string[]>(props.requirementStatus.map(r => r.key));
-const activeTargetType = computed(() => {
-    // 1. Identify the document currently being processed
-    const processingDoc = localRequirements.value
-        .flatMap(group => group.documents)
-        .find(doc => doc.processed_at === null);
-
-    if (!processingDoc || !props.project?.type?.workflow) return null;
-
-    const workflow = props.project.type.workflow;
-
-    // 2. Find the step where the 'from_key' matches the processing doc's type
-    // This assumes your workflow JSON looks like: [{ from_key: 'intake', to_key: 'user_story' }, ...]
-    const activeStep = workflow.find((step: any) => step.from_key === processingDoc.type);
-
-    // 3. The 'to_key' is our dynamic target
-    return activeStep ? activeStep.to_key : null;
-});
 
 // --- 3. COMPOSABLE (Action Logic) ---
 const {
@@ -60,52 +41,50 @@ const {
     openEditModal,
     submitDocument,
     updateDocument,
-    setDocToProcessing
+    setDocToProcessing,
+    targetBeingCreated // This is the new ref from useDocumentActions
 } = useDocumentActions(props, localRequirements, aiStatusMessage);
 
+// --- 4. COMPUTED ---
 
-// --- 4. WATCHERS & REAL-TIME (ECHO) ---
-watch(() => props.requirementStatus, (newVal) => {
-    // We use a deep clone to ensure Vue detects the nested 'processed_at' changes
-    localRequirements.value = JSON.parse(JSON.stringify(newVal));
-}, { deep: true, immediate: true });
+/**
+ * Determines which section should show the "Drafting..." shimmer.
+ * Priority 1: A brand new document being created (Ghost Target).
+ * Priority 2: An existing document being reprocessed (Workflow Target).
+ */
+const activeTargetType = computed(() => {
+    // Check for Ghost Target (New Uploads)
+    if (targetBeingCreated.value) return targetBeingCreated.value;
 
-useEcho(
-    `project.${props.project.id}`,
-    [
-        '.document.vectorized',
-        '.DocumentProcessingUpdate',
-        '.App\\Events\\DocumentProcessingUpdate'
-    ],
-    (payload: any) => {
-        // Check if this is the progress update
-        if (payload.statusMessage) {
-            aiStatusMessage.value = payload.statusMessage;
-        }
+    // Check for Reprocessing Targets (Existing Docs)
+    const processingDoc = localRequirements.value
+        .flatMap(group => group.documents)
+        .find(doc => doc.processed_at === null);
 
-        // Check if this is the final vectorized document
-        else if (payload.document) {
-            aiStatusMessage.value = ''; // Reset the status banner
+    if (!processingDoc || !props.project?.type?.workflow) return null;
 
-            // Your original mapping logic follows...
-            const updatedDoc = payload.document;
-            localRequirements.value = localRequirements.value.map(group => {
-                if (group.key !== updatedDoc.type) return group;
-                const newDocs = [...group.documents];
-                const index = newDocs.findIndex(d => d.id === updatedDoc.id);
-                if (index !== -1) newDocs[index] = updatedDoc;
-                else newDocs.unshift(updatedDoc);
-                return { ...group, documents: newDocs };
-            });
-            localRequirements.value = [...localRequirements.value];
-            toast.success('Project Updated');
-        }
-    },
-    [props.project.id],
-    'private'
-);
+    const workflow = props.project.type.workflow;
+    const activeStep = workflow.find((step: any) => step.from_key === processingDoc.type);
 
-// --- 5. COMPUTED ---
+    return activeStep ? activeStep.to_key : null;
+});
+
+/**
+ * Controls the visibility of the Top Alert Banner.
+ */
+const isAiProcessing = computed(() => {
+    // Show banner if we are waiting for a ghost target
+    if (targetBeingCreated.value) return true;
+
+    // Show banner if any existing document is in processing state
+    return localRequirements.value.some(group =>
+        group.documents.some(doc => doc.processed_at === null)
+    );
+});
+
+/**
+ * Filtered requirements based on search and type toggles.
+ */
 const filteredRequirements = computed(() => {
     const query = searchQuery.value.toLowerCase();
     return localRequirements.value
@@ -120,13 +99,56 @@ const filteredRequirements = computed(() => {
         .filter(req => req.documents.length > 0 || (query === '' && selectedTypes.value.includes(req.key)));
 });
 
-const isAiProcessing = computed(() => {
-    // We iterate through every requirement group (intake, user_story, tech_task, etc.)
-    return localRequirements.value.some(group =>
-        // Then check if any document in that group is currently being processed
-        group.documents.some(doc => doc.processed_at === null)
-    );
-});
+// --- 5. WATCHERS & REAL-TIME (ECHO) ---
+watch(() => props.requirementStatus, (newVal) => {
+    localRequirements.value = JSON.parse(JSON.stringify(newVal));
+}, { deep: true, immediate: true });
+
+useEcho(
+    `project.${props.project.id}`,
+    [
+        '.document.vectorized',
+        '.DocumentProcessingUpdate',
+        '.App\\Events\\DocumentProcessingUpdate'
+    ],
+    (payload: any) => {
+        // Handle Step-by-Step progress updates
+        if (payload.statusMessage) {
+            aiStatusMessage.value = payload.statusMessage;
+        }
+
+        // Handle Final Document Completion
+        else if (payload.document) {
+            // If this doc matches the type we were waiting for, clear the "Ghost" state
+            if (payload.document.type === targetBeingCreated.value) {
+                targetBeingCreated.value = null;
+            }
+
+            aiStatusMessage.value = ''; // Reset the status banner
+
+            const updatedDoc = payload.document;
+            localRequirements.value = localRequirements.value.map(group => {
+                if (group.key !== updatedDoc.type) return group;
+
+                const newDocs = [...group.documents];
+                const index = newDocs.findIndex(d => d.id === updatedDoc.id);
+
+                if (index !== -1) {
+                    newDocs[index] = updatedDoc;
+                } else {
+                    newDocs.unshift(updatedDoc);
+                }
+
+                return { ...group, documents: newDocs };
+            });
+
+            localRequirements.value = [...localRequirements.value];
+            toast.success('Project Updated');
+        }
+    },
+    [props.project.id],
+    'private'
+);
 
 // --- 6. UI-ONLY METHODS ---
 const toggleType = (key: string) => {

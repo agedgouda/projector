@@ -11,6 +11,7 @@ export function useDocumentActions(
     const isUploadModalOpen = ref(false);
     const isEditModalOpen = ref(false);
     const editingDocumentId = ref<string | number | null>(null);
+    const targetBeingCreated = ref<string | number | null>(null);
 
     const form = useForm({
         name: '',
@@ -45,15 +46,29 @@ export function useDocumentActions(
             preserveState: true,
             forceFormData: true,
             onBefore: () => {
-                aiStatusMessage.value = 'Establishing Secure Uplink...';
+                // Use props.project.type.workflow as requested
+                const workflow = props.project?.type?.workflow || [];
+                const step = workflow.find((s: any) => s.from_key === form.type);
+
+                if (step) {
+                    // 1. SET THE GHOST TARGET
+                    targetBeingCreated.value = step.to_key;
+
+                    const targetReq = props.requirementStatus.find((r: any) => r.key === step.to_key);
+                    aiStatusMessage.value = `Creating ${targetReq?.plural_label || 'Deliverables'}...`;
+                } else {
+                    aiStatusMessage.value = 'Establishing Secure Uplink...';
+                }
             },
             onSuccess: () => {
                 isUploadModalOpen.value = false;
                 form.reset();
-                // We keep the message visible until Reverb takes over
+                // Note: We do NOT reset targetBeingCreated here!
+                // We wait for the Echo event to do that.
             },
             onError: () => {
-                aiStatusMessage.value = ''; // Clear on error
+                aiStatusMessage.value = '';
+                targetBeingCreated.value = null; // Clear if request fails
                 isUploadModalOpen.value = true;
             }
         });
@@ -90,22 +105,35 @@ export function useDocumentActions(
 const setDocToProcessing = (incomingId: string | number): void => {
     if (!incomingId) return;
 
-    aiStatusMessage.value = 'Initializing Neural Interface...';
-
-    localRequirements.value = localRequirements.value.map(group => {
-        return {
-            ...group,
-            documents: group.documents.map((d: any) =>
-                String(d.id) === String(incomingId)
-                    ? { ...d, processed_at: null }
-                    : d
-            )
-        };
+    // Find the document type in our local state to determine the message
+    let sourceDoc: any = null;
+    localRequirements.value.forEach(group => {
+        const found = group.documents.find((d: any) => String(d.id) === String(incomingId));
+        if (found) sourceDoc = found;
     });
+
+    if (sourceDoc) {
+        const workflow = props.project?.type?.workflow || [];
+        const step = workflow.find((s: any) => s.from_key === sourceDoc.type);
+        const targetReq = props.requirementStatus.find((r: any) => r.key === step?.to_key);
+
+        aiStatusMessage.value = targetReq
+            ? `Generating ${targetReq.plural_label}...`
+            : 'Initializing Neural Interface...';
+    } else {
+        aiStatusMessage.value = 'Initializing Neural Interface...';
+    }
+
+    localRequirements.value = localRequirements.value.map(group => ({
+        ...group,
+        documents: group.documents.map((d: any) =>
+            String(d.id) === String(incomingId) ? { ...d, processed_at: null } : d
+        )
+    }));
 };
 
     return {
         form, isUploadModalOpen, isEditModalOpen,
-        openUploadModal, openEditModal, submitDocument, updateDocument, setDocToProcessing
+        openUploadModal, openEditModal, submitDocument, updateDocument, setDocToProcessing, targetBeingCreated
     };
 }
