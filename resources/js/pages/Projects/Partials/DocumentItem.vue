@@ -10,6 +10,9 @@ import {
     Loader2Icon
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import { usePage } from '@inertiajs/vue3';
+
+const thisPage = usePage() as any;
 
 const props = defineProps<{
     doc: any;
@@ -25,26 +28,6 @@ const emit = defineEmits<{
 
 const isProcessing = ref(false);
 
-// const handleReprocess = async () => {
-//     if (isProcessing.value) return;
-//     if (!confirm('Re-run AI analysis on this intake document?')) return;
-
-//     isProcessing.value = true;
-//     try {
-//         // Updated URL to match: projects/{project}/documents/{document}/reprocess
-//         await axios.post(`/projects/${props.doc.project_id}/documents/${props.doc.id}/reprocess`);
-
-//         // Emit the event to the parent manager
-//         emit('reprocessing', props.doc.id);
-
-//         // Success feedback
-//     } catch (error) {
-//         console.error('AI Reprocess failed:', error);
-//         alert('Failed to start AI process. Check console for details.');
-//     } finally {
-//         isProcessing.value = false;
-//     }
-// };
 
 const handleReprocess = async () => {
     if (isProcessing.value) return;
@@ -59,7 +42,10 @@ const handleReprocess = async () => {
     isProcessing.value = true;
     try {
         // The URL is already generic: /projects/{project}/documents/{document}/reprocess
-        await axios.post(`/projects/${props.doc.project_id}/documents/${props.doc.id}/reprocess`);
+        const projectId = props.doc.project_id || thisPage.props.project.id;
+
+
+        await axios.post(`/projects/${projectId}/documents/${props.doc.id}/reprocess`);
 
         // Emit the event so the parent knows to show a loading state/refresh
         emit('reprocessing', props.doc.id);
