@@ -6,6 +6,7 @@ use App\Contracts\LlmDriver;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use Illuminate\Http\Client\ConnectionException;
 
 class OllamaLlmDriver implements LlmDriver
 {
@@ -14,7 +15,7 @@ class OllamaLlmDriver implements LlmDriver
         $host = config('services.ollama.host');
         $model = 'deepseek-r1:8b';
 
-        Log::info("Ollama Driver: Starting request to {$model}");
+        Log::info("Ollama Driver: Starting request", ['model' => $model]);
 
         try {
             $response = Http::timeout(300)->post("{$host}/api/generate", [
@@ -25,41 +26,69 @@ class OllamaLlmDriver implements LlmDriver
                 'format' => 'json',
             ]);
 
+            // 1. Handle HTTP Failures (e.g., 404 model not found, 500 server crash)
             if ($response->failed()) {
-                Log::error("Ollama API Connection Failed", ['status' => $response->status(), 'body' => $response->body()]);
-                throw new Exception("Ollama API Error: " . $response->status());
+                return [
+                    'status' => 'error',
+                    'error_type' => 'http_failure',
+                    'message' => "Ollama API returned status " . $response->status(),
+                    'content' => []
+                ];
             }
 
             $rawText = $response->json('response');
 
+            if (empty($rawText)) {
+                return [
+                    'status' => 'error',
+                    'error_type' => 'empty_response',
+                    'message' => "Ollama returned an empty response string.",
+                    'content' => []
+                ];
+            }
 
-            // 1. Remove DeepSeek reasoning <think> blocks
+            // 2. DeepSeek Clean-up
             $noThinking = preg_replace('/<think>.*?<\/think>/s', '', $rawText);
-
-            // 2. Remove Markdown code blocks (matching your Gemini driver logic)
             $cleanJson = trim(preg_replace('/^```json\s*|```$/m', '', $noThinking));
 
-            // 3. Attempt JSON Decode
+            // 3. JSON Decode with Error Capture
             $decoded = json_decode($cleanJson, true);
 
-            // 4. Safety Net: If AI returned a single object {}, wrap it in an array [{}]
-            if ($decoded && !isset($decoded[0]) && isset($decoded['title'])) {
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error("Ollama JSON Parse Error", [
+                    'error' => json_last_error_msg(),
+                    'raw_after_cleanup' => $cleanJson
+                ]);
+
+                return [
+                    'status' => 'error',
+                    'error_type' => 'json_parse',
+                    'message' => "Failed to parse AI response as JSON: " . json_last_error_msg(),
+                    'content' => []
+                ];
+            }
+
+            // 4. Safety Net: Consistency check
+            if (is_array($decoded) && !array_is_list($decoded)) {
                 $decoded = [$decoded];
             }
 
-            if (!$decoded) {
-                Log::error("Ollama Step 4: JSON Decode Failed", ['cleaned_text' => $cleanJson]);
-            }
-
             return [
-                'status'  => $decoded ? 'success' : 'error',
-                'content' => $decoded ?? []
+                'status'  => 'success',
+                'content' => is_array($decoded) ? $decoded : []
             ];
-
-        } catch (Exception $e) {
-            Log::error("Ollama Driver Exception: " . $e->getMessage());
+        } catch (ConnectionException $e) {
             return [
-                'status'  => 'error',
+                'status' => 'error',
+                'error_type' => 'connection',
+                'message' => "Could not reach Ollama at {$host}. Is the service running?",
+                'content' => []
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'error_type' => 'exception',
+                'message' => $e->getMessage(),
                 'content' => []
             ];
         }

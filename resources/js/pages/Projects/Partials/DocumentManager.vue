@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import DocumentRequirementSection from './DocumentRequirementSection.vue';
 import DocumentFormModal from './DocumentFormModal.vue';
+import { globalAiState } from '@/state'
 
 // --- 1. PROPS & EMITS ---
 const props = defineProps<{
@@ -80,8 +81,15 @@ const isAiProcessing = computed(() => {
     return localRequirements.value.some(group =>
         group.documents.some(doc => doc.processed_at === null)
     );
+
+
 });
 
+watch(isAiProcessing, (newVal) => {
+
+        globalAiState.value.isProcessing = newVal;
+    }, { immediate: true }
+);
 /**
  * Filtered requirements based on search and type toggles.
  */
@@ -189,7 +197,7 @@ const handleDocReprocessing = (id: string) => {
 
                     <div class="flex flex-col">
                         <AlertTitle class="text-sm font-bold text-indigo-900 m-0 leading-tight animate-pulse">
-                            AI Pipeline Active
+                            Logic Circuits Engaged
                         </AlertTitle>
                         <AlertDescription class="text-xs text-indigo-700/70 m-0 leading-normal">
 
@@ -281,33 +289,3 @@ const handleDocReprocessing = (id: string) => {
         @submit="updateDocument"
     />
 </template>
-
-<style scoped>
-/* Target the logo-wheel class inside the AppLogoIcon */
-:deep(.logo-wheel) {
-    /* This tells the browser to use the center of the path itself */
-    transform-origin: center;
-    transform-box: fill-box;
-    animation: logo-spin 3s linear infinite;
-}
-
-/* Optional: Make the left and right wheels spin at slightly different speeds
-   or directions to make it look more like a "machine" */
-:deep(.left-wheel) {
-    animation-duration: 4s;
-}
-
-:deep(.right-wheel) {
-    animation-direction: reverse;
-    animation-duration: 3s;
-}
-
-@keyframes logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-</style>

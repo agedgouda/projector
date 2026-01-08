@@ -5,69 +5,66 @@ namespace App\Services\Ai;
 use App\Models\Project;
 use App\Models\Document;
 use App\Models\AiTemplate;
-use App\Models\ProjectType;
 use App\Services\VectorService;
-use App\Services\Ai\Strategies\ProjectGeneratorStrategy;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ProjectAiService
 {
-    /**
-     * Map project types to their specific AI Strategies.
-     */
-    protected array $strategyMap = [
-        'software' => \App\Services\Ai\Strategies\SoftwareStrategy::class,
-    ];
+    public function __construct(protected VectorService $vectorService) {}
 
-    public function __construct(
-        protected VectorService $vectorService
-    ) {}
-
-    /**
-     * Generic entry point for background jobs.
-     */
     public function process(Document $document)
     {
-        // 1. Load project AND its type relationship
         $document->loadMissing('project.type');
         $project = $document->project;
         $typeModel = $project->type;
 
-        // --- START DYNAMIC STRATEGY RESOLUTION ---
         $workflow = collect($typeModel->workflow ?? []);
         $step = $workflow->firstWhere('from_key', $document->type);
 
         if (!$step || empty($step['ai_template_id'])) {
             Log::warning("No AI transition defined for type: {$document->type}. Skipping.");
-            return;
+            return null; // Explicit null for the Job to handle
         }
 
         $template = AiTemplate::find($step['ai_template_id']);
-
         if (!$template) {
             Log::error("AI Template ID {$step['ai_template_id']} not found.");
-            return;
+            return null;
         }
 
-        $strategy = new DynamicWorkflowStrategy(
-            $template,
-            $step['from_key'],
-            $step['to_key']
-        );
-        // --- END DYNAMIC STRATEGY RESOLUTION ---
+        $strategy = new DynamicWorkflowStrategy($template, $step['from_key'], $step['to_key']);
+        $result = $this->callLlm($project, $strategy, $document->content, $document);
 
-        Log::info("AI Strategy Resolved", [
-            'document_id' => $document->id,
-            'strategy' => get_class($strategy),
-            'expects_output' => $strategy->getOutputDocumentType()
+        // --- DEFENSIVE TRACE ---
+        $mockResponse = $result['mock_response'] ?? [];
+        $firstItem = collect($mockResponse)->first();
+
+        Log::info("AI Process Result Trace", [
+            'doc_id' => $document->id,
+            'status' => $result['status'] ?? 'unknown',
+            'item_count' => is_array($mockResponse) ? count($mockResponse) : 0,
+            'first_item_keys' => is_array($firstItem) ? array_keys($firstItem) : 'N/A'
         ]);
 
-        // 4. Call the LLM and merge the output type into the response
-        $result = $this->callLlm($project, $strategy, $document->content);
+        // --- VALIDATION: Ensure we didn't get empty strings/objects back ---
+        if (($result['status'] ?? '') === 'success') {
+            $generatedItems = collect($mockResponse);
 
-        // 5. Inject the dynamic output type so the Job knows what to create
+            $hasSubstantialContent = $generatedItems->isNotEmpty() && $generatedItems->every(function ($item) {
+                $text = $item['story'] ?? $item['description'] ?? $item['content'] ?? '';
+                return strlen(trim($text)) > 10;
+            });
+
+            if (!$hasSubstantialContent) {
+                return [
+                    'status' => 'error',
+                    'message' => 'AI returned empty or insufficient content. Triggering retry.',
+                    'output_type' => $strategy->getOutputDocumentType(),
+                ];
+            }
+        }
+
         if (isset($result['status']) && $result['status'] === 'success') {
             $result['output_type'] = $strategy->getOutputDocumentType();
         }
@@ -75,90 +72,40 @@ class ProjectAiService
         return $result;
     }
 
-    /**
-     * Core communication
-     */
-protected function callLlm(Project $project, $strategy, string $context)
-{
-    $driverName = config('services.llm_driver', 'gemini');
+    protected function callLlm(Project $project, $strategy, string $context, Document $currentDoc = null)
+    {
+        $driverName = config('services.llm_driver', 'gemini');
 
-    $driver = match ($driverName) {
-        'ollama' => new \App\Services\Ai\Drivers\OllamaLlmDriver(),
-        'gemini' => new \App\Services\Ai\Drivers\GeminiLlmDriver(),
-        default  => throw new \Exception("Unsupported LLM Driver"),
-    };
+        $driver = match ($driverName) {
+            'ollama' => new \App\Services\Ai\Drivers\OllamaLlmDriver(),
+            'gemini' => new \App\Services\Ai\Drivers\GeminiLlmDriver(),
+            default  => throw new \Exception("Unsupported LLM Driver: {$driverName}"),
+        };
 
-    $userTemplate = $strategy->getUserPromptTemplate();
+        $userTemplate = $strategy->getUserPromptTemplate();
+        $replacements = ['{{input}}' => $context, '{{project}}' => $project->name];
 
-    // 1. Setup the basic replacements that we KNOW work
-    $replacements = [
-        '{{input}}' => $context,
-        '{{project}}' => $project->name,
-    ];
-
-    // 2. Only attempt regex if the template actually contains the "all:" tag
-    if (str_contains($userTemplate, '{{all:')) {
-        if (preg_match_all('/{{all:([a-zA-Z0-9_-]+)}}/', $userTemplate, $matches)) {
+        if (preg_match_all('/{{all:([a-zA-Z0-9_-]+)}}/i', $userTemplate, $matches)) {
             foreach ($matches[1] as $index => $docType) {
                 $fullTag = $matches[0][$index];
-
-                // Get documents of this type
-                $docs = $project->documents()->where('type', $docType)->get();
-
-                // If we found docs, format them; otherwise, use an empty string
-                // We avoid using "---" headers here to keep the prompt clean for the LLM
+                $query = $project->documents()->where('type', $docType);
+                if ($currentDoc) { $query->where('id', '!=', $currentDoc->id); }
+                $docs = $query->get();
                 $replacements[$fullTag] = $docs->isNotEmpty()
                     ? $docs->pluck('content')->implode("\n\n")
-                    : "";
+                    : "No {$docType} context provided.";
             }
         }
-    }
 
-    // 3. Swap placeholders
-    $userMessage = str_replace(
-        array_keys($replacements),
-        array_values($replacements),
-        $userTemplate
-    );
+        $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
+        $result = $driver->call($strategy->getTaskExtractionPrompt(), $userMessage);
 
-    // 4. Call driver
-    $result = $driver->call($strategy->getTaskExtractionPrompt(), $userMessage);
-
-    // 5. Log for debugging - this will tell us if Ollama is failing to return JSON
-    if ($result['status'] === 'error') {
-        Log::error("LLM Driver returned an error status. Check Ollama output.", [
-            'project' => $project->name,
-            'template' => get_class($strategy)
-        ]);
-    }
-
-    return [
-        'project_name'  => $project->name,
-        'mock_response' => $result['content'] ?? [],
-        'status'        => $result['status'],
-        'output_type'   => $strategy->getOutputDocumentType(),
-    ];
-}
-
-    /**
-     * Manual trigger for generating deliverables.
-     */
-    public function generateDeliverables(Project $project, $strategy)
-    {
-        $types = $strategy->getRequiredDocumentTypes();
-
-        $contextDocs = $project->documents()
-            ->whereIn('type', $types)
-            ->latest()
-            ->limit(10)
-            ->get();
-
-        if ($contextDocs->isEmpty()) {
-            return ['error' => 'No docs found', 'mock_response' => []];
-        }
-
-        $retrievedContent = $contextDocs->map(fn($doc) => "[Type: {$doc->type}]\nContent: {$doc->content}")->implode("\n\n---\n\n");
-
-        return $this->callLlm($project, $strategy, $retrievedContent);
+        return [
+            'project_name'  => $project->name,
+            'mock_response' => $result['content'] ?? [],
+            'status'        => $result['status'] ?? 'error',
+            'error_message' => $result['message'] ?? null,
+            'output_type'   => $strategy->getOutputDocumentType(),
+        ];
     }
 }
