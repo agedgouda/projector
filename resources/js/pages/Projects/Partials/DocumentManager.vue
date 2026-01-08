@@ -120,31 +120,34 @@ useEcho(
         '.App\\Events\\DocumentProcessingUpdate'
     ],
     (payload: any) => {
-        // Handle Step-by-Step progress updates
         if (payload.statusMessage) {
             aiStatusMessage.value = payload.statusMessage;
         }
 
-        // Handle Final Document Completion
         else if (payload.document) {
-            // If this doc matches the type we were waiting for, clear the "Ghost" state
             if (payload.document.type === targetBeingCreated.value) {
                 targetBeingCreated.value = null;
             }
 
-            aiStatusMessage.value = ''; // Reset the status banner
+            aiStatusMessage.value = '';
 
-            const updatedDoc = payload.document;
+            const incomingDoc = payload.document;
+
             localRequirements.value = localRequirements.value.map(group => {
-                if (group.key !== updatedDoc.type) return group;
+                if (group.key !== incomingDoc.type) return group;
 
                 const newDocs = [...group.documents];
-                const index = newDocs.findIndex(d => d.id === updatedDoc.id);
+                const index = newDocs.findIndex(d => d.id === incomingDoc.id);
 
                 if (index !== -1) {
-                    newDocs[index] = updatedDoc;
+                    // FIX: Merge the incoming data with what we already have.
+                    // This preserves creator_id even if the broadcast forgets it.
+                    newDocs[index] = {
+                        ...newDocs[index],
+                        ...incomingDoc
+                    };
                 } else {
-                    newDocs.unshift(updatedDoc);
+                    newDocs.unshift(incomingDoc);
                 }
 
                 return { ...group, documents: newDocs };

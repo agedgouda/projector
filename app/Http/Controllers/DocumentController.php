@@ -28,13 +28,14 @@ class DocumentController extends Controller
 
         // 2. Create via Model directly to ensure Observer gets full data
         // This avoids relationship-level scoping issues during the 'created' event
-        Document::create([
+        $document = Document::create([
             'project_id' => $project->id,
             'name' => $validated['name'],
             'content' => $validated['content'],
             'type' => $validated['type'],
         ]);
 
+        $document->load(['creator', 'editor']);
         return back()->with('success', 'Context document added to project.');
     }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 import {
     ChevronRightIcon,
@@ -7,7 +7,7 @@ import {
     TrashIcon,
     PencilIcon,
     RefreshCwIcon,
-    Loader2Icon
+    Loader2Icon,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { usePage } from '@inertiajs/vue3';
@@ -19,6 +19,7 @@ const props = defineProps<{
     isExpanded: boolean;
 }>();
 
+
 const emit = defineEmits<{
     (e: 'toggle'): void;
     (e: 'delete'): void;
@@ -28,11 +29,34 @@ const emit = defineEmits<{
 
 const isProcessing = ref(false);
 
+/**
+ * Logic to determine the attribution string
+ * Shows Creator, and adds Editor only if they are a different person
+ */
+const attribution = computed(() => {
+    // 1. Get the IDs (These are guaranteed to be there if it's in the DB)
+    const cId = props.doc.creator_id;
+    const eId = props.doc.editor_id;
+
+    // 2. Logic: If the object is missing, but the ID matches the current user
+    // we use the Global Auth name. This is bulletproof.
+    const creatorName = props.doc.creator?.name ||
+        (cId === thisPage.props.auth.user.id ? thisPage.props.auth.user.name : 'AI System');
+
+    const editorName = props.doc.editor?.name ||
+        (eId === thisPage.props.auth.user.id ? thisPage.props.auth.user.name : null);
+
+    // 3. Only show "Edited by" if it's a different person
+    if (editorName && eId !== cId) {
+        return `${creatorName} (Last Edited by ${editorName})`;
+    }
+
+    return creatorName;
+});
 
 const handleReprocess = async () => {
     if (isProcessing.value) return;
 
-    // Dynamic confirmation message
     const actionText = props.doc.type === 'intake'
         ? 'regenerate User Stories'
         : 'generate Technical Tasks';
@@ -41,15 +65,9 @@ const handleReprocess = async () => {
 
     isProcessing.value = true;
     try {
-        // The URL is already generic: /projects/{project}/documents/{document}/reprocess
         const projectId = props.doc.project_id || thisPage.props.project.id;
-
-
         await axios.post(`/projects/${projectId}/documents/${props.doc.id}/reprocess`);
-
-        // Emit the event so the parent knows to show a loading state/refresh
         emit('reprocessing', props.doc.id);
-
     } catch (error) {
         console.error('AI Reprocess failed:', error);
         alert('Failed to start AI process. Check console for details.');
@@ -57,7 +75,6 @@ const handleReprocess = async () => {
         isProcessing.value = false;
     }
 };
-
 </script>
 
 <template>
@@ -76,9 +93,11 @@ const handleReprocess = async () => {
                     <span :class="['text-sm font-semibold truncate transition-colors', isExpanded ? 'text-indigo-700' : 'text-slate-800']">
                         {{ doc.name }}
                     </span>
-                    <span class="text-[10px] text-slate-400 uppercase tracking-tight font-medium">
-                        Last Modified {{ new Date(doc.updated_at || doc.created_at).toLocaleDateString() }}
-                    </span>
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase tracking-tight font-medium">
+                        <span> Created by: {{ attribution }}</span>
+                        <span>•</span>
+                        <span>{{ new Date(doc.updated_at || doc.created_at).toLocaleDateString() }}</span>
+                    </div>
                 </div>
             </div>
 

@@ -27,16 +27,31 @@ declare global {
         name: string;
         type: string;
         content: string | null;
+
+        // --- NEW ACTIONABLE COLUMNS ---
+        status: 'todo' | 'in_progress' | 'done';
+        creator_id: number | null;
+        editor_id: number | null;
+        assignee_id: number | null;
+
+        // --- NEW OPTIONAL RELATIONSHIPS ---
+        // These appear when you use ->with() in Laravel
+        creator?: User;
+        editor?: User;
+        assignee?: User;
+
         embedding: any | null;
         metadata: {
             criteria?: string[];
+            error?: string;       // Added for the AI failure tracking
+            failed_at?: string;  // Added for the AI failure tracking
             [key: string]: any;
         } | null;
+
         processed_at: string | null;
         created_at: string;
         updated_at: string;
     }
-
     export interface RequirementStatus {
         label: string;
         key: string;
