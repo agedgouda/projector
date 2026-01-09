@@ -48,7 +48,7 @@ const attribution = computed(() => {
 
     // 3. Only show "Edited by" if it's a different person
     if (editorName && eId !== cId) {
-        return `${creatorName} (Last Edited by ${editorName})`;
+        return ` Created by ${creatorName} Edited by ${editorName}`;
     }
 
     return creatorName;
@@ -91,10 +91,10 @@ const handleReprocess = async () => {
 
                 <div class="flex flex-col min-w-0">
                     <span :class="['text-sm font-semibold truncate transition-colors', isExpanded ? 'text-indigo-700' : 'text-slate-800']">
-                        {{ doc.name }}
+                        {{ doc.name }} {{ doc.assignee_id }}
                     </span>
                     <div class="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase tracking-tight font-medium">
-                        <span> Created by: {{ attribution }}</span>
+                        <span>{{ attribution }}</span>
                         <span>•</span>
                         <span>{{ new Date(doc.updated_at || doc.created_at).toLocaleDateString() }}</span>
                     </div>

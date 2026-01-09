@@ -24,6 +24,7 @@ class DocumentController extends Controller
             'name' => 'required|string|max:255',
             'content' => 'required|string|min:10',
             'type' => 'required|string',
+            'assignee_id' => 'nullable|exists:users,id',
         ]);
 
         // 2. Create via Model directly to ensure Observer gets full data
@@ -33,6 +34,7 @@ class DocumentController extends Controller
             'name' => $validated['name'],
             'content' => $validated['content'],
             'type' => $validated['type'],
+            'assignee_id' => $validated['assignee_id'],
         ]);
 
         $document->load(['creator', 'editor']);
@@ -54,6 +56,7 @@ class DocumentController extends Controller
             'name'    => ['required', 'string', 'max:255'],
             'type'    => ['required', 'string'],
             'content' => ['nullable', 'string'],
+            'assignee_id' => 'nullable|exists:users,id',
         ]);
 
         $document->update($validated);

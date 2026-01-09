@@ -38,7 +38,14 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
-        $project->load(['client', 'type', 'documents']);
+        $project->load([
+            'client.users',
+            'type',
+            'documents' => function ($query) {
+                $query->with(['creator', 'editor', 'assignee'])
+                      ->orderBy('created_at', 'desc');
+            }
+        ]);
 
         return inertia('Projects/Show', [
             'project' => $project,

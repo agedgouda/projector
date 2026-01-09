@@ -220,7 +220,6 @@ const handleDocReprocessing = (id: string) => {
             <Skeleton class="h-[3px] w-full rounded-none bg-indigo-200" />
         </Alert>
     </transition>
-
     <div class="bg-white p-6 rounded-xl mt-8 border border-gray-200 shadow-sm relative">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
@@ -281,6 +280,7 @@ const handleDocReprocessing = (id: string) => {
         mode="create"
         :form="form"
         :requirement-status="requirementStatus"
+        :users="project.client.users"
         @submit="submitDocument"
     />
 
@@ -289,6 +289,7 @@ const handleDocReprocessing = (id: string) => {
         mode="edit"
         :form="form"
         :requirement-status="requirementStatus"
+        :users="project.client.users"
         @submit="updateDocument"
     />
 </template>

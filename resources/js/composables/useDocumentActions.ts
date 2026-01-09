@@ -5,7 +5,7 @@ import axios, { AxiosError } from 'axios';
 export function useDocumentActions(
         props: any,
         localRequirements: Ref<any[]>,
-        aiStatusMessage: Ref<string>
+        aiStatusMessage: Ref<string>,
     )
     {
     const isUploadModalOpen = ref(false);
@@ -17,6 +17,7 @@ export function useDocumentActions(
         name: '',
         type: '',
         content: '',
+        assignee_id: null as number | null,
     });
 
     const openUploadModal = (requirement?: any) => {
@@ -25,6 +26,7 @@ export function useDocumentActions(
         if (requirement) {
             form.type = requirement.key;
             form.name = `New ${requirement.label.replace(/s$/, '')}`;
+
         }
         isUploadModalOpen.value = true;
     };
@@ -35,6 +37,7 @@ export function useDocumentActions(
         form.name = doc.name;
         form.type = doc.type;
         form.content = doc.content || '';
+        form.assignee_id = doc.assignee_id;
         isEditModalOpen.value = true;
     };
 

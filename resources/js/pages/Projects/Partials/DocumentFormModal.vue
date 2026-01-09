@@ -20,6 +20,7 @@ const props = defineProps<{
     mode: 'create' | 'edit';
     form: InertiaForm<Partial<ProjectDocument>>;
     requirementStatus: RequirementStatus[];
+    users?: User[];
 }>();
 
 const emit = defineEmits(['update:open', 'submit']);
@@ -36,6 +37,16 @@ const updateField = <K extends keyof ProjectDocument>(field: K, value: any) => {
     // We cast the form to 'any' here specifically to tell the linter:
     // "I am intentionally updating this reactive Inertia object."
     (props.form as any)[field] = value;
+};
+
+const handleAssigneeChange = (value: any) => {
+    // If 'unassigned' comes back, set form to null
+    if (value === 'unassigned') {
+        updateField('assignee_id', null);
+    } else {
+        // Convert the string "1" back to integer 1 for the database
+        updateField('assignee_id', parseInt(value) as any);
+    }
 };
 </script>
 
@@ -86,6 +97,34 @@ const updateField = <K extends keyof ProjectDocument>(field: K, value: any) => {
                     />
                 </div>
                 <p v-if="form.errors.content" class="text-xs text-destructive">{{ form.errors.content }}</p>
+
+            <div class="grid gap-2">
+                <Label :class="{ 'text-destructive': form.errors.assignee_id }">Assignee</Label>
+                <Select
+                    :model-value="form.assignee_id?.toString() ?? 'unassigned'"
+                    @update:model-value="handleAssigneeChange"
+                >
+                    <SelectTrigger :class="{ 'border-destructive': form.errors.assignee_id }">
+                        <SelectValue placeholder="Select a user to assign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        <SelectItem
+                            v-for="user in users"
+                            :key="user.id"
+                            :value="user.id.toString()"
+                        >
+                            {{ user.name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <p v-if="form.errors.assignee_id" class="text-xs text-destructive">
+                    {{ form.errors.assignee_id }}
+                </p>
+            </div>
+
+
+
             </div>
 
             <DialogFooter>
