@@ -105,34 +105,33 @@ export function useDocumentActions(
         }
     };
 
-const setDocToProcessing = (incomingId: string | number): void => {
-    if (!incomingId) return;
+const setDocToProcessing = async (id: string | number) => {
+    // 1. Find the document in our local state to get its type/context
+    const doc = localRequirements.value
+        .flatMap(group => group.documents)
+        .find(d => d.id === id);
 
-    // Find the document type in our local state to determine the message
-    let sourceDoc: any = null;
-    localRequirements.value.forEach(group => {
-        const found = group.documents.find((d: any) => String(d.id) === String(incomingId));
-        if (found) sourceDoc = found;
-    });
+    if (!doc) return;
 
-    if (sourceDoc) {
-        const workflow = props.project?.type?.workflow || [];
-        const step = workflow.find((s: any) => s.from_key === sourceDoc.type);
-        const targetReq = props.requirementStatus.find((r: any) => r.key === step?.to_key);
+    // 2. Confirmation Logic (Centralized)
+    const actionText = doc.type === 'intake'
+        ? 'regenerate User Stories'
+        : 'generate next workflow step';
 
-        aiStatusMessage.value = targetReq
-            ? `Generating ${targetReq.plural_label}...`
-            : 'Initializing Neural Interface...';
-    } else {
-        aiStatusMessage.value = 'Initializing Neural Interface...';
+    if (!confirm(`Are you sure you want to ${actionText}?`)) return;
+
+    // 3. UI Feedback: Set local state to processing immediately
+    doc.processed_at = null;
+
+    try {
+        // 4. THE BACKEND CALL (Moved from the component to here)
+        const projectId = props.project.id;
+        await axios.post(`/projects/${projectId}/documents/${id}/reprocess`);
+    } catch (error) {
+        console.error('AI Reprocess failed:', error);
+        // Rollback processed_at if failed so it doesn't spin forever
+        doc.processed_at = new Date().toISOString();
     }
-
-    localRequirements.value = localRequirements.value.map(group => ({
-        ...group,
-        documents: group.documents.map((d: any) =>
-            String(d.id) === String(incomingId) ? { ...d, processed_at: null } : d
-        )
-    }));
 };
 
     return {

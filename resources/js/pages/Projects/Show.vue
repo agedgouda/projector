@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectHeader from './Partials/ProjectHeader.vue';
-import DocumentManager from './Partials/DocumentManager.vue';
+import DocumentManager from '@/components/documents/DocumentManager.vue';
 import { type BreadcrumbItem } from '@/types';
 import { computed, ref } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
