@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Document;
+use App\Events\DocumentProcessingUpdate;
 use App\Services\Ai\ProjectAiService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -40,14 +41,17 @@ class ProcessDocumentAI implements ShouldQueue
             $msg = $result['message'] ?? 'Unknown AI Error';
 
             if ($attempt < $this->tries) {
-                // Log as a warning so your logs aren't filled with "Errors" for successful retries
+                // Only log "Retrying" here, in the internal system logs
                 Log::warning("AI Job Attempt #{$attempt} failed for Doc #{$this->document->id}. Retrying...", [
                     'reason' => $msg
                 ]);
+
+                // Throw exception to trigger internal queue retry
+                throw new \Exception("{$msg} (Attempt {$attempt} of {$this->tries})");
             }
 
-            // Throwing the exception is what actually triggers the queue retry mechanism
-            throw new \Exception("AI failure: {$msg}");
+            // On the final attempt, throw the clean message
+            throw new \Exception($msg);
         }
 
         // Case 3: Success - Persist the results
@@ -100,5 +104,10 @@ class ProcessDocumentAI implements ShouldQueue
                 'failed_at' => now()
             ])
         ]);
+
+        event(new DocumentProcessingUpdate(
+        $this->document,
+        'Error: ' . $exception->getMessage()
+    ));
     }
 }

@@ -24,6 +24,11 @@ class OllamaLlmDriver implements LlmDriver
                 'prompt' => $userPrompt,
                 'stream' => false,
                 'format' => 'json',
+                'options' => [
+                    'temperature' => 0.2,
+                    'top_p'       => 0.1,
+                    'num_predict' => 2048, // Prevents premature cutoff
+                ],
             ]);
 
             // 1. Handle HTTP Failures (e.g., 404 model not found, 500 server crash)

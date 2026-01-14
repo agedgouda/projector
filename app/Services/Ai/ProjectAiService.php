@@ -59,7 +59,7 @@ class ProjectAiService
             if (!$hasSubstantialContent) {
                 return [
                     'status' => 'error',
-                    'message' => 'AI returned empty or insufficient content. Triggering retry.',
+                    'message' => 'AI returned empty or insufficient content.',
                     'output_type' => $strategy->getOutputDocumentType(),
                 ];
             }
