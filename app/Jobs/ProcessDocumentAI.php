@@ -31,6 +31,7 @@ class ProcessDocumentAI implements ShouldQueue
         // Case 1: Early return from service (workflow missing or template not found)
         if ($result === null) {
             $this->document->update(['processed_at' => now()]);
+            event(new DocumentProcessingUpdate($this->document, 'Success'));
             Log::info("Job skipped: No valid workflow or template for Doc #{$this->document->id}");
             return;
         }
