@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-//import { toast } from 'vue-sonner';
 import { useEcho } from '@laravel/echo-vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
+import { useDocumentTree } from '@/composables/useDocumentTree';
+import { globalAiState } from '@/state';
 import {
     PlusIcon, Search, RefreshCw, GitGraph, ChevronRight,
     Edit2, Trash2, RotateCw, FileText
 } from 'lucide-vue-next';
 
+// UI Components
 import AppLogoIcon from '@/components/AppLogoIcon.vue'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import DocumentFormModal from './DocumentFormModal.vue';
-import { globalAiState } from '@/state';
 
-type ExtendedDocument = ProjectDocument & {
+export type ExtendedDocument = ProjectDocument & {
     currentStatus?: string | null;
     hasError?: boolean;
     processingError?: string | null;
@@ -36,6 +37,7 @@ const emit = defineEmits(['confirmDelete', 'generate']);
 const aiStatusMessage = ref<string>('');
 const documentsMap = ref<Map<string | number, ExtendedDocument>>(new Map());
 
+// 1. Sync Logic
 const syncFromProps = (statusGroups: RequirementStatus[]) => {
     const freshMap = new Map<string | number, ExtendedDocument>();
     statusGroups.forEach(group => {
@@ -53,114 +55,68 @@ const syncFromProps = (statusGroups: RequirementStatus[]) => {
 };
 
 syncFromProps(props.requirementStatus);
+watch(() => props.requirementStatus, (newVal) => syncFromProps(newVal), { deep: true });
 
-watch(() => props.requirementStatus, (newVal) => {
-    syncFromProps(newVal);
-}, { deep: true });
+const allDocs = computed(() => Array.from(documentsMap.value.values()));
 
+// 2. Composable initialization
 const localRequirements = computed(() => {
     return props.requirementStatus.map(group => ({
         ...group,
-        documents: Array.from(documentsMap.value.values()).filter(d => d.type === group.key)
+        documents: allDocs.value.filter(d => d.type === group.key)
     }));
 });
-
-const searchQuery = ref('');
-const expandedRootIds = ref<Set<string | number>>(new Set());
 
 const {
     form, isUploadModalOpen, isEditModalOpen, openUploadModal, openEditModal,
     submitDocument, updateDocument, setDocToProcessing, targetBeingCreated
 } = useDocumentActions(props, localRequirements, aiStatusMessage);
 
-const allDocs = computed(() => Array.from(documentsMap.value.values()));
+const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTree(allDocs);
+
+// 3. AI State
 const isAiProcessing = computed(() => !!targetBeingCreated.value || allDocs.value.some(d => d.processed_at === null));
+watch(isAiProcessing, (newVal) => { globalAiState.value.isProcessing = newVal; }, { immediate: true });
 
-watch(isAiProcessing, (newVal) => {
-    globalAiState.value.isProcessing = newVal;
-}, { immediate: true });
-
-const getDocLabel = (typeKey: string) => {
-    const schema = props.project.type.document_schema || [];
-    const schemaItem = schema.find((item: any) => item.key === typeKey);
-    return schemaItem ? schemaItem.label : typeKey.replace(/_/g, ' ');
-};
-
-const getLeadUser = (doc: any) => {
-    let user = doc.assignee || doc.user;
-    if (!user && doc.assigned_id && props.project.client?.users) {
-        user = props.project.client.users.find((u: any) => u.id === doc.assigned_id);
-    }
-    if (!user) return null;
-    const f = user.first_name?.charAt(0) || '';
-    const l = user.last_name?.charAt(0) || '';
-    return { ...user, initials: (f + l).toUpperCase() || '??' };
-};
-
-const buildTree = (parentId: string | number | null = null): ExtendedDocument[] => {
-    return allDocs.value
-        .filter(d => d.parent_id === parentId || (parentId === null && d.type === 'intake'))
-        .map(d => ({
-            ...d,
-            children: buildTree(d.id)
-        })) as ExtendedDocument[];
-};
-
-const documentTree = computed(() => {
-    const query = searchQuery.value.toLowerCase().trim();
-    const fullTree = buildTree();
-    if (!query) return fullTree;
-
-    const filterNodes = (nodes: any[]): any[] => {
-        return nodes.map(node => {
-            const filteredChildren = filterNodes(node.children || []);
-            const nameMatch = node.name.toLowerCase().includes(query);
-            if (nameMatch || filteredChildren.length > 0) {
-                return { ...node, children: filteredChildren };
-            }
-            return null;
-        }).filter(n => n !== null);
-    };
-    return filterNodes(fullTree);
-});
-
-const toggleRoot = (id: string | number) => {
-    if (expandedRootIds.value.has(id)) expandedRootIds.value.delete(id);
-    else expandedRootIds.value.add(id);
-};
-
+// 4. Echo Real-time Logic
 useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProcessingUpdate'], (payload: any) => {
     const docId = payload.document_id || payload.document?.id;
     if (!docId) return;
 
     const doc = documentsMap.value.get(docId);
 
-    // 1. Handle Messages (Errors or Success)
     if (payload.statusMessage) {
         const msg = payload.statusMessage.toLowerCase();
-
-        if (msg.includes('error')) {
-            if (doc) doc.processingError = payload.statusMessage;
-        }
-
+        if (msg.includes('error') && doc) doc.processingError = payload.statusMessage;
         if (msg.includes('success')) {
-            // Drop the banner regardless of which ID it was
-            // because we know a process just finished successfully.
             targetBeingCreated.value = null;
-            if (doc) doc.processingError = null; // Clear any old errors
+            if (doc) doc.processingError = null;
         }
     }
 
-    // 2. Sync the document object if provided
     if (payload.document) {
         const existingError = documentsMap.value.get(docId)?.processingError;
-        const updatedDoc = {
+        documentsMap.value.set(docId, {
             ...payload.document,
             processingError: existingError || null
-        };
-        documentsMap.value.set(docId, updatedDoc);
+        });
     }
 }, [props.project.id], 'private');
+
+// 5. Template Helpers
+const getDocLabel = (typeKey: string) => {
+    const schema = props.project.type.document_schema || [];
+    return schema.find((item: any) => item.key === typeKey)?.label || typeKey.replace(/_/g, ' ');
+};
+
+const getLeadUser = (doc: any) => {
+    let user = doc.assignee || doc.user;
+    if (!user && doc.assigned_id) {
+        user = props.project.client?.users?.find((u: any) => u.id === doc.assigned_id);
+    }
+    if (!user) return null;
+    return { ...user, initials: `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || '??' };
+};
 
 const handleReprocess = (id: string | number) => {
     const doc = documentsMap.value.get(id);
@@ -168,9 +124,7 @@ const handleReprocess = (id: string | number) => {
     setDocToProcessing(id);
 };
 
-const onDeleteRequested = (doc: ExtendedDocument) => {
-    emit('confirmDelete', doc);
-};
+const onDeleteRequested = (doc: ExtendedDocument) => emit('confirmDelete', doc);
 </script>
 
 <template>
