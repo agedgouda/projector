@@ -135,23 +135,29 @@ useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProces
 
     const doc = documentsMap.value.get(docId);
 
-    // 1. Check for the error message
-    if (payload.statusMessage && payload.statusMessage.toLowerCase().includes('error')) {
-        if (doc) {
-            doc.processingError = payload.statusMessage;
+    // 1. Handle Messages (Errors or Success)
+    if (payload.statusMessage) {
+        const msg = payload.statusMessage.toLowerCase();
+
+        if (msg.includes('error')) {
+            if (doc) doc.processingError = payload.statusMessage;
+        }
+
+        if (msg.includes('success')) {
+            // Drop the banner regardless of which ID it was
+            // because we know a process just finished successfully.
+            targetBeingCreated.value = null;
+            if (doc) doc.processingError = null; // Clear any old errors
         }
     }
 
-    // 2. Handle document object updates
+    // 2. Sync the document object if provided
     if (payload.document) {
-        // Keep the existing processingError if it exists, so it doesn't "flash" away
         const existingError = documentsMap.value.get(docId)?.processingError;
-
         const updatedDoc = {
             ...payload.document,
             processingError: existingError || null
         };
-
         documentsMap.value.set(docId, updatedDoc);
     }
 }, [props.project.id], 'private');

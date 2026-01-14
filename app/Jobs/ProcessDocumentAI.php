@@ -87,6 +87,11 @@ class ProcessDocumentAI implements ShouldQueue
         // 4. Finalize the source document
         $this->document->update(['processed_at' => now()]);
 
+        event(new DocumentProcessingUpdate(
+            $this->document,
+            'Success'
+        ));
+
         Log::info("AI Job Completed successfully for Document #{$this->document->id} on attempt #{$this->attempts()}");
     }
 
