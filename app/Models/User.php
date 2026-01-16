@@ -64,4 +64,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Client::class)->withTimestamps();
     }
+
+    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Task::class, 'assignee_id');
+    }
 }

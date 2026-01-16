@@ -2,13 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids; // Important!
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Task extends Model
 {
-    use HasUuids; // This handles automatic UUID generation on create
 
     protected $fillable = [
         'project_id', 'assignee_id', 'document_id',

@@ -95,4 +95,9 @@ class Document extends Model
             $q->where('users.id', $user->id);
         });
     }
+
+    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Task::class, 'document_id');
+    }
 }
