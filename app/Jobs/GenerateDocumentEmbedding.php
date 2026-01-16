@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Document;
 use App\Services\VectorService;
-use App\Events\DocumentProcessingUpdate; // Add this
+use App\Events\DocumentProcessingUpdate;
 use App\Events\DocumentVectorized;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;

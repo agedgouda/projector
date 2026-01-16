@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import DocumentList from '@/components/documents/DocumentList.vue';
-
 defineProps<{
     documents: ProjectDocument[];
     project: Project;
@@ -20,9 +18,6 @@ defineProps<{
         </h2>
 
         <div class="space-y-4">
-            <DocumentList
-                :documents="documents"
-                :users="users"
-            />
+            Freem
         </div>
 </template>

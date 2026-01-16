@@ -3,20 +3,20 @@ import { ref, computed, watch } from 'vue';
 import { useEcho } from '@laravel/echo-vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentTree } from '@/composables/useDocumentTree';
+import { Skeleton } from "@/components/ui/skeleton"
 import { globalAiState } from '@/state';
 import {
-    PlusIcon, Search, RefreshCw, GitGraph, ChevronRight,
-    Edit2, Trash2, RotateCw, FileText
+    PlusIcon, Search, RefreshCw, GitGraph,
 } from 'lucide-vue-next';
 
 // UI Components
 import AppLogoIcon from '@/components/AppLogoIcon.vue'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from "@/components/ui/skeleton"
+// Removed unused Skeleton import
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import DocumentFormModal from './DocumentFormModal.vue';
+import TraceabilityRow from './TraceabilityRow.vue';
 
 export type ExtendedDocument = ProjectDocument & {
     currentStatus?: string | null;
@@ -36,6 +36,9 @@ const props = defineProps<{
 const emit = defineEmits(['confirmDelete', 'generate']);
 const aiStatusMessage = ref<string>('');
 const documentsMap = ref<Map<string | number, ExtendedDocument>>(new Map());
+
+// Tracking active inline editor
+const activeEditingId = ref<string | number | null>(null);
 
 // 1. Sync Logic
 const syncFromProps = (statusGroups: RequirementStatus[]) => {
@@ -59,7 +62,6 @@ watch(() => props.requirementStatus, (newVal) => syncFromProps(newVal), { deep: 
 
 const allDocs = computed(() => Array.from(documentsMap.value.values()));
 
-// 2. Composable initialization
 const localRequirements = computed(() => {
     return props.requirementStatus.map(group => ({
         ...group,
@@ -67,18 +69,57 @@ const localRequirements = computed(() => {
     }));
 });
 
+// Extract editingDocumentId from composable to ensure URL builder has access to it
 const {
-    form, isUploadModalOpen, isEditModalOpen, openUploadModal, openEditModal,
-    submitDocument, updateDocument, setDocToProcessing, targetBeingCreated
+    form,
+    isUploadModalOpen,
+    openUploadModal,
+    submitDocument,
+    updateDocument: originalUpdateDocument,
+    setDocToProcessing,
+    targetBeingCreated,
+    editingDocumentId // This will no longer be undefined
 } = useDocumentActions(props, localRequirements, aiStatusMessage);
+
+// Handle Inline Editing State
+const handlePrepareEdit = (item: any) => {
+    if (!item || item.id === null) {
+        activeEditingId.value = null;
+        if (editingDocumentId) editingDocumentId.value = null;
+        form.reset();
+        return;
+    }
+
+    activeEditingId.value = item.id;
+
+    // This is the fix for your "reading id of null" error
+    // It populates the ref that the URL generator uses
+    if (editingDocumentId) {
+        editingDocumentId.value = item.id;
+    }
+
+    // Standard form population
+    form.name = item.name;
+    form.content = item.content;
+    form.type = item.type;
+    form.assignee_id = item.assignee_id;
+};
+
+const handleUpdateDocument = (callbackFromRow?: any) => {
+    originalUpdateDocument(() => {
+        activeEditingId.value = null;
+        if (typeof callbackFromRow === 'function') {
+            callbackFromRow();
+        }
+    });
+};
 
 const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTree(allDocs);
 
-// 3. AI State
+// AI State and Echo Logic
 const isAiProcessing = computed(() => !!targetBeingCreated.value || allDocs.value.some(d => d.processed_at === null));
 watch(isAiProcessing, (newVal) => { globalAiState.value.isProcessing = newVal; }, { immediate: true });
 
-// 4. Echo Real-time Logic
 useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProcessingUpdate'], (payload: any) => {
     const docId = payload.document_id || payload.document?.id;
     if (!docId) return;
@@ -100,20 +141,25 @@ useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProces
             ...payload.document,
             processingError: existingError || null
         });
+
+        let currentParentId = payload.document.parent_id;
+        while (currentParentId) {
+            expandedRootIds.value.add(currentParentId);
+            const parentDoc = documentsMap.value.get(currentParentId);
+            currentParentId = parentDoc?.parent_id;
+        }
     }
 }, [props.project.id], 'private');
 
-// 5. Template Helpers
 const getDocLabel = (typeKey: string) => {
     const schema = props.project.type.document_schema || [];
     return schema.find((item: any) => item.key === typeKey)?.label || typeKey.replace(/_/g, ' ');
 };
 
 const getLeadUser = (doc: any) => {
-    let user = doc.assignee || doc.user;
-    if (!user && doc.assigned_id) {
-        user = props.project.client?.users?.find((u: any) => u.id === doc.assigned_id);
-    }
+    // Fixed 'let' to 'const' for user variable
+    const user = doc.assignee || doc.user || props.project.client?.users?.find((u: any) => u.id === doc.assigned_id);
+
     if (!user) return null;
     return { ...user, initials: `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || '??' };
 };
@@ -170,90 +216,26 @@ const onDeleteRequested = (doc: ExtendedDocument) => emit('confirmDelete', doc);
             </div>
 
             <div class="divide-y divide-slate-50">
-                <div v-for="intake in documentTree" :key="intake.id">
-                    <div class="grid grid-cols-12 items-center px-10 py-5 hover:bg-slate-50/50 transition-colors">
-                        <div class="col-span-8 flex items-center gap-3 cursor-pointer" @click="toggleRoot(intake.id)">
-                            <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><FileText class="h-5 w-5" /></div>
-                            <div class="flex-1 overflow-hidden">
-                                <div class="text-sm font-bold text-slate-900 truncate">{{ intake.name }}</div>
-                                <div v-if="intake.processingError" class="text-[11px] text-red-600 font-black mt-1 p-1 bg-red-50 rounded border border-red-100 inline-block uppercase tracking-tighter">{{ intake.processingError }}</div>
-                                <div v-else-if="!intake.processed_at" class="text-[10px] text-blue-600 font-bold mt-0.5 animate-pulse uppercase">Syncing...</div>
-                                <div v-else class="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">{{ getDocLabel(intake.type) }}</div>
-                            </div>
-                            <ChevronRight :class="['h-4 w-4 text-slate-300 transition-transform duration-300', { 'rotate-90': expandedRootIds.has(intake.id) }]" />
-                        </div>
-
-                        <div class="col-span-2 flex justify-center border-x border-slate-50">
-                            <TooltipProvider><Tooltip><TooltipTrigger>
-                                <div class="h-9 w-9 rounded-full border-2 border-white shadow-sm bg-slate-100 flex items-center justify-center overflow-hidden">
-                                    <img v-if="getLeadUser(intake)?.avatar" :src="getLeadUser(intake).avatar" class="object-cover h-full w-full" />
-                                    <div v-else class="text-indigo-600 font-bold text-[10px]">{{ getLeadUser(intake)?.initials || '??' }}</div>
-                                </div>
-                            </TooltipTrigger><TooltipContent v-if="getLeadUser(intake)"><p class="text-xs font-bold">{{ getLeadUser(intake).first_name }}</p></TooltipContent></Tooltip></TooltipProvider>
-                        </div>
-
-                        <div class="col-span-2 flex justify-center gap-1">
-                            <Button variant="ghost" size="icon" @click="openEditModal(intake)" class="h-8 w-8 text-slate-400 hover:text-indigo-600"><Edit2 class="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" @click="handleReprocess(intake.id)" class="h-8 w-8 text-slate-400 hover:text-blue-600"><RotateCw class="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" @click="onDeleteRequested(intake)" class="h-8 w-8 text-slate-400 hover:text-red-600"><Trash2 class="h-3.5 w-3.5" /></Button>
-                        </div>
-                    </div>
-
-                    <div v-if="expandedRootIds.has(intake.id)" class="bg-slate-50/30">
-                        <template v-for="(story, storyIdx) in intake.children" :key="story.id">
-                            <div class="grid grid-cols-12 items-center py-4 px-10 border-l-4 border-blue-400/20 relative">
-                                <div class="col-span-8 flex items-center gap-3 pl-12 relative">
-                                    <div v-if="Number(storyIdx) < intake.children.length - 1 || (story.children && story.children.length > 0)" class="absolute left-6 top-0 bottom-0 w-px bg-slate-200"></div>
-                                    <div v-else class="absolute left-6 top-0 h-1/2 w-px bg-slate-200"></div>
-                                    <div class="absolute left-6 top-1/2 w-5 h-px bg-slate-200"></div>
-
-                                    <div @click="openEditModal(story)" class="flex-1 flex items-center bg-white border border-slate-200 p-3 rounded-2xl shadow-sm hover:border-blue-400 cursor-pointer transition-all">
-                                        <div class="p-2 bg-blue-50 text-blue-500 rounded-lg mr-4"><FileText class="h-4 w-4" /></div>
-                                        <div class="flex-1 truncate text-left">
-                                            <div class="text-[11px] font-black text-slate-900 uppercase truncate">{{ story.name }}</div>
-                                            <div v-if="story.processingError" class="text-[10px] text-red-600 font-black mt-1 uppercase tracking-tighter">{{ story.processingError }}</div>
-                                            <div v-else-if="!story.processed_at" class="text-[9px] text-blue-500 font-bold uppercase mt-0.5 animate-pulse">Processing...</div>
-                                            <div v-else class="text-[9px] text-blue-500 font-bold uppercase mt-0.5 tracking-widest">{{ getDocLabel(story.type) }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-span-2 flex justify-center border-x border-slate-50/50">
-                                    <div class="h-7 w-7 rounded-full bg-white border shadow-xs flex items-center justify-center text-[8px] font-bold text-blue-600">{{ getLeadUser(story)?.initials || '??' }}</div>
-                                </div>
-                                <div class="col-span-2 flex justify-center gap-1">
-                                    <Button variant="ghost" size="icon" @click="openEditModal(story)" class="h-7 w-7 text-slate-300 hover:text-indigo-600"><Edit2 class="h-3 w-3" /></Button>
-                                    <Button variant="ghost" size="icon" @click="handleReprocess(story.id)" class="h-7 w-7 text-slate-300 hover:text-blue-600"><RotateCw class="h-3 w-3" /></Button>
-                                    <Button variant="ghost" size="icon" @click="onDeleteRequested(story)" class="h-7 w-7 text-slate-300 hover:text-red-600"><Trash2 class="h-3 w-3" /></Button>
-                                </div>
-                            </div>
-
-                            <div v-for="(spec, sIdx) in story.children" :key="spec.id" class="grid grid-cols-12 items-center py-2 px-10 border-l-4 border-indigo-400/10 relative">
-                                <div class="col-span-8 flex items-center gap-3 pl-24 relative">
-                                    <div v-if="Number(storyIdx) < intake.children.length - 1" class="absolute left-6 top-0 bottom-0 w-px bg-slate-200"></div>
-                                    <div class="absolute left-[24px]" :class="[Number(sIdx) < story.children.length - 1 ? 'top-0 bottom-0' : 'top-0 h-1/2', 'w-px bg-slate-200']"></div>
-                                    <div class="absolute left-[24px] top-1/2 w-4 h-px bg-slate-200"></div>
-                                    <div @click="openEditModal(spec)" class="flex-1 flex items-center bg-white/50 border border-slate-100 p-2 rounded-xl hover:border-indigo-300 cursor-pointer">
-                                        <div class="p-1.5 bg-slate-50 text-slate-400 rounded-md mr-3"><FileText class="h-3.5 w-3.5" /></div>
-                                        <div class="flex-1 truncate text-left">
-                                            <div class="text-[10px] font-bold text-slate-600 uppercase truncate">{{ spec.name }}</div>
-                                            <div v-if="spec.processingError" class="text-[9px] text-red-500 font-bold mt-1 uppercase tracking-tighter">{{ spec.processingError }}</div>
-                                            <div v-else-if="!spec.processed_at" class="text-[8px] text-indigo-400 font-bold uppercase animate-pulse">Updating...</div>
-                                            <div v-else class="text-[8px] text-slate-400 uppercase tracking-tighter">{{ getDocLabel(spec.type) }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-span-2 border-x border-slate-50/50"></div>
-                                <div class="col-span-2 flex justify-center gap-1">
-                                    <Button variant="ghost" size="icon" @click="openEditModal(spec)" class="h-6 w-6 text-slate-200 hover:text-indigo-600"><Edit2 class="h-3 w-3" /></Button>
-                                    <Button variant="ghost" size="icon" @click="onDeleteRequested(spec)" class="h-6 w-6 text-slate-200 hover:text-red-500"><Trash2 class="h-3 w-3" /></Button>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
+                <TraceabilityRow
+                    v-for="intake in documentTree"
+                    :key="intake.id"
+                    :item="intake"
+                    :level="0"
+                    :active-editing-id="activeEditingId"
+                    :expanded-root-ids="expandedRootIds"
+                    :get-doc-label="getDocLabel"
+                    :get-lead-user="getLeadUser"
+                    :requirement-status="props.requirementStatus"
+                    :users="project.client?.users || []"
+                    :form="form"
+                    @toggle-root="toggleRoot"
+                    @prepare-edit="handlePrepareEdit"
+                    @handle-reprocess="handleReprocess"
+                    @on-delete-requested="onDeleteRequested"
+                    @submit="handleUpdateDocument"
+                />
             </div>
         </div>
     </div>
     <DocumentFormModal v-model:open="isUploadModalOpen" mode="create" :form="form" :requirement-status="props.requirementStatus" :users="project.client?.users || []" @submit="submitDocument" />
-    <DocumentFormModal v-model:open="isEditModalOpen" mode="edit" :form="form" :requirement-status="props.requirementStatus" :users="project.client?.users || []" @submit="updateDocument" />
 </template>

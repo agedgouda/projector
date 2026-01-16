@@ -14,6 +14,7 @@ export function useDocumentActions(
     const targetBeingCreated = ref<string | number | null>(null);
 
     const form = useForm({
+        id: null as string | number | null,
         name: '',
         type: '',
         content: '',
@@ -77,24 +78,41 @@ export function useDocumentActions(
         });
     };
 
-    const updateDocument = async () => {
-        form.processing = true;
-        try {
-            const url = props.projectDocumentsRoutes.update.url({
-                project: props.project.id,
-                document: editingDocumentId.value
-            });
-            await axios.post(url, { ...form.data(), _method: 'put' });
-            isEditModalOpen.value = false;
-            form.reset();
-            router.reload({
-                only: ['requirementStatus'],
-                onFinish: () => { form.processing = false; }
-            });
-        } catch (err) {
-            handleError(err, () => isEditModalOpen.value = true);
+const updateDocument = async (onSuccessCallback?: () => void) => {
+    form.processing = true;
+
+    try {
+        // Restore your specific route construction
+        const url = props.projectDocumentsRoutes.update.url({
+            project: props.project.id,
+            document: editingDocumentId.value
+        });
+
+        // Restore manual Axios call with method spoofing
+        await axios.post(url, { ...form.data(), _method: 'put' });
+
+        // 1. Execute the callback to close the inline form in the UI
+        if (onSuccessCallback && typeof onSuccessCallback === 'function') {
+            onSuccessCallback();
         }
-    };
+
+        // 2. Restore your original cleanup logic
+        isEditModalOpen.value = false;
+        form.reset();
+        router.reload({
+            only: ['requirementStatus'],
+            onFinish: () => {
+                form.processing = false;
+            }
+        });
+
+    } catch (err) {
+        handleError(err, () => {
+            console.error('Axios call failed:', err);
+        });
+        form.processing = false;
+    }
+};
 
     const handleError = (err: any, reopenModal: () => void) => {
         const error = err as AxiosError<{ errors: any }>;
@@ -136,6 +154,6 @@ const setDocToProcessing = async (id: string | number) => {
 
     return {
         form, isUploadModalOpen, isEditModalOpen,
-        openUploadModal, openEditModal, submitDocument, updateDocument, setDocToProcessing, targetBeingCreated
+        openUploadModal, openEditModal, submitDocument, editingDocumentId, updateDocument, setDocToProcessing, targetBeingCreated
     };
 }

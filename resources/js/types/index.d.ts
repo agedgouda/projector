@@ -21,7 +21,7 @@ declare global {
     }
 
     export interface ProjectDocument {
-        id: string;
+        id: string | number | null;
         project_id: string;
         parent_id: string | null;
         name: string;
@@ -83,6 +83,17 @@ declare global {
         };
         [key: string]: unknown;
     };
+    export interface Task {
+        id: string | null;
+        project_id: string;
+        document_id: string | null;
+        assignee_id: number | null;
+        title: string;
+        description: string;
+        status: 'todo' | 'in_progress' | 'done' | 'backlog';
+        priority: 'low' | 'medium' | 'high';
+        due_at: string | null;
+    }
 }
 
 // These are exported normally for use in component props/definitions

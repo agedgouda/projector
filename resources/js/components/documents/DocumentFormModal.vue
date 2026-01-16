@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { InertiaForm } from '@inertiajs/vue3';
-import { RefreshCw } from 'lucide-vue-next';
+import { RefreshCw, Bold, Italic, List, ListOrdered } from 'lucide-vue-next';
+import { EditorContent } from '@tiptap/vue-3';
+import { useDocumentEditor } from '@/composables/useDocumentEditor';
 
 // UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
@@ -18,12 +19,18 @@ import {
 const props = defineProps<{
     open: boolean;
     mode: 'create' | 'edit';
-    form: InertiaForm<Partial<ProjectDocument>>;
+    form: InertiaForm<Partial<Omit<ProjectDocument, 'id'>> & { id?: string | number | null }>;
     requirementStatus?: RequirementStatus[];
     users?: User[];
 }>();
 
 const emit = defineEmits(['update:open', 'submit']);
+
+// Use the new composable
+const { editor } = useDocumentEditor(
+    props.form.content,
+    (html) => updateField('content', html)
+);
 
 // 1. Proxy the Dialog state
 const isOpen = computed({
@@ -31,20 +38,15 @@ const isOpen = computed({
     set: (value) => emit('update:open', value)
 });
 
-// 2. Local methods to bypass the "Prop Mutation" linter error
-// Instead of direct assignment in the template, we use a helper
+// 2. Local methods to update fields
 const updateField = <K extends keyof ProjectDocument>(field: K, value: any) => {
-    // We cast the form to 'any' here specifically to tell the linter:
-    // "I am intentionally updating this reactive Inertia object."
     (props.form as any)[field] = value;
 };
 
 const handleAssigneeChange = (value: any) => {
-    // If 'unassigned' comes back, set form to null
     if (value === 'unassigned') {
         updateField('assignee_id', null);
     } else {
-        // Convert the string "1" back to integer 1 for the database
         updateField('assignee_id', parseInt(value) as any);
     }
 };
@@ -52,7 +54,7 @@ const handleAssigneeChange = (value: any) => {
 
 <template>
     <Dialog v-model:open="isOpen">
-        <DialogContent class="sm:max-w-[525px]">
+        <DialogContent class="sm:max-w-[896px]">
             <DialogHeader>
                 <DialogTitle>{{ mode === 'create' ? 'Add' : 'Edit' }} Document</DialogTitle>
                 <DialogDescription>
@@ -72,7 +74,6 @@ const handleAssigneeChange = (value: any) => {
 
                 <div class="grid gap-2">
                     <Label :class="{ 'text-destructive': form.errors.type }">Category</Label>
-
                     <Select
                         v-if="requirementStatus && requirementStatus.length > 0"
                         :model-value="form.type ?? undefined"
@@ -87,55 +88,62 @@ const handleAssigneeChange = (value: any) => {
                             </SelectItem>
                         </SelectContent>
                     </Select>
-
                     <div
                         v-else
                         class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-slate-50 px-3 py-2 text-sm text-muted-foreground opacity-70 cursor-not-allowed"
                     >
                         {{ form.type || 'No category assigned' }}
                     </div>
-
                     <p v-if="form.errors.type" class="text-xs text-destructive">{{ form.errors.type }}</p>
                 </div>
 
                 <div class="grid gap-2">
-                    <Label>Content</Label>
-                    <Textarea
-                        :model-value="form.content ?? ''"
-                        :class="{ 'text-destructive': form.errors.content }"
-                        @update:model-value="(v) => updateField('content', v)"
-                        class="min-h-[150px]"
-                    />
+                    <Label :class="{ 'text-destructive': form.errors.content }">Content</Label>
+                    <div class="border border-slate-200 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
+                        <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
+                            <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
+                                <Bold class="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200': editor.isActive('italic') }">
+                                <Italic class="h-4 w-4" />
+                            </Button>
+                            <div class="w-px h-4 bg-slate-200 mx-1"></div>
+                            <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200': editor.isActive('bulletList') }">
+                                <List class="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200': editor.isActive('orderedList') }">
+                                <ListOrdered class="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <editor-content :editor="editor" />
+                    </div>
+                    <p v-if="form.errors.content" class="text-xs text-destructive">{{ form.errors.content }}</p>
                 </div>
-                <p v-if="form.errors.content" class="text-xs text-destructive">{{ form.errors.content }}</p>
 
-            <div class="grid gap-2">
-                <Label :class="{ 'text-destructive': form.errors.assignee_id }">Assignee</Label>
-                <Select
-                    :model-value="form.assignee_id?.toString() ?? 'unassigned'"
-                    @update:model-value="handleAssigneeChange"
-                >
-                    <SelectTrigger :class="{ 'border-destructive': form.errors.assignee_id }">
-                        <SelectValue placeholder="Select a user to assign" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        <SelectItem
-                            v-for="user in users"
-                            :key="user.id"
-                            :value="user.id.toString()"
-                        >
-                            {{ user.name }}
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
-                <p v-if="form.errors.assignee_id" class="text-xs text-destructive">
-                    {{ form.errors.assignee_id }}
-                </p>
-            </div>
-
-
-
+                <div class="grid gap-2">
+                    <Label :class="{ 'text-destructive': form.errors.assignee_id }">Assignee</Label>
+                    <Select
+                        :model-value="form.assignee_id?.toString() ?? 'unassigned'"
+                        @update:model-value="handleAssigneeChange"
+                    >
+                        <SelectTrigger :class="{ 'border-destructive': form.errors.assignee_id }">
+                            <SelectValue placeholder="Select a user to assign" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            <SelectItem
+                                v-for="user in users"
+                                :key="user.id"
+                                :value="user.id.toString()"
+                            >
+                                {{ user.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p v-if="form.errors.assignee_id" class="text-xs text-destructive">
+                        {{ form.errors.assignee_id }}
+                    </p>
+                </div>
             </div>
 
             <DialogFooter>
@@ -148,3 +156,8 @@ const handleAssigneeChange = (value: any) => {
         </DialogContent>
     </Dialog>
 </template>
+
+<style>
+.prose ul { list-style-type: disc; padding-left: 1.5rem; }
+.prose ol { list-style-type: decimal; padding-left: 1.5rem; }
+</style>
