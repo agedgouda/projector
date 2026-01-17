@@ -22,7 +22,9 @@ declare global {
 
     export interface Client {
         id: string; // UUID
-        name: string;
+        company_name: string;
+        contact_name: string;
+        contact_phone: string;
         users?: User[];
         projects?: Project[];
         created_at: string;
@@ -32,6 +34,7 @@ declare global {
     export interface ProjectType {
         id: string; // UUID
         name: string;
+        icon: string;
         workflow?: any[];
         document_schema?: any[];
         created_at: string;
@@ -56,6 +59,7 @@ declare global {
 
         // Meta/Counts
         documents_count?: number;
+        tasks: Task[];
     }
 
     export interface ProjectDocument {

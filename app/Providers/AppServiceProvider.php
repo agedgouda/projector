@@ -10,7 +10,7 @@ use App\Services\VectorService;
 use App\Contracts\VectorDriver;
 use App\Services\Vectors\GeminiDriver;
 use App\Services\Vectors\OllamaDriver;
-use App\Services\Ai\Contracts\LlmDriver; // Create this if you haven't
+use App\Contracts\LlmDriver;
 use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
 use Illuminate\Contracts\Foundation\Application;

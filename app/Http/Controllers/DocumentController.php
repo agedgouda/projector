@@ -124,6 +124,12 @@ class DocumentController extends Controller
      */
     public function reprocess(Request $request, Project $project, Document $document)
     {
+
+    \Log::info('Reprocess Request Data:', [
+        'document_id' => $document->id,
+        'document_type' => $document->type, // This is likely 'functional_requirement'
+        'all_input' => $request->all(),
+    ]);
         if ($document->project_id !== $project->id ||
             !Document::visibleTo($request->user())->where('id', $document->id)->exists()) {
             abort(404);

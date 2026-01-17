@@ -41,6 +41,7 @@ class ProjectController extends Controller
         $project->load([
             'client.users',
             'type',
+            'tasks',
             'documents' => function ($query) {
                 $query->with(['creator', 'editor', 'assignee', 'tasks.assignee'])
                     ->orderBy('created_at', 'desc');
