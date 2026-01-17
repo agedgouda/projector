@@ -13,6 +13,7 @@ class VectorService
 
     public function __construct()
     {
+        // In Octane, this runs once per request if bound as 'scoped'
         $name = config('services.vector_driver', 'gemini');
 
         $this->driver = match ($name) {
@@ -22,7 +23,6 @@ class VectorService
         };
     }
 
-    // This stays exactly the same as your old method!
     public function getEmbedding(string $text): array
     {
         return $this->driver->getEmbedding($text);

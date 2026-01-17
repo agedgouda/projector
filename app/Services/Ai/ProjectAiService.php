@@ -8,6 +8,7 @@ use App\Models\AiTemplate;
 use App\Services\VectorService;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use Illuminate\Support\Facades\Log;
+use Laravel\Octane\Facades\Octane;
 
 class ProjectAiService
 {
@@ -15,16 +16,19 @@ class ProjectAiService
 
     public function process(Document $document)
     {
-        $document->loadMissing('project.type');
-        $project = $document->project;
-        $typeModel = $project->type;
+        // Use Octane to load data in parallel
+        [$document, $typeModel] = Octane::concurrently([
+            fn () => $document->loadMissing('project.type'),
+            fn () => $document->project->type,
+        ]);
 
+        $project = $document->project;
         $workflow = collect($typeModel->workflow ?? []);
         $step = $workflow->firstWhere('from_key', $document->type);
 
         if (!$step || empty($step['ai_template_id'])) {
             Log::warning("No AI transition defined for type: {$document->type}. Skipping.");
-            return null; // Explicit null for the Job to handle
+            return null;
         }
 
         $template = AiTemplate::find($step['ai_template_id']);
@@ -47,7 +51,7 @@ class ProjectAiService
             'first_item_keys' => is_array($firstItem) ? array_keys($firstItem) : 'N/A'
         ]);
 
-        // --- VALIDATION: Ensure we didn't get empty strings/objects back ---
+        // --- VALIDATION ---
         if (($result['status'] ?? '') === 'success') {
             $generatedItems = collect($mockResponse);
 
@@ -75,6 +79,33 @@ class ProjectAiService
     protected function callLlm(Project $project, $strategy, string $context, Document $currentDoc = null)
     {
         $driverName = config('services.llm_driver', 'gemini');
+        $userTemplate = $strategy->getUserPromptTemplate();
+
+        // Prepare initial replacements
+        $replacements = [
+            '{{input}}' => $context,
+            '{{project}}' => $project->name
+        ];
+
+        // Octane Optimization: Gather all extra document context in parallel
+        if (preg_match_all('/{{all:([a-zA-Z0-9_-]+)}}/i', $userTemplate, $matches)) {
+            $tasks = [];
+            foreach ($matches[1] as $index => $docType) {
+                $fullTag = $matches[0][$index];
+                $tasks[$fullTag] = function () use ($project, $docType, $currentDoc) {
+                    $query = $project->documents()->where('type', $docType);
+                    if ($currentDoc) { $query->where('id', '!=', $currentDoc->id); }
+                    $docs = $query->get();
+                    return $docs->isNotEmpty()
+                        ? $docs->pluck('content')->implode("\n\n")
+                        : "No {$docType} context provided.";
+                };
+            }
+
+            // Execute all DB queries concurrently
+            $resolvedContexts = Octane::concurrently($tasks);
+            $replacements = array_merge($replacements, $resolvedContexts);
+        }
 
         $driver = match ($driverName) {
             'ollama' => new \App\Services\Ai\Drivers\OllamaLlmDriver(),
@@ -82,22 +113,9 @@ class ProjectAiService
             default  => throw new \Exception("Unsupported LLM Driver: {$driverName}"),
         };
 
-        $userTemplate = $strategy->getUserPromptTemplate();
-        $replacements = ['{{input}}' => $context, '{{project}}' => $project->name];
-
-        if (preg_match_all('/{{all:([a-zA-Z0-9_-]+)}}/i', $userTemplate, $matches)) {
-            foreach ($matches[1] as $index => $docType) {
-                $fullTag = $matches[0][$index];
-                $query = $project->documents()->where('type', $docType);
-                if ($currentDoc) { $query->where('id', '!=', $currentDoc->id); }
-                $docs = $query->get();
-                $replacements[$fullTag] = $docs->isNotEmpty()
-                    ? $docs->pluck('content')->implode("\n\n")
-                    : "No {$docType} context provided.";
-            }
-        }
-
         $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
+
+        // This is the long-running call where Octane shines by freeing up workers
         $result = $driver->call($strategy->getTaskExtractionPrompt(), $userMessage);
 
         return [
