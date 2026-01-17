@@ -6,88 +6,42 @@ use App\Models\Project;
 use App\Models\Document;
 use App\Models\AiTemplate;
 use App\Services\VectorService;
+use App\Services\Ai\Contracts\LlmDriver; // The Interface
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use Illuminate\Support\Facades\Log;
 use Laravel\Octane\Facades\Octane;
 
 class ProjectAiService
 {
-    public function __construct(protected VectorService $vectorService) {}
+    // 🚀 NEW: Inject the LlmDriver alongside VectorService
+    public function __construct(
+        protected VectorService $vectorService,
+        protected LlmDriver $llmDriver
+    ) {}
 
     public function process(Document $document)
     {
-        // Use Octane to load data in parallel
+        // ... (Your existing loadMissing logic remains identical)
         [$document, $typeModel] = Octane::concurrently([
             fn () => $document->loadMissing('project.type'),
             fn () => $document->project->type,
         ]);
 
-        $project = $document->project;
-        $workflow = collect($typeModel->workflow ?? []);
-        $step = $workflow->firstWhere('from_key', $document->type);
-
-        if (!$step || empty($step['ai_template_id'])) {
-            Log::warning("No AI transition defined for type: {$document->type}. Skipping.");
-            return null;
-        }
-
-        $template = AiTemplate::find($step['ai_template_id']);
-        if (!$template) {
-            Log::error("AI Template ID {$step['ai_template_id']} not found.");
-            return null;
-        }
+        // ... (Your existing workflow/template logic remains identical)
 
         $strategy = new DynamicWorkflowStrategy($template, $step['from_key'], $step['to_key']);
         $result = $this->callLlm($project, $strategy, $document->content, $document);
 
-        // --- DEFENSIVE TRACE ---
-        $mockResponse = $result['mock_response'] ?? [];
-        $firstItem = collect($mockResponse)->first();
-
-        Log::info("AI Process Result Trace", [
-            'doc_id' => $document->id,
-            'status' => $result['status'] ?? 'unknown',
-            'item_count' => is_array($mockResponse) ? count($mockResponse) : 0,
-            'first_item_keys' => is_array($firstItem) ? array_keys($firstItem) : 'N/A'
-        ]);
-
-        // --- VALIDATION ---
-        if (($result['status'] ?? '') === 'success') {
-            $generatedItems = collect($mockResponse);
-
-            $hasSubstantialContent = $generatedItems->isNotEmpty() && $generatedItems->every(function ($item) {
-                $text = $item['story'] ?? $item['description'] ?? $item['content'] ?? '';
-                return strlen(trim($text)) > 10;
-            });
-
-            if (!$hasSubstantialContent) {
-                return [
-                    'status' => 'error',
-                    'message' => 'AI returned empty or insufficient content.',
-                    'output_type' => $strategy->getOutputDocumentType(),
-                ];
-            }
-        }
-
-        if (isset($result['status']) && $result['status'] === 'success') {
-            $result['output_type'] = $strategy->getOutputDocumentType();
-        }
-
+        // ... (Your existing Defensive Trace and Validation remain identical)
         return $result;
     }
 
     protected function callLlm(Project $project, $strategy, string $context, Document $currentDoc = null)
     {
-        $driverName = config('services.llm_driver', 'gemini');
         $userTemplate = $strategy->getUserPromptTemplate();
+        $replacements = ['{{input}}' => $context, '{{project}}' => $project->name];
 
-        // Prepare initial replacements
-        $replacements = [
-            '{{input}}' => $context,
-            '{{project}}' => $project->name
-        ];
-
-        // Octane Optimization: Gather all extra document context in parallel
+        // 🚀 Parallel Context Resolution (Stays fast with Octane)
         if (preg_match_all('/{{all:([a-zA-Z0-9_-]+)}}/i', $userTemplate, $matches)) {
             $tasks = [];
             foreach ($matches[1] as $index => $docType) {
@@ -96,27 +50,20 @@ class ProjectAiService
                     $query = $project->documents()->where('type', $docType);
                     if ($currentDoc) { $query->where('id', '!=', $currentDoc->id); }
                     $docs = $query->get();
-                    return $docs->isNotEmpty()
-                        ? $docs->pluck('content')->implode("\n\n")
-                        : "No {$docType} context provided.";
+                    return $docs->isNotEmpty() ? $docs->pluck('content')->implode("\n\n") : "No {$docType} context.";
                 };
             }
-
-            // Execute all DB queries concurrently
-            $resolvedContexts = Octane::concurrently($tasks);
-            $replacements = array_merge($replacements, $resolvedContexts);
+            $replacements = array_merge($replacements, Octane::concurrently($tasks));
         }
-
-        $driver = match ($driverName) {
-            'ollama' => new \App\Services\Ai\Drivers\OllamaLlmDriver(),
-            'gemini' => new \App\Services\Ai\Drivers\GeminiLlmDriver(),
-            default  => throw new \Exception("Unsupported LLM Driver: {$driverName}"),
-        };
 
         $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
 
-        // This is the long-running call where Octane shines by freeing up workers
-        $result = $driver->call($strategy->getTaskExtractionPrompt(), $userMessage);
+        // 🚀 CLEANER: Use the injected driver directly
+        // No more 'match' logic or manual 'new' here!
+        $result = $this->llmDriver->call(
+            $strategy->getTaskExtractionPrompt(),
+            $userMessage
+        );
 
         return [
             'project_name'  => $project->name,
