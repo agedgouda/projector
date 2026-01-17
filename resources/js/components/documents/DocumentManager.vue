@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentTree } from '@/composables/useDocumentTree';
@@ -13,10 +14,10 @@ import {
 import AppLogoIcon from '@/components/AppLogoIcon.vue'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-// Removed unused Skeleton import
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import DocumentFormModal from './DocumentFormModal.vue';
 import TraceabilityRow from './TraceabilityRow.vue';
+import TraceabilityDetailSheet from './TraceabilityDetailSheet.vue';
 
 export type ExtendedDocument = ProjectDocument & {
     currentStatus?: string | null;
@@ -39,6 +40,15 @@ const documentsMap = ref<Map<string | number, ExtendedDocument>>(new Map());
 
 // Tracking active inline editor
 const activeEditingId = ref<string | number | null>(null);
+
+// Details Sheet State
+const selectedSheetItem = ref<ExtendedDocument | null>(null);
+const isDetailsSheetOpen = ref(false);
+
+const handleOpenSheet = (item: ExtendedDocument) => {
+    selectedSheetItem.value = item;
+    isDetailsSheetOpen.value = true;
+};
 
 // 1. Sync Logic
 const syncFromProps = (statusGroups: RequirementStatus[]) => {
@@ -69,7 +79,6 @@ const localRequirements = computed(() => {
     }));
 });
 
-// Extract editingDocumentId from composable to ensure URL builder has access to it
 const {
     form,
     isUploadModalOpen,
@@ -78,7 +87,7 @@ const {
     updateDocument: originalUpdateDocument,
     setDocToProcessing,
     targetBeingCreated,
-    editingDocumentId // This will no longer be undefined
+    editingDocumentId
 } = useDocumentActions(props, localRequirements, aiStatusMessage);
 
 // Handle Inline Editing State
@@ -89,16 +98,10 @@ const handlePrepareEdit = (item: any) => {
         form.reset();
         return;
     }
-
     activeEditingId.value = item.id;
-
-    // This is the fix for your "reading id of null" error
-    // It populates the ref that the URL generator uses
     if (editingDocumentId) {
         editingDocumentId.value = item.id;
     }
-
-    // Standard form population
     form.name = item.name;
     form.content = item.content;
     form.type = item.type;
@@ -107,6 +110,11 @@ const handlePrepareEdit = (item: any) => {
 
 const handleUpdateDocument = (callbackFromRow?: any) => {
     originalUpdateDocument(() => {
+        // Sync local object state so the form is fresh on next open
+        if (selectedSheetItem.value && activeEditingId.value === selectedSheetItem.value.id) {
+            selectedSheetItem.value.content = form.content;
+            selectedSheetItem.value.name = form.name;
+        }
         activeEditingId.value = null;
         if (typeof callbackFromRow === 'function') {
             callbackFromRow();
@@ -116,10 +124,11 @@ const handleUpdateDocument = (callbackFromRow?: any) => {
 
 const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTree(allDocs);
 
-// AI State and Echo Logic
+// AI State logic
 const isAiProcessing = computed(() => !!targetBeingCreated.value || allDocs.value.some(d => d.processed_at === null));
 watch(isAiProcessing, (newVal) => { globalAiState.value.isProcessing = newVal; }, { immediate: true });
 
+// Full Echo Logic
 useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProcessingUpdate'], (payload: any) => {
     const docId = payload.document_id || payload.document?.id;
     if (!docId) return;
@@ -157,9 +166,7 @@ const getDocLabel = (typeKey: string) => {
 };
 
 const getLeadUser = (doc: any) => {
-    // Fixed 'let' to 'const' for user variable
     const user = doc.assignee || doc.user || props.project.client?.users?.find((u: any) => u.id === doc.assigned_id);
-
     if (!user) return null;
     return { ...user, initials: `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || '??' };
 };
@@ -170,7 +177,38 @@ const handleReprocess = (id: string | number) => {
     setDocToProcessing(id);
 };
 
-const onDeleteRequested = (doc: ExtendedDocument) => emit('confirmDelete', doc);
+/**
+ * Handle deletion requested from either a row or the detail sheet.
+ * We close the local sheet state here before notifying Show.vue.
+ */
+const onDeleteRequested = (doc: ExtendedDocument) => {
+    // 1. Close the local sheet state right here to clear the focus trap
+    isDetailsSheetOpen.value = false;
+    selectedSheetItem.value = null;
+
+    // 2. Pass the intent up to the grandparent (Show.vue)
+    // Show.vue only needs to manage the documentToDelete and isDeleteModalOpen
+    emit('confirmDelete', doc);
+};
+
+const refreshDocumentData = () => {
+    // We use the current URL to perform a partial reload
+    router.get(usePage().url, {}, {
+        only: ['requirementStatus'],
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            if (selectedSheetItem.value) {
+                // DocumentsMap is updated by the watcher on props.requirementStatus
+                const freshDoc = documentsMap.value.get(selectedSheetItem.value.id);
+                if (freshDoc) {
+                    selectedSheetItem.value = freshDoc;
+                }
+            }
+        }
+    });
+};
+
 </script>
 
 <template>
@@ -222,6 +260,7 @@ const onDeleteRequested = (doc: ExtendedDocument) => emit('confirmDelete', doc);
                     :item="intake"
                     :level="0"
                     :active-editing-id="activeEditingId"
+                    :selected-sheet-id="selectedSheetItem?.id ?? null"
                     :expanded-root-ids="expandedRootIds"
                     :get-doc-label="getDocLabel"
                     :get-lead-user="getLeadUser"
@@ -233,9 +272,25 @@ const onDeleteRequested = (doc: ExtendedDocument) => emit('confirmDelete', doc);
                     @handle-reprocess="handleReprocess"
                     @on-delete-requested="onDeleteRequested"
                     @submit="handleUpdateDocument"
+                    @open-sheet="handleOpenSheet"
                 />
             </div>
         </div>
     </div>
+
+    <TraceabilityDetailSheet
+        v-model:open="isDetailsSheetOpen"
+        :item="selectedSheetItem"
+        :get-doc-label="getDocLabel"
+        :users="project.client?.users || []"
+        :requirement-status="props.requirementStatus"
+        :active-editing-id="activeEditingId"
+        :form="form"
+        @prepare-edit="handlePrepareEdit"
+        @submit="handleUpdateDocument"
+        @task-created="refreshDocumentData"
+        @on-delete-requested="onDeleteRequested"
+    />
+
     <DocumentFormModal v-model:open="isUploadModalOpen" mode="create" :form="form" :requirement-status="props.requirementStatus" :users="project.client?.users || []" @submit="submitDocument" />
 </template>

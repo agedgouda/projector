@@ -129,9 +129,9 @@ declare global {
 
     export interface Task {
         // Primary & Foreign Keys (UUIDs)
-        id: string;
+        id: number;
         project_id: string;
-        assignee_id: number;
+        assignee_id: number | null;
         document_id: string | null;
 
         // Task Content

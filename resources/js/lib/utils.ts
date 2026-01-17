@@ -33,3 +33,14 @@ export function formatPhoneNumber(phoneNumberString: string | null | undefined):
     // Fallback: If it's not 10 digits, just return the original digits
     return phoneNumberString;
 }
+
+export const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '';
+
+    const date = new Date(dateString);
+
+    if (isNaN(date.getTime())) return dateString;
+
+    // mm/dd/yyyy
+    return new Intl.DateTimeFormat('en-US').format(date);
+};

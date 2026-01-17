@@ -17,6 +17,7 @@ class TaskController extends Controller
      */
     public function store(Request $request)
     {
+
         $validated = $request->validate([
             'project_id'  => ['required', 'uuid', 'exists:projects,id'],
             'document_id' => ['nullable', 'uuid', 'exists:documents,id'],
@@ -40,6 +41,7 @@ class TaskController extends Controller
      */
     public function update(Request $request, Task $task)
     {
+
         $validated = $request->validate([
             'title'       => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
