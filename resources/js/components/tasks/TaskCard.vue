@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ChevronDown, ChevronUp, Link as LinkIcon, MessageSquare } from 'lucide-vue-next';
+import { ChevronDown, ChevronUp, Link as LinkIcon, MessageSquare, Pencil, User2 } from 'lucide-vue-next';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from '@/components/ui/tooltip';
-import { PRIORITY_LABELS, STATUS_LABELS,priorityClasses, statusClasses, statusDotClasses } from '@/lib/constants';
+import { PRIORITY_LABELS, STATUS_LABELS, priorityClasses, statusClasses, statusDotClasses } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Link } from '@inertiajs/vue3';
 import { formatDate } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import TaskFormSheet from './TaskFormSheet.vue'; // Check your path
 
-defineProps<{
+const props = defineProps<{
     task: Task;
     users: User[];
 }>();
 
 const isExpanded = ref(false);
-
-// Formatting the date for the scan view
-
+const isEditOpen = ref(false);
 </script>
 
 <template>
@@ -72,6 +72,15 @@ const isExpanded = ref(false);
             </div>
 
             <div class="flex items-center gap-4 text-right shrink-0">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    @click.stop="isEditOpen = true"
+                    class="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                >
+                    <Pencil class="w-3.5 h-3.5" />
+                </Button>
+
                 <div class="w-[120px] hidden md:flex justify-end">
                     <Badge variant="secondary"
                     class="uppercase text-[9px] tracking-tighter font-bold px-2 py-0"
@@ -120,5 +129,16 @@ const isExpanded = ref(false);
                 </div>
             </div>
         </div>
+
+        <TaskFormSheet
+            :open="isEditOpen"
+            @update:open="val => isEditOpen = val"
+            :task="task"
+            :project-id="task.project_id"
+            :document-id="task.document_id"
+            :users="users"
+            :initial-title="task.title"
+            :initial-description="task.description ?? ''"
+        />
     </div>
 </template>

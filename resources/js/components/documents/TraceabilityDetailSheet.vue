@@ -9,7 +9,7 @@ import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from '@/components/ui/tooltip';
 import { toast } from 'vue-sonner';
-import TaskCreateSheet from '@/components/tasks/TaskFormSheet.vue';
+import TaskFormSheet from '@/components/tasks/TaskFormSheet.vue';
 import InlineDocumentForm from './InlineDocumentForm.vue';
 import { formatDate } from '@/lib/utils'
 import { STATUS_LABELS, PRIORITY_LABELS,priorityClasses, statusClasses,priorityDotClasses } from '@/lib/constants'
@@ -159,7 +159,7 @@ const handleFormSubmit = () => {
                     </div>
                 </div>
 
-                <TaskCreateSheet
+                <TaskFormSheet
                     v-model:open="isTaskSheetOpen"
                     :task="selectedTask"
                     :project-id="item.project_id"
