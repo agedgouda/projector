@@ -15,7 +15,7 @@ import {
 
 const props = defineProps<{
     mode: 'create' | 'edit';
-    form: InertiaForm<Partial<ProjectDocument>>;
+    form: InertiaForm<FlatTask>;
     requirementStatus?: RequirementStatus[];
     users?: User[];
 }>();

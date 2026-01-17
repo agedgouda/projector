@@ -11,11 +11,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const props = defineProps<{
-    form: InertiaForm<Partial<Task>>;
+    form: InertiaForm<FlatTask>;
     users: User[];
 }>();
 
-const updateField = <K extends keyof Task>(field: K, value: any) => {
+const updateField = <K extends keyof FlatTask>(field: K, value: any) => {
     (props.form as any)[field] = value;
 };
 

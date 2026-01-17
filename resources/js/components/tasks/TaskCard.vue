@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { ChevronDown, ChevronUp, Link as LinkIcon, MessageSquare } from 'lucide-vue-next';
+import {
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
+} from '@/components/ui/tooltip';
 import { PRIORITY_LABELS, STATUS_LABELS,priorityClasses, statusClasses, statusDotClasses } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Link } from '@inertiajs/vue3';
@@ -30,6 +33,32 @@ const isExpanded = ref(false);
                     class="w-2 h-2 rounded-full shrink-0"
                     :class="statusDotClasses[task.status]"
                 />
+
+                <TooltipProvider v-if="task.assignee">
+                    <Tooltip :delay-duration="200">
+                        <TooltipTrigger as-child>
+                            <div class="h-7 w-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-indigo-600 shadow-sm cursor-help shrink-0">
+                                {{ (task.assignee.first_name?.[0] || '') + (task.assignee.last_name?.[0] || '') }}
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" class="bg-slate-900 text-white text-[10px] font-bold px-3 py-1.5">
+                            {{ task.assignee.first_name }} {{ task.assignee.last_name }}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider v-else>
+                    <Tooltip :delay-duration="200">
+                        <TooltipTrigger as-child>
+                            <div class="h-7 w-7 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center bg-transparent shrink-0 cursor-help">
+                                <User2 class="w-3 h-3 text-slate-400" />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" class="bg-slate-900 text-white text-[10px] font-bold px-3 py-1.5">
+                            Unassigned
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
 
                 <div class="flex flex-col min-w-0">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white truncate">

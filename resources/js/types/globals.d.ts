@@ -135,7 +135,6 @@ declare global {
         // Primary & Foreign Keys (UUIDs)
         id: number;
         project_id: string;
-        document_id: string | null;
         assignee_id: number | null;
         document_id: string | null;
 
@@ -156,6 +155,19 @@ declare global {
         project: Project;
         document?: ProjectDocument;
         assignee?: User;
+    }
+
+    export interface FlatTask {
+        id?: number | string;
+        project_id: string;
+        document_id: string | null;
+        title: string;
+        description: string | null;
+        status: any;
+        priority: any;
+        assignee_id: number | null;
+        due_at: string | null;
+        [key: string]: any; // This "catch-all" prevents the "breaks other pages" issue
     }
 
     // Update your ProjectGroup interface for the Dashboard as well
