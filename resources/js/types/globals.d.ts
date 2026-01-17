@@ -135,6 +135,7 @@ declare global {
         // Primary & Foreign Keys (UUIDs)
         id: number;
         project_id: string;
+        document_id: string | null;
         assignee_id: number | null;
         document_id: string | null;
 

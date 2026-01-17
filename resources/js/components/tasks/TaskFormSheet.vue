@@ -20,13 +20,16 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:open', 'created']);
 
-const form = useForm<Partial<Task>>({
+type TaskField = 'project_id' | 'document_id' | 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_at';
+
+// Tell Inertia that the form is a flat record of these Task fields.
+const form = useForm<Record<TaskField, any>>({
     project_id: props.projectId,
     document_id: props.documentId || null,
     title: '',
     description: '',
-    status: 'todo' as any,
-    priority: 'medium' as any,
+    status: 'todo',
+    priority: 'medium',
     assignee_id: null,
     due_at: null,
 });

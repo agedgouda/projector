@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { ChevronDown, ChevronUp, Link as LinkIcon, MessageSquare } from 'lucide-vue-next';
-import { PRIORITY_LABELS, STATUS_LABELS } from '@/lib/constants';
+import { PRIORITY_LABELS, STATUS_LABELS,priorityClasses, statusClasses, statusDotClasses } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Link } from '@inertiajs/vue3';
 import { formatDate } from '@/lib/utils';
@@ -28,7 +28,7 @@ const isExpanded = ref(false);
             <div class="flex items-center gap-4 flex-1 min-w-0">
                 <div
                     class="w-2 h-2 rounded-full shrink-0"
-                    :class="task.status === 'done' ? 'bg-green-500' : 'bg-indigo-500'"
+                    :class="statusDotClasses[task.status]"
                 />
 
                 <div class="flex flex-col min-w-0">
@@ -44,7 +44,10 @@ const isExpanded = ref(false);
 
             <div class="flex items-center gap-4 text-right shrink-0">
                 <div class="w-[120px] hidden md:flex justify-end">
-                    <Badge variant="secondary" class="uppercase text-[9px] tracking-tighter font-bold px-2 py-0">
+                    <Badge variant="secondary"
+                    class="uppercase text-[9px] tracking-tighter font-bold px-2 py-0"
+                    :class="statusClasses[task.status]"
+                    >
                         {{ STATUS_LABELS[task.status] || task.status }}
                     </Badge>
                 </div>
@@ -52,7 +55,7 @@ const isExpanded = ref(false);
                 <div class="w-[100px] hidden md:flex justify-end">
                     <span
                         class="text-[10px] font-black uppercase tracking-tight"
-                        :class="task.priority === 'high' ? 'text-orange-500' : 'text-slate-400'"
+                        :class="priorityClasses[task.priority]"
                     >
                         {{ PRIORITY_LABELS[task.priority] || task.priority }}
                     </span>
