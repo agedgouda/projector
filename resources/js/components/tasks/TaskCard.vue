@@ -11,7 +11,7 @@ import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import TaskFormSheet from './TaskFormSheet.vue'; // Check your path
 
-const props = defineProps<{
+defineProps<{
     task: Task;
     users: User[];
 }>();
