@@ -12,6 +12,7 @@ import { toast } from 'vue-sonner';
 import TaskCreateSheet from '@/components/tasks/TaskFormSheet.vue';
 import InlineDocumentForm from './InlineDocumentForm.vue';
 import { formatDate } from '@/lib/utils'
+import { STATUS_LABELS, PRIORITY_LABELS,priorityClasses, statusClasses,priorityDotClasses } from '@/lib/constants'
 
 const props = defineProps<{
     open: boolean;
@@ -47,13 +48,6 @@ const handleFormSubmit = () => {
         emit('prepareEdit', { id: null });
         toast.success('Changes saved');
     });
-};
-
-const STATUS_LABELS: Record<string, string> = {
-    todo: 'To Do',
-    backlog: 'Backlog',
-    in_progress: 'In Progress',
-    done: 'Done'
 };
 
 
@@ -107,46 +101,57 @@ const STATUS_LABELS: Record<string, string> = {
                             </div>
 
                             <div v-if="item.tasks?.length" class="space-y-3">
-                                <div v-for="task in item.tasks" :key="task.id" class="group flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-100 transition-colors">
-                                    <div class="flex items-center gap-4">
-                                        <div class="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
-                                        <span class="text-[12px] font-bold text-slate-700 tracking-tight">{{ task.title }}</span>
+                                <div v-for="task in item.tasks" :key="task.id"
+                                    class="group flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-100 transition-all"
+                                >
+                                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                                        <div
+                                            class="h-2 w-2 rounded-full shrink-0 transition-all"
+                                            :class="priorityDotClasses[task.priority]"
+                                        ></div>
+                                        <span class="text-[12px] font-bold text-slate-700 tracking-tight truncate">
+                                            {{ task.title }}
+                                        </span>
                                     </div>
-                                    <div class="flex items-center gap-4 border-l pl-4 border-slate-100">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            @click="openEditTask(task)"
-                                            class="h-7 w-7 text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
-                                            <Edit2 class="h-3.5 w-3.5" />
-                                        </Button>
 
-                                        <span
-                                            class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter"
-                                            :class="{
-                                                'bg-slate-100 text-slate-500': task.status === 'backlog' || task.status === 'todo',
-                                                'bg-amber-100 text-amber-700': task.status === 'in_progress',
-                                                'bg-emerald-100 text-emerald-700': task.status === 'done',
-                                            }"
-                                        >
-                                            {{ STATUS_LABELS[task.status] }}
-                                        </span>
-                                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter">
-                                            Due: {{ formatDate(task.due_at) }}
-                                        </span>
-                                        <TooltipProvider v-if="task.assignee">
-                                            <Tooltip :delay-duration="200">
-                                                <TooltipTrigger as-child>
-                                                    <div class="h-7 w-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-indigo-600 shadow-sm cursor-help transition-all">
-                                                        {{ (task.assignee.first_name?.[0] || '') + (task.assignee.last_name?.[0] || '') }}
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top" class="bg-slate-900 text-white border-none text-[10px] font-bold px-3 py-1.5">
-                                                    {{ task.assignee.first_name }} {{ task.assignee.last_name }}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                    <div class="flex items-center gap-4 ml-4 shrink-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter" :class="statusClasses[task.status]">
+                                                {{ STATUS_LABELS[task.status] }}
+                                            </span>
+
+                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter" :class="priorityClasses[task.priority]">
+                                                {{ PRIORITY_LABELS[task.priority] }}
+                                            </span>
+
+                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter bg-slate-50 text-slate-400 border border-slate-100">
+                                                {{ formatDate(task.due_at) }}
+                                            </span>
+                                        </div>
+
+                                        <div class="flex items-center gap-2 border-l pl-4 border-slate-100 min-w-[70px] justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                @click="openEditTask(task)"
+                                                class="h-7 w-7 text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                                            >
+                                                <Edit2 class="h-3.5 w-3.5" />
+                                            </Button>
+
+                                            <TooltipProvider v-if="task.assignee">
+                                                <Tooltip :delay-duration="200">
+                                                    <TooltipTrigger as-child>
+                                                        <div class="h-7 w-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-indigo-600 shadow-sm cursor-help shrink-0">
+                                                            {{ (task.assignee.first_name?.[0] || '') + (task.assignee.last_name?.[0] || '') }}
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" class="bg-slate-900 text-white text-[10px] font-bold px-3 py-1.5">
+                                                        {{ task.assignee.first_name }} {{ task.assignee.last_name }}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

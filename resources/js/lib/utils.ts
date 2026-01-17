@@ -34,13 +34,18 @@ export function formatPhoneNumber(phoneNumberString: string | null | undefined):
     return phoneNumberString;
 }
 
-export const formatDate = (dateString: string | null | undefined): string => {
+export const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
-
     const date = new Date(dateString);
+    const today = new Date();
+    today.setHours(0,0,0,0);
 
-    if (isNaN(date.getTime())) return dateString;
+    const diffTime = date.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    // mm/dd/yyyy
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays < 0) return 'Overdue';
+
     return new Intl.DateTimeFormat('en-US').format(date);
 };
