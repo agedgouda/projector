@@ -233,7 +233,7 @@ const refreshDocumentData = () => {
             <div class="p-8 flex justify-between items-center border-b border-slate-100">
                 <div class="flex items-center gap-3">
                     <div class="p-2.5 bg-indigo-50 rounded-xl text-indigo-600"><GitGraph class="h-6 w-6"/></div>
-                    <h2 class="text-2xl font-black text-slate-900 tracking-tight">Traceability Map</h2>
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight">Project Documentation</h2>
                 </div>
                 <Button @click="openUploadModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11">
                     <PlusIcon class="h-4 w-4 mr-2" /> New Intake
