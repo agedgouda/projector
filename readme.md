@@ -1,64 +1,93 @@
-# Projector — AI-Driven Project Workflows
 
-Projector is an AI-assisted project management system where **notes evolve into living documents**, and documents can generate tasks.
-
-The AI acts like an *unpaid intern* — organizing, drafting, and transforming your work without being in charge.
-
----
-
-## 🧠 Core Idea
-
-Start with notes.  
-Turn them into documents.  
-Convert documents into other documents or tasks.  
-Repeat as often as needed.
-
-Projector is document-first, not task-first.
+At each stage:
+- AI generates a draft document
+- Humans review and edit the result
+- Humans decide what becomes actionable work
 
 ---
 
-## ✨ What Makes Projector Different
+## 📄 Documents
 
-- Documents are the primary unit of work
-- AI assists, but never owns decisions
-- Workflows are flexible, not rigid
-- Real-time feedback while AI works
-- Optional self-hosted or cloud AI models
+Documents are the primary unit of work in Projector.
+
+Documents can:
+- start as unstructured notes
+- be transformed into other document types via AI
+- be edited manually at any stage
+- retain their context throughout the pipeline
+
+Documents evolve as understanding improves.
 
 ---
 
-## 🧩 Architecture Highlights
+## 🧵 Tasks (Human-Assigned Only)
 
-- **Laravel Octane** — high-performance request handling
-- **Laravel Reverb** — real-time updates and streaming feedback
-- **Laravel Horizon** — background AI jobs and task processing
-- **Vue + Vite** — modern frontend
-- **Pluggable AI drivers**
-  - Ollama (local/self-hosted)
+Tasks are optional and always created and assigned by a human.
+
+Each task:
+- is linked to a document
+- has an assignee
+- includes priority, status, and due date
+
+AI never assigns tasks.
+
+Tasks exist to execute decisions that humans have reviewed and approved.
+
+---
+
+## 🤖 AI Workflows (Admin Only)
+
+AI workflows are defined and managed by admin users.
+
+Workflows consist of:
+- **System Instructions**  
+  Define the role, expertise, and constraints of the AI.
+- **User Prompt Logic**  
+  Structured transformation rules with parameterized input.
+- **Document Schemas**  
+  Enforce predictable, machine-usable output.
+- **Pipelines**  
+  Define the order in which documents are transformed.
+
+End users never interact directly with prompts or pipelines.
+
+---
+
+## 🧬 Extensible by Design
+
+Projector’s workflows are **data-driven**, not hardcoded.
+
+The following are stored in the database:
+- Project types
+- Document schemas
+- AI instructions
+- Transformation pipelines
+
+This allows new workflows and domains to be added without changing application code, while maintaining consistent execution and safety.
+
+---
+
+## ⚙️ Architecture Overview
+
+- **Laravel Octane** — high-performance runtime
+- **Laravel Reverb** — real-time updates and progress feedback
+- **Laravel Horizon** — background job processing for AI tasks
+- **Vue + Vite** — frontend application
+- **Pluggable AI providers**
+  - Ollama (local / self-hosted)
   - Gemini (cloud)
-  - More providers planned
-
----
-
-## 🧪 Current Focus
-
-The initial implementation focuses on **software project workflows**, including:
-
-- Notes → specifications
-- Specifications → task lists
-- Document revisions and transformations
-- Assignable tasks linked to documents
 
 ---
 
 ## 🚀 Getting Started
 
 ### Requirements
+
 - PHP 8.1+
 - Composer
-- Node 18+
-- Redis (for queues & Reverb)
-- Database (MySQL/Postgres)
+- Node.js 18+
+- Redis
+- MySQL or PostgreSQL
 - AI provider (Ollama or Gemini)
 
 ---
