@@ -1,96 +1,70 @@
 
 At each stage:
-- AI generates a draft document
-- Humans review and edit the result
-- Humans decide what becomes actionable work
+
+- AI generates draft content according to the pipeline.  
+- Humans review and edit documents before they are used for tasks.
 
 ---
 
-## 📄 Documents
+## Documents
 
-Documents are the primary unit of work in Projector.
+Documents are the main objects in Projector.
 
-Documents can:
-- start as unstructured notes
-- be transformed into other document types via AI
-- be edited manually at any stage
-- retain their context throughout the pipeline
-
-Documents evolve as understanding improves.
+- They may start as unstructured notes.  
+- AI can generate draft versions of other document types based on a pipeline.  
+- Humans can edit documents at any stage.  
+- Changes are tracked in the system.
 
 ---
 
-## 🧵 Tasks (Human-Assigned Only)
+## Tasks
 
-Tasks are optional and always created and assigned by a human.
+Tasks are created and assigned by human users.
 
-Each task:
-- is linked to a document
-- has an assignee
-- includes priority, status, and due date
-
-AI never assigns tasks.
-
-Tasks exist to execute decisions that humans have reviewed and approved.
+- Each task is linked to a document.  
+- Tasks have an assignee, status, priority, and due date.  
+- AI does not assign tasks.  
 
 ---
 
-## 🤖 AI Workflows (Admin Only)
+## AI Workflows
 
-AI workflows are defined and managed by admin users.
+Admin users define AI workflows, which specify how AI generates draft documents.
 
-Workflows consist of:
-- **System Instructions**  
-  Define the role, expertise, and constraints of the AI.
-- **User Prompt Logic**  
-  Structured transformation rules with parameterized input.
-- **Document Schemas**  
-  Enforce predictable, machine-usable output.
-- **Pipelines**  
-  Define the order in which documents are transformed.
+- **System Instructions** — describe the AI’s intended role.  
+- **User Prompt Logic** — rules for generating content.  
+- **Document Schemas** — expected format for each document type.  
+- **Pipelines** — the order in which documents are generated.  
 
-End users never interact directly with prompts or pipelines.
+End users do not interact with prompts or pipelines directly.
 
 ---
 
-## 🧬 Extensible by Design
+## Extensibility
 
-Projector’s workflows are **data-driven**, not hardcoded.
-
-The following are stored in the database:
-- Project types
-- Document schemas
-- AI instructions
-- Transformation pipelines
-
-This allows new workflows and domains to be added without changing application code, while maintaining consistent execution and safety.
+Project types, document schemas, AI instructions, and pipelines are stored in the database.  
+Admins can add or modify workflows without changing application code.
 
 ---
 
-## ⚙️ Architecture Overview
+## Architecture
 
-- **Laravel Octane** — high-performance runtime
-- **Laravel Reverb** — real-time updates and progress feedback
-- **Laravel Horizon** — background job processing for AI tasks
-- **Vue + Vite** — frontend application
-- **Pluggable AI providers**
-  - Ollama (local / self-hosted)
-  - Gemini (cloud)
+- **Backend:** Laravel + Octane, Horizon, Reverb  
+- **Frontend:** Vue + Vite  
+- **AI Providers:** Ollama (local) or Gemini (cloud)  
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Requirements
 
-- PHP 8.1+
-- Composer
-- Node.js 18+
-- Redis
-- MySQL or PostgreSQL
-- AI provider (Ollama or Gemini)
-
----
+- PHP 8.1+  
+- Composer  
+- Node.js 18+  
+- Redis  
+- MySQL or PostgreSQL  
+- AI provider (Ollama or Gemini)  
 
 ### Installation
 
