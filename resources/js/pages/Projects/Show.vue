@@ -4,7 +4,7 @@ import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectHeader from './Partials/ProjectHeader.vue';
 import DocumentManager from '@/components/documents/DocumentManager.vue';
-import TaskMasterList from './Partials/TaskMasterList.vue';
+import TaskMasterList from '@/components/tasks/TaskMasterList.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import { type BreadcrumbItem } from '@/types';

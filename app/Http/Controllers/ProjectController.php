@@ -41,10 +41,22 @@ class ProjectController extends Controller
         $project->load([
             'client.users',
             'type',
-            'tasks.assignee',
+            'tasks' => function ($query) {
+                // Added orderBy here for the main task list
+                $query->with(['assignee', 'comments.user'])
+                    ->orderBy('created_at', 'asc');
+            },
             'documents' => function ($query) {
-                $query->with(['creator', 'editor', 'assignee', 'tasks.assignee'])
-                    ->orderBy('created_at', 'desc');
+                $query->with([
+                    'creator',
+                    'editor',
+                    'assignee',
+                    'tasks' => function ($q) {
+                        // Added orderBy here for tasks inside documents
+                        $q->with(['assignee', 'comments.user'])
+                        ->orderBy('created_at', 'asc');
+                    }
+                ])->orderBy('created_at', 'desc');
             }
         ]);
 

@@ -31,4 +31,9 @@ class Task extends Model
     {
         return $this->belongsTo(Document::class);
     }
+
+    public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable')->oldest();
+    }
 }

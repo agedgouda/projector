@@ -26,7 +26,7 @@ const isEditOpen = ref(false);
     >
         <div
             @click="isExpanded = !isExpanded"
-            class="p-4 flex items-center justify-between cursor-pointer select-none"
+            class="py-2.5 px-4 flex items-center justify-between cursor-pointer select-none"
         >
             <div class="flex items-center gap-4 flex-1 min-w-0">
                 <div
@@ -83,8 +83,8 @@ const isEditOpen = ref(false);
 
                 <div class="w-[120px] hidden md:flex justify-end">
                     <Badge variant="secondary"
-                    class="uppercase text-[9px] tracking-tighter font-bold px-2 py-0"
-                    :class="statusClasses[task.status]"
+                        class="uppercase text-[9px] tracking-tighter font-bold px-2 py-0"
+                        :class="statusClasses[task.status]"
                     >
                         {{ STATUS_LABELS[task.status] || task.status }}
                     </Badge>

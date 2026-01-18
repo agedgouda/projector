@@ -11,6 +11,7 @@ use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\AiTemplateController;
 
 Route::get('/', function () {
@@ -42,7 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['client.access'])->group(function () {
 
         Route::resource('clients', ClientController::class);
-
+        Route::resource('comments', CommentController::class);
         // This keeps the name 'projects.index', so Wayfinder is happy
         Route::resource('projects', ProjectController::class);
 

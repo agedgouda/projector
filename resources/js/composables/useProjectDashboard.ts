@@ -2,7 +2,7 @@ import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import projectRoutes from '@/routes/projects/index';
 
-export function useProjectDashboard(props: { project: any, origin?: string | null }) {
+export function useProjectDashboard(props: { project: Project, origin?: string | null }) {
     const isDeleteModalOpen = ref(false);
     const isDeleting = ref(false);
     const documentToDelete = ref<any>(null);

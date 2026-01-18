@@ -7,7 +7,7 @@ import { useDocumentTree } from '@/composables/useDocumentTree';
 import { Skeleton } from "@/components/ui/skeleton"
 import { globalAiState } from '@/state';
 import {
-    PlusIcon, Search, RefreshCw, GitGraph,
+    PlusIcon, Search, RefreshCw,
 } from 'lucide-vue-next';
 
 // UI Components
@@ -212,9 +212,9 @@ const refreshDocumentData = () => {
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto p-6 space-y-6">
+    <div class="space-y-6">
         <transition enter-active-class="transition duration-500" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0">
-            <Alert v-if="isAiProcessing" class="bg-indigo-50 border-indigo-100 p-0 block shadow-sm overflow-hidden">
+            <Alert v-if="isAiProcessing" class="bg-indigo-50 border-indigo-100 p-0 block shadow-sm overflow-hidden mb-6">
                 <div class="p-4 flex justify-between items-center">
                     <div class="flex items-center gap-3">
                         <AppLogoIcon class="h-10 w-10 text-indigo-600" />
@@ -229,52 +229,46 @@ const refreshDocumentData = () => {
             </Alert>
         </transition>
 
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-8 flex justify-between items-center border-b border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div class="p-2.5 bg-indigo-50 rounded-xl text-indigo-600"><GitGraph class="h-6 w-6"/></div>
-                    <h2 class="text-2xl font-black text-slate-900 tracking-tight">Project Documentation</h2>
-                </div>
-                <Button @click="openUploadModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11">
+        <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="relative w-full md:w-80 lg:w-96">
+                <Search class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input v-model="searchQuery" placeholder="Search documentation..." class="pl-11 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300" />
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto pr-2">
+                <Button @click="openUploadModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold">
                     <PlusIcon class="h-4 w-4 mr-2" /> New Intake
                 </Button>
             </div>
+        </div>
 
-            <div class="px-8 pt-6">
-                <div class="relative">
-                    <Search class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input v-model="searchQuery" placeholder="Search documentation..." class="pl-12 h-12 bg-slate-50 border-slate-100 rounded-xl" />
-                </div>
-            </div>
+        <div class="hidden md:grid grid-cols-[1fr_120px_100px_120px] gap-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+            <span>Documentation Hierarchy</span>
+            <span class="text-right">Status</span>
+            <span class="text-right">Project Lead</span>
+            <span class="text-right pr-4">Actions</span>
+        </div>
 
-            <div class="grid grid-cols-12 px-10 py-5 mt-6 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50/30 border-b border-slate-50">
-                <div class="col-span-8">Documentation Hierarchy</div>
-                <div class="col-span-2 text-center border-x border-slate-100/50">Project Lead</div>
-                <div class="col-span-2 text-center">Actions</div>
-            </div>
-
-            <div class="divide-y divide-slate-50">
-                <TraceabilityRow
-                    v-for="intake in documentTree"
-                    :key="intake.id"
-                    :item="intake"
-                    :level="0"
-                    :active-editing-id="activeEditingId"
-                    :selected-sheet-id="selectedSheetItem?.id ?? null"
-                    :expanded-root-ids="expandedRootIds"
-                    :get-doc-label="getDocLabel"
-                    :get-lead-user="getLeadUser"
-                    :requirement-status="props.requirementStatus"
-                    :users="project.client?.users || []"
-                    :form="form"
-                    @toggle-root="toggleRoot"
-                    @prepare-edit="handlePrepareEdit"
-                    @handle-reprocess="handleReprocess"
-                    @on-delete-requested="onDeleteRequested"
-                    @submit="handleUpdateDocument"
-                    @open-sheet="handleOpenSheet"
-                />
-            </div>
+        <div class="grid gap-3">
+            <TraceabilityRow
+                v-for="intake in documentTree"
+                :key="intake.id"
+                :item="intake"
+                :level="0"
+                :active-editing-id="activeEditingId"
+                :selected-sheet-id="selectedSheetItem?.id ?? null"
+                :expanded-root-ids="expandedRootIds"
+                :get-doc-label="getDocLabel"
+                :get-lead-user="getLeadUser"
+                :requirement-status="props.requirementStatus"
+                :users="project.client?.users || []"
+                :form="form"
+                @toggle-root="toggleRoot"
+                @prepare-edit="handlePrepareEdit"
+                @handle-reprocess="handleReprocess"
+                @on-delete-requested="onDeleteRequested"
+                @submit="handleUpdateDocument"
+                @open-sheet="handleOpenSheet"
+            />
         </div>
     </div>
 

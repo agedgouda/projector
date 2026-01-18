@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import taskRoutes from '@/routes/tasks/index';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { toast } from 'vue-sonner';
-import { FileText, ClipboardList, Loader2 } from 'lucide-vue-next';
+import { FileText, ClipboardList, Loader2, MessageSquare, Settings2 } from 'lucide-vue-next';
 import TaskForm from './TaskForm.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, Settings2 } from 'lucide-vue-next'; // Additional icons
+import CommentSection from '@/components/comments/CommentSection.vue';
 
 const props = defineProps<{
     open: boolean;
@@ -22,9 +22,11 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:open', 'created']);
 
+// State to control which footer shows
+const activeTab = ref('edit');
+
 type TaskField = 'project_id' | 'document_id' | 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_at';
 
-// Tell Inertia that the form is a flat record of these Task fields.
 const form = useForm<Record<TaskField, any>>({
     project_id: props.projectId,
     document_id: props.documentId || null,
@@ -36,8 +38,13 @@ const form = useForm<Record<TaskField, any>>({
     due_at: null,
 });
 
-// Watch for changes to the task prop to toggle between Create and Edit
-watch(() => props.task, (newTask) => {
+watch(() => props.task, (newTask, oldTask) => {
+    // Only reset the tab if we are switching to a DIFFERENT task
+    // or if we are opening the sheet for the first time
+    if (newTask?.id !== oldTask?.id) {
+        activeTab.value = 'edit';
+    }
+
     if (newTask) {
         // Edit Mode
         form.defaults({
@@ -51,7 +58,7 @@ watch(() => props.task, (newTask) => {
             due_at: newTask.due_at,
         });
     } else {
-        // Create Mode
+        // Create Mode logic...
         form.defaults({
             project_id: props.projectId,
             document_id: props.documentId || null,
@@ -78,10 +85,8 @@ const submit = () => {
     };
 
     if (props.task) {
-        // Edit Mode: PUT request using Wayfinder route
         form.put(taskRoutes.update(props.task.id).url, options);
     } else {
-        // Create Mode: POST request using Wayfinder route
         form.post(taskRoutes.store().url, options);
     }
 };
@@ -104,7 +109,7 @@ const submit = () => {
                 </SheetDescription>
             </div>
 
-            <Tabs defaultValue="edit" class="flex-1 flex flex-col min-h-0">
+            <Tabs v-model="activeTab" default-value="edit" class="flex-1 flex flex-col min-h-0">
                 <div class="px-8 border-b bg-white shrink-0">
                     <TabsList class="h-12 w-full justify-start gap-6 bg-transparent p-0">
                         <TabsTrigger
@@ -121,6 +126,9 @@ const submit = () => {
                         >
                             <MessageSquare class="w-3.5 h-3.5 mr-2" />
                             Discussion
+                            <span v-if="task.comments?.length" class="ml-2 px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 text-[9px] font-bold">
+                                {{ task.comments.length }}
+                            </span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -152,14 +160,16 @@ const submit = () => {
                 </TabsContent>
 
                 <TabsContent value="discussion" class="flex-1 overflow-y-auto p-8 mt-0 outline-none custom-scrollbar">
-                    <div class="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-40">
-                        <MessageSquare class="w-10 h-10 text-slate-400" />
-                        <p class="text-sm font-medium text-slate-600">Discussion logic coming soon...</p>
-                    </div>
+                    <CommentSection
+                        v-if="task"
+                        :comments="task.comments || []"
+                        commentable-type="task"
+                        :commentable-id="task.id"
+                    />
                 </TabsContent>
             </Tabs>
 
-            <div class="p-8 border-t flex justify-end gap-3 bg-slate-50/50 shrink-0">
+            <div v-if="activeTab === 'edit'" class="p-8 border-t flex justify-end gap-3 bg-slate-50/50 shrink-0">
                 <Button variant="ghost" @click="emit('update:open', false)" class="rounded-xl px-6 text-slate-500 font-bold">
                     Cancel
                 </Button>

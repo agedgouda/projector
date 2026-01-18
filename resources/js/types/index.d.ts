@@ -2,6 +2,7 @@ import { InertiaLinkProps } from '@inertiajs/vue3';
 import type { LucideIcon } from 'lucide-vue-next';
 
 declare global {
+    // --- AUTH & USER ---
     export interface User {
         id: number;
         first_name: string;
@@ -20,38 +21,133 @@ declare global {
         [key: string]: any;
     }
 
+    // --- CORE MODELS ---
+    export interface Client {
+        id: string; // UUID
+        company_name: string;
+        contact_name: string;
+        contact_phone: string;
+        users?: User[];
+        projects?: Project[];
+        created_at: string;
+        updated_at: string;
+    }
+
+    export interface ProjectType {
+        id: string; // UUID
+        name: string;
+        icon: string;
+        workflow?: any[];
+        document_schema?: any[];
+        created_at: string;
+        updated_at: string;
+    }
+
+    export interface Project {
+        id: string; // UUID
+        name: string;
+        description: string | null;
+        client_id: string;
+        project_type_id: string | null;
+
+        // Relationships
+        client: Client;
+        type: ProjectType;
+        documents?: ProjectDocument[];
+        tasks: Task[];
+
+        // Meta
+        documents_count?: number;
+        created_at: string;
+        updated_at: string;
+    }
+
     export interface ProjectDocument {
-        id: string | number | null;
+        id: string | number; // UUID in DB, but sometimes number in UI state
         project_id: string;
         parent_id: string | null;
         name: string;
         type: string;
         content: string | null;
-
-        // --- NEW ACTIONABLE COLUMNS ---
         status: 'todo' | 'in_progress' | 'done';
         creator_id: number | null;
         editor_id: number | null;
         assignee_id: number | null;
 
-        // --- NEW OPTIONAL RELATIONSHIPS ---
-        // These appear when you use ->with() in Laravel
+        // Relationships
         creator?: User;
         editor?: User;
         assignee?: User;
+        project?: Project;
+        children?: ProjectDocument[];
 
         embedding: any | null;
         metadata: {
             criteria?: string[];
-            error?: string;       // Added for the AI failure tracking
-            failed_at?: string;  // Added for the AI failure tracking
+            error?: string;
+            failed_at?: string;
             [key: string]: any;
         } | null;
-
         processed_at: string | null;
         created_at: string;
         updated_at: string;
     }
+
+    // --- TASKS, DISCUSSIONS & FLAT TYPES ---
+    export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done' | 'backlog';
+    export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+    export interface Task {
+        id: number;
+        project_id: string;
+        document_id: string | null;
+        assignee_id: number | null;
+        title: string;
+        description: string | null;
+        status: TaskStatus;
+        priority: TaskPriority;
+        due_at: string | null;
+        created_at: string;
+        updated_at: string;
+
+        // Relationships
+        assignee?: User;
+        project?: Project;
+        document?: ProjectDocument;
+        comments?: Comment[];
+    }
+
+    export interface FlatTask {
+        id?: number | string;
+        project_id: string;
+        document_id: string | null;
+        title: string;
+        description: string | null;
+        status: any;
+        priority: any;
+        assignee_id: number | null;
+        due_at: string | null;
+        [key: string]: any;
+    }
+
+    export interface Comment {
+        id: number;
+        user_id: number;
+        body: string;
+        commentable_type: string;
+        commentable_id: number | string;
+        created_at: string;
+        updated_at: string;
+        deleted_at?: string | null;
+        user?: User;
+    }
+
+    // --- UI & STATE HELPERS ---
+    export interface DocumentThread {
+        root: ProjectDocument;
+        children: ProjectDocument[];
+    }
+
     export interface RequirementStatus {
         label: string;
         key: string;
@@ -60,17 +156,16 @@ declare global {
         isUploaded: boolean;
     }
 
+    export interface ProjectTaskGroup {
+        project: Project & { client: { users: User[] } };
+        tasks: Task[];
+    }
+
     export interface DocumentVectorizedEvent {
         document: ProjectDocument;
     }
 
-    /**
-     * This defines the shape of all props passed from HandleInertiaRequests.php
-     * The [key: string]: unknown ensures it satisfies the Inertia constraint.
-     */
-    export type AppPageProps<
-        T extends Record<string, unknown> = Record<string, unknown>,
-    > = T & {
+    export type AppPageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
         auth: Auth;
         name: string;
         quote: { message: string; author: string };
@@ -83,25 +178,11 @@ declare global {
         };
         [key: string]: unknown;
     };
-    export interface Task {
-        id: string | null;
-        project_id: string;
-        document_id: string | null;
-        assignee_id: number | null;
-        title: string;
-        description: string;
-        status: 'todo' | 'in_progress' | 'done' | 'backlog';
-        priority: 'low' | 'medium' | 'high';
-        due_at: string | null;
-    }
-
 }
 
-// These are exported normally for use in component props/definitions
-export interface BreadcrumbItem {
-    title: string;
-    href: string;
-}
+// Module-level exports
+export interface BreadcrumbItem { title: string; href: string; }
+export type BreadcrumbItemType = BreadcrumbItem;
 
 export interface NavItem {
     title: string;
@@ -110,7 +191,5 @@ export interface NavItem {
     isActive?: boolean;
     hidden?: boolean;
 }
-
-export type BreadcrumbItemType = BreadcrumbItem;
 
 export {};
