@@ -63,7 +63,7 @@ Admin users define the logic that drives the platform. This allows Projector to 
 * Composer
 * Node.js 18+
 * Redis
-* MySQL or PostgreSQL
+* PostgreSQL
 * AI provider (Ollama or Gemini)
 
 ### Installation
