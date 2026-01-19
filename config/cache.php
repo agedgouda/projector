@@ -88,7 +88,7 @@ return [
         ],
 
         'octane' => [
-            'driver' => 'octane',
+            'driver' => 'redis',
         ],
 
         'failover' => [
