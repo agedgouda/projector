@@ -21,11 +21,9 @@ class ProjectAiService
 
     public function process(Document $document)
     {
-        // 1. Efficiently load project and type data
-        [$document, $typeModel] = Octane::concurrently([
-            fn () => $document->loadMissing('project.type'),
-            fn () => $document->project->type,
-        ]);
+
+        $document->loadMissing('project.type');
+        $typeModel = $document->project->type;
 
         $project = $document->project;
 
@@ -92,7 +90,9 @@ class ProjectAiService
                     return $docs->isNotEmpty() ? $docs->pluck('content')->implode("\n\n") : "No {$docType} context.";
                 };
             }
-            $replacements = array_merge($replacements, Octane::concurrently($tasks));
+            foreach ($tasks as $tag => $task) {
+                $replacements[$tag] = $task();
+            }
         }
 
         $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
