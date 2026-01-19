@@ -14,6 +14,7 @@ use App\Contracts\LlmDriver;
 use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
