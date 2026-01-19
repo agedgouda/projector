@@ -37,7 +37,7 @@ class AiTemplateController extends Controller
     /**
      * Update the specified template in storage.
      */
-    public function update(Request $request, AiTemplate $aiTemplate)
+    public function update(Request $request, AiTemplate $AiTemplate)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -45,7 +45,7 @@ class AiTemplateController extends Controller
             'user_prompt' => 'required|string',
         ]);
 
-        $aiTemplate->update($validated);
+        $AiTemplate->update($validated);
 
         return redirect()->back()->with('success', 'AI Template updated successfully.');
     }
@@ -53,17 +53,17 @@ class AiTemplateController extends Controller
     /**
      * Remove the specified template from storage.
      */
-    public function destroy(AiTemplate $aiTemplate)
+    public function destroy(AiTemplate $AiTemplate)
     {
         // Check if any Project Types are using this template before deleting
         // This prevents breaking the workflow JSON logic
-        $isUsed = \App\Models\ProjectType::where('workflow', '@>', json_encode([['ai_template_id' => $aiTemplate->id]]))->exists();
+        $isUsed = \App\Models\ProjectType::where('workflow', '@>', json_encode([['ai_template_id' => $AiTemplate->id]]))->exists();
 
         if ($isUsed) {
             return redirect()->back()->with('error', 'Cannot delete template: It is currently used in a Project Type workflow.');
         }
 
-        $aiTemplate->delete();
+        $AiTemplate->delete();
 
         return redirect()->back()->with('success', 'AI Template deleted successfully.');
     }
