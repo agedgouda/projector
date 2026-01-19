@@ -22,6 +22,13 @@ class ProjectTypeController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        return Inertia::render('ProjectTypes/Show', [
+            'aiTemplates' => AiTemplate::select('id', 'name')->get(),
+        ]);
+    }
+
     /**
      * Dedicated configuration page for a single protocol
      */
@@ -51,7 +58,7 @@ class ProjectTypeController extends Controller
         $type = ProjectType::create($validated);
 
         // Redirect to the dedicated show page after creation
-        return redirect()->route('project-types.show', $type->id)
+        return redirect()->route('project-types.index')
             ->with('success', 'Protocol initialized.');
     }
 

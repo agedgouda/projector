@@ -37,24 +37,27 @@ const iconLibrary = [
 ];
 
 const props = defineProps<{
-    projectType: any;
+    projectType?: ProjectType; // Optional
     aiTemplates: { id: string, name: string }[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Project Protocols', href: '/project-types' },
-    { title: props.projectType.name, href: `/project-types/${props.projectType.id}` }
+    {
+        title: props.projectType?.name ?? 'New Protocol',
+        href: props.projectType?.id ? `/project-types/${props.projectType.id}` : '/project-types/create'
+    }
 ];
 
 const handleSuccess = () => {
     // Usually redirect back to index or show a "Saved" toast
 };
 
-const getIcon = (name: string) => iconLibrary.find(i => i.name === name)?.component || Info;
+const getIcon = (name?: string) => iconLibrary.find(i => i.name === name)?.component || Info;
 </script>
 
 <template>
-    <Head :title="`${projectType.name} - Protocol`" />
+    <Head :title="`${projectType?.name ?? 'New'} - Protocol`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 max-w-5xl mx-auto w-full">
@@ -71,12 +74,12 @@ const getIcon = (name: string) => iconLibrary.find(i => i.name === name)?.compon
                 <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div class="flex items-start gap-5">
                         <div class="h-16 w-16 rounded-3xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20">
-                            <component :is="getIcon(projectType.icon)" class="w-8 h-8" />
+                            <component :is="getIcon(projectType?.icon)" class="w-8 h-8" />
                         </div>
                         <div>
                             <div class="flex items-center gap-3 mb-1">
                                 <h1 class="text-3xl font-black tracking-tighter text-gray-900 dark:text-white uppercase">
-                                    {{ projectType.name }}
+                                    {{ projectType?.name ?? 'New Protocol' }}
                                 </h1>
                                 <span class="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-tighter">
                                     Protocol
@@ -93,7 +96,7 @@ const getIcon = (name: string) => iconLibrary.find(i => i.name === name)?.compon
                             <p class="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">Documents</p>
                             <div class="flex items-center gap-1 justify-center text-gray-900 dark:text-white font-bold">
                                 <Database class="w-3 h-3 text-indigo-500" />
-                                {{ projectType.document_schema?.length || 0 }}
+                                {{ projectType?.document_schema?.length ?? 0 }}
                             </div>
                         </div>
                         <div class="w-px h-8 bg-gray-100 dark:bg-gray-800"></div>
@@ -101,7 +104,7 @@ const getIcon = (name: string) => iconLibrary.find(i => i.name === name)?.compon
                             <p class="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">AI Steps</p>
                             <div class="flex items-center gap-1 justify-center text-gray-900 dark:text-white font-bold">
                                 <Activity class="w-3 h-3 text-indigo-500" />
-                                {{ projectType.workflow?.length || 0 }}
+                                {{ projectType?.workflow?.length ?? 0 }}
                             </div>
                         </div>
                     </div>
