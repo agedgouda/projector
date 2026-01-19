@@ -200,3 +200,26 @@
         transform: scale(0.98) translateY(10px);
     }
 }
+
+/* --- AI Logo Animation (Global) --- */
+
+/* Target elements when the parent has the .ai-active class */
+.ai-active .logo-wheel {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: logo-spin 3s linear infinite;
+}
+
+.ai-active .left-wheel {
+    animation-duration: 4s;
+}
+
+.ai-active .right-wheel {
+    animation-direction: reverse;
+    animation-duration: 3s;
+}
+
+@keyframes logo-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
