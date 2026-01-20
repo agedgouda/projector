@@ -6,6 +6,17 @@ import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 import { configureEcho } from '@laravel/echo-vue';
 
+import Pusher from 'pusher-js';
+
+// Force the library to output every internal action to the console
+(Pusher as any).logToConsole = true;
+
+// Define it globally so the Echo plugin can find the constructor
+(window as any).Pusher = Pusher;
+
+// Manually log that the script reached this point
+console.log('--- SCRIPT EXECUTION REACHED CONFIG ---');
+
 // Keep your existing plugin config as well
 configureEcho({
     broadcaster: 'reverb',
@@ -17,7 +28,6 @@ configureEcho({
     enabledTransports: ['ws', 'wss'],
 });
 
-import Pusher from 'pusher-js';
 
 // Access the global Pusher instance to monitor the handshake
 const pusher = (window as any).Pusher as typeof Pusher;
