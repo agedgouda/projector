@@ -17,6 +17,24 @@ configureEcho({
     enabledTransports: ['ws', 'wss'],
 });
 
+import Pusher from 'pusher-js';
+
+// Access the global Pusher instance to monitor the handshake
+const pusher = (window as any).Pusher as typeof Pusher;
+
+if (pusher) {
+    // This watches the connection attempt before it reaches Echo/Vue
+    (pusher as any).instances.forEach((instance: any) => {
+        instance.connection.bind('state_change', (states: { current: string }) => {
+            console.log('--- WS CONNECTION STATE:', states.current);
+        });
+
+        instance.connection.bind('error', (err: any) => {
+            console.error('--- WS HANDSHAKE ERROR:', err);
+        });
+    });
+}
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
