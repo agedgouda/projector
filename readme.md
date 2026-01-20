@@ -72,6 +72,19 @@ Admin users define the logic that drives the platform. This allows Projector to 
 
 ### Installation
 
+## Vector Database Setup
+Projector requires the `pgvector` extension to handle AI-powered document search and similarity.
+
+**Install pgvector:**
+- **Ubuntu/Debian:** `sudo apt install postgresql-15-pgvector` (adjust version if necessary)
+- **macOS (Homebrew):** `brew install pgvector`
+- **Docker:** Use the `pgvector/pgvector:pg15` image.
+
+**Enable the extension:**
+Log into your PostgreSQL instance and run:
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
 ```bash
 # Clone the repository
 git clone [https://github.com/agedgouda/projector.git](https://github.com/agedgouda/projector.git)
