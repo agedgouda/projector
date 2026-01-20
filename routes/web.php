@@ -25,7 +25,6 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('dashboard', function () {
-    event(new \App\Events\TestEvent());
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
