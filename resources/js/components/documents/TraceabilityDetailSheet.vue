@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
-    Trash2, Plus, FileType, Edit2
+    CheckCircle2, Trash2, Plus, FileType, Edit2
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle,SheetDescription } from '@/components/ui/sheet';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from '@/components/ui/tooltip';
@@ -28,6 +28,14 @@ const emit = defineEmits(['update:open', 'handleReprocess', 'onDeleteRequested',
 
 const localDisplayContent = ref(props.item?.content);
 watch(() => props.item?.content, (newVal) => { localDisplayContent.value = newVal; });
+
+const parsedMetadata = computed(() => {
+    if (!props.item?.metadata) return null;
+    // Handle both stringified and object metadata
+    return typeof props.item.metadata === 'string'
+        ? JSON.parse(props.item.metadata)
+        : props.item.metadata;
+});
 
 const isTaskSheetOpen = ref(false);
 const selectedTask = ref<any>(null); // Track the task being edited
@@ -59,10 +67,12 @@ const handleFormSubmit = () => {
             <template v-if="item">
                 <div class="px-8 py-6 border-b bg-white flex items-center justify-between sticky top-0 z-10">
                     <div class="space-y-1">
-                        <div class="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2">
-                            <FileType class="h-3 w-3" /> {{ getDocLabel(item.type) }}
-                        </div>
                         <SheetTitle class="text-lg font-bold text-slate-900 leading-tight">{{ item.name }}</SheetTitle>
+                        <SheetDescription class="text-[11px] text-slate-500">
+                            <div class="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2">
+                                <FileType class="h-3 w-3" /> {{ getDocLabel(item.type) }}
+                            </div>
+                        </SheetDescription>
                     </div>
                     <div class="flex items-center gap-2">
                         <Button variant="outline" size="sm" @click="emit('prepareEdit', item)" class="h-8 text-[10px] font-black uppercase tracking-widest px-4 border-slate-200">
@@ -88,6 +98,24 @@ const handleFormSubmit = () => {
                                 <div class="w-4 h-px bg-slate-200"></div> Description
                             </h3>
                             <div class="text-[13px] text-slate-600 leading-relaxed prose prose-slate max-w-none" v-html="localDisplayContent || 'No description provided.'"></div>
+                        </section>
+
+                        <section v-if="parsedMetadata?.criteria?.length" >
+                            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2">
+                                <div class="w-4 h-px bg-slate-200"></div> Success Criteria
+                            </h3>
+                            <div class="space-y-4">
+                                <div
+                                    v-for="(criterion, index) in parsedMetadata.criteria"
+                                    :key="index"
+                                    class="flex items-start gap-3 group"
+                                >
+                                    <CheckCircle2 class="h-4 w-4 text-emerald-500 mt-0.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
+                                    <span class="text-[13px] text-slate-600 leading-snug">
+                                        {{ criterion }}
+                                    </span>
+                                </div>
+                            </div>
                         </section>
 
                         <section>

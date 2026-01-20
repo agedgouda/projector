@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { InertiaForm } from '@inertiajs/vue3';
-import { RefreshCw, Bold, Italic, List, ListOrdered } from 'lucide-vue-next';
+import { RefreshCw, Bold, Italic, List, ListOrdered, X, Plus, CheckCircle2 } from 'lucide-vue-next';
 import { EditorContent } from '@tiptap/vue-3';
 import { useDocumentEditor } from '@/composables/useDocumentEditor';
 
@@ -15,9 +15,9 @@ import {
 
 const props = defineProps<{
     mode: 'create' | 'edit';
-    form: InertiaForm<FlatTask>;
-    requirementStatus?: RequirementStatus[];
-    users?: User[];
+    form: InertiaForm<any>;
+    requirementStatus?: any[];
+    users?: any[];
 }>();
 
 const emit = defineEmits(['cancel', 'submit']);
@@ -34,12 +34,68 @@ const titleLabel = computed(() => {
     return `Edit ${currentType?.label || 'Document'}`;
 });
 
-const updateField = <K extends keyof ProjectDocument>(field: K, value: any) => {
+const updateField = (field: string, value: any) => {
     (props.form as any)[field] = value;
 };
 
 const handleAssigneeChange = (value: any) => {
     updateField('assignee_id', value === 'unassigned' ? null : parseInt(value));
+};
+
+
+// Helper to ensure criteria metadata structure exists
+const initializeMetadata = () => {
+    if (!props.form.metadata) {
+        updateField('metadata', { criteria: [] });
+    } else if (typeof props.form.metadata === 'string') {
+        try {
+            updateField('metadata', JSON.parse(props.form.metadata));
+        } catch {
+            // Error ignored intentionally: fallback to empty criteria
+            updateField('metadata', { criteria: [] });
+        }
+    }
+};
+
+initializeMetadata();
+
+const addCriterion = () => {
+    const metadata = { ...(props.form.metadata || { criteria: [], category: 'general', raw_data: {} }) };
+    const criteria = [...(metadata.criteria || [])];
+    criteria.push('');
+
+    metadata.criteria = criteria;
+    if (metadata.raw_data) {
+        metadata.raw_data.criteria = [...criteria];
+    }
+
+    updateField('metadata', metadata);
+};
+
+const removeCriterion = (index: number) => {
+    const metadata = { ...props.form.metadata };
+    const criteria = [...(metadata.criteria || [])];
+    criteria.splice(index, 1);
+
+    metadata.criteria = criteria;
+    if (metadata.raw_data) {
+        metadata.raw_data.criteria = [...criteria];
+    }
+
+    updateField('metadata', metadata);
+};
+
+const updateCriterion = (index: number, value: string) => {
+    const metadata = { ...props.form.metadata };
+    const criteria = [...(metadata.criteria || [])];
+    criteria[index] = value;
+
+    metadata.criteria = criteria;
+    if (metadata.raw_data) {
+        metadata.raw_data.criteria = [...criteria];
+    }
+
+    updateField('metadata', metadata);
 };
 </script>
 
@@ -111,6 +167,62 @@ const handleAssigneeChange = (value: any) => {
                 </div>
                 <p v-if="form.errors.content" class="text-xs text-destructive">{{ form.errors.content }}</p>
             </div>
+
+            <div class="grid gap-4 pt-4 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                    <div class="space-y-1">
+                        <Label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Success Criteria</Label>
+                        <p class="text-[10px] text-slate-400 font-medium">Define what 'done' looks like for this story.</p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        @click="addCriterion"
+                        class="h-7 text-[9px] font-black uppercase tracking-widest text-indigo-600 border-indigo-100 hover:bg-indigo-50"
+                    >
+                        <Plus class="h-3 w-3 mr-1" /> Add Item
+                    </Button>
+                </div>
+
+                <div class="space-y-2">
+                    <div
+                        v-for="(criterion, index) in form.metadata?.criteria"
+                        :key="index"
+                        class="flex items-center gap-2 group"
+                    >
+                        <div class="flex-none">
+                            <CheckCircle2 class="h-4 w-4 text-emerald-400 opacity-50" />
+                        </div>
+
+                        <Input
+                            :model-value="criterion"
+                            @update:model-value="(v) => updateCriterion(Number(index), String(v))"
+                            placeholder="Requirement..."
+                            class="bg-white h-10 border-slate-200 flex-1 text-[13px] focus-visible:ring-indigo-500"
+                        />
+
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            @click="removeCriterion(Number(index))"
+                            class="h-8 w-8 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                            <X class="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+
+                    <div
+                        v-if="!form.metadata?.criteria?.length"
+                        @click="addCriterion"
+                        class="border border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group"
+                    >
+                        <Plus class="h-5 w-5 text-slate-300 group-hover:text-indigo-400 mb-1" />
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No criteria defined</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/50 border-t border-slate-100">
@@ -124,7 +236,6 @@ const handleAssigneeChange = (value: any) => {
 </template>
 
 <style>
-/* Ensure standard typography looks good inside the editor */
 .prose ul { list-style-type: disc; padding-left: 1.5rem; }
 .prose ol { list-style-type: decimal; padding-left: 1.5rem; }
 </style>

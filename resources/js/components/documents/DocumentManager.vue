@@ -104,6 +104,7 @@ const handlePrepareEdit = (item: any) => {
     }
     form.name = item.name;
     form.content = item.content;
+    form.metadata = item.metadata;
     form.type = item.type;
     form.assignee_id = item.assignee_id;
 };
@@ -114,6 +115,7 @@ const handleUpdateDocument = (callbackFromRow?: any) => {
         if (selectedSheetItem.value && activeEditingId.value === selectedSheetItem.value.id) {
             selectedSheetItem.value.content = form.content;
             selectedSheetItem.value.name = form.name;
+            selectedSheetItem.value.metadata = JSON.parse(JSON.stringify(form.metadata));
         }
         activeEditingId.value = null;
         if (typeof callbackFromRow === 'function') {

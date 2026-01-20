@@ -53,10 +53,14 @@ class DocumentController extends Controller
         }
 
         $validated = $request->validate([
-            'name'    => ['required', 'string', 'max:255'],
-            'type'    => ['required', 'string'],
-            'content' => ['nullable', 'string'],
-            'assignee_id' => 'nullable|exists:users,id',
+            'name'        => ['required', 'string', 'max:255'],
+            'type'        => ['required', 'string'],
+            'content'     => ['nullable', 'string'],
+            'assignee_id' => ['nullable', 'exists:users,id'],
+            // Add validation for the metadata object
+            'metadata'    => ['nullable', 'array'],
+            'metadata.criteria' => ['nullable', 'array'],
+            'metadata.criteria.*' => ['nullable', 'string'],
         ]);
 
         $document->update($validated);
@@ -64,7 +68,7 @@ class DocumentController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Document updated successfully',
-                'document' => $document
+                'document' => $document->fresh() // Get the updated data from DB
             ]);
         }
 

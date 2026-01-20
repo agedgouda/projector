@@ -18,6 +18,7 @@ export function useDocumentActions(
         name: '',
         type: '',
         content: '',
+        metadata: {},
         assignee_id: null as number | null,
     });
 
