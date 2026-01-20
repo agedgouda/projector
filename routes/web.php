@@ -14,6 +14,10 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\AiTemplateController;
 
+
+use App\Events\DocumentProcessingUpdate;
+use App\Models\Document;
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canRegister' => Features::enabled(Features::registration()),
@@ -21,6 +25,7 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('dashboard', function () {
+    event(new \App\Events\TestEvent());
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
