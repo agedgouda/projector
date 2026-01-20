@@ -11,6 +11,12 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: dashboard().url,
     },
 ];
+
+const appName = import.meta.env.VITE_APP_NAME;
+const reverbKey = import.meta.env.VITE_REVERB_APP_KEY;
+const reverbHost = import.meta.env.VITE_REVERB_HOST;
+const reverbPort = import.meta.env.VITE_REVERB_PORT;
+const reverbScheme = import.meta.env.VITE_REVERB_SCHEME;
 </script>
 
 <template>
@@ -24,6 +30,13 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <div
                     class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
                 >
+                    <ul>
+      <li>App Name: {{ appName }}</li>
+      <li>Reverb Key: {{ reverbKey }}</li>
+      <li>Reverb Host: {{ reverbHost }}</li>
+      <li>Reverb Port: {{ reverbPort }}</li>
+      <li>Reverb Scheme: {{ reverbScheme }}</li>
+    </ul>
                     <PlaceholderPattern />
                 </div>
                 <div
