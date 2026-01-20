@@ -9,6 +9,7 @@ Unlike generic AI chat tools, Projector uses **admin-defined database pipelines*
 ## Core Philosophy
 
 * **AI Synthesizes:** AI generates structured drafts from raw notes according to strict pipeline logic.
+* **Asynchronous Processing:** Long-running AI vectorization and document generation tasks are managed by **Laravel Horizon**, ensuring the UI remains snappy while the heavy lifting happens in the background.
 * **Humans Authorize:** Humans review, edit, and approve every document before it is converted into tasks.
 * **Database-Driven:** AI prompts, document schemas, and project types live in the database, not the code.
 
@@ -49,8 +50,11 @@ Admin users define the logic that drives the platform. This allows Projector to 
 
 ## Architecture
 
-* **Backend:** Laravel + Octane, Horizon, Reverb.
+
+
+* **Backend:** Laravel + Octane (High-performance server), Horizon (Queue management), Reverb (Real-time WebSockets).
 * **Frontend:** Vue + Vite.
+* **Cache/Queue:** Redis (Required for Horizon and Reverb synchronization).
 * **AI Providers:** **Ollama** (local/private) or **Gemini** (cloud/scale).
 
 ---
@@ -62,7 +66,7 @@ Admin users define the logic that drives the platform. This allows Projector to 
 * PHP 8.2+
 * Composer
 * Node.js 18+
-* Redis
+* **Redis** (Essential for queue and broadcasting)
 * PostgreSQL
 * AI provider (Ollama or Gemini)
 
@@ -83,7 +87,3 @@ npm install
 # Initialize application
 php artisan key:generate
 php artisan migrate
-
-# Run the development servers
-npm run dev
-php artisan serve
