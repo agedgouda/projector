@@ -78,7 +78,7 @@ Projector requires the `pgvector` extension to handle AI-powered document search
 **Install pgvector:**
 - **Ubuntu/Debian:** `sudo apt install postgresql-15-pgvector` (adjust version if necessary)
 - **macOS (Homebrew):** `brew install pgvector`
-- **Docker:** Use the `pgvector/pgvector:pg15` image.
+- **Docker:** Use the `pgvector/pgvector:pg15` image. (adjust version if necessary)
 
 **Enable the extension:**
 Log into your PostgreSQL instance and run:
