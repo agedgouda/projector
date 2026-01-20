@@ -70,9 +70,9 @@ Admin users define the logic that drives the platform. This allows Projector to 
 * PostgreSQL
 * AI provider (Ollama or Gemini)
 
-### Installation
+## Installation
 
-## Vector Database Setup
+### Vector Database Setup
 Projector requires the `pgvector` extension to handle AI-powered document search and similarity.
 
 **Install pgvector:**
