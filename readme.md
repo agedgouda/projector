@@ -72,13 +72,18 @@ Admin users define the logic that drives the platform. This allows Projector to 
 
 ## Installation
 
-### Vector Database Setup
-Projector requires the `pgvector` extension to handle AI-powered document search and similarity.
+### Database & Vector Setup
 
-**Install pgvector:**
-- **Ubuntu/Debian:** `sudo apt install postgresql-15-pgvector` (adjust version if necessary)
-- **macOS (Homebrew):** `brew install pgvector`
-- **Docker:** Use the `pgvector/pgvector:pg15` image. (adjust version if necessary)
+Projector uses **pgvector** to store and query document embeddings. You must enable the extension before running migrations.
+
+#### 1. Install the Extension
+- **Forge / Ubuntu:** `sudo apt install postgresql-15-pgvector` (Match your Postgres version)
+- **macOS:** `brew install pgvector`
+
+#### 2. Enable in Postgres
+Run this command on your database (or ensure your database user has superuser privileges):
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
 
 **Enable the extension:**
 Log into your PostgreSQL instance and run:
@@ -99,4 +104,7 @@ npm install
 
 # Initialize application
 php artisan key:generate
+php artisan migrate
+
+# Run migrations after enabling the extension
 php artisan migrate
