@@ -4,7 +4,6 @@ import { router, usePage } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentTree } from '@/composables/useDocumentTree';
-import { Skeleton } from "@/components/ui/skeleton"
 import { globalAiState } from '@/state';
 import {
     PlusIcon, Search, RefreshCw,
@@ -14,6 +13,7 @@ import {
 import AppLogoIcon from '@/components/AppLogoIcon.vue'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'vue-sonner';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import DocumentFormModal from './DocumentFormModal.vue';
 import TraceabilityRow from './TraceabilityRow.vue';
@@ -36,6 +36,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['confirmDelete', 'generate']);
 const aiStatusMessage = ref<string>('');
+const aiProgress = ref<number>(0);
 const documentsMap = ref<Map<string | number, ExtendedDocument>>(new Map());
 
 // Tracking active inline editor
@@ -116,6 +117,7 @@ const handleUpdateDocument = (callbackFromRow?: any) => {
             selectedSheetItem.value.content = form.content;
             selectedSheetItem.value.name = form.name;
             selectedSheetItem.value.metadata = JSON.parse(JSON.stringify(form.metadata));
+            selectedSheetItem.value.assignee_id = form.assignee_id;
         }
         activeEditingId.value = null;
         if (typeof callbackFromRow === 'function') {
@@ -128,7 +130,13 @@ const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTr
 
 // AI State logic
 const isAiProcessing = computed(() => !!targetBeingCreated.value || allDocs.value.some(d => d.processed_at === null));
-watch(isAiProcessing, (newVal) => { globalAiState.value.isProcessing = newVal; }, { immediate: true });
+watch(isAiProcessing, (newVal) => {
+    globalAiState.value.isProcessing = newVal;
+    if (!newVal) {
+        aiProgress.value = 0;
+        aiStatusMessage.value = '';
+    }
+}, { immediate: true });
 
 // Full Echo Logic
 useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProcessingUpdate'], (payload: any) => {
@@ -137,13 +145,40 @@ useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProces
 
     const doc = documentsMap.value.get(docId);
 
+    // Update Progress and Message
     if (payload.statusMessage) {
-        const msg = payload.statusMessage.toLowerCase();
-        if (msg.includes('error') && doc) doc.processingError = payload.statusMessage;
-        if (msg.includes('success')) {
+        const message = String(payload.statusMessage);
+        const msg = message.toLowerCase();
+        const newProgress = Number(payload.progress || 0);
+
+        // 1. Success Detection (Prioritize this)
+        const isSuccess = msg.includes('success') || newProgress === 100;
+        const isError = msg.includes('error') || msg.includes('failed') || msg.includes('exhausted');
+
+        if (isSuccess && !isError) {
+            // Trigger success immediately
+            toast.success('Processing Complete', {
+                description: 'Document has been successfully analyzed.',
+            });
+
+            aiProgress.value = 100;
             targetBeingCreated.value = null;
             if (doc) doc.processingError = null;
         }
+        // 2. Error Handling
+        else if (isError) {
+            if (doc) doc.processingError = message;
+            toast.error('AI Processing Failed', {
+                description: message,
+            });
+        }
+
+        // 3. Update Progress (Only if not already finished)
+        if (!isSuccess && newProgress > aiProgress.value) {
+            aiProgress.value = newProgress;
+        }
+
+        aiStatusMessage.value = message;
     }
 
     if (payload.document) {
@@ -174,34 +209,28 @@ const getLeadUser = (doc: any) => {
 };
 
 const handleReprocess = (id: string | number) => {
+    // 1. Instant UI Feedback
+    aiProgress.value = 5;
+    aiStatusMessage.value = "Initializing...";
+
     const doc = documentsMap.value.get(id);
     if (doc) doc.processingError = null;
     setDocToProcessing(id);
 };
 
-/**
- * Handle deletion requested from either a row or the detail sheet.
- * We close the local sheet state here before notifying Show.vue.
- */
 const onDeleteRequested = (doc: ExtendedDocument) => {
-    // 1. Close the local sheet state right here to clear the focus trap
     isDetailsSheetOpen.value = false;
     selectedSheetItem.value = null;
-
-    // 2. Pass the intent up to the grandparent (Show.vue)
-    // Show.vue only needs to manage the documentToDelete and isDeleteModalOpen
     emit('confirmDelete', doc);
 };
 
 const refreshDocumentData = () => {
-    // We use the current URL to perform a partial reload
     router.get(usePage().url, {}, {
         only: ['requirementStatus'],
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
             if (selectedSheetItem.value) {
-                // DocumentsMap is updated by the watcher on props.requirementStatus
                 const freshDoc = documentsMap.value.get(selectedSheetItem.value.id);
                 if (freshDoc) {
                     selectedSheetItem.value = freshDoc;
@@ -211,23 +240,63 @@ const refreshDocumentData = () => {
     });
 };
 
+let creepInterval: any = null;
+watch(aiProgress, (newVal) => {
+    // Clear existing creep whenever a real update arrives
+    if (creepInterval) clearInterval(creepInterval);
+
+    // If we are at the "Analyzing" or "Generating" steps, start a slow creep
+    if (newVal > 0 && newVal < 90) {
+        creepInterval = setInterval(() => {
+            if (aiProgress.value < newVal + 15) { // Only creep up to 15% past the milestone
+                aiProgress.value += 0.5;
+            }
+        }, 1000); // Move a tiny bit every second
+    }
+});
 </script>
 
 <template>
     <div class="space-y-6">
-        <transition enter-active-class="transition duration-500" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0">
+        <transition
+            enter-active-class="transition-opacity duration-300"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-opacity duration-500"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div v-if="isAiProcessing" class="fixed top-0 left-0 right-0 z-[100] h-[3px] bg-indigo-100/20">
+                <div
+                    class="h-full bg-indigo-600 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(79,70,229,0.5)]"
+                    :style="{ width: `${aiProgress}%` }"
+                ></div>
+            </div>
+        </transition>
+
+
+        <transition
+            enter-active-class="transition duration-500"
+            enter-from-class="opacity-0 -translate-y-2"
+            enter-to-class="opacity-100 translate-y-0"
+        >
             <Alert v-if="isAiProcessing" class="bg-indigo-50 border-indigo-100 p-0 block shadow-sm overflow-hidden mb-6">
                 <div class="p-4 flex justify-between items-center">
                     <div class="flex items-center gap-3">
                         <AppLogoIcon class="h-10 w-10 text-indigo-600" />
                         <div>
-                            <AlertTitle class="text-sm font-black text-indigo-900 animate-pulse uppercase tracking-widest">AI Sync Active</AlertTitle>
-                            <AlertDescription class="text-xs text-indigo-700/70 font-medium">{{ aiStatusMessage || 'Synchronizing project mapping...' }}</AlertDescription>
+                            <AlertTitle class="text-sm font-black text-indigo-900 animate-pulse uppercase tracking-widest">
+                                AI Sync Active
+                            </AlertTitle>
+                            <AlertDescription class="text-xs text-indigo-700/70 font-medium">
+                                {{ aiStatusMessage || 'Synchronizing project mapping...' }}
+                            </AlertDescription>
                         </div>
                     </div>
-                    <RefreshCw class="animate-spin text-indigo-400 h-5 w-5 mr-4" />
+                    <div class="flex flex-col items-end gap-1 mr-4">
+                        <RefreshCw class="animate-spin text-indigo-400 h-5 w-5" />
+                    </div>
                 </div>
-                <Skeleton class="h-[3px] w-full bg-indigo-200 rounded-none" />
             </Alert>
         </transition>
 

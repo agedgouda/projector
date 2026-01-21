@@ -14,7 +14,7 @@ export function useDocumentActions(
     const targetBeingCreated = ref<string | number | null>(null);
 
     const form = useForm({
-        id: null as string | number | null,
+        id: undefined as string | undefined,
         name: '',
         type: '',
         content: '',

@@ -3,10 +3,10 @@
 namespace App\Events;
 
 use App\Models\Document;
-use Illuminate\Broadcasting\InteractsWithSockets; // MUST HAVE
+use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
-use Illuminate\Foundation\Events\Dispatchable; // MUST HAVE
+use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 class DocumentProcessingUpdate implements ShouldBroadcastNow
@@ -15,7 +15,8 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
 
     public function __construct(
         public Document $document,
-        public string $statusMessage
+        public string $statusMessage,
+        public int $progress = 0 // Added progress property
     ) {}
 
     public function broadcastOn(): array
@@ -34,7 +35,9 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
     {
         return [
             'statusMessage' => $this->statusMessage,
-            'document_id' => $this->document->id,
+            'document_id'   => $this->document->id,
+            'progress'      => $this->progress, // Added to broadcast payload
+            'document'      => $this->document->load('assignee'), // Keeps assignee synced
         ];
     }
 }
