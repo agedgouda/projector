@@ -12,7 +12,6 @@ class CommentController extends Controller
 {
     public function store(Request $request)
     {
-        \Log::info("here");
         $validated = $request->validate([
             'body' => 'required|string',
             'type' => 'required|in:task,document', // Validates against our two types

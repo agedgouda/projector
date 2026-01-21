@@ -27,26 +27,34 @@ class GenerateDocumentEmbedding implements ShouldQueue
 
     public function handle(VectorService $vectorService)
     {
-        // --- Milestone 1: Analyzing ---
+        // 1. Initial UI Status
         broadcast(new DocumentProcessingUpdate($this->document, 'Synthesizing Document Heuristics...'));
 
-        $embedding = $vectorService->getEmbedding($this->document->content);
+        try {
+            // Use the refactored service logic
+            $embedding = $vectorService->getEmbedding($this->document->content);
 
-        if ($embedding) {
-            // --- Milestone 2: Drafting/Vectorizing ---
+            if (!$embedding) {
+                throw new \Exception("Vector Service returned empty embedding.");
+            }
+
+            // 2. Secondary UI Status
             broadcast(new DocumentProcessingUpdate($this->document, 'Finalizing Vector Integration...'));
 
-            // Update both embedding and processed_at together
+            // 3. Silent Update (Prevents Observer Loops)
             $this->document->updateQuietly([
                 'embedding' => $embedding,
-                'processed_at' => now(), // <--- Add this here
+                'processed_at' => now(),
             ]);
 
+            // 4. Guaranteed Post-Commit Broadcast
             DB::afterCommit(function () {
-                // This event clears the status message in our Vue logic
-                // because your useEcho listener checks if payload.document has a processed_at timestamp
-                event(new DocumentVectorized($this->document));
+                event(new DocumentVectorized($this->document->fresh()));
             });
+
+        } catch (\Exception $e) {
+            $this->failed($e);
+            throw $e; // Re-throw so the queue knows it failed
         }
     }
 

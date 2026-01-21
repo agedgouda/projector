@@ -25,76 +25,58 @@ class ProcessDocumentAI implements ShouldQueue
 
     public function handle(ProjectAiService $aiService)
     {
-        // 1. Initial Milestone: Analysis starts
         event(new DocumentProcessingUpdate($this->document, 'Analyzing document...', 15));
 
         $result = $aiService->process($this->document);
 
-        // Case 1: Early return from service (workflow missing or template not found)
+        // Case 1: Early return (Workflow/Template missing)
         if ($result === null) {
             $this->document->update(['processed_at' => now()]);
-
-            event(new DocumentProcessingUpdate($this->document, 'Success', 100));
-
-            Log::info("Job skipped: No valid workflow or template for Doc #{$this->document->id}");
+            event(new DocumentProcessingUpdate($this->document, 'Skipped: No template', 100));
             return;
         }
 
-        // Case 2: AI Error (Handle Retries vs. Warnings)
+        // Case 2: AI Error handling with built-in retry logic
         if ($result['status'] === 'error') {
-            $attempt = $this->attempts();
-            $msg = $result['message'] ?? 'Unknown AI Error';
-
-            if ($attempt < $this->tries) {
-                Log::warning("AI Job Attempt #{$attempt} failed for Doc #{$this->document->id}. Retrying...", [
-                    'reason' => $msg
-                ]);
-
-                throw new \Exception("{$msg} (Attempt {$attempt} of {$this->tries})");
-            }
-
-            throw new \Exception($msg);
+            throw new \Exception($result['message'] ?? 'AI transformation failed');
         }
 
-        // 2. Midpoint: AI has responded, now persisting to DB
         event(new DocumentProcessingUpdate($this->document, 'Generating project deliverables...', 65));
 
+        // The Payload
         $generatedItems = $result['mock_response'] ?? [];
         $outputType = $result['output_type'];
 
+        // Wrap everything in a transaction to ensure all-or-nothing delivery
         DB::transaction(function () use ($generatedItems, $outputType) {
-            // Cleanup: Remove previous attempts for this specific intake document
-            Document::where('parent_id', $this->document->id)
+
+            // 1. Precise Cleanup: Only remove previous AI-generated versions of this specific intake
+            $this->document->project->documents()
+                ->where('parent_id', $this->document->id)
                 ->where('type', $outputType)
                 ->delete();
 
+            // 2. Bulk Creation: Let the Project handle the creation
             foreach ($generatedItems as $data) {
-                $content = $data['story'] ?? $data['description'] ?? $data['content'] ?? '';
-
                 $this->document->project->documents()->create([
                     'parent_id'    => $this->document->id,
-                    'project_id'   => $this->document->project_id,
                     'type'         => $outputType,
                     'name'         => $data['title'] ?? 'Untitled Deliverable',
-                    'content'      => $content,
-                    'processed_at' => now(),
+                    'content'      => $data['story'] ?? $data['description'] ?? $data['content'] ?? '',
+                    // Note: We do NOT set processed_at here.
+                    // Why? Because we want the Observer to see them as "new content" and vectorize them.
                     'metadata'     => [
                         'criteria' => $data['criteria'] ?? [],
                         'category' => $data['category'] ?? 'general',
-                        'raw_data' => $data
                     ],
                 ]);
             }
+
+            // 3. Mark the Intake as finished
+            $this->document->update(['processed_at' => now()]);
         });
 
-        // 3. Final Milestone: DB work done, cleaning up source doc
-        event(new DocumentProcessingUpdate($this->document, 'Finalizing synchronization...', 90));
-
-        $this->document->update(['processed_at' => now()]);
-
         event(new DocumentProcessingUpdate($this->document, 'Success', 100));
-
-        Log::info("AI Job Completed successfully for Document #{$this->document->id} on attempt #{$this->attempts()}");
     }
 
     /**

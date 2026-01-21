@@ -4,25 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Models\AiTemplate;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Gate;
 
 class AiTemplateController extends Controller
 {
-    /**
-     * Display a listing of the templates.
-     */
     public function index()
     {
-        return Inertia::render('AiTemplates/Index', [
+        Gate::authorize('viewAny', AiTemplate::class);
+
+        return inertia('AiTemplates/Index', [
             'templates' => AiTemplate::orderBy('name')->get()
         ]);
     }
 
-    /**
-     * Store a newly created template in storage.
-     */
     public function store(Request $request)
     {
+        Gate::authorize('create', AiTemplate::class);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'system_prompt' => 'required|string',
@@ -31,40 +29,31 @@ class AiTemplateController extends Controller
 
         AiTemplate::create($validated);
 
-        return redirect()->back()->with('success', 'AI Template created successfully.');
+        return back()->with('success', 'AI Template created.');
     }
 
-    /**
-     * Update the specified template in storage.
-     */
-    public function update(Request $request, AiTemplate $AiTemplate)
+    public function update(Request $request, AiTemplate $aiTemplate)
     {
+        Gate::authorize('update', $aiTemplate);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'system_prompt' => 'required|string',
             'user_prompt' => 'required|string',
         ]);
 
-        $AiTemplate->update($validated);
+        $aiTemplate->update($validated);
 
-        return redirect()->back()->with('success', 'AI Template updated successfully.');
+        return back()->with('success', 'AI Template updated.');
     }
 
-    /**
-     * Remove the specified template from storage.
-     */
-    public function destroy(AiTemplate $AiTemplate)
+    public function destroy(AiTemplate $aiTemplate)
     {
-        // Check if any Project Types are using this template before deleting
-        // This prevents breaking the workflow JSON logic
-        $isUsed = \App\Models\ProjectType::where('workflow', '@>', json_encode([['ai_template_id' => $AiTemplate->id]]))->exists();
+        // The Policy now handles the "isUsed" check
+        Gate::authorize('delete', $aiTemplate);
 
-        if ($isUsed) {
-            return redirect()->back()->with('error', 'Cannot delete template: It is currently used in a Project Type workflow.');
-        }
+        $aiTemplate->delete();
 
-        $AiTemplate->delete();
-
-        return redirect()->back()->with('success', 'AI Template deleted successfully.');
+        return back()->with('success', 'AI Template deleted.');
     }
 }
