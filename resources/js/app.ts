@@ -6,17 +6,6 @@ import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 import { configureEcho } from '@laravel/echo-vue';
 
-import Pusher from 'pusher-js';
-
-// Force the library to output every internal action to the console
-(Pusher as any).logToConsole = true;
-
-// Define it globally so the Echo plugin can find the constructor
-(window as any).Pusher = Pusher;
-
-// Manually log that the script reached this point
-console.log('--- SCRIPT EXECUTION REACHED CONFIG ---');
-
 // Keep your existing plugin config as well
 configureEcho({
     broadcaster: 'reverb',
@@ -27,23 +16,6 @@ configureEcho({
     forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
     enabledTransports: ['ws', 'wss'],
 });
-
-
-// Access the global Pusher instance to monitor the handshake
-const pusher = (window as any).Pusher as typeof Pusher;
-
-if (pusher) {
-    // This watches the connection attempt before it reaches Echo/Vue
-    (pusher as any).instances.forEach((instance: any) => {
-        instance.connection.bind('state_change', (states: { current: string }) => {
-            console.log('--- WS CONNECTION STATE:', states.current);
-        });
-
-        instance.connection.bind('error', (err: any) => {
-            console.error('--- WS HANDSHAKE ERROR:', err);
-        });
-    });
-}
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
