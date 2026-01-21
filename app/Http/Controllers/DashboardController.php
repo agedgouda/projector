@@ -41,30 +41,4 @@ class DashboardController extends Controller
         ]);
     }
 
-
-    public function index2(Request $request)
-    {
-        $user = $request->user();
-
-        // Get tasks assigned to the user, grouped by project
-        $tasks = Task::where('assignee_id', $user->id)
-            ->with(['project.client.users', 'document'])
-            ->orderBy('due_at', 'asc')
-            ->get();
-
-        $projectGroups = $tasks->groupBy('project_id')->map(function ($group) {
-            return [
-                'project' => $group->first()->project,
-                'tasks' => $group->values(),
-            ];
-        })->values();
-
-        return Inertia::render('Dashboard/Index', [
-            'projectGroups' => $projectGroups,
-            'stats' => [
-                'total_tasks' => $tasks->count(),
-                'overdue' => $tasks->where('due_at', '<', now())->where('status', '!=', 'done')->count(),
-            ]
-        ]);
-    }
 }

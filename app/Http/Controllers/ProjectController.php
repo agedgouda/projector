@@ -9,62 +9,37 @@ use App\Models\ProjectType;
 use App\Services\Ai\ProjectAiService;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
+
     public function index(Request $request)
     {
-        $user = $request->user();
+        $projects = Project::visibleTo($request->user())->latest()->get()->withSummary();
 
-        // Use scopes for both projects AND the client list (for dropdowns)
-        $projects = Project::visibleTo($user)
-            ->with(['client', 'documents', 'type'])
-            ->latest()
-            ->get();
-
-        $clients = Client::visibleTo($user)->get();
-
-        if (!$user->hasRole('admin') && $projects->isEmpty() && $clients->isEmpty()) {
+        if (!$request->user()->hasRole('admin') && $request->user()->clients()->doesntExist()) {
             abort(404);
         }
 
-        return Inertia::render('Projects/Index', [
+        return inertia('Projects/Index', [
             'projects' => $projects,
-            'clients' => $clients,
+            'clients' => Client::visibleTo($request->user())->get(),
             'projectTypes' => ProjectType::all(),
         ]);
     }
 
     public function show(Project $project)
     {
-        $project->load([
-            'client.users',
-            'type',
-            'tasks' => function ($query) {
-                // Added orderBy here for the main task list
-                $query->with(['assignee', 'comments.user'])
-                    ->orderBy('created_at', 'asc');
-            },
-            'documents' => function ($query) {
-                $query->with([
-                    'creator',
-                    'editor',
-                    'assignee',
-                    'tasks' => function ($q) {
-                        // Added orderBy here for tasks inside documents
-                        $q->with(['assignee', 'comments.user'])
-                        ->orderBy('created_at', 'asc');
-                    }
-                ])->orderBy('created_at', 'desc');
-            }
-        ]);
+        Gate::authorize('view', $project);
 
         return inertia('Projects/Show', [
-            'project' => $project,
-            'projectTypes' => \App\Models\ProjectType::all(),
+            'project' => $project->loadFullPipeline(),
+            'projectTypes' => ProjectType::all(),
         ]);
     }
+
 
     public function update(Request $request, Project $project)
     {
@@ -121,14 +96,4 @@ class ProjectController extends Controller
         return back()->with('success', 'Document added and indexed.');
     }
 
-
-    public function generate(Project $project, ProjectAiService $aiService)
-    {
-        // For now, we use the SoftwareStrategy explicitly
-        $strategy = new \App\Services\Ai\Strategies\SoftwareStrategy();
-
-        $results = $aiService->generateDeliverables($project, $strategy);
-
-        return back()->with('aiResults', $results);
-    }
 }

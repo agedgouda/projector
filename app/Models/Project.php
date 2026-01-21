@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Collections\ProjectCollection; // You'll create this class
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,22 @@ class Project extends Model
 
     protected $keyType = 'string';
     public $incrementing = false;
+
+    /**
+     * 1. Register the Custom Collection
+     */
+    public function newCollection(array $models = []): ProjectCollection
+    {
+        return new ProjectCollection($models);
+    }
+
+    /**
+     * 2. Helper for single-model loading (used in show)
+     */
+    public function loadFullPipeline(): self
+    {
+        return $this->newCollection([$this])->withFullPipeline()->first();
+    }
 
     /**
      * Get the client that owns the project.
@@ -46,21 +63,19 @@ class Project extends Model
         return $this->belongsTo(ProjectType::class, 'project_type_id');
     }
 
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
     public function scopeVisibleTo($query, $user)
     {
         if ($user->hasRole('admin')) {
             return $query;
         }
 
-        // A Project is visible if its PARENT CLIENT is visible to the user
         return $query->whereHas('client.users', function ($q) use ($user) {
             $q->where('users.id', $user->id);
         });
     }
-
-    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(Task::class);
-    }
-
 }
