@@ -32,8 +32,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Intercept the 403 and throw a 404 instead
+        // 1. Handle Spatie Role/Permission failures
         $exceptions->render(function (UnauthorizedException $e, $request) {
+            throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
+        });
+
+        // 2. Handle Laravel Policy/Gate failures (AccessDenied)
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e, $request) {
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
         });
     })->create();

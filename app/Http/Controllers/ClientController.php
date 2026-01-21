@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
-use App\Models\Project;
-use App\Models\ProjectType;
+use App\Models\{Client, ProjectType};
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Gate;
 
 class ClientController extends Controller
 {
@@ -14,43 +12,29 @@ class ClientController extends Controller
     {
         $user = $request->user();
 
-        // Use the scope to filter
         $clients = Client::visibleTo($user)
             ->latest()
-            ->with(['projects.type','users'])
+            ->with(['projects.type', 'users'])
             ->get();
 
-        // If a non-admin has 0 clients, they shouldn't be here
         if (!$user->hasRole('admin') && $clients->isEmpty()) {
             abort(404);
         }
 
-        return Inertia::render('Clients/Index', [
+        return inertia('Clients/Index', [
             'clients' => $clients,
             'projects' => [],
             'projectTypes' => ProjectType::all(),
         ]);
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'company_name'  => 'required|string|max:255',
-            'contact_name'  => 'required|string|max:255',
-            'contact_phone' => 'required|string|max:20',
-        ]);
-
-        Client::create($validated);
-
-        return redirect()->back()->with('success', 'Client created.');
-    }
-
     public function show(Client $client)
     {
-        $client->load('projects.type');
-        return Inertia::render('Clients/Index', [
-            'clients' => Client::latest()->get(),
-            'projects' => Project::where('client_id', $client->id)->with('type')->get(),
+        Gate::authorize('view', $client);
+
+        return inertia('Clients/Index', [
+            'clients' => Client::visibleTo(auth()->user())->latest()->get(),
+            'projects' => $client->projects()->with('type')->get(),
             'activeClientId' => $client->id,
             'projectTypes' => ProjectType::all(),
         ]);
@@ -58,20 +42,22 @@ class ClientController extends Controller
 
     public function update(Request $request, Client $client)
     {
-        $validated = $request->validate([
+        Gate::authorize('update', $client);
+
+        $client->update($request->validate([
             'company_name'  => 'required|string|max:255',
             'contact_name'  => 'required|string|max:255',
             'contact_phone' => 'required|string|max:20',
-        ]);
+        ]));
 
-        $client->update($validated);
-
-        return redirect()->back();
+        return back()->with('success', 'Client updated.');
     }
 
     public function destroy(Client $client)
     {
+        Gate::authorize('delete', $client);
+
         $client->delete();
-        return redirect()->back();
+        return back()->with('success', 'Client deleted.');
     }
 }
