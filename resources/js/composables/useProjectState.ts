@@ -68,14 +68,29 @@ export function useProjectState(requirementStatus: Ref<RequirementStatus[]>) {
      * updateDocument
      * THE UNIFIED FUNNEL: Every event (Echo, Form, AI) must pass through here.
      */
+
     const updateDocument = (id: string | number, data: Partial<ExtendedDocument>) => {
         const existingDoc = documentsMap.value.get(id);
+
+        // 1. If document is new, create it in the Map
         if (!existingDoc) {
-            console.warn(`Document ${id} not found in Map`);
+            const newDoc = {
+                id,
+                ...data,
+                metadata: typeof data.metadata === 'string'
+                    ? JSON.parse(data.metadata)
+                    : (data.metadata || {})
+            } as ExtendedDocument;
+
+            documentsMap.value.set(id, newDoc);
+
+            if (newDoc.parent_id) {
+                expandToParent(newDoc.parent_id);
+            }
             return;
         }
 
-        // Force a new object reference to trigger Vue's reactivity
+        // 2. If document exists, update it
         const updatedDoc = {
             ...existingDoc,
             ...data,

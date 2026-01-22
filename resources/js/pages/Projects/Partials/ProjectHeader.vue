@@ -40,6 +40,9 @@ const emit = defineEmits<{
                 Edit Project
             </Button>
         </div>
+        <div class="flex items-start mt-3 md:items-center gap-5">
+             <h2 class="italic text-gray-900 dark:text-white tracking-tight">{{ project.description }}</h2>
+        </div>
     </div>
 
     <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">

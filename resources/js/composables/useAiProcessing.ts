@@ -57,36 +57,45 @@ export function useAiProcessing(
     // Listens for both specific document updates and general processing progress
     useEcho(`project.${projectId}`, ['.document.vectorized', '.DocumentProcessingUpdate'], (payload: any) => {
 
-        // Handle Status & Progress
+        // 1. HANDLE STATUS UPDATES
         if (payload.statusMessage) {
             const message = String(payload.statusMessage);
             const msg = message.toLowerCase();
             const newProgress = Number(payload.progress || 0);
 
-            const isError = msg.includes('error') || msg.includes('failed') || msg.includes('exhausted');
+            const isError = msg.includes('error') || msg.includes('failed');
             const isSuccess = (msg.includes('success') || newProgress === 100) && !isError;
 
             if (isSuccess) {
                 aiProgress.value = 100;
                 onSuccess?.(message);
+                // NOTICE: We do NOT clear targetBeingCreated or doc status here
             } else if (isError) {
                 aiProgress.value = 0;
-                stopCreep();
+                targetBeingCreated.value = null;
+                aiStatusMessage.value = '';
                 onError?.(message);
             }
 
-            // Only advance progress, never go backwards unless it's a reset
             if (!isSuccess && newProgress > aiProgress.value) {
                 aiProgress.value = newProgress;
             }
 
+            // Keep the message visible
             aiStatusMessage.value = message;
         }
 
-        // Handle Document Data Funnel
+        // 2. HANDLE DATA ARRIVAL (The Finish Line)
         if (payload.document && onDocumentUpdated) {
-            // We pass the document to the funnel provided by useProjectState
-            onDocumentUpdated(payload.document);
+            // This update will satisfy the 'processed_at === null' check
+            // and trigger the computed isAiProcessing to turn false naturally.
+            onDocumentUpdated({
+                ...payload.document,
+                currentStatus: null
+            });
+
+            // Reset global tracking only after data is rendered
+            targetBeingCreated.value = null;
         }
     }, [projectId], 'private');
 
