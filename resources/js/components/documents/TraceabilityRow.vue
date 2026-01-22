@@ -1,29 +1,40 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ChevronRight, FileText, CheckSquare, Eye, Sparkles } from 'lucide-vue-next';
+import { ChevronRight, FileText, CheckSquare, Eye, Sparkles, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
     item: any;
     level: number;
+    activeEditingId: string | number | null;
     expandedRootIds: Set<string | number>;
     getDocLabel: (type: string) => string;
     selectedSheetId: string | number | null;
+    getLeadUser: (doc: any) => any;
+    requirementStatus: any[];
+    users: any[];
+    form: any;
 }>();
 
-const emit = defineEmits([
-    'toggleRoot', 'handleReprocess', 'onDeleteRequested',
-    'prepareEdit', 'submit', 'openSheet'
-]);
+const emit = defineEmits<{
+    (e: 'toggleRoot', id: string | number): void;
+    (e: 'handleReprocess', id: string | number): void;
+    (e: 'onDeleteRequested', item: any): void;
+    (e: 'prepareEdit', item: any): void;
+    (e: 'submit', callback: () => void): void;
+    (e: 'openSheet', item: any): void;
+}>();
 
 const isTreeExpanded = computed(() => props.expandedRootIds instanceof Set && props.expandedRootIds.has(props.item.id));
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
 
+// Use the helper to get the lead user for this row
+const leadUser = computed(() => props.getLeadUser(props.item));
+
 const handleOpenSheet = () => {
-    emit('openSheet', props.item); // Pass the whole item for convenience
+    emit('openSheet', props.item);
 };
 </script>
-
 
 <template>
     <div class="flex flex-col">
@@ -34,9 +45,8 @@ const handleOpenSheet = () => {
             <div v-if="isSelected" class="absolute left-0 top-2 bottom-2 w-1 bg-indigo-600 rounded-full z-10"></div>
 
             <div class="flex-1 flex items-center relative">
-
                 <div
-                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-indigo-300 min-w-0"
+                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-indigo-300 min-w-0 cursor-pointer"
                     :class="[
                         isSelected ? 'border-indigo-400 ring-1 ring-indigo-100' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300',
                         level === 0 ? '' : (level === 1 ? 'ml-8' : 'ml-16')
@@ -63,6 +73,13 @@ const handleOpenSheet = () => {
                             {{ item.name }}
                         </div>
 
+                        <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-2 ml-2">
+                            <RefreshCw class="h-3 w-3 animate-spin text-indigo-500" />
+                            <span class="text-[10px] text-indigo-500 font-medium animate-pulse">
+                                {{ item.currentStatus || 'Processing...' }}
+                            </span>
+                        </div>
+
                         <div class="flex items-center gap-2 shrink-0">
                             <span class="text-[9px] font-black tracking-widest uppercase text-slate-400">
                                 {{ getDocLabel(item.type) }}
@@ -73,11 +90,23 @@ const handleOpenSheet = () => {
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-4 text-right shrink-0">
-                        <div class="w-[120px] hidden md:block"></div>
+                    <div class="hidden md:flex items-center justify-end w-[120px] shrink-0 mr-4">
+                        <div v-if="leadUser" class="flex items-center gap-2 group/user">
+                            <div class="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-sm">
+                                <span class="text-[10px] font-black text-slate-500 uppercase">
+                                    {{ leadUser.initials }}
+                                </span>
+                            </div>
+                        </div>
+                        <div v-else class="h-7 w-7 rounded-full border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center">
+                            <span class="text-[9px] font-bold text-slate-300">--</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-right shrink-0">
                         <Button
                             variant="ghost" size="sm" @click.stop="emit('handleReprocess', item.id)"
-                            class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl relative overflow-hidden group/ai"
+                            class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl group/ai"
                         >
                             <Sparkles class="h-3.5 w-3.5 mr-2" />
                             <span class="text-[10px] font-black uppercase tracking-wider">Reprocess</span>
@@ -101,9 +130,14 @@ const handleOpenSheet = () => {
                 :key="'doc-' + child.id"
                 :item="child"
                 :level="level + 1"
+                :active-editing-id="activeEditingId"
                 :expanded-root-ids="expandedRootIds"
                 :get-doc-label="getDocLabel"
                 :selected-sheet-id="selectedSheetId"
+                :get-lead-user="getLeadUser"
+                :requirement-status="requirementStatus"
+                :users="users"
+                :form="form"
                 @toggle-root="id => emit('toggleRoot', id)"
                 @handle-reprocess="id => emit('handleReprocess', id)"
                 @on-delete-requested="i => emit('onDeleteRequested', i)"

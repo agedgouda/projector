@@ -1,97 +1,105 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, toRef, watch, computed } from 'vue'; // Added computed
 import { router, usePage } from '@inertiajs/vue3';
-import { useEcho } from '@laravel/echo-vue';
+import { toast } from 'vue-sonner';
 import { useDocumentActions } from '@/composables/useDocumentActions';
-import { useDocumentTree } from '@/composables/useDocumentTree';
-import { globalAiState } from '@/state';
-import {
-    PlusIcon, Search, RefreshCw,
-} from 'lucide-vue-next';
+import { useProjectState } from '@/composables/useProjectState';
+import { useAiProcessing } from '@/composables/useAiProcessing';
+import { PlusIcon, Search, RefreshCw } from 'lucide-vue-next';
 
 // UI Components
 import AppLogoIcon from '@/components/AppLogoIcon.vue'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'vue-sonner';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import DocumentFormModal from './DocumentFormModal.vue';
 import TraceabilityRow from './TraceabilityRow.vue';
 import TraceabilityDetailSheet from './TraceabilityDetailSheet.vue';
 
-export type ExtendedDocument = ProjectDocument & {
-    currentStatus?: string | null;
-    hasError?: boolean;
-    processingError?: string | null;
-    children?: ExtendedDocument[];
-};
-
 const props = defineProps<{
-    project: Project;
-    requirementStatus: RequirementStatus[];
+    project: any;
+    requirementStatus: any[];
     canGenerate: boolean;
     isGenerating: boolean;
     projectDocumentsRoutes: any;
 }>();
 
 const emit = defineEmits(['confirmDelete', 'generate']);
-const aiStatusMessage = ref<string>('');
-const aiProgress = ref<number>(0);
-const documentsMap = ref<Map<string | number, ExtendedDocument>>(new Map());
 
-// Tracking active inline editor
+// --- 1. ENCAPSULATED STATE ---
+const {
+    documentsMap,
+    allDocs,
+    localRequirements,
+    searchQuery,
+    expandedRootIds,
+    documentTree,
+    toggleRoot,
+    updateDocument // This is our unified funnel
+} = useProjectState(toRef(props, 'requirementStatus'));
+
+// --- 2. ACTION LOGIC ---
+const aiStatusMessageRef = ref('');
+
+
+const {
+    form, isUploadModalOpen, openUploadModal, submitDocument,
+    updateDocument: originalUpdateDocument, setDocToProcessing,
+    targetBeingCreated, editingDocumentId
+} = useDocumentActions(
+    props,
+    localRequirements,
+    aiStatusMessageRef,
+    updateDocument // 🚀 Pass the funnel here
+);
+
+// --- 3. ENCAPSULATED AI & REAL-TIME ---
+const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
+    props.project.id,
+    allDocs,
+    targetBeingCreated,
+    // CALLBACK: On Echo Update
+    (incomingDoc: ExtendedDocument) => {
+        // 1. Update data & expand tree via the funnel
+        updateDocument(incomingDoc.id, incomingDoc);
+
+        // 2. Business Logic: If this is the doc we were waiting for, clear the "Creating" state
+        if (targetBeingCreated.value === incomingDoc.type) {
+            targetBeingCreated.value = null;
+        }
+    },
+    // CALLBACK: On Success
+    () => {
+        toast.success('Processing Complete', { description: 'Document has been successfully analyzed.' });
+        // Target is now cleared in the update callback above for better precision
+    },
+    // CALLBACK: On Error
+    (errorMessage) => {
+        toast.error('AI Processing Failed', { description: errorMessage });
+        targetBeingCreated.value = null; // Clear on error so UI doesn't hang
+    }
+);
+
+// Sync the local ref used by actions with the composable's state
+watch(aiStatusMessage, (val) => aiStatusMessageRef.value = val);
+
+// --- 4. UI LOCAL STATE & METHODS ---
 const activeEditingId = ref<string | number | null>(null);
-
-// Details Sheet State
-const selectedSheetItem = ref<ExtendedDocument | null>(null);
+const selectedSheetId = ref<string | number | null>(null); // Track ID for reactive lookup
 const isDetailsSheetOpen = ref(false);
 
-const handleOpenSheet = (item: ExtendedDocument) => {
-    selectedSheetItem.value = item;
+// Use a computed property so the sheet always gets the live object from the Map
+const selectedSheetItem = computed(() => {
+    if (!selectedSheetId.value) return null;
+    const doc = documentsMap.value.get(selectedSheetId.value);
+    return (doc as ExtendedDocument) || null;
+});
+
+const handleOpenSheet = (item: any) => {
+    selectedSheetId.value = item.id;
     isDetailsSheetOpen.value = true;
 };
 
-// 1. Sync Logic
-const syncFromProps = (statusGroups: RequirementStatus[]) => {
-    const freshMap = new Map<string | number, ExtendedDocument>();
-    statusGroups.forEach(group => {
-        group.documents.forEach(doc => {
-            const existing = documentsMap.value.get(doc.id);
-            freshMap.set(doc.id, {
-                ...doc,
-                currentStatus: existing?.currentStatus || null,
-                hasError: existing?.hasError || false,
-                processingError: existing?.processingError || null
-            });
-        });
-    });
-    documentsMap.value = freshMap;
-};
-
-syncFromProps(props.requirementStatus);
-watch(() => props.requirementStatus, (newVal) => syncFromProps(newVal), { deep: true });
-
-const allDocs = computed(() => Array.from(documentsMap.value.values()));
-
-const localRequirements = computed(() => {
-    return props.requirementStatus.map(group => ({
-        ...group,
-        documents: allDocs.value.filter(d => d.type === group.key)
-    }));
-});
-
-const {
-    form,
-    isUploadModalOpen,
-    openUploadModal,
-    submitDocument,
-    updateDocument: originalUpdateDocument,
-    setDocToProcessing,
-    targetBeingCreated,
-    editingDocumentId
-} = useDocumentActions(props, localRequirements, aiStatusMessage);
-
-// Handle Inline Editing State
 const handlePrepareEdit = (item: any) => {
     if (!item || item.id === null) {
         activeEditingId.value = null;
@@ -100,9 +108,7 @@ const handlePrepareEdit = (item: any) => {
         return;
     }
     activeEditingId.value = item.id;
-    if (editingDocumentId) {
-        editingDocumentId.value = item.id;
-    }
+    if (editingDocumentId) editingDocumentId.value = item.id;
     form.name = item.name;
     form.content = item.content;
     form.metadata = item.metadata;
@@ -110,117 +116,66 @@ const handlePrepareEdit = (item: any) => {
     form.assignee_id = item.assignee_id;
 };
 
-const handleUpdateDocument = (callbackFromRow?: any) => {
+const handleUpdateDocument = (callbackFromRow?: () => void) => {
+    const docId = activeEditingId.value;
+    const formData = form.data();
+
+    // Find the full user object to "hydrate" the local state
+    const selectedUser = props.project.client?.users?.find(
+        (u: User) => u.id === formData.assignee_id
+    ) || null;
+
+    const updatedData = {
+        ...JSON.parse(JSON.stringify(formData)),
+        assignee: selectedUser
+    };
+
     originalUpdateDocument(() => {
-        // Sync local object state so the form is fresh on next open
-        if (selectedSheetItem.value && activeEditingId.value === selectedSheetItem.value.id) {
-            selectedSheetItem.value.content = form.content;
-            selectedSheetItem.value.name = form.name;
-            selectedSheetItem.value.metadata = JSON.parse(JSON.stringify(form.metadata));
-            selectedSheetItem.value.assignee_id = form.assignee_id;
+        if (docId) {
+            updateDocument(docId, updatedData);
         }
+
         activeEditingId.value = null;
-        if (typeof callbackFromRow === 'function') {
-            callbackFromRow();
-        }
+        if (callbackFromRow) callbackFromRow();
     });
 };
-
-const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTree(allDocs);
-
-// AI State logic
-const isAiProcessing = computed(() => !!targetBeingCreated.value || allDocs.value.some(d => d.processed_at === null));
-watch(isAiProcessing, (newVal) => {
-    globalAiState.value.isProcessing = newVal;
-    if (!newVal) {
-        aiProgress.value = 0;
-        aiStatusMessage.value = '';
-    }
-}, { immediate: true });
-
-// Full Echo Logic
-useEcho(`project.${props.project.id}`, ['.document.vectorized', '.DocumentProcessingUpdate'], (payload: any) => {
-    const docId = payload.document_id || payload.document?.id;
-    if (!docId) return;
-
-    const doc = documentsMap.value.get(docId);
-
-    // Update Progress and Message
-    if (payload.statusMessage) {
-        const message = String(payload.statusMessage);
-        const msg = message.toLowerCase();
-        const newProgress = Number(payload.progress || 0);
-
-        // 1. Success Detection (Prioritize this)
-        const isSuccess = msg.includes('success') || newProgress === 100;
-        const isError = msg.includes('error') || msg.includes('failed') || msg.includes('exhausted');
-
-        if (isSuccess && !isError) {
-            // Trigger success immediately
-            toast.success('Processing Complete', {
-                description: 'Document has been successfully analyzed.',
-            });
-
-            aiProgress.value = 100;
-            targetBeingCreated.value = null;
-            if (doc) doc.processingError = null;
-        }
-        // 2. Error Handling
-        else if (isError) {
-            if (doc) doc.processingError = message;
-            toast.error('AI Processing Failed', {
-                description: message,
-            });
-        }
-
-        // 3. Update Progress (Only if not already finished)
-        if (!isSuccess && newProgress > aiProgress.value) {
-            aiProgress.value = newProgress;
-        }
-
-        aiStatusMessage.value = message;
-    }
-
-    if (payload.document) {
-        const existingError = documentsMap.value.get(docId)?.processingError;
-        documentsMap.value.set(docId, {
-            ...payload.document,
-            processingError: existingError || null
-        });
-
-        let currentParentId = payload.document.parent_id;
-        while (currentParentId) {
-            expandedRootIds.value.add(currentParentId);
-            const parentDoc = documentsMap.value.get(currentParentId);
-            currentParentId = parentDoc?.parent_id;
-        }
-    }
-}, [props.project.id], 'private');
 
 const getDocLabel = (typeKey: string) => {
     const schema = props.project.type.document_schema || [];
     return schema.find((item: any) => item.key === typeKey)?.label || typeKey.replace(/_/g, ' ');
 };
 
-const getLeadUser = (doc: any) => {
-    const user = doc.assignee || doc.user || props.project.client?.users?.find((u: any) => u.id === doc.assigned_id);
+const getLeadUser = (doc: ExtendedDocument) => {
+    // 1. Try the nested object first (hydrated via funnel)
+    // 2. Fallback to searching the project users list by ID
+    const user = doc.assignee ||
+                 doc.user ||
+                 props.project.client?.users?.find((u: User) => u.id === doc.assignee_id);
+
     if (!user) return null;
-    return { ...user, initials: `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || '??' };
+
+    // Calculate initials safely
+    const firstInitial = user.first_name?.[0] ?? '';
+    const lastInitial = user.last_name?.[0] ?? '';
+    const initials = (firstInitial + lastInitial).toUpperCase() || '??';
+
+    return {
+        ...user,
+        initials
+    };
 };
 
 const handleReprocess = (id: string | number) => {
-    // 1. Instant UI Feedback
     aiProgress.value = 5;
     aiStatusMessage.value = "Initializing...";
 
-    const doc = documentsMap.value.get(id);
-    if (doc) doc.processingError = null;
+    // Reprocess call now uses the internal funnel logic
     setDocToProcessing(id);
 };
 
-const onDeleteRequested = (doc: ExtendedDocument) => {
+const onDeleteRequested = (doc: any) => {
     isDetailsSheetOpen.value = false;
-    selectedSheetItem.value = null;
+    selectedSheetId.value = null;
     emit('confirmDelete', doc);
 };
 
@@ -228,32 +183,9 @@ const refreshDocumentData = () => {
     router.get(usePage().url, {}, {
         only: ['requirementStatus'],
         preserveState: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            if (selectedSheetItem.value) {
-                const freshDoc = documentsMap.value.get(selectedSheetItem.value.id);
-                if (freshDoc) {
-                    selectedSheetItem.value = freshDoc;
-                }
-            }
-        }
+        preserveScroll: true
     });
 };
-
-let creepInterval: any = null;
-watch(aiProgress, (newVal) => {
-    // Clear existing creep whenever a real update arrives
-    if (creepInterval) clearInterval(creepInterval);
-
-    // If we are at the "Analyzing" or "Generating" steps, start a slow creep
-    if (newVal > 0 && newVal < 90) {
-        creepInterval = setInterval(() => {
-            if (aiProgress.value < newVal + 15) { // Only creep up to 15% past the milestone
-                aiProgress.value += 0.5;
-            }
-        }, 1000); // Move a tiny bit every second
-    }
-});
 </script>
 
 <template>

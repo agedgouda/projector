@@ -3,11 +3,16 @@ import { useForm, router } from '@inertiajs/vue3';
 import axios, { AxiosError } from 'axios';
 
 export function useDocumentActions(
-        props: any,
-        localRequirements: Ref<any[]>,
-        aiStatusMessage: Ref<string>,
-    )
-    {
+    props: {
+        project: any;
+        projectDocumentsRoutes: any;
+        requirementStatus: any[];
+    },
+    localRequirements: Ref<any[]>,
+    aiStatusMessage: Ref<string>,
+    // Optional: Pass the centralized update helper to keep state in sync
+    updateDocState?: (id: string | number, data: Partial<ExtendedDocument>) => void
+) {
     const isUploadModalOpen = ref(false);
     const isEditModalOpen = ref(false);
     const editingDocumentId = ref<string | number | null>(null);
@@ -18,7 +23,7 @@ export function useDocumentActions(
         name: '',
         type: '',
         content: '',
-        metadata: {},
+        metadata: {} as Record<string, any>,
         assignee_id: null as number | null,
     });
 
@@ -28,18 +33,21 @@ export function useDocumentActions(
         if (requirement) {
             form.type = requirement.key;
             form.name = `New ${requirement.label.replace(/s$/, '')}`;
-
         }
         isUploadModalOpen.value = true;
     };
 
-    const openEditModal = (doc: ProjectDocument) => {
+    const openEditModal = (doc: ExtendedDocument) => {
         form.clearErrors();
         editingDocumentId.value = doc.id;
         form.name = doc.name;
         form.type = doc.type;
         form.content = doc.content || '';
         form.assignee_id = doc.assignee_id;
+        // Handle metadata parsing if it's a string from the DB
+        form.metadata = typeof doc.metadata === 'string'
+            ? JSON.parse(doc.metadata)
+            : (doc.metadata || {});
         isEditModalOpen.value = true;
     };
 
@@ -51,14 +59,11 @@ export function useDocumentActions(
             preserveState: true,
             forceFormData: true,
             onBefore: () => {
-                // Use props.project.type.workflow as requested
                 const workflow = props.project?.type?.workflow || [];
                 const step = workflow.find((s: any) => s.from_key === form.type);
 
                 if (step) {
-                    // 1. SET THE GHOST TARGET
                     targetBeingCreated.value = step.to_key;
-
                     const targetReq = props.requirementStatus.find((r: any) => r.key === step.to_key);
                     aiStatusMessage.value = `Creating ${targetReq?.plural_label || 'Deliverables'}...`;
                 } else {
@@ -68,52 +73,43 @@ export function useDocumentActions(
             onSuccess: () => {
                 isUploadModalOpen.value = false;
                 form.reset();
-                // Note: We do NOT reset targetBeingCreated here!
-                // We wait for the Echo event to do that.
             },
             onError: () => {
                 aiStatusMessage.value = '';
-                targetBeingCreated.value = null; // Clear if request fails
+                targetBeingCreated.value = null;
                 isUploadModalOpen.value = true;
             }
         });
     };
 
-const updateDocument = async (onSuccessCallback?: () => void) => {
-    form.processing = true;
+    const updateDocument = async (onSuccessCallback?: () => void) => {
+        form.processing = true;
 
-    try {
-        // Restore your specific route construction
-        const url = props.projectDocumentsRoutes.update.url({
-            project: props.project.id,
-            document: editingDocumentId.value
-        });
+        try {
+            const url = props.projectDocumentsRoutes.update.url({
+                project: props.project.id,
+                document: editingDocumentId.value
+            });
 
-        // Restore manual Axios call with method spoofing
-        await axios.post(url, { ...form.data(), _method: 'put' });
+            await axios.post(url, { ...form.data(), _method: 'put' });
 
-        // 1. Execute the callback to close the inline form in the UI
-        if (onSuccessCallback && typeof onSuccessCallback === 'function') {
-            onSuccessCallback();
+            if (onSuccessCallback) onSuccessCallback();
+
+            isEditModalOpen.value = false;
+            form.reset();
+
+            router.reload({
+                only: ['requirementStatus'],
+                onFinish: () => { form.processing = false; }
+            });
+
+        } catch (err) {
+            handleError(err, () => {
+                console.error('Axios call failed:', err);
+            });
+            form.processing = false;
         }
-
-        // 2. Restore your original cleanup logic
-        isEditModalOpen.value = false;
-        form.reset();
-        router.reload({
-            only: ['requirementStatus'],
-            onFinish: () => {
-                form.processing = false;
-            }
-        });
-
-    } catch (err) {
-        handleError(err, () => {
-            console.error('Axios call failed:', err);
-        });
-        form.processing = false;
-    }
-};
+    };
 
     const handleError = (err: any, reopenModal: () => void) => {
         const error = err as AxiosError<{ errors: any }>;
@@ -124,37 +120,54 @@ const updateDocument = async (onSuccessCallback?: () => void) => {
         }
     };
 
-const setDocToProcessing = async (id: string | number) => {
-    // 1. Find the document in our local state to get its type/context
-    const doc = localRequirements.value
-        .flatMap(group => group.documents)
-        .find(d => d.id === id);
+    const setDocToProcessing = async (id: string | number) => {
+        // Find document using the flat map of the reactive groups
+        const doc = localRequirements.value
+            .flatMap(group => group.documents)
+            .find(d => d.id === id) as ExtendedDocument | undefined;
 
-    if (!doc) return;
+        if (!doc) return;
 
-    // 2. Confirmation Logic (Centralized)
-    const actionText = doc.type === 'intake'
-        ? 'regenerate User Stories'
-        : 'generate next workflow step';
+        const actionText = doc.type === 'intake'
+            ? 'regenerate User Stories'
+            : 'generate next workflow step';
 
-    if (!confirm(`Are you sure you want to ${actionText}?`)) return;
+        if (!confirm(`Are you sure you want to ${actionText}?`)) return;
 
-    // 3. UI Feedback: Set local state to processing immediately
-    doc.processed_at = null;
+        // UI Feedback: Immediately update local state
+        // If the helper is provided, use it to ensure the Map remains the source of truth
+        if (updateDocState) {
+            updateDocState(id, {
+                processed_at: null,
+                processingError: null,
+                currentStatus: 'Re-initializing AI...'
+            });
+        } else {
+            doc.processed_at = null;
+            doc.processingError = null;
+        }
 
-    try {
-        // 4. THE BACKEND CALL (Moved from the component to here)
-        const projectId = props.project.id;
-        await axios.post(`/projects/${projectId}/documents/${id}/reprocess`);
-    } catch (error) {
-        console.error('AI Reprocess failed:', error);
-        // Rollback processed_at if failed so it doesn't spin forever
-        doc.processed_at = new Date().toISOString();
-    }
-};
+        try {
+            const projectId = props.project.id;
+            await axios.post(`/projects/${projectId}/documents/${id}/reprocess`);
+        } catch (error) {
+            console.error('AI Reprocess failed:', error);
+            const rollbackDate = new Date().toISOString();
+
+            if (updateDocState) {
+                updateDocState(id, {
+                    processed_at: rollbackDate,
+                    processingError: 'Failed to start reprocessing.'
+                });
+            } else {
+                doc.processed_at = rollbackDate;
+            }
+        }
+    };
 
     return {
         form, isUploadModalOpen, isEditModalOpen,
-        openUploadModal, openEditModal, submitDocument, editingDocumentId, updateDocument, setDocToProcessing, targetBeingCreated
+        openUploadModal, openEditModal, submitDocument,
+        editingDocumentId, updateDocument, setDocToProcessing, targetBeingCreated
     };
 }

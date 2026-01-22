@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import {
-    CheckCircle2, Trash2, Plus, FileType, Edit2
+    CheckCircle2, Trash2, Plus, FileType, Edit2, RefreshCw
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle,SheetDescription } from '@/components/ui/sheet';
@@ -16,7 +16,7 @@ import { STATUS_LABELS, PRIORITY_LABELS,priorityClasses, statusClasses,priorityD
 
 const props = defineProps<{
     open: boolean;
-    item: any;
+    item: ExtendedDocument | null;
     getDocLabel: (type: string) => string;
     requirementStatus?: any[];
     users?: any[];
@@ -27,7 +27,12 @@ const props = defineProps<{
 const emit = defineEmits(['update:open', 'handleReprocess', 'onDeleteRequested', 'prepareEdit', 'submit','task-created']);
 
 const localDisplayContent = ref(props.item?.content);
-watch(() => props.item?.content, (newVal) => { localDisplayContent.value = newVal; });
+watch(() => props.item?.content, (newVal) => {
+    // Only sync background updates if this document isn't the one being edited
+    if (props.activeEditingId !== props.item?.id) {
+        localDisplayContent.value = newVal;
+    }
+});
 
 const parsedMetadata = computed(() => {
     if (!props.item?.metadata) return null;
@@ -51,13 +56,18 @@ const openEditTask = (task: any) => {
 };
 
 const handleFormSubmit = () => {
-    localDisplayContent.value = props.form.content;
     emit('submit', () => {
         emit('prepareEdit', { id: null });
         toast.success('Changes saved');
     });
 };
-
+watch(() => props.item, (newItem) => {
+    if (!newItem) return;
+    // Force sync the local display ref
+    if (props.activeEditingId !== newItem.id) {
+        localDisplayContent.value = newItem.content;
+    }
+}, { immediate: true, deep: true });
 
 </script>
 
@@ -66,15 +76,42 @@ const handleFormSubmit = () => {
         <SheetContent side="right" class="sm:max-w-[600px] p-0 flex flex-col shadow-2xl border-l border-slate-200">
             <template v-if="item">
                 <div class="px-8 py-6 border-b bg-white flex items-center justify-between sticky top-0 z-10">
-                    <div class="space-y-1">
-                        <SheetTitle class="text-lg font-bold text-slate-900 leading-tight">{{ item.name }}</SheetTitle>
-                        <SheetDescription class="text-[11px] text-slate-500">
-                            <div class="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2">
-                                <FileType class="h-3 w-3" /> {{ getDocLabel(item.type) }}
+                    <div class="space-y-1 min-w-0">
+                        <SheetTitle class="text-lg font-bold text-slate-900 leading-tight truncate">
+                            {{ item.name }}
+                        </SheetTitle>
+
+                        <div class="flex flex-col gap-1">
+                            <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-1.5 self-start px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100">
+                                <RefreshCw class="h-2.5 w-2.5 animate-spin text-indigo-600" />
+                                <span class="text-[9px] font-black uppercase tracking-wider text-indigo-600">
+                                    {{ item.currentStatus || 'AI Analyzing...' }}
+                                </span>
                             </div>
-                        </SheetDescription>
+
+                            <SheetDescription class="text-[11px] text-slate-500">
+                                <div class="flex items-center gap-4 mt-1">
+                                    <div class="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2">
+                                        <FileType class="h-3 w-3" /> {{ getDocLabel(item.type) }}
+                                    </div>
+
+                                    <div class="w-px h-3 bg-slate-200"></div>
+
+                                    <div v-if="item.assignee" class="flex items-center gap-2">
+                                        <span class="text-[10px] font-bold text-slate-600 tracking-tight">
+                                            {{ item.assignee.first_name }} {{ item.assignee.last_name }}
+                                        </span>
+                                    </div>
+
+                                    <div v-else class="text-[10px] font-bold text-slate-400 italic">
+                                        Unassigned
+                                    </div>
+                                </div>
+                            </SheetDescription>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
+
+                    <div class="flex items-center gap-2 shrink-0">
                         <Button variant="outline" size="sm" @click="emit('prepareEdit', item)" class="h-8 text-[10px] font-black uppercase tracking-widest px-4 border-slate-200">
                             <Edit2 class="h-3 w-3 mr-2" /> Edit
                         </Button>
@@ -83,7 +120,6 @@ const handleFormSubmit = () => {
                         </Button>
                     </div>
                 </div>
-
                 <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
                     <div v-if="activeEditingId === item.id" class="mb-10">
                         <InlineDocumentForm
@@ -193,7 +229,7 @@ const handleFormSubmit = () => {
                     :project-id="item.project_id"
                     :document-id="item.id"
                     :initial-title="item.name"
-                    :initial-description="item.content"
+                    :initial-description="item.content ?? undefined"
                     :users="users"
                     @created="$emit('task-created')"
                 />
