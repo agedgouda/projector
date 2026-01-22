@@ -93,6 +93,15 @@ declare global {
         updated_at: string;
     }
 
+    export interface DocumentFields {
+        id: string;
+        name: string;
+        type: string;
+        content: string;
+        assignee_id: number | null;
+        project_id: string;
+    }
+
     export interface ExtendedDocument extends ProjectDocument {
         currentStatus?: string | null;      // Temporary AI status (e.g., "Analyzing...")
         hasError?: boolean;               // UI flag for highlighting rows

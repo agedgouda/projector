@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import type { InertiaForm } from '@inertiajs/vue3';
 import { RefreshCw, Bold, Italic, List, ListOrdered } from 'lucide-vue-next';
 import { EditorContent } from '@tiptap/vue-3';
@@ -19,7 +19,7 @@ import {
 const props = defineProps<{
     open: boolean;
     mode: 'create' | 'edit';
-    form: InertiaForm<Partial<Omit<ProjectDocument, 'id'>> & { id?: string | number | null }>;
+    form: InertiaForm<Partial<Omit<DocumentFields, 'id'>> & { id?: string | number | null }>;
     requirementStatus?: RequirementStatus[];
     users?: User[];
 }>();
@@ -50,20 +50,36 @@ const handleAssigneeChange = (value: any) => {
         updateField('assignee_id', parseInt(value) as any);
     }
 };
+
+watch(() => props.open, (isNowOpen) => {
+    if (isNowOpen && editor.value) {
+        // Update the editor with the current form content
+        // This ensures if the form was reset, the editor reflects it
+        editor.value.commands.setContent(props.form.content || '');
+    }
+});
+
+watch(() => props.open, (isOpen) => {
+    if (isOpen && editor.value) {
+        // This clears the "stuck" text when you reopen the modal
+        editor.value.commands.setContent(props.form.content || '');
+    }
+});
 </script>
 
 <template>
     <Dialog v-model:open="isOpen">
-        <DialogContent class="sm:max-w-[896px]">
+        <DialogContent class="sm:max-w-[90vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
                 <DialogTitle>{{ mode === 'create' ? 'Add' : 'Edit' }} Document</DialogTitle>
                 <DialogDescription>
                     {{ mode === 'create' ? 'Create a new document.' : 'Update document details.' }}
                 </DialogDescription>
             </DialogHeader>
-            <div class="grid gap-4 py-4">
+
+            <div class="grid gap-6 py-4">
                 <div class="grid gap-2">
-                    <Label :class="{ 'text-destructive': form.errors.name }">Document Name</Label>
+                    <Label :class="{ 'text-destructive': form.errors && !!form.errors.name }">Document Name</Label>
                     <Input
                         :model-value="form.name ?? ''"
                         @update:model-value="(v) => updateField('name', v)"
@@ -88,18 +104,14 @@ const handleAssigneeChange = (value: any) => {
                             </SelectItem>
                         </SelectContent>
                     </Select>
-                    <div
-                        v-else
-                        class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-slate-50 px-3 py-2 text-sm text-muted-foreground opacity-70 cursor-not-allowed"
-                    >
+                    <div v-else class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-slate-50 px-3 py-2 text-sm text-muted-foreground opacity-70 cursor-not-allowed">
                         {{ form.type || 'No category assigned' }}
                     </div>
-                    <p v-if="form.errors.type" class="text-xs text-destructive">{{ form.errors.type }}</p>
                 </div>
 
                 <div class="grid gap-2">
                     <Label :class="{ 'text-destructive': form.errors.content }">Content</Label>
-                    <div class="border border-slate-200 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
+                    <div class="border border-slate-200 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
                         <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
                             <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
                                 <Bold class="h-4 w-4" />
@@ -115,9 +127,8 @@ const handleAssigneeChange = (value: any) => {
                                 <ListOrdered class="h-4 w-4" />
                             </Button>
                         </div>
-                        <editor-content :editor="editor" />
+                        <editor-content :editor="editor" class="min-h-[200px]" />
                     </div>
-                    <p v-if="form.errors.content" class="text-xs text-destructive">{{ form.errors.content }}</p>
                 </div>
 
                 <div class="grid gap-2">
@@ -126,27 +137,20 @@ const handleAssigneeChange = (value: any) => {
                         :model-value="form.assignee_id?.toString() ?? 'unassigned'"
                         @update:model-value="handleAssigneeChange"
                     >
-                        <SelectTrigger :class="{ 'border-destructive': form.errors.assignee_id }">
+                        <SelectTrigger>
                             <SelectValue placeholder="Select a user to assign" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="unassigned">Unassigned</SelectItem>
-                            <SelectItem
-                                v-for="user in users"
-                                :key="user.id"
-                                :value="user.id.toString()"
-                            >
+                            <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">
                                 {{ user.name }}
                             </SelectItem>
                         </SelectContent>
                     </Select>
-                    <p v-if="form.errors.assignee_id" class="text-xs text-destructive">
-                        {{ form.errors.assignee_id }}
-                    </p>
                 </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter class="mt-4 shrink-0">
                 <Button variant="outline" @click="isOpen = false">Cancel</Button>
                 <Button @click="emit('submit')" :disabled="form.processing" class="bg-indigo-600">
                     <RefreshCw v-if="form.processing" class="w-4 h-4 mr-2 animate-spin" />
