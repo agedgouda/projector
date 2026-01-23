@@ -36,16 +36,31 @@ export function formatPhoneNumber(phoneNumberString: string | null | undefined):
 
 export const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
+
     const date = new Date(dateString);
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    const now = new Date();
 
-    const diffTime = date.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Calculate difference in seconds
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays < 0) return 'Overdue';
+    // If it happened in the last hour, show minutes
+    if (diffInSeconds < 3600) {
+        const mins = Math.floor(diffInSeconds / 60);
+        return mins <= 1 ? 'Just now' : `${mins}m ago`;
+    }
 
-    return new Intl.DateTimeFormat('en-US').format(date);
+    // If it happened today, show the time
+    if (date.toDateString() === now.toDateString()) {
+        return date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+
+    // Otherwise, show the date
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric'
+    }).format(date);
 };

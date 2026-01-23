@@ -48,7 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);
-        // This keeps the name 'projects.index', so Wayfinder is happy
+
         Route::resource('projects', ProjectController::class);
 
         Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])
@@ -61,8 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
                 ->name('documents.reprocess');
 
-            Route::resource('documents', DocumentController::class)
-                ->only(['store', 'update', 'destroy']);
+            Route::resource('documents', DocumentController::class);
         });
     });
 });

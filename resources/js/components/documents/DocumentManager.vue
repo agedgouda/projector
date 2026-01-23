@@ -95,10 +95,6 @@ const selectedSheetItem = computed(() => {
     return (doc as ExtendedDocument) || null;
 });
 
-const handleOpenSheet = (item: any) => {
-    selectedSheetId.value = item.id;
-    isDetailsSheetOpen.value = true;
-};
 
 const handlePrepareEdit = (item: any) => {
     if (!item || item.id === null) {
@@ -270,7 +266,6 @@ const refreshDocumentData = () => {
                 @handle-reprocess="handleReprocess"
                 @on-delete-requested="onDeleteRequested"
                 @submit="handleUpdateDocument"
-                @open-sheet="handleOpenSheet"
             />
         </div>
     </div>

@@ -2,6 +2,8 @@
 import { computed } from 'vue';
 import { ChevronRight, FileText, CheckSquare, Eye, Sparkles, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import { router } from '@inertiajs/vue3';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 const props = defineProps<{
     item: any;
@@ -31,8 +33,11 @@ const isSelected = computed(() => props.selectedSheetId === props.item.id);
 // Use the helper to get the lead user for this row
 const leadUser = computed(() => props.getLeadUser(props.item));
 
-const handleOpenSheet = () => {
-    emit('openSheet', props.item);
+const navigateToDetails = () => {
+    router.get(projectDocumentsRoutes.show({
+        project: props.item.project_id,
+        document: props.item.id
+    }).url);
 };
 </script>
 
@@ -51,7 +56,7 @@ const handleOpenSheet = () => {
                         isSelected ? 'border-indigo-400 ring-1 ring-indigo-100' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300',
                         level === 0 ? '' : (level === 1 ? 'ml-8' : 'ml-16')
                     ]"
-                    @click="handleOpenSheet"
+                    @click="navigateToDetails"
                 >
                     <div
                         v-if="item.children?.length"
@@ -113,7 +118,7 @@ const handleOpenSheet = () => {
                         </Button>
 
                         <Button
-                            variant="ghost" size="sm" @click.stop="handleOpenSheet"
+                            variant="ghost" size="sm" @click.stop="navigateToDetails"
                             class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 rounded-xl group/view"
                         >
                             <Eye class="h-3.5 w-3.5 mr-2" />
