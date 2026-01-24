@@ -40,7 +40,9 @@ class Document extends Model
         'creator_id',
         'editor_id',
         'assignee_id',
-        'status',
+        'task_status',
+        'priority',
+        'due_at'
     ];
 
     /**

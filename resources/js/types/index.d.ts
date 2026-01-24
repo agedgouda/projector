@@ -33,12 +33,17 @@ declare global {
         updated_at: string;
     }
 
+    export interface DocumentSchemaItem {
+        key: string;
+        label: string;
+    }
+
     export interface ProjectType {
         id: string; // UUID
         name: string;
         icon: string;
         workflow?: any[];
-        document_schema?: any[];
+        document_schema?: DocumentSchemaItem[];
         created_at: string;
         updated_at: string;
     }
@@ -62,6 +67,9 @@ declare global {
         updated_at: string;
     }
 
+    // --- TASKS, DISCUSSIONS & FLAT TYPES ---
+    export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done' | 'backlog';
+    export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
     export interface ProjectDocument {
         id: string | number; // UUID in DB, but sometimes number in UI state
         project_id: string;
@@ -73,6 +81,9 @@ declare global {
         creator_id: number | null;
         editor_id: number | null;
         assignee_id: number | null;
+        status: TaskStatus;
+        priority: TaskPriority;
+        due_at: string | null;
 
         // Relationships
         creator?: User;
@@ -107,14 +118,14 @@ declare global {
         hasError?: boolean;               // UI flag for highlighting rows
         processingError?: string | null;  // The specific error message from a failed AI Job
         children?: ExtendedDocument[];    // The recursive tree structure
+        task_status: TaskStatus;
+        priority: TaskPriority;
+        due_at: string | null;
         tasks?: Task[];
-        user?: User;               // The assigned user
+        user?: User;
     }
 
 
-    // --- TASKS, DISCUSSIONS & FLAT TYPES ---
-    export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done' | 'backlog';
-    export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
     export interface Task {
         id: number;

@@ -27,6 +27,28 @@ export function useDocumentActions(
         assignee_id: null as number | null,
     });
 
+    /**
+     * Patch a single field or set of fields instantly via Inertia.
+     * Use this for sidebar property updates like due_at or assignee_id.
+     */
+    const patchField = (docId: string | number, data: Record<string, any>) => {
+        // Build the URL using your specific route helper structure
+        const url = props.projectDocumentsRoutes.update({
+            project: props.project.id,
+            document: docId
+        }).url;
+
+        router.patch(url, data, {
+            preserveScroll: true,
+            onSuccess: () => {
+                // If the helper is provided (like in your project index), sync local state
+                if (updateDocState) {
+                    updateDocState(docId, data);
+                }
+            },
+        });
+    };
+
     const openUploadModal = (requirement?: any) => {
         form.reset();
         form.clearErrors();
@@ -168,6 +190,7 @@ export function useDocumentActions(
     return {
         form, isUploadModalOpen, isEditModalOpen,
         openUploadModal, openEditModal, submitDocument,
-        editingDocumentId, updateDocument, setDocToProcessing, targetBeingCreated
+        editingDocumentId, updateDocument, setDocToProcessing,
+        targetBeingCreated, patchField
     };
 }

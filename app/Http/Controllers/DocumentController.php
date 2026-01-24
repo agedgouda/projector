@@ -37,7 +37,6 @@ class DocumentController extends Controller
         return inertia('Documents/Show', [
             'project' => $project->load(['type','client.users']),
             'item' => $document->load(['assignee','creator','editor']),
-            //'requirementStatus' => RequirementStatus::all(), // If needed for the Category select
         ]);
     }
 
@@ -58,6 +57,9 @@ class DocumentController extends Controller
             'type'        => 'sometimes|required|string',
             'metadata'    => 'nullable|array',
             'assignee_id' => 'nullable|exists:users,id',
+            'due_at'      => 'nullable|date',
+            'task_status' => 'nullable|string',
+            'priority'    => 'nullable|string',
         ]));
 
         return back()->with('success', 'Document updated.');
