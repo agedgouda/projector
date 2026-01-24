@@ -49,6 +49,21 @@ export function useDocumentActions(
         });
     };
 
+    const updateField = (id: string, fieldName: string, rawValue: unknown) => {
+        let normalizedValue: string | number | null = null;
+
+        if (rawValue === 'unassigned') {
+            normalizedValue = null;
+        } else if (typeof rawValue === 'string' || typeof rawValue === 'number') {
+            normalizedValue = rawValue;
+        } else if (typeof rawValue === 'bigint') {
+            normalizedValue = Number(rawValue);
+        } else {
+            console.warn(`[useDocumentActions] Could not normalize value for ${fieldName}`, rawValue);
+            return;
+        }
+        patchField(id, { [fieldName]: normalizedValue });
+    };
     const openUploadModal = (requirement?: any) => {
         form.reset();
         form.clearErrors();
@@ -191,6 +206,6 @@ export function useDocumentActions(
         form, isUploadModalOpen, isEditModalOpen,
         openUploadModal, openEditModal, submitDocument,
         editingDocumentId, updateDocument, setDocToProcessing,
-        targetBeingCreated, patchField
+        targetBeingCreated, patchField, updateField
     };
 }
