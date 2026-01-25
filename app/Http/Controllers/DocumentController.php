@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreDocumentRequest;
 use App\Models\{Project, Document, User};
 use App\Services\VectorService;
 use Illuminate\Http\Request;
@@ -24,24 +25,15 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function store(Request $request, Project $project)
+    public function store(StoreDocumentRequest $request, Project $project)
     {
-        Gate::authorize('view', $project);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'content' => 'required|string|min:10',
-            'type' => 'required|string',
-            'priority' => 'required|string',
-            'task_status' => 'required|string',
-            'due_at' => 'nullable|date',
-            'assignee_id' => 'nullable|exists:users,id',
-        ]);
+        Gate::authorize('create', [Document::class, $project]);
 
-        $document =$project->documents()->create($validated);
+        $document = $project->documents()->create($request->validated());
 
         return to_route('projects.documents.show', [$project, $document])
-        ->with('success', 'Document created successfully.');
+            ->with('success', 'Document created successfully.');
     }
 
     public function show(Project $project, Document $document)
@@ -58,7 +50,7 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function update(Request $request, Project $project, Document $document)
+    public function update(StoreDocumentRequest $request, Project $project, Document $document)
     {
         // 1. Security check: Policy handles everything
         Gate::authorize('update', $document);
@@ -68,17 +60,7 @@ class DocumentController extends Controller
             abort(404);
         }
 
-        $document->update($request->validate([
-            // Change 'required' to 'sometimes|required'
-            'name'        => 'sometimes|required|string|max:255',
-            'content'     => 'nullable|string',
-            'type'        => 'sometimes|required|string',
-            'metadata'    => 'nullable|array',
-            'assignee_id' => 'nullable|exists:users,id',
-            'due_at'      => 'nullable|date',
-            'task_status' => 'nullable|string',
-            'priority'    => 'nullable|string',
-        ]));
+        $document->update($request->validated());
 
         return back()->with('success', 'Document updated.');
     }

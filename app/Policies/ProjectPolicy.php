@@ -4,63 +4,57 @@ namespace App\Policies;
 
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class ProjectPolicy
 {
     /**
-     * Determine whether the user can view any models.
+     * Helper to check if user belongs to the client.
      */
+    private function belongsToClient(User $user, string $clientId): bool
+    {
+        if ($user->hasRole('admin')) return true;
+
+        // Querying exists() is faster than loading the whole collection into memory
+        return $user->clients()
+            ->where('clients.id', $clientId)
+            ->exists();
+    }
+
     public function viewAny(User $user): bool
     {
-        return false;
+        // Typically true so they can see the list page,
+        // but the list query itself should be scoped to their clients.
+        return true;
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, Project $project): bool
     {
-        return $user->hasRole('admin') || $user->clients->contains($project->client_id);
+        return $this->belongsToClient($user, $project->client_id);
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
     public function create(User $user): bool
     {
-        return false;
+        // If users can create projects, change to true or add role check
+        return $user->hasRole('admin');
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, Project $project): bool
     {
-        return false;
+        return $this->belongsToClient($user, $project->client_id);
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, Project $project): bool
     {
-        return false;
+        return $user->hasRole('admin');
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
     public function restore(User $user, Project $project): bool
     {
-        return false;
+        return $user->hasRole('admin');
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
     public function forceDelete(User $user, Project $project): bool
     {
-        return false;
+        return $user->hasRole('admin');
     }
 }

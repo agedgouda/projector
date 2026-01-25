@@ -59,14 +59,17 @@ const parsedMetadata: ComputedRef<DocumentMetadata> = computed(() =>
     safeJsonParse(props.item?.metadata)
 );
 
-const form = useForm({
-    id: props.item.id, // Add this line
+const form = useForm<DocumentFields>({
+    id: props.item.id as string,
     name: props.item.name,
     content: props.item.content,
     type: props.item.type,
     assignee_id: props.item.assignee_id,
     project_id: props.project.id,
-    metadata: parsedMetadata.value
+    metadata: parsedMetadata.value,
+    priority: props.item.priority,
+    task_status: props.item.task_status,
+    due_at: props.item.due_at,
 });
 
 const dueAtProxy = computed<string>({

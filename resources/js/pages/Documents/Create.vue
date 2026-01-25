@@ -27,16 +27,18 @@ const props = defineProps<{
 /* ---------------------------
    3. Form Setup (Draft Mode)
 ---------------------------- */
-const form = useForm({
+const form = useForm<DocumentForm & { project_id: string }>({
     name: '',
     content: '',
     type: '',
-    assignee_id: null as number | null,
-    due_at: null as string | null,
-    priority: 'low',
-    task_status: 'todo',
+    assignee_id: null,
+    due_at: null,
+    priority: 'low',      // TS now knows this must match TaskPriority
+    task_status: 'todo',  // TS now knows this must match TaskStatus
     project_id: props.project.id,
-    metadata: { criteria: [] }
+    metadata: {
+        criteria: [] as string[] // Cast this to prevent 'never[]' error
+    }
 });
 
 /* ---------------------------

@@ -71,6 +71,19 @@ declare global {
     // --- TASKS, DISCUSSIONS & FLAT TYPES ---
     export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done' | 'backlog';
     export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+    export interface DocumentMetadata {
+    criteria: string[];
+    raw_data?: {
+        criteria?: string[];
+        [key: string]: any;
+    };
+    error?: string;
+    failed_at?: string;
+    [key: string]: any;
+}
+
+
     export interface ProjectDocument {
         id: string | number; // UUID in DB, but sometimes number in UI state
         project_id: string;
@@ -94,30 +107,15 @@ declare global {
         children?: ProjectDocument[];
 
         embedding: any | null;
-        metadata: {
-            criteria?: string[];
-            error?: string;
-            failed_at?: string;
-            [key: string]: any;
-        } | null;
+        metadata: DocumentMetadata;
         processed_at: string | null;
         created_at: string;
         updated_at: string;
     }
 
-    export interface DocumentFields {
+    export interface DocumentFields extends DocumentForm {
         id: string;
-        name: string;
-        type: string;
-        content: string| null;
-        assignee_id: number | null;
         project_id: string;
-        metadata: {
-            criteria?: string[];
-            error?: string;
-            failed_at?: string;
-            [key: string]: any;
-        } | null;
     }
     export interface ExtendedDocument extends ProjectDocument {
         currentStatus?: string | null;      // Temporary AI status (e.g., "Analyzing...")
@@ -129,6 +127,18 @@ declare global {
         due_at: string | null;
         tasks?: Task[];
         user?: User;
+    }
+
+
+    export interface DocumentForm {
+        name: string;
+        type: string;
+        content: string | null;
+        assignee_id: number | null;
+        priority: TaskPriority;
+        task_status: TaskStatus;
+        due_at: string | null;
+        metadata: DocumentMetadata;
     }
 
 

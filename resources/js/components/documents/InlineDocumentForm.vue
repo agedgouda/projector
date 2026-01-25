@@ -14,7 +14,7 @@ import {
 
 const props = defineProps<{
     mode: 'create' | 'edit';
-    form: InertiaForm<any>;
+    form: InertiaForm<DocumentForm>;
     document_schema?: DocumentSchemaItem[]; // Added project prop to get schema
 }>();
 
@@ -50,44 +50,37 @@ const initializeMetadata = () => {
 
 initializeMetadata();
 
-const addCriterion = () => {
-    const metadata = { ...(props.form.metadata || { criteria: [], category: 'general', raw_data: {} }) };
-    const criteria = [...(metadata.criteria || [])];
-    criteria.push('');
+/**
+ * Metadata Helpers
+ */
+const updateMetadata = (callback: (criteria: string[]) => string[]) => {
+    const currentMetadata = { ...(props.form.metadata || { criteria: [], raw_data: {} }) };
+    const updatedCriteria = callback([...(currentMetadata.criteria || [])]);
 
-    metadata.criteria = criteria;
-    if (metadata.raw_data) {
-        metadata.raw_data.criteria = [...criteria];
-    }
+    const updatedMetadata = {
+        ...currentMetadata,
+        criteria: updatedCriteria,
+        raw_data: {
+            ...currentMetadata.raw_data,
+            criteria: updatedCriteria
+        }
+    };
 
-    updateField('metadata', metadata);
+    updateField('metadata', updatedMetadata);
 };
 
-const removeCriterion = (index: number) => {
-    const metadata = { ...props.form.metadata };
-    const criteria = [...(metadata.criteria || [])];
-    criteria.splice(index, 1);
+const addCriterion = () =>
+    updateMetadata((criteria) => [...criteria, '']);
 
-    metadata.criteria = criteria;
-    if (metadata.raw_data) {
-        metadata.raw_data.criteria = [...criteria];
-    }
+const removeCriterion = (index: number) =>
+    updateMetadata((criteria) => criteria.filter((_, i) => i !== index));
 
-    updateField('metadata', metadata);
-};
-
-const updateCriterion = (index: number, value: string) => {
-    const metadata = { ...props.form.metadata };
-    const criteria = [...(metadata.criteria || [])];
-    criteria[index] = value;
-
-    metadata.criteria = criteria;
-    if (metadata.raw_data) {
-        metadata.raw_data.criteria = [...criteria];
-    }
-
-    updateField('metadata', metadata);
-};
+const updateCriterion = (index: number, value: string) =>
+    updateMetadata((criteria) => {
+        const next = [...criteria];
+        next[index] = value;
+        return next;
+    });
 </script>
 
 <template>
