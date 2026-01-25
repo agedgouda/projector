@@ -36,6 +36,7 @@ declare global {
     export interface DocumentSchemaItem {
         key: string;
         label: string;
+        required: boolean;
     }
 
     export interface ProjectType {
@@ -108,11 +109,16 @@ declare global {
         id: string;
         name: string;
         type: string;
-        content: string;
+        content: string| null;
         assignee_id: number | null;
         project_id: string;
+        metadata: {
+            criteria?: string[];
+            error?: string;
+            failed_at?: string;
+            [key: string]: any;
+        } | null;
     }
-
     export interface ExtendedDocument extends ProjectDocument {
         currentStatus?: string | null;      // Temporary AI status (e.g., "Analyzing...")
         hasError?: boolean;               // UI flag for highlighting rows

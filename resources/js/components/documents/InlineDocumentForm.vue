@@ -15,10 +15,15 @@ import {
 const props = defineProps<{
     mode: 'create' | 'edit';
     form: InertiaForm<any>;
-    requirementStatus?: any[];
+    document_schema?: DocumentSchemaItem[]; // Added project prop to get schema
 }>();
 
 const emit = defineEmits(['cancel', 'submit']);
+
+/**
+ * Correct mapping for the Select dropdown
+ */
+
 
 // Use the new composable
 const { editor } = useDocumentEditor(
@@ -26,11 +31,9 @@ const { editor } = useDocumentEditor(
     (html) => updateField('content', html)
 );
 
-
 const updateField = (field: string, value: any) => {
     (props.form as any)[field] = value;
 };
-
 
 // Helper to ensure criteria metadata structure exists
 const initializeMetadata = () => {
@@ -40,7 +43,6 @@ const initializeMetadata = () => {
         try {
             updateField('metadata', JSON.parse(props.form.metadata));
         } catch {
-            // Error ignored intentionally: fallback to empty criteria
             updateField('metadata', { criteria: [] });
         }
     }
@@ -98,6 +100,7 @@ const updateCriterion = (index: number, value: string) => {
                     @update:model-value="(v) => updateField('name', v)"
                     class="bg-white h-11 border-slate-200"
                 />
+                <p v-if="form.errors.name" class="text-[10px] text-red-500 font-bold uppercase">{{ form.errors.name }}</p>
             </div>
 
             <div v-if="mode === 'create'" class="flex-1 min-w-[180px] grid gap-2">
@@ -107,9 +110,12 @@ const updateCriterion = (index: number, value: string) => {
                         <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem v-for="req in requirementStatus" :key="req.key" :value="req.key">{{ req.label }}</SelectItem>
+                        <SelectItem v-for="doc in document_schema" :key="doc.key" :value="doc.key">
+                            {{ doc.label }}
+                        </SelectItem>
                     </SelectContent>
                 </Select>
+                <p v-if="form.errors.type" class="text-[10px] text-red-500 font-bold uppercase">{{ form.errors.type }}</p>
             </div>
         </div>
 
@@ -117,23 +123,23 @@ const updateCriterion = (index: number, value: string) => {
             <Label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Content</Label>
             <div class="border border-slate-200 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
                 <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
-                    <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
                         <Bold class="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200': editor.isActive('italic') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200': editor.isActive('italic') }">
                         <Italic class="h-4 w-4" />
                     </Button>
                     <div class="w-px h-4 bg-slate-200 mx-1"></div>
-                    <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200': editor.isActive('bulletList') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200': editor.isActive('bulletList') }">
                         <List class="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200': editor.isActive('orderedList') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200': editor.isActive('orderedList') }">
                         <ListOrdered class="h-4 w-4" />
                     </Button>
                 </div>
                 <editor-content :editor="editor" />
             </div>
-            <p v-if="form.errors.content" class="text-xs text-destructive">{{ form.errors.content }}</p>
+            <p v-if="form.errors.content" class="text-[10px] text-red-500 font-bold uppercase pt-1">{{ form.errors.content }}</p>
         </div>
 
         <div class="grid gap-4 pt-4 border-t border-slate-100">
@@ -193,17 +199,13 @@ const updateCriterion = (index: number, value: string) => {
         </div>
     </div>
 
-    <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/50 border-t border-slate-100">
-        <Button variant="outline" @click="emit('cancel')" class="px-6 font-bold">Cancel</Button>
-        <Button @click="emit('submit')" :disabled="form.processing" class="bg-indigo-600 px-8 font-bold">
+    <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/50 border-t border-slate-100 mt-6 rounded-b-2xl">
+        <Button variant="outline" @click="emit('cancel')" class="px-6 font-bold uppercase text-[10px] tracking-widest">
+            Cancel
+        </Button>
+        <Button @click="emit('submit')" :disabled="form.processing" class="bg-indigo-600 hover:bg-indigo-700 px-8 font-bold uppercase text-[10px] tracking-widest">
             <RefreshCw v-if="form.processing" class="w-4 h-4 mr-2 animate-spin" />
-            {{ mode === 'create' ? 'Save Item' : 'Update Item' }}
+            {{ mode === 'create' ? 'Create Document' : 'Update Document' }}
         </Button>
     </div>
-
 </template>
-
-<style>
-.prose ul { list-style-type: disc; padding-left: 1.5rem; }
-.prose ol { list-style-type: decimal; padding-left: 1.5rem; }
-</style>

@@ -10,8 +10,8 @@ export function useProjectDashboard(props: { project: Project, origin?: string |
     const isEditModalOpen = ref(false);
 
     const requirementStatus = computed(() => {
-        const schema = (props.project.type.document_schema as any[]) || [];
-        const allDocs = (props.project.documents as any[]) || [];
+        const schema = (props.project.type.document_schema as DocumentSchemaItem[]) || [];
+        const allDocs = (props.project.documents as ProjectDocument[]) || [];
         return schema.map((req) => {
             const matchingDocs = allDocs.filter((doc) => doc.type === req.key);
             return { ...req, documents: matchingDocs, isUploaded: matchingDocs.length > 0 };

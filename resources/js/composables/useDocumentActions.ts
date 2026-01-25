@@ -6,11 +6,10 @@ export function useDocumentActions(
     props: {
         project: any;
         projectDocumentsRoutes: any;
-        requirementStatus: any[];
+        requirementStatus?: any[];
     },
     localRequirements: Ref<any[]>,
     aiStatusMessage: Ref<string>,
-    // Optional: Pass the centralized update helper to keep state in sync
     updateDocState?: (id: string | number, data: Partial<ExtendedDocument>) => void
 ) {
     const isUploadModalOpen = ref(false);
@@ -29,10 +28,8 @@ export function useDocumentActions(
 
     /**
      * Patch a single field or set of fields instantly via Inertia.
-     * Use this for sidebar property updates like due_at or assignee_id.
      */
     const patchField = (docId: string | number, data: Record<string, any>) => {
-        // Build the URL using your specific route helper structure
         const url = props.projectDocumentsRoutes.update({
             project: props.project.id,
             document: docId
@@ -41,7 +38,6 @@ export function useDocumentActions(
         router.patch(url, data, {
             preserveScroll: true,
             onSuccess: () => {
-                // If the helper is provided (like in your project index), sync local state
                 if (updateDocState) {
                     updateDocState(docId, data);
                 }
@@ -49,10 +45,14 @@ export function useDocumentActions(
         });
     };
 
-    const updateField = (id: string, fieldName: string, rawValue: unknown) => {
+    /**
+     * The Centralized Normalizer
+     * This is what your Sidebar calls via @change
+     */
+    const updateField = (id: string | number, fieldName: string, rawValue: unknown) => {
         let normalizedValue: string | number | null = null;
 
-        if (rawValue === 'unassigned') {
+        if (rawValue === 'unassigned' || rawValue === null || rawValue === undefined) {
             normalizedValue = null;
         } else if (typeof rawValue === 'string' || typeof rawValue === 'number') {
             normalizedValue = rawValue;
@@ -62,8 +62,24 @@ export function useDocumentActions(
             console.warn(`[useDocumentActions] Could not normalize value for ${fieldName}`, rawValue);
             return;
         }
+
         patchField(id, { [fieldName]: normalizedValue });
     };
+
+    /**
+     * Helper for parsing metadata safely
+     */
+    const safeJsonParse = (data: unknown) => {
+        if (!data) return { criteria: [] };
+        if (typeof data !== 'string') return data;
+        try {
+            return JSON.parse(data);
+        } catch (e) {
+            console.warn('[useDocumentActions] Metadata parse failed', e);
+            return { criteria: [] };
+        }
+    };
+
     const openUploadModal = (requirement?: any) => {
         form.reset();
         form.clearErrors();
@@ -81,10 +97,7 @@ export function useDocumentActions(
         form.type = doc.type;
         form.content = doc.content || '';
         form.assignee_id = doc.assignee_id;
-        // Handle metadata parsing if it's a string from the DB
-        form.metadata = typeof doc.metadata === 'string'
-            ? JSON.parse(doc.metadata)
-            : (doc.metadata || {});
+        form.metadata = safeJsonParse(doc.metadata);
         isEditModalOpen.value = true;
     };
 
@@ -101,7 +114,7 @@ export function useDocumentActions(
 
                 if (step) {
                     targetBeingCreated.value = step.to_key;
-                    const targetReq = props.requirementStatus.find((r: any) => r.key === step.to_key);
+                    const targetReq = props.requirementStatus?.find((r: any) => r.key === step.to_key);
                     aiStatusMessage.value = `Creating ${targetReq?.plural_label || 'Deliverables'}...`;
                 } else {
                     aiStatusMessage.value = 'Establishing Secure Uplink...';
@@ -158,7 +171,6 @@ export function useDocumentActions(
     };
 
     const setDocToProcessing = async (id: string | number) => {
-        // Find document using the flat map of the reactive groups
         const doc = localRequirements.value
             .flatMap(group => group.documents)
             .find(d => d.id === id) as ExtendedDocument | undefined;
@@ -171,8 +183,6 @@ export function useDocumentActions(
 
         if (!confirm(`Are you sure you want to ${actionText}?`)) return;
 
-        // UI Feedback: Immediately update local state
-        // If the helper is provided, use it to ensure the Map remains the source of truth
         if (updateDocState) {
             updateDocState(id, {
                 processed_at: null,
@@ -203,9 +213,18 @@ export function useDocumentActions(
     };
 
     return {
-        form, isUploadModalOpen, isEditModalOpen,
-        openUploadModal, openEditModal, submitDocument,
-        editingDocumentId, updateDocument, setDocToProcessing,
-        targetBeingCreated, patchField, updateField
+        form,
+        isUploadModalOpen,
+        isEditModalOpen,
+        openUploadModal,
+        openEditModal,
+        submitDocument,
+        editingDocumentId,
+        updateDocument,
+        setDocToProcessing,
+        targetBeingCreated,
+        patchField,
+        updateField,
+        safeJsonParse
     };
 }

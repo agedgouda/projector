@@ -9,6 +9,21 @@ use Illuminate\Support\Facades\Gate;
 
 class DocumentController extends Controller
 {
+
+    public function create(Project $project)
+    {
+        Gate::authorize('view', $project);
+
+        // Ensure we load the type and its schema
+        $project->load('type');
+
+        return inertia('Documents/Create', [
+            'project' => $project,
+            // Optional: you can pass users here if the form needs to assign on create
+            'users' => $project->client->users
+        ]);
+    }
+
     public function store(Request $request, Project $project)
     {
         Gate::authorize('view', $project);
@@ -17,13 +32,16 @@ class DocumentController extends Controller
             'name' => 'required|string|max:255',
             'content' => 'required|string|min:10',
             'type' => 'required|string',
+            'priority' => 'required|string',
+            'task_status' => 'required|string',
+            'due_at' => 'nullable|date',
             'assignee_id' => 'nullable|exists:users,id',
         ]);
 
-        // Laravel 11/12: Relationship creation is cleaner
-        $project->documents()->create($validated);
+        $document =$project->documents()->create($validated);
 
-        return back()->with('success', 'Context document added.');
+        return to_route('projects.documents.show', [$project, $document])
+        ->with('success', 'Document created successfully.');
     }
 
     public function show(Project $project, Document $document)

@@ -12,7 +12,6 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import DocumentFormModal from './DocumentFormModal.vue';
 import TraceabilityRow from './TraceabilityRow.vue';
 import TraceabilityDetailSheet from './TraceabilityDetailSheet.vue';
 
@@ -43,7 +42,7 @@ const aiStatusMessageRef = ref('');
 
 
 const {
-    form, isUploadModalOpen, openUploadModal, submitDocument,
+    form,
     updateDocument: originalUpdateDocument, setDocToProcessing,
     targetBeingCreated, editingDocumentId
 } = useDocumentActions(
@@ -161,6 +160,11 @@ const getLeadUser = (doc: ExtendedDocument) => {
     };
 };
 
+const handleCreateNavigation = () => {
+    // Navigate to the create page instead of opening a modal
+    router.visit(props.projectDocumentsRoutes.create({ project: props.project.id }).url);
+};
+
 const handleReprocess = (id: string | number) => {
     aiProgress.value = 5;
     aiStatusMessage.value = "Initializing...";
@@ -234,7 +238,7 @@ const refreshDocumentData = () => {
                 <Input v-model="searchQuery" placeholder="Search documentation..." class="pl-11 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300" />
             </div>
             <div class="flex items-center gap-2 w-full md:w-auto pr-2">
-                <Button @click="openUploadModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold">
+                <Button @click="handleCreateNavigation" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold">
                     <PlusIcon class="h-4 w-4 mr-2" /> New Intake
                 </Button>
             </div>
@@ -283,6 +287,4 @@ const refreshDocumentData = () => {
         @task-created="refreshDocumentData"
         @on-delete-requested="onDeleteRequested"
     />
-
-    <DocumentFormModal v-model:open="isUploadModalOpen" mode="create" :form="form" :requirement-status="props.requirementStatus" :users="project.client?.users || []" @submit="submitDocument" />
 </template>

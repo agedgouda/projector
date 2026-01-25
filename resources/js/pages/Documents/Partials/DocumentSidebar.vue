@@ -14,10 +14,13 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select';
+import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 
 const props = defineProps<{
-    project: any;
-    item: any;
+    project: Project;
+    // Changed to 'any' or a partial to allow the Inertia Form in Create.vue
+    // without missing-property errors.
+    item: ExtendedDocument | any;
     dueAtProxy: string;
 }>();
 
@@ -26,11 +29,7 @@ defineEmits<{
     (e: 'update:dueAtProxy', val: string): void;
 }>();
 
-const getDocLabel = (typeKey: string): string => {
-    const schema = props.project.type?.document_schema || [];
-    const found = schema.find((item: any) => item.key === typeKey);
-    return found?.label || typeKey.replace(/_/g, ' ');
-};
+const { getDocLabel } = useDocumentPresenter(props.project);
 </script>
 
 <template>
@@ -44,7 +43,7 @@ const getDocLabel = (typeKey: string): string => {
                         <div class="flex items-center justify-between text-xs">
                             <span class="text-slate-500">Category</span>
                             <span class="font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[9px] border border-indigo-100">
-                                {{ getDocLabel(item.type) }}
+                                {{ getDocLabel(item.type) || 'New Document' }}
                             </span>
                         </div>
 
@@ -67,12 +66,15 @@ const getDocLabel = (typeKey: string): string => {
                             <div class="flex justify-between items-center h-[24px]">
                                 <span class="text-slate-500 text-xs">Due Date</span>
                                 <div class="flex items-center hover:bg-slate-100 pl-2 pr-1 rounded transition-colors cursor-pointer mr-[-3px]">
-                                    <input
-                                        type="date"
-                                        :value="dueAtProxy"
-                                        @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
-                                        class="custom-date-input bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-[0.12em] text-slate-700 focus:ring-0 cursor-pointer w-[95px] text-right"
-                                    />
+                                        <input
+                                            type="date"
+                                            :value="dueAtProxy"
+                                            @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
+                                            :class="[
+                                                'custom-date-input bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-[0.12em] text-slate-700 focus:ring-0 cursor-pointer text-right',
+                                                !dueAtProxy ? 'w-[109px] is-empty' : 'w-[93px]'
+                                            ]"
+                                        />
                                 </div>
                             </div>
 
@@ -121,7 +123,7 @@ const getDocLabel = (typeKey: string): string => {
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between text-xs pt-2">
+                        <div v-if="item.id || item.processed_at === null" class="flex items-center justify-between text-xs pt-2">
                             <span class="text-slate-500">AI Status</span>
                             <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-1.5 text-indigo-600 animate-pulse">
                                 <RefreshCw class="h-3 w-3 animate-spin" />
@@ -132,7 +134,7 @@ const getDocLabel = (typeKey: string): string => {
                     </div>
                 </div>
 
-                <div class="pt-6 border-t border-slate-200">
+                <div v-if="item.id" class="pt-6 border-t border-slate-200">
                     <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Dates</h4>
                     <div class="space-y-4">
                         <div class="flex items-center justify-between text-[10px] uppercase tracking-wider">
@@ -157,22 +159,3 @@ const getDocLabel = (typeKey: string): string => {
         </div>
     </aside>
 </template>
-
-<style scoped>
-input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(48%) sepia(13%) saturate(541%) hue-rotate(186deg) brightness(96%) contrast(88%);
-    cursor: pointer;
-}
-
-:deep([data-radix-collection-item]),
-:deep(button[role="combobox"]),
-.custom-date-input:focus {
-    outline: none !important;
-    box-shadow: none !important;
-    border-color: transparent !important;
-}
-
-:deep(button[role="combobox"]:focus) {
-    background-color: rgb(241 245 249);
-}
-</style>
