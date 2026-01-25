@@ -1,11 +1,11 @@
 import { ref, type Ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import axios, { AxiosError } from 'axios';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 export function useDocumentActions(
     props: {
-        project: any;
-        projectDocumentsRoutes: any;
+        project: Project;
         requirementStatus?: any[];
     },
     localRequirements: Ref<any[]>,
@@ -14,7 +14,7 @@ export function useDocumentActions(
 ) {
     const isUploadModalOpen = ref(false);
     const isEditModalOpen = ref(false);
-    const editingDocumentId = ref<string | number | null>(null);
+    const editingDocumentId = ref< string | null>(null);
     const targetBeingCreated = ref<string | number | null>(null);
 
     const form = useForm({
@@ -29,8 +29,8 @@ export function useDocumentActions(
     /**
      * Patch a single field or set of fields instantly via Inertia.
      */
-    const patchField = (docId: string | number, data: Record<string, any>) => {
-        const url = props.projectDocumentsRoutes.update({
+    const patchField = (docId: string, data: Record<string, any>) => {
+        const url = projectDocumentsRoutes.update({
             project: props.project.id,
             document: docId
         }).url;
@@ -49,7 +49,7 @@ export function useDocumentActions(
      * The Centralized Normalizer
      * This is what your Sidebar calls via @change
      */
-    const updateField = (id: string | number, fieldName: string, rawValue: unknown) => {
+    const updateField = (id: string, fieldName: string, rawValue: unknown) => {
         let normalizedValue: string | number | null = null;
 
         if (rawValue === 'unassigned' || rawValue === null || rawValue === undefined) {
@@ -102,7 +102,7 @@ export function useDocumentActions(
     };
 
     const submitDocument = () => {
-        const url = props.projectDocumentsRoutes.store.url(props.project.id);
+        const url = projectDocumentsRoutes.store.url(props.project.id);
 
         form.post(url, {
             preserveScroll: true,
@@ -133,17 +133,24 @@ export function useDocumentActions(
     };
 
     const updateDocument = async (onSuccessCallback?: () => void) => {
+        const docId = editingDocumentId.value;
+
+        if (!docId) {
+            console.warn('[useDocumentActions] updateDocument called with no document selected');
+            return;
+        }
+
         form.processing = true;
 
         try {
-            const url = props.projectDocumentsRoutes.update.url({
+            const url = projectDocumentsRoutes.update.url({
                 project: props.project.id,
-                document: editingDocumentId.value
+                document: docId, // ✅ now typed as string
             });
 
             await axios.post(url, { ...form.data(), _method: 'put' });
 
-            if (onSuccessCallback) onSuccessCallback();
+            onSuccessCallback?.();
 
             isEditModalOpen.value = false;
             form.reset();

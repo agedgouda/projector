@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { RefreshCw } from 'lucide-vue-next';
 import { formatDate } from '@/lib/utils';
 import {
     STATUS_LABELS,
@@ -121,15 +120,6 @@ const { getDocLabel } = useDocumentPresenter(props.project);
                                     </SelectContent>
                                 </Select>
                             </div>
-                        </div>
-
-                        <div v-if="item.id || item.processed_at === null" class="flex items-center justify-between text-xs pt-2">
-                            <span class="text-slate-500">AI Status</span>
-                            <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-1.5 text-indigo-600 animate-pulse">
-                                <RefreshCw class="h-3 w-3 animate-spin" />
-                                <span class="font-black uppercase text-[9px]">{{ item.currentStatus || 'Processing' }}</span>
-                            </div>
-                            <span v-else class="text-emerald-600 font-bold uppercase text-[9px]">Analyzed</span>
                         </div>
                     </div>
                 </div>

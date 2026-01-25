@@ -3,7 +3,7 @@ import { useEcho } from '@laravel/echo-vue';
 import { globalAiState } from '@/state';
 
 export function useAiProcessing(
-    projectId: number,
+    projectId: string,
     allDocs: Ref<ExtendedDocument[]>,
     targetBeingCreated: Ref<string | number | null>,
     onDocumentUpdated?: (doc: ExtendedDocument) => void,

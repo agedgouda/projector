@@ -81,19 +81,18 @@ const confirmFinalDeletion = () => {
             />
 
             <div class="mt-6">
-                <div v-if="activeTab === 'docs'">
+                <div v-show="activeTab === 'docs'">
                     <DocumentManager
                         :project="project"
                         :requirement-status="requirementStatus"
                         :can-generate="canGenerate"
                         :is-generating="isGenerating"
-                        :project-documents-routes="projectDocumentsRoutes"
                         @confirm-delete="confirmDelete"
                         @generate="generateDeliverables"
                     />
                 </div>
 
-                <div v-else-if="activeTab === 'tasks'">
+                <div v-show="activeTab === 'tasks'">
                     <TaskMasterList
                         :tasks="project.tasks || []"
                         :users="project.client?.users || []"

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, toRef, watch, computed } from 'vue'; // Added computed
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useProjectState } from '@/composables/useProjectState';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { PlusIcon, Search, RefreshCw } from 'lucide-vue-next';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 // UI Components
 import AppLogoIcon from '@/components/AppLogoIcon.vue'
@@ -13,14 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import TraceabilityRow from './TraceabilityRow.vue';
-import TraceabilityDetailSheet from './TraceabilityDetailSheet.vue';
+
 
 const props = defineProps<{
-    project: any;
-    requirementStatus: any[];
+    project: Project;
+    requirementStatus: RequirementStatus[];
     canGenerate: boolean;
     isGenerating: boolean;
-    projectDocumentsRoutes: any;
 }>();
 
 const emit = defineEmits(['confirmDelete', 'generate']);
@@ -49,7 +49,7 @@ const {
     props,
     localRequirements,
     aiStatusMessageRef,
-    updateDocument // 🚀 Pass the funnel here
+    updateDocument
 );
 
 // --- 3. ENCAPSULATED AI & REAL-TIME ---
@@ -162,7 +162,7 @@ const getLeadUser = (doc: ExtendedDocument) => {
 
 const handleCreateNavigation = () => {
     // Navigate to the create page instead of opening a modal
-    router.visit(props.projectDocumentsRoutes.create({ project: props.project.id }).url);
+    router.visit(projectDocumentsRoutes.create({ project: props.project.id }).url);
 };
 
 const handleReprocess = (id: string | number) => {
@@ -179,13 +179,7 @@ const onDeleteRequested = (doc: any) => {
     emit('confirmDelete', doc);
 };
 
-const refreshDocumentData = () => {
-    router.get(usePage().url, {}, {
-        only: ['requirementStatus'],
-        preserveState: true,
-        preserveScroll: true
-    });
-};
+
 </script>
 
 <template>
@@ -244,12 +238,7 @@ const refreshDocumentData = () => {
             </div>
         </div>
 
-        <div class="hidden md:grid grid-cols-[1fr_120px_100px_120px] gap-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-            <span>Documentation Hierarchy</span>
-            <span class="text-right">Status</span>
-            <span class="text-right">Project Lead</span>
-            <span class="text-right pr-4">Actions</span>
-        </div>
+
 
         <div class="grid gap-3">
             <TraceabilityRow
@@ -274,17 +263,5 @@ const refreshDocumentData = () => {
         </div>
     </div>
 
-    <TraceabilityDetailSheet
-        v-model:open="isDetailsSheetOpen"
-        :item="selectedSheetItem"
-        :get-doc-label="getDocLabel"
-        :users="project.client?.users || []"
-        :requirement-status="props.requirementStatus"
-        :active-editing-id="activeEditingId"
-        :form="form"
-        @prepare-edit="handlePrepareEdit"
-        @submit="handleUpdateDocument"
-        @task-created="refreshDocumentData"
-        @on-delete-requested="onDeleteRequested"
-    />
+
 </template>

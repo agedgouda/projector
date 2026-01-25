@@ -41,7 +41,6 @@ const {
 } = useDocumentActions(
     {
         project: props.project,
-        projectDocumentsRoutes,
         requirementStatus:  []
     },
     ref([]),
