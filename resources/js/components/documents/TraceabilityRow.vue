@@ -2,8 +2,7 @@
 import { computed } from 'vue';
 import { ChevronRight, FileText, CheckSquare, Eye, Sparkles, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { router } from '@inertiajs/vue3';
-import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import { useDocumentActions } from '@/composables/useDocumentActions';
 
 const props = defineProps<{
     item: any;
@@ -13,7 +12,6 @@ const props = defineProps<{
     getDocLabel: (type: string) => string;
     selectedSheetId: string | number | null;
     getLeadUser: (doc: any) => any;
-    requirementStatus: any[];
     users: any[];
     form: any;
 }>();
@@ -24,7 +22,6 @@ const emit = defineEmits<{
     (e: 'onDeleteRequested', item: any): void;
     (e: 'prepareEdit', item: any): void;
     (e: 'submit', callback: () => void): void;
-    (e: 'openSheet', item: any): void;
 }>();
 
 const isTreeExpanded = computed(() => props.expandedRootIds instanceof Set && props.expandedRootIds.has(props.item.id));
@@ -32,13 +29,10 @@ const isSelected = computed(() => props.selectedSheetId === props.item.id);
 
 // Use the helper to get the lead user for this row
 const leadUser = computed(() => props.getLeadUser(props.item));
+const { navigateToDetails } = useDocumentActions({
+    project: { id: props.item.project_id } as any
+});
 
-const navigateToDetails = () => {
-    router.get(projectDocumentsRoutes.show({
-        project: props.item.project_id,
-        document: props.item.id
-    }).url);
-};
 </script>
 
 <template>
@@ -56,7 +50,7 @@ const navigateToDetails = () => {
                         isSelected ? 'border-indigo-400 ring-1 ring-indigo-100' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300',
                         level === 0 ? '' : (level === 1 ? 'ml-8' : 'ml-16')
                     ]"
-                    @click="navigateToDetails"
+                    @click="() => navigateToDetails(item.project_id, item.id, 'hierarchy')"
                 >
                     <div
                         v-if="item.children?.length"
@@ -118,7 +112,7 @@ const navigateToDetails = () => {
                         </Button>
 
                         <Button
-                            variant="ghost" size="sm" @click.stop="navigateToDetails"
+                            variant="ghost" size="sm" @click="() => navigateToDetails(item.project_id, item.id, 'hierarchy')"
                             class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 rounded-xl group/view"
                         >
                             <Eye class="h-3.5 w-3.5 mr-2" />
@@ -140,7 +134,6 @@ const navigateToDetails = () => {
                 :get-doc-label="getDocLabel"
                 :selected-sheet-id="selectedSheetId"
                 :get-lead-user="getLeadUser"
-                :requirement-status="requirementStatus"
                 :users="users"
                 :form="form"
                 @toggle-root="id => emit('toggleRoot', id)"
@@ -148,7 +141,6 @@ const navigateToDetails = () => {
                 @on-delete-requested="i => emit('onDeleteRequested', i)"
                 @prepare-edit="i => emit('prepareEdit', i)"
                 @submit="cb => emit('submit', cb)"
-                @open-sheet="i => emit('openSheet', i)"
             />
         </div>
     </div>

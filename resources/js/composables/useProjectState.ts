@@ -1,9 +1,12 @@
-import { ref, computed, watch, type Ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useDocumentTree } from '@/composables/useDocumentTree';
 
-export function useProjectState(requirementStatus: Ref<RequirementStatus[]>) {
+export function useProjectState(initialDocs: ProjectDocument[] = []) {
     // 1. CENTRALIZED STATE
-    const documentsMap = ref<Map<string | number, ExtendedDocument>>(new Map());
+    //const documentsMap = ref<Map<string | number, ExtendedDocument>>(new Map());
+    const documentsMap = ref<Map<string | number, ProjectDocument>>(
+        new Map(initialDocs.map(doc => [doc.id, doc]))
+    );
 
     /**
      * expandToParent
@@ -19,35 +22,7 @@ export function useProjectState(requirementStatus: Ref<RequirementStatus[]>) {
         }
     };
 
-    /**
-     * syncFromProps
-     * Preserves object references so child components don't re-render unnecessarily.
-     */
-    const syncFromProps = (statusGroups: RequirementStatus[]) => {
-        const incomingIds = new Set<string | number>();
 
-        statusGroups.forEach(group => {
-            group.documents.forEach(doc => {
-                incomingIds.add(doc.id);
-                const existing = documentsMap.value.get(doc.id);
-
-                if (existing) {
-                    Object.assign(existing, doc);
-                } else {
-                    documentsMap.value.set(doc.id, { ...doc } as ExtendedDocument);
-                }
-            });
-        });
-
-        for (const [id] of documentsMap.value) {
-            if (!incomingIds.has(id)) {
-                documentsMap.value.delete(id);
-            }
-        }
-    };
-
-    // 2. WATCHER
-    watch(requirementStatus, (newVal) => syncFromProps(newVal), { deep: true, immediate: true });
 
     // 3. TREE LOGIC ENCAPSULATION
     const allDocs = computed(() =>
@@ -56,13 +31,6 @@ export function useProjectState(requirementStatus: Ref<RequirementStatus[]>) {
 
     const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTree(allDocs);
 
-    // 4. MAPPED REQUIREMENTS
-    const localRequirements = computed(() => {
-        return requirementStatus.value.map(group => ({
-            ...group,
-            documents: allDocs.value.filter((d: ExtendedDocument) => d.type === group.key)
-        }));
-    });
 
     /**
      * updateDocument
@@ -109,7 +77,6 @@ export function useProjectState(requirementStatus: Ref<RequirementStatus[]>) {
     return {
         documentsMap,
         allDocs,
-        localRequirements,
         searchQuery,
         expandedRootIds,
         documentTree,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import {  ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectHeader from './Partials/ProjectHeader.vue';
@@ -15,6 +15,7 @@ import projectRoutes from '@/routes/projects/index';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { useProjectDashboard } from '@/composables/useProjectDashboard';
 
+
 const props = defineProps<{
     project: Project;
     projectTypes: ProjectType[];
@@ -24,7 +25,6 @@ const props = defineProps<{
 
 // --- COMPOSABLE LOGIC ---
 const {
-    requirementStatus,
     canGenerate,
     isDeleteModalOpen,
     isDeleting,
@@ -34,7 +34,7 @@ const {
     activeTab,
     isEditModalOpen,
     handleBack,
-    backLabel
+    backLabel,
 } = useProjectDashboard(props);
 
 // --- LOCAL STATE ---
@@ -63,6 +63,15 @@ const confirmFinalDeletion = () => {
         documents: projectDocumentsRoutes
     });
 };
+const updateTab = (tab: string) => {
+    activeTab.value = tab;
+    if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        window.history.replaceState({}, '', url);
+    }
+};
+
 </script>
 
 <template>
@@ -75,16 +84,15 @@ const confirmFinalDeletion = () => {
                 :origin="origin ?? null"
                 :active-tab="activeTab"
                 :back-label="backLabel"
-                @update:active-tab="(tab) => activeTab = tab"
+                @update:active-tab="updateTab"
                 @edit="isEditModalOpen = true"
                 @back="handleBack"
             />
 
             <div class="mt-6">
-                <div v-show="activeTab === 'docs'">
+                <div v-show="activeTab === 'hierarchy'">
                     <DocumentManager
                         :project="project"
-                        :requirement-status="requirementStatus"
                         :can-generate="canGenerate"
                         :is-generating="isGenerating"
                         @confirm-delete="confirmDelete"
@@ -94,7 +102,7 @@ const confirmFinalDeletion = () => {
 
                 <div v-show="activeTab === 'tasks'">
                     <TaskMasterList
-                        :tasks="project.tasks || []"
+                        :tasks="project.documents ?? []"
                         :users="project.client?.users || []"
                     />
                 </div>

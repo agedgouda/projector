@@ -1,23 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ChevronDown, ChevronUp, Link as LinkIcon, MessageSquare, Pencil, User2 } from 'lucide-vue-next';
+import { ChevronDown, ChevronUp, MessageSquare, User2 } from 'lucide-vue-next';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from '@/components/ui/tooltip';
 import { PRIORITY_LABELS, STATUS_LABELS, priorityClasses, statusClasses, statusDotClasses } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
-import { Link } from '@inertiajs/vue3';
-import { formatDate } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import TaskFormSheet from './TaskFormSheet.vue'; // Check your path
 
-defineProps<{
-    task: Task;
+import { formatDate } from '@/lib/utils';
+
+import { useDocumentActions } from '@/composables/useDocumentActions';
+
+
+const props = defineProps<{
+    task: ProjectDocument;
     users: User[];
 }>();
 
 const isExpanded = ref(false);
-const isEditOpen = ref(false);
+
+
+const { navigateToDetails } = useDocumentActions({
+    project: { id: props.task.project_id } as any
+});
+
+
 </script>
 
 <template>
@@ -31,7 +38,7 @@ const isEditOpen = ref(false);
             <div class="flex items-center gap-4 flex-1 min-w-0">
                 <div
                     class="w-2 h-2 rounded-full shrink-0"
-                    :class="statusDotClasses[task.status]"
+                    :class="statusDotClasses[task.task_status]"
                 />
 
                 <TooltipProvider v-if="task.assignee">
@@ -62,31 +69,18 @@ const isEditOpen = ref(false);
 
                 <div class="flex flex-col min-w-0">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                        {{ task.title }}
+                        {{ task.name }}
                     </h4>
-                    <div v-if="task.document" class="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
-                        <LinkIcon class="w-3 h-3" />
-                        <span>{{ task.document.name }}</span>
-                    </div>
                 </div>
             </div>
 
             <div class="flex items-center gap-4 text-right shrink-0">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    @click.stop="isEditOpen = true"
-                    class="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                >
-                    <Pencil class="w-3.5 h-3.5" />
-                </Button>
-
                 <div class="w-[120px] hidden md:flex justify-end">
                     <Badge variant="secondary"
                         class="uppercase text-[9px] tracking-tighter font-bold px-2 py-0"
-                        :class="statusClasses[task.status]"
+                        :class="statusClasses[task.task_status]"
                     >
-                        {{ STATUS_LABELS[task.status] || task.status }}
+                        {{ STATUS_LABELS[task.task_status] || task.task_status }}
                     </Badge>
                 </div>
 
@@ -112,33 +106,21 @@ const isEditOpen = ref(false);
 
         <div v-if="isExpanded" class="px-10 pb-4 border-t border-slate-50 bg-slate-50/50 dark:bg-slate-800/50">
             <div class="pt-4 space-y-4">
-                <div class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">
-                    {{ task.description || 'No implementation notes provided.' }}
-                </div>
+                <div  v-html="task.content"></div>
 
                 <div class="flex items-center justify-between">
-                    <Link
-                        :href="`/tasks/${task.id}`"
-                        class="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider"
+                    <button
+                        type="button"
+                        @click.stop="() => navigateToDetails(task.project_id, task.id, 'tasks')"
+                        class="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider cursor-pointer"
                     >
                         <MessageSquare class="w-3.5 h-3.5" />
-                        Open Discussion & Details
-                    </Link>
+                        Details
+                    </button>
 
                     <span class="text-[10px] text-slate-400">Created {{ new Date(task.created_at).toLocaleDateString() }}</span>
                 </div>
             </div>
         </div>
-
-        <TaskFormSheet
-            :open="isEditOpen"
-            @update:open="val => isEditOpen = val"
-            :task="task"
-            :project-id="task.project_id"
-            :document-id="task.document_id"
-            :users="users"
-            :initial-title="task.title"
-            :initial-description="task.description ?? ''"
-        />
     </div>
 </template>

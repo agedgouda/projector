@@ -3,7 +3,7 @@
    1. Imports & Types
 ---------------------------- */
 import { computed, ref, watch, type ComputedRef, nextTick } from 'vue';
-import { Head, usePage, router, Link } from '@inertiajs/vue3';
+import { Head, usePage, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import { useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
@@ -41,9 +41,8 @@ const {
 } = useDocumentActions(
     {
         project: props.project,
-        requirementStatus:  []
+        documentSchema: []
     },
-    ref([]),
     ref('')
 );
 
@@ -58,7 +57,7 @@ const parsedMetadata: ComputedRef<DocumentMetadata> = computed(() =>
     safeJsonParse(props.item?.metadata)
 );
 
-const form = useForm<DocumentFields>({
+const form = useForm<DocumentFields & { tab?: string }>({
     id: props.item.id as string,
     name: props.item.name,
     content: props.item.content,
@@ -78,12 +77,21 @@ const dueAtProxy = computed<string>({
 
 
 
-const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Projects', href: projectRoutes.index.url() },
-    { title: props.project.name, href: projectRoutes.show(props.project.id).url },
-    { title: props.item.name, href: '' }
-]);
+const breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    // Get the current tab from the URL
+    const params = new URLSearchParams(window.location.search);
+    const returnTab = params.get('tab') || 'hierarchy';
 
+    return [
+        { title: 'Projects', href: projectRoutes.index.url() },
+        {
+            title: props.project.name,
+            // Append the tab to the breadcrumb link too
+            href: `${projectRoutes.show(props.project.id).url}?tab=${returnTab}`
+        },
+        { title: props.item.name, href: '' }
+    ];
+});
 /* ---------------------------
    5. Action Handlers
 ---------------------------- */
@@ -93,6 +101,10 @@ const toggleEdit = () => {
 };
 
 const handleFormSubmit = () => {
+    // Get the current tab from the browser
+    const params = new URLSearchParams(window.location.search);
+    form.tab = params.get('tab') || 'hierarchy';
+
     const url = projectDocumentsRoutes.update({
         project: props.project.id,
         document: props.item.id
@@ -116,13 +128,21 @@ const openDeleteModal = () => { isDeleteModalOpen.value = true; };
 
 const confirmFinalDeletion = () => {
     isDeleting.value = true;
+
+    const params = new URLSearchParams(window.location.search);
+    const returnTab = params.get('tab') || 'hierarchy';
+
     const url = projectDocumentsRoutes.destroy({
         project: props.project.id,
         document: props.item.id
     }).url;
 
     router.delete(url, {
-        onSuccess: () => toast.success('Document deleted'),
+        onSuccess: () => {
+            toast.success('Document deleted');
+            // MANUAL OVERRIDE: Tell Inertia exactly where to go and include the tab
+            router.visit(`${projectRoutes.show(props.project.id).url}?tab=${returnTab}`);
+        },
         onFinish: () => {
             isDeleting.value = false;
             isDeleteModalOpen.value = false;
@@ -142,7 +162,12 @@ watch(() => page.props.flash, (flash) => {
 /* ---------------------------
    7. Helpers
 ---------------------------- */
+const handleBack = () => {
+    const params = new URLSearchParams(window.location.search);
+    const returnTab = params.get('tab') || 'hierarchy';
 
+    router.visit(`${projectRoutes.show(props.project.id).url}?tab=${returnTab}`);
+};
 </script>
 
 
@@ -155,13 +180,13 @@ watch(() => page.props.flash, (flash) => {
             <nav class="border-b bg-slate-50/50 px-8 py-4">
                 <div class="max-w-7xl mx-auto flex items-center justify-between">
                     <div class="flex items-center gap-4 text-sm text-slate-500">
-                        <Link
-                            :href="projectRoutes.show(project.id).url"
-                            class="hover:text-indigo-600 transition-colors flex items-center gap-2"
+                        <button
+                            @click="handleBack"
+                            class="hover:text-indigo-600 transition-colors flex items-center gap-2 cursor-pointer bg-transparent border-0 p-0"
                         >
                             <ArrowLeft class="w-3 h-3" />
                             {{ project.name }}
-                        </Link>
+                        </button>
                         <span class="text-slate-300">/</span>
                         <span class="font-medium text-slate-900 truncate max-w-[300px]">{{ item.name }}</span>
                     </div>

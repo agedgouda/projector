@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, toRef, watch, computed } from 'vue'; // Added computed
+import { ref, watch, computed } from 'vue'; // Added computed
 import { router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import { useDocumentActions } from '@/composables/useDocumentActions';
@@ -18,7 +18,6 @@ import TraceabilityRow from './TraceabilityRow.vue';
 
 const props = defineProps<{
     project: Project;
-    requirementStatus: RequirementStatus[];
     canGenerate: boolean;
     isGenerating: boolean;
 }>();
@@ -29,13 +28,12 @@ const emit = defineEmits(['confirmDelete', 'generate']);
 const {
     documentsMap,
     allDocs,
-    localRequirements,
     searchQuery,
     expandedRootIds,
     documentTree,
     toggleRoot,
     updateDocument // This is our unified funnel
-} = useProjectState(toRef(props, 'requirementStatus'));
+} = useProjectState(props.project.documents);
 
 // --- 2. ACTION LOGIC ---
 const aiStatusMessageRef = ref('');
@@ -47,7 +45,6 @@ const {
     targetBeingCreated, editingDocumentId
 } = useDocumentActions(
     props,
-    localRequirements,
     aiStatusMessageRef,
     updateDocument
 );
@@ -166,12 +163,16 @@ const handleCreateNavigation = () => {
 };
 
 const handleReprocess = (id: string | number) => {
+    const stringId = id.toString(); // ensure it's a string
+    const doc = allDocs.value.find(d => d.id.toString() === stringId) as UIProjectDocument | undefined;
+    if (!doc) return;
+
     aiProgress.value = 5;
     aiStatusMessage.value = "Initializing...";
 
-    // Reprocess call now uses the internal funnel logic
-    setDocToProcessing(id);
+    void setDocToProcessing(doc);
 };
+
 
 const onDeleteRequested = (doc: any) => {
     isDetailsSheetOpen.value = false;
@@ -251,7 +252,6 @@ const onDeleteRequested = (doc: any) => {
                 :expanded-root-ids="expandedRootIds"
                 :get-doc-label="getDocLabel"
                 :get-lead-user="getLeadUser"
-                :requirement-status="props.requirementStatus"
                 :users="project.client?.users || []"
                 :form="form"
                 @toggle-root="toggleRoot"

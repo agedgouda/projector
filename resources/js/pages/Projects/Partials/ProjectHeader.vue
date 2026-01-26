@@ -46,11 +46,11 @@ const emit = defineEmits<{
     </div>
 
     <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
-        <button v-for="tab in ['docs', 'tasks']" :key="tab"
+        <button v-for="tab in ['hierarchy', 'tasks']" :key="tab"
             @click="emit('update:activeTab', tab)"
             :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
                 activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
-            {{ tab === 'docs' ? 'Documentation' : 'Tasks' }}
+            {{ tab === 'hierarchy' ? 'Documentation' : 'Tasks' }}
         </button>
     </div>
 </template>

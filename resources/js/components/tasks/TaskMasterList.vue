@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Search, Filter, ArrowUpDown, User2 } from 'lucide-vue-next'; // Added User2
+import { Search, Filter, ArrowUpDown, User2 } from 'lucide-vue-next';
 import TaskCard from '@/components/tasks/TaskCard.vue';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const props = defineProps<{
-    tasks: Task[];
+    tasks: ProjectDocument[];
     users: User[];
 }>();
 
 // --- STATE ---
 const searchQuery = ref('');
 const statusFilter = ref('all');
-const assigneeFilter = ref('all'); // Added
+const assigneeFilter = ref('all');
 const sortBy = ref('priority');
 
 // --- LOGIC ---
@@ -24,8 +24,8 @@ const filteredTasks = computed(() => {
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
         result = result.filter(t =>
-            t.title?.toLowerCase().includes(query) ||
-            t.description?.toLowerCase().includes(query)
+            t.name?.toLowerCase().includes(query) ||
+            t.content?.toLowerCase().includes(query)
         );
     }
 
@@ -34,7 +34,7 @@ const filteredTasks = computed(() => {
         result = result.filter(t => t.status === statusFilter.value);
     }
 
-    // 3. Assignee Filter (Added)
+    // 3. Assignee Filter
     if (assigneeFilter.value !== 'all') {
         if (assigneeFilter.value === 'unassigned') {
             result = result.filter(t => !t.assignee_id);
@@ -50,12 +50,11 @@ const filteredTasks = computed(() => {
             return (weights[b.priority] || 0) - (weights[a.priority] || 0);
         }
         if (sortBy.value === 'newest') {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return new Date(b.due_at || '9999-12-31').getTime() - new Date(a.due_at || '9999-12-31').getTime();
         }
         if (sortBy.value === 'due_date') {
             return new Date(a.due_at || '9999-12-31').getTime() - new Date(b.due_at || '9999-12-31').getTime();
         }
-        // Added Assignee Sort (Alphabetical by First Name)
         if (sortBy.value === 'assignee') {
             const nameA = a.assignee?.first_name || 'ZZZ';
             const nameB = b.assignee?.first_name || 'ZZZ';
@@ -73,6 +72,7 @@ const resetFilters = () => {
     assigneeFilter.value = 'all';
 };
 </script>
+
 
 <template>
     <div class="space-y-6">

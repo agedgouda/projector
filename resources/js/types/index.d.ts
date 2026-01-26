@@ -37,6 +37,7 @@ declare global {
         key: string;
         label: string;
         required: boolean;
+        plural_label?: string;
     }
 
     export interface ProjectType {
@@ -95,7 +96,7 @@ declare global {
         creator_id: number | null;
         editor_id: number | null;
         assignee_id: number | null;
-        status: TaskStatus;
+        task_status: TaskStatus;
         priority: TaskPriority;
         due_at: string | null;
 
@@ -112,6 +113,11 @@ declare global {
         created_at: string;
         updated_at: string;
     }
+
+    export type UIProjectDocument = ProjectDocument & {
+        processingError?: string | null;
+        currentStatus?: string;
+    };
 
     export interface DocumentFields extends DocumentForm {
         id: string;
@@ -143,24 +149,16 @@ declare global {
 
 
 
-    export interface Task {
-        id: number;
-        project_id: string;
-        document_id: string | null;
-        assignee_id: number | null;
+    export interface TaskFromDoc {
+        id: string;                  // document ID
         title: string;
-        description: string | null;
-        status: TaskStatus;
-        priority: TaskPriority;
+        description: string;
+        assignee_id: number | null;
+        assignee?: User | null;      // optional, may not exist
         due_at: string | null;
-        created_at: string;
-        updated_at: string;
-
-        // Relationships
-        assignee?: User;
-        project?: Project;
-        document?: ProjectDocument;
-        comments?: Comment[];
+        priority: TaskPriority;
+        status: TaskStatus;
+        sourceType: string;          // document type
     }
 
     export interface FlatTask {

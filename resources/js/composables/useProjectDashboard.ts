@@ -1,12 +1,21 @@
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
+
 import projectRoutes from '@/routes/projects/index';
+
 
 export function useProjectDashboard(props: { project: Project, origin?: string | null }) {
     const isDeleteModalOpen = ref(false);
     const isDeleting = ref(false);
     const documentToDelete = ref<any>(null);
-    const activeTab = ref('docs');
+    const getInitialTab = () => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('tab') || 'hierarchy';
+        }
+        return 'hierarchy';
+    };
+    const activeTab = ref(getInitialTab());
     const isEditModalOpen = ref(false);
 
     const requirementStatus = computed(() => {
@@ -52,5 +61,17 @@ export function useProjectDashboard(props: { project: Project, origin?: string |
         return props.origin === 'index' ? 'Back to Projects' : 'Back to Client';
     });
 
-    return { requirementStatus, canGenerate, isDeleteModalOpen, isDeleting, documentToDelete, confirmDelete, deleteAction, activeTab, isEditModalOpen, handleBack, backLabel };
+
+    return {    requirementStatus,
+                canGenerate,
+                isDeleteModalOpen,
+                isDeleting,
+                documentToDelete,
+                confirmDelete,
+                deleteAction,
+                activeTab,
+                isEditModalOpen,
+                handleBack,
+                backLabel,
+            };
 }
