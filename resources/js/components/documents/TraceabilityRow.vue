@@ -7,6 +7,7 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 const props = defineProps<{
     item: any;
     level: number;
+    reprocessableTypes: Set<string>;
     activeEditingId: string | number | null;
     expandedRootIds: Set<string | number>;
     getDocLabel: (type: string) => string;
@@ -32,6 +33,8 @@ const leadUser = computed(() => props.getLeadUser(props.item));
 const { navigateToDetails } = useDocumentActions({
     project: { id: props.item.project_id } as any
 });
+
+const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.type));
 
 </script>
 
@@ -104,6 +107,7 @@ const { navigateToDetails } = useDocumentActions({
 
                     <div class="flex items-center gap-2 text-right shrink-0">
                         <Button
+                            v-if="isReprocessable"
                             variant="ghost" size="sm" @click.stop="emit('handleReprocess', item.id)"
                             class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl group/ai"
                         >
@@ -129,6 +133,7 @@ const { navigateToDetails } = useDocumentActions({
                 :key="'doc-' + child.id"
                 :item="child"
                 :level="level + 1"
+                :reprocessable-types="reprocessableTypes"
                 :active-editing-id="activeEditingId"
                 :expanded-root-ids="expandedRootIds"
                 :get-doc-label="getDocLabel"

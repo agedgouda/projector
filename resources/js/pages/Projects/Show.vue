@@ -25,7 +25,6 @@ const props = defineProps<{
 
 // --- COMPOSABLE LOGIC ---
 const {
-    canGenerate,
     isDeleteModalOpen,
     isDeleting,
     documentToDelete,
@@ -93,7 +92,6 @@ const updateTab = (tab: string) => {
                 <div v-show="activeTab === 'hierarchy'">
                     <DocumentManager
                         :project="project"
-                        :can-generate="canGenerate"
                         :is-generating="isGenerating"
                         @confirm-delete="confirmDelete"
                         @generate="generateDeliverables"

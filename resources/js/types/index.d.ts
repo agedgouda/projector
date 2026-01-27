@@ -36,7 +36,6 @@ declare global {
     export interface DocumentSchemaItem {
         key: string;
         label: string;
-        required: boolean;
         plural_label?: string;
     }
 
@@ -106,6 +105,7 @@ declare global {
         assignee?: User;
         project?: Project;
         children?: ProjectDocument[];
+        tasks?: Task[];
 
         embedding: any | null;
         metadata: DocumentMetadata;
@@ -131,7 +131,6 @@ declare global {
         task_status: TaskStatus;
         priority: TaskPriority;
         due_at: string | null;
-        tasks?: Task[];
         user?: User;
     }
 
@@ -190,14 +189,6 @@ declare global {
     export interface DocumentThread {
         root: ProjectDocument;
         children: ProjectDocument[];
-    }
-
-    export interface RequirementStatus {
-        label: string;
-        key: string;
-        required: boolean;
-        documents: ProjectDocument[];
-        isUploaded: boolean;
     }
 
     export interface ProjectTaskGroup {

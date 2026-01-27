@@ -7,6 +7,7 @@ import { useProjectState } from '@/composables/useProjectState';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { PlusIcon, Search, RefreshCw } from 'lucide-vue-next';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import { useWorkflow } from '@/composables/useWorkflow';
 
 // UI Components
 import AppLogoIcon from '@/components/AppLogoIcon.vue'
@@ -18,7 +19,6 @@ import TraceabilityRow from './TraceabilityRow.vue';
 
 const props = defineProps<{
     project: Project;
-    canGenerate: boolean;
     isGenerating: boolean;
 }>();
 
@@ -180,6 +180,8 @@ const onDeleteRequested = (doc: any) => {
     emit('confirmDelete', doc);
 };
 
+// --- 5. WORKFLOW LOGIC ---
+const { reprocessableTypes } = useWorkflow(props.project);
 
 </script>
 
@@ -246,6 +248,7 @@ const onDeleteRequested = (doc: any) => {
                 v-for="intake in documentTree"
                 :key="intake.id"
                 :item="intake"
+                :reprocessable-types="reprocessableTypes"
                 :level="0"
                 :active-editing-id="activeEditingId"
                 :selected-sheet-id="selectedSheetItem?.id ?? null"

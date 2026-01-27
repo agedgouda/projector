@@ -20,7 +20,7 @@ const activeTab = ref('documents');
 const form = useForm({
     name: '',
     icon: 'Briefcase',
-    document_schema: [] as any[],
+    document_schema: [] as DocumentSchemaItem[],
     workflow: [] as { step: number, from_key: string, to_key: string, ai_template_id: string | null }[],
 });
 
@@ -32,7 +32,7 @@ watch(() => props.editData, (newVal) => {
         form.workflow = newVal.workflow ? [...newVal.workflow] : [];
     } else {
         form.reset();
-        form.document_schema = [{ label: 'Notes', key: 'intake', required: true }];
+        form.document_schema = [{ label: 'Notes', key: 'intake' }];
     }
 }, { immediate: true });
 
@@ -106,7 +106,7 @@ const submit = () => {
         <div v-if="activeTab === 'documents'" class="space-y-4 animate-in fade-in duration-300">
             <div class="flex items-center justify-between mb-2">
                 <p class="text-[11px] text-gray-400 font-bold uppercase tracking-widest px-1">Schema Configuration</p>
-                <Button type="button" variant="ghost" size="sm" @click="form.document_schema.push({ label: '', key: '', required: false })" class="h-8 text-[10px] font-black rounded-lg uppercase text-indigo-600">
+                <Button type="button" variant="ghost" size="sm" @click="form.document_schema.push({ label: '', key: '' })" class="h-8 text-[10px] font-black rounded-lg uppercase text-indigo-600">
                     <Plus class="w-3 h-3 mr-2" /> Add Definition
                 </Button>
             </div>
@@ -125,16 +125,6 @@ const submit = () => {
                         <Hash class="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-300" />
                         <Input v-model="doc.key" placeholder="key" class="h-11 pl-8 rounded-xl font-mono bg-gray-50/50 dark:bg-gray-900 border-none text-xs" :disabled="doc.key === 'intake'" />
                     </div>
-                </div>
-
-                <div class="flex items-center gap-6 md:pt-5">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" v-model="doc.required" class="w-4 h-4 rounded border-gray-300 text-indigo-600" />
-                        <span class="text-[10px] font-black uppercase text-gray-400">Required</span>
-                    </label>
-                    <button v-if="doc.key !== 'intake'" type="button" @click="form.document_schema.splice(index, 1)" class="p-2 text-gray-300 hover:text-red-500 transition-colors">
-                        <X class="w-4 h-4" />
-                    </button>
                 </div>
             </div>
         </div>

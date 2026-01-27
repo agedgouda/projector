@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
-
 import projectRoutes from '@/routes/projects/index';
+import clientRoutes from '@/routes/clients/index';
 
 
 export function useProjectDashboard(props: { project: Project, origin?: string | null }) {
@@ -53,7 +53,7 @@ export function useProjectDashboard(props: { project: Project, origin?: string |
         if (props.origin === 'index') {
             router.visit(projectRoutes.index.url());
         } else {
-            router.visit(`/clients/${props.project.client_id}`);
+            router.visit(clientRoutes.show.url({ client: props.project.client_id }));
         }
     };
 
