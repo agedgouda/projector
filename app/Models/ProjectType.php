@@ -28,13 +28,11 @@ class ProjectType extends Model
     {
         return Attribute::make(
             get: function ($value) {
-                $schema = json_decode($value, true);
+                $schema = json_decode($value ?? '[]', true);
 
                 if (!$schema) return [];
 
                 return array_map(function ($item) {
-                    // We add a new 'plural_label' key so we don't break
-                    // any existing logic that relies on the singular 'label'
                     $item['plural_label'] = Str::plural($item['label'] ?? '');
                     return $item;
                 }, $schema);

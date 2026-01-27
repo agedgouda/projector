@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatDate } from '@/lib/utils';
+import { computed } from 'vue';
 import {
     STATUS_LABELS,
     PRIORITY_LABELS,
@@ -17,8 +18,6 @@ import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 
 const props = defineProps<{
     project: Project;
-    // Changed to 'any' or a partial to allow the Inertia Form in Create.vue
-    // without missing-property errors.
     item: ExtendedDocument | any;
     dueAtProxy: string;
 }>();
@@ -29,6 +28,9 @@ defineEmits<{
 }>();
 
 const { getDocLabel } = useDocumentPresenter(props.project);
+const { isTask } = useDocumentPresenter(props.project);
+const shouldShowTask = computed(() => isTask(props.item.type));
+
 </script>
 
 <template>
@@ -46,7 +48,7 @@ const { getDocLabel } = useDocumentPresenter(props.project);
                             </span>
                         </div>
 
-                        <div class="flex flex-col">
+                        <div class="flex flex-col" v-if="shouldShowTask">
                             <div class="flex justify-between items-center h-[24px]">
                                 <span class="text-slate-500 text-xs">Assignee</span>
                                 <Select :model-value="item.assignee_id?.toString() ?? 'unassigned'" @update:model-value="(val) => $emit('change', 'assignee_id', val)">

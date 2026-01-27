@@ -37,7 +37,7 @@ class ProjectTypeController extends Controller
         $validated = $this->validateProtocol($request);
         ProjectType::create($validated);
 
-        return to_route('project-types.index')->with('success', 'Protocol initialized.');
+        return back()->with('message', 'success');
     }
 
     public function update(Request $request, ProjectType $projectType)
@@ -47,7 +47,7 @@ class ProjectTypeController extends Controller
         $validated = $this->validateProtocol($request, $projectType->id);
         $projectType->update($validated);
 
-        return to_route('project-types.index')->with('success', 'Protocol updated.');
+        return back()->with('message', 'success');
     }
 
     public function destroy(ProjectType $projectType)
@@ -70,7 +70,7 @@ class ProjectTypeController extends Controller
             'document_schema' => 'nullable|array',
             'document_schema.*.label' => 'required|string',
             'document_schema.*.key' => 'required|string',
-            'document_schema.*.required' => 'required|boolean',
+            'document_schema.*.is_task' => 'required|boolean',
             'workflow' => 'nullable|array',
             'workflow.*.from_key' => 'required|string',
             'workflow.*.to_key' => 'required|string',

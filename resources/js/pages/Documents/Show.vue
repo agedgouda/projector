@@ -76,7 +76,6 @@ const dueAtProxy = computed<string>({
 });
 
 
-
 const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     // Get the current tab from the URL
     const params = new URLSearchParams(window.location.search);
@@ -168,6 +167,8 @@ const handleBack = () => {
 
     router.visit(`${projectRoutes.show(props.project.id).url}?tab=${returnTab}`);
 };
+
+
 </script>
 
 

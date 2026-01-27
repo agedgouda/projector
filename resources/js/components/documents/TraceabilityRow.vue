@@ -109,12 +109,12 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
                         <Button
                             v-if="isReprocessable"
                             variant="ghost" size="sm" @click.stop="emit('handleReprocess', item.id)"
+                            :disabled="item.currentStatus || item.processed_at === null"
                             class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl group/ai"
                         >
                             <Sparkles class="h-3.5 w-3.5 mr-2" />
                             <span class="text-[10px] font-black uppercase tracking-wider">Reprocess</span>
                         </Button>
-
                         <Button
                             variant="ghost" size="sm" @click="() => navigateToDetails(item.project_id, item.id, 'hierarchy')"
                             class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 rounded-xl group/view"

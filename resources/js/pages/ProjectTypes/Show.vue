@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectTypeForm from './Partials/ProjectTypeForm.vue';
 import {
@@ -20,10 +21,17 @@ import {
     PenTool,
     Rocket,
     Settings,
-    Settings2,
     Zap
 } from 'lucide-vue-next';
 import { type BreadcrumbItem } from '@/types';
+import { toast } from "vue-sonner";
+const activeTab = ref('general');
+
+const tabs = [
+    { id: 'general', label: 'General Info', icon: Info },
+    { id: 'schema', label: 'Document Schema', icon: Database },
+    { id: 'workflow', label: 'AI Pipeline', icon: Activity },
+];
 
 const iconLibrary = [
     { name: 'Code', component: Code }, { name: 'Megaphone', component: Megaphone },
@@ -50,10 +58,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const handleSuccess = () => {
-    // Usually redirect back to index or show a "Saved" toast
+    toast.success('Protocol updated', {
+        description: 'Your changes have been saved to the database.',
+    });
 };
 
-const getIcon = (name?: string) => iconLibrary.find(i => i.name === name)?.component || Info;
+
 </script>
 
 <template>
@@ -61,66 +71,38 @@ const getIcon = (name?: string) => iconLibrary.find(i => i.name === name)?.compo
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 max-w-5xl mx-auto w-full">
-
             <div class="mb-10">
-                <Link
-                    href="/project-types"
-                    class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-indigo-600 transition-colors mb-6 group"
-                >
+                <Link href="/project-types" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-indigo-600 transition-colors mb-6 group">
                     <ChevronLeft class="w-3 h-3 transition-transform group-hover:-translate-x-1" />
                     Back to Protocols
                 </Link>
 
                 <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div class="flex items-start gap-5">
-                        <div class="h-16 w-16 rounded-3xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20">
-                            <component :is="getIcon(projectType?.icon)" class="w-8 h-8" />
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-3 mb-1">
-                                <h1 class="text-3xl font-black tracking-tighter text-gray-900 dark:text-white uppercase">
-                                    {{ projectType?.name ?? 'New Protocol' }}
-                                </h1>
-                                <span class="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-tighter">
-                                    Protocol
-                                </span>
-                            </div>
-                            <p class="text-sm text-gray-500 font-medium italic">
-                                Configure document relationships and automated AI intelligence for this project category.
-                            </p>
-                        </div>
                     </div>
-
-                    <div class="flex gap-4 border-l border-gray-100 dark:border-gray-800 pl-6 hidden lg:flex">
-                        <div class="text-center">
-                            <p class="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">Documents</p>
-                            <div class="flex items-center gap-1 justify-center text-gray-900 dark:text-white font-bold">
-                                <Database class="w-3 h-3 text-indigo-500" />
-                                {{ projectType?.document_schema?.length ?? 0 }}
-                            </div>
-                        </div>
-                        <div class="w-px h-8 bg-gray-100 dark:bg-gray-800"></div>
-                        <div class="text-center">
-                            <p class="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">AI Steps</p>
-                            <div class="flex items-center gap-1 justify-center text-gray-900 dark:text-white font-bold">
-                                <Activity class="w-3 h-3 text-indigo-500" />
-                                {{ projectType?.workflow?.length ?? 0 }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div class="bg-white dark:bg-gray-950 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-                <div class="p-8 md:p-12">
-                    <div class="flex items-center gap-3 mb-10 pb-6 border-b border-gray-50 dark:border-gray-900">
-                        <Settings2 class="w-5 h-5 text-indigo-500" />
-                        <h2 class="text-sm font-black uppercase tracking-[0.2em] text-gray-900 dark:text-white">
-                            Engine Configuration
-                        </h2>
-                    </div>
+                <div class="flex border-b border-gray-100 dark:border-gray-900 bg-gray-50/50 dark:bg-gray-900/50 px-8">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.id"
+                        @click="activeTab = tab.id"
+                        :class="[
+                            'flex items-center gap-2 px-6 py-5 text-[10px] font-black uppercase tracking-widest transition-all relative',
+                            activeTab === tab.id
+                                ? 'text-indigo-600'
+                                : 'text-gray-400 hover:text-gray-600'
+                        ]"
+                    >
+                        <component :is="tab.icon" class="w-3.5 h-3.5" />
+                        {{ tab.label }}
+                        <div v-if="activeTab === tab.id" class="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"></div>
+                    </button>
+                </div>
 
+                <div class="md:p-8">
                     <ProjectTypeForm
+                        :active-tab="activeTab"
                         :edit-data="projectType"
                         :icon-library="iconLibrary"
                         :ai-templates="aiTemplates"
@@ -128,15 +110,6 @@ const getIcon = (name?: string) => iconLibrary.find(i => i.name === name)?.compo
                         @cancel="() => $inertia.visit('/project-types')"
                     />
                 </div>
-            </div>
-
-            <div class="mt-12 p-8 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6">
-                <div class="text-center md:text-left">
-                    <h4 class="text-xs font-black uppercase text-gray-400 tracking-widest mb-1">Protocol Usage</h4>
-                    <p class="text-[11px] text-gray-500 italic font-medium">Changes here will affect all active and future projects using this protocol.</p>
-                </div>
-                <div class="flex gap-4">
-                    </div>
             </div>
         </div>
     </AppLayout>

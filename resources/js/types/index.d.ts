@@ -36,6 +36,7 @@ declare global {
     export interface DocumentSchemaItem {
         key: string;
         label: string;
+        is_task: boolean;
         plural_label?: string;
     }
 
@@ -213,6 +214,13 @@ declare global {
         };
         [key: string]: unknown;
     };
+
+    export interface WorkflowStep {
+        step: number;
+        from_key: string;
+        to_key: string;
+        ai_template_id: string | null;
+    }
 }
 
 // Module-level exports

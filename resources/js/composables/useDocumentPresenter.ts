@@ -9,5 +9,12 @@ export function useDocumentPresenter(project?: Project) {
         return found?.label || typeKey.replace(/_/g, ' ');
     };
 
-    return { getDocLabel };
+    const isTask = (typeKey: string | null | undefined): boolean => {
+        if (!typeKey) return false;
+        const schema = project?.type?.document_schema || [];
+        const found = schema.find((s) => s.key === typeKey);
+        return !!found?.is_task;
+    };
+
+    return { getDocLabel, isTask };
 }
