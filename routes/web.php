@@ -5,6 +5,7 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTypeController;
@@ -45,7 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // 2. Client & Project Management (PROTECTED BY MIDDLEWARE)
     // We apply the middleware to these groups
     Route::middleware(['client.access'])->group(function () {
-
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::resource('clients', ClientController::class);
         Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);
 

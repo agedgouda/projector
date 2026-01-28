@@ -4,6 +4,7 @@ import projectRoutes from '@/routes/projects/index';
 import clientRoutes from '@/routes/clients/index';
 
 
+
 export function useProjectDashboard(props: { project: Project, origin?: string | null }) {
     const isDeleteModalOpen = ref(false);
     const isDeleting = ref(false);
@@ -27,9 +28,7 @@ export function useProjectDashboard(props: { project: Project, origin?: string |
         });
     });
 
-    const canGenerate = computed(() =>
-        requirementStatus.value.filter(r => r.required).every(r => r.isUploaded)
-    );
+
 
     const confirmDelete = (doc?: any) => {
         documentToDelete.value = doc || null;
@@ -63,7 +62,6 @@ export function useProjectDashboard(props: { project: Project, origin?: string |
 
 
     return {    requirementStatus,
-                canGenerate,
                 isDeleteModalOpen,
                 isDeleting,
                 documentToDelete,
