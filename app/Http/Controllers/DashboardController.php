@@ -15,11 +15,10 @@ class DashboardController extends Controller
     {
         // 1. Get only projects the user is allowed to see (Policy-aligned)
         $projects = Project::visibleTo($request->user())
-            ->with('type')
+            ->with(['type', 'client.users'])
             ->latest()
             ->get();
 
-        \Log::info("here");
 
         // 2. Determine active project context
         // We find the project within the authorized $projects collection
@@ -40,7 +39,7 @@ class DashboardController extends Controller
         }
 
         // 4. Match the prop contract exactly to Dashboard.vue
-        return Inertia::render('Dashboard', [
+        return Inertia::render('Dashboard/Index', [
             'projects' => $projects,
             'currentProject' => $currentProject,
             'kanbanData' => $kanbanData,

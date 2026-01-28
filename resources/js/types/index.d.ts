@@ -104,7 +104,7 @@ declare global {
         creator?: User;
         editor?: User;
         assignee?: User;
-        project?: Project;
+        project?: Partial<Project>;
         children?: ProjectDocument[];
         tasks?: Task[];
 

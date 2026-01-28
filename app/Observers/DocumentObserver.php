@@ -26,6 +26,21 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         }
     }
 
+    public function creating(Document $document): void
+    {
+        // Determine if this type is a task based on the project protocol
+        $schema = $document->project->type->document_schema;
+        $schemaItem = collect($schema)->firstWhere('key', $document->type);
+
+        $isTask = $schemaItem['is_task'] ?? false;
+
+        // If it's a taskable type and status is currently empty, default to 'todo'
+        if ($isTask && is_null($document->status)) {
+            $document->status = 'todo';
+            $document->task_status = 'todo'; // Keep both in sync for your board
+        }
+    }
+
     public function updated(Document $document): void
     {
         // If content is dirty, the previous embedding is now invalid (Garbage in, Garbage out)

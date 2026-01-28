@@ -52,6 +52,7 @@
         "vue-input-otp": "^0.3.2",
         "vue-router": "^4.6.4",
         "vue-sonner": "^2.0.9",
+        "vuedraggable": "^4.1.0",
         "ziggy-js": "^2.6.0"
     },
     "optionalDependencies": {
