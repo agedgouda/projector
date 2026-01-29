@@ -13,7 +13,14 @@ export const KANBAN_UI = {
     cardTitle: "text-xs font-bold text-gray-900 leading-tight line-clamp-2",
 
     // Ghost/Placeholder Card (for when dragging)
-    ghostCard: "bg-indigo-50/50 border-2 border-dashed border-indigo-200 rounded-xl opacity-50",
+    ghostCard: [
+        "bg-indigo-50/50",
+        "border-2",
+        "border-dashed",
+        "border-indigo-200",
+        "rounded-xl",
+        "opacity-50"
+    ],
 
     // Header Styles
     columnHeader: "flex items-center justify-center gap-3 py-4",
