@@ -3,7 +3,10 @@ import { toast } from 'vue-sonner';
 import projectRoutes from '@/routes/projects';
 import type { KanbanProps } from './useKanbanBoard';
 
-export function useKanbanActions(props: KanbanProps) {
+export function useKanbanActions(
+    props: KanbanProps,
+    applyLocalUpdate: (id: string | number, data: Record<string, any>) => void
+) {
 
     /**
      * Updates a document attribute with Optimistic UI support
@@ -25,17 +28,17 @@ export function useKanbanActions(props: KanbanProps) {
             preserveScroll: true,
             preserveState: true,
             onBefore: () => {
-                // This is where you would update a LOCAL ref if you had one.
-                // Since we are using Inertia props, we rely on preserveState
-                // and the server's fast response.
+                // 1. Trigger the visual move immediately
+                applyLocalUpdate(documentId, data);
             },
             onSuccess: () => {
                 if (successMessage) toast.success(successMessage);
             },
             onError: () => {
-                // If the server rejects the change, Inertia automatically
-                // re-renders the component with the "Old" props from the session,
-                // effectively performing the rollback for us.
+                // 2. Rollback happens automatically!
+                // When Inertia gets an error, it re-renders the page with
+                // the "old" props. Our watcher in useKanbanState will see
+                // the old props and reset localKanbanData automatically.
                 toast.error('Failed to save changes. Reverting...');
             }
         });

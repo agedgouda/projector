@@ -4,13 +4,8 @@ import KanbanColumn from './KanbanColumn.vue';
 defineProps<{
     row: any;
     columnStatuses: TaskStatus[];
-
-    // 1. ADD THESE THREE LINES:
-    isColumnVisible: (status: TaskStatus) => boolean;
     canCreateTask: (status: TaskStatus) => boolean;
     gridStyle: Record<string, string>;
-
-    // Existing props...
     getTasks: (rowKey: string, status: TaskStatus) => ProjectDocument[];
     onDrag: (evt: any, status: TaskStatus) => void;
     onOpen: (doc: ProjectDocument) => void;
@@ -30,7 +25,6 @@ defineProps<{
         <div class="grid grid-cols-4 gap-8">
             <template v-for="status in columnStatuses" :key="status">
             <KanbanColumn
-                v-if="isColumnVisible(status)"
                 :status="status"
                 :tasks="getTasks(row.key, status)"
                 :row-label="row.label"

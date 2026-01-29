@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { onKeyStroke } from '@vueuse/core'; // For the Hero Escape shortcut
-import { Search, X } from 'lucide-vue-next'; // Search icons
+import { onKeyStroke } from '@vueuse/core';
+import { Search, X } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { STATUS_LABELS } from '@/lib/constants';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
@@ -30,17 +30,13 @@ const {
     updateAttribute,
     onDragChange,
     openDetail,
-    isColumnVisible,
     canCreateTask,
     searchQuery
 } = useKanbanBoard(props);
 
-// 1. Hero Shortcut: Pressing 'Esc' clears the search
 onKeyStroke('Escape', () => {
     searchQuery.value = '';
 });
-
-const visibleStatuses = computed(() => columnStatuses.filter(isColumnVisible));
 
 const workflowRows = computed(() => props.currentProject?.type?.document_schema?.filter(s => s.is_task) || []);
 
@@ -49,9 +45,9 @@ const breadcrumbs = computed(() => [
     { title: props.currentProject?.name ?? 'Select Project', href: '' }
 ]);
 
-// 2. Check if the board is empty due to filtering
+// Check if the board is empty based on the full column list
 const hasVisibleTasks = computed(() => {
-    return visibleStatuses.value.some(status => getColumnTaskCount(status) > 0);
+    return columnStatuses.some(status => getColumnTaskCount(status) > 0);
 });
 </script>
 
@@ -84,7 +80,7 @@ const hasVisibleTasks = computed(() => {
 
             <div v-if="currentProject" class="space-y-5">
                 <KanbanHeader
-                    :column-statuses="visibleStatuses"
+                    :column-statuses="columnStatuses"
                     :get-count="getColumnTaskCount"
                     :class="KANBAN_UI.columnHeader"
                 />
@@ -103,14 +99,13 @@ const hasVisibleTasks = computed(() => {
                         :key="row.key"
                         :row="row"
                         :column-statuses="columnStatuses"
-                        :is-column-visible="isColumnVisible"
                         :can-create-task="canCreateTask"
                         :get-tasks="getTasksByRowAndStatus"
                         :on-drag="onDragChange"
                         :on-open="openDetail"
                         :on-create="(key) => handleCreateNew(key)"
                         :grid-style="{
-                            gridTemplateColumns: `repeat(${visibleStatuses.length}, minmax(0, 1fr))`
+                            gridTemplateColumns: `repeat(${columnStatuses.length}, minmax(0, 1fr))`
                         }"
                     />
                 </div>

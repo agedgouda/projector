@@ -7,18 +7,6 @@ export function useKanbanRules(
 ) {
     const { isAdmin } = permissions;
 
-    /**
-     * Rules for column visibility
-     */
-    const isColumnVisible = (status: TaskStatus): boolean => {
-        // Double casting to 'unknown' first bypasses the overlap check
-        const restrictedStatuses = ['backlog'] as unknown as TaskStatus[];
-
-        if (restrictedStatuses.includes(status) && !isAdmin.value) {
-            return false;
-        }
-        return true;
-    };
 
     /**
      * Rules for where the "New Task" button appears
@@ -31,7 +19,6 @@ export function useKanbanRules(
     };
 
     return {
-        isColumnVisible,
         canCreateTask,
     };
 }
