@@ -25,7 +25,7 @@ class StoreDocumentRequest extends FormRequest
         return [
             'name'        => [($isUpdate ? 'sometimes' : 'required'), 'string', 'max:255'],
             'type'        => [($isUpdate ? 'sometimes' : 'required'), 'string'],
-            'content'     => ['nullable', 'string'],
+            'content'     => ['required', 'string'],
             'priority'    => [($isUpdate ? 'sometimes' : 'required'), 'string'],
             'task_status' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
             'due_at'      => ['nullable', 'date'],
