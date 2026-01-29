@@ -43,10 +43,6 @@ class DashboardController extends Controller
             'projects' => $projects,
             'currentProject' => $currentProject,
             'kanbanData' => $kanbanData,
-            // Including shared state usually expected by AppLayout
-            'auth' => [
-                'user' => $request->user(),
-            ]
         ]);
     }
 }

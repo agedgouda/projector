@@ -1,5 +1,7 @@
 // @/lib/kanban-theme.ts
 
+import { CSSProperties } from "vue";
+
 export const KANBAN_UI = {
     // Labels & Typography
     label: "text-[10px] font-black uppercase tracking-widest",
@@ -23,6 +25,15 @@ export const KANBAN_UI = {
 
     // Column Styles
     columnWrapper: "flex flex-col gap-4 min-h-[160px] bg-gray-50/40 rounded-[2rem] border border-dashed border-gray-200/60 p-4 relative",
+
+    gridContainer: (columnCount: number): CSSProperties => ({
+        display: 'grid',
+        gap: '2rem', // gap-8
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        width: '100%',
+    })
+
+
 };
 
 /**
@@ -51,3 +62,5 @@ export const getAvatarAppearance = (id: number = 0) => {
     ];
     return variants[id % variants.length];
 };
+
+

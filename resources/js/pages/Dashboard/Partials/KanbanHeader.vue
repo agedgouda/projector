@@ -1,25 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { STATUS_LABELS, statusDotClasses } from '@/lib/constants';
 import { KANBAN_UI } from '@/lib/kanban-theme';
 
-const props = defineProps<{
+defineProps<{
     columnStatuses: TaskStatus[];
     getCount: (status: TaskStatus) => number;
 }>();
-
-// Calculate the grid columns based on how many statuses are actually being passed
-const gridStyle = computed(() => ({
-    gridTemplateColumns: `repeat(${props.columnStatuses.length}, minmax(0, 1fr))`
-}));
 </script>
 
 <template>
     <div
-        class="grid gap-8 px-4 sticky top-0 bg-white/90 backdrop-blur-md z-20 py-0 border-b border-gray-100/50"
-        :style="gridStyle"
+        class="sticky top-0 bg-white/90 backdrop-blur-md z-20 border-b border-gray-100/50 px-4 w-full block"
+        :style="KANBAN_UI.gridContainer(columnStatuses.length)"
     >
-        <div v-for="status in columnStatuses" :key="status" :class="KANBAN_UI.columnHeader">
+        <div
+            v-for="status in columnStatuses"
+            :key="status"
+            :class="KANBAN_UI.columnHeader"
+        >
             <div :class="['h-2 w-2 rounded-full shadow-sm', statusDotClasses[status]]"></div>
 
             <div class="flex items-center gap-2">

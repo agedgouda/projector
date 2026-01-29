@@ -53,15 +53,16 @@ const hasVisibleTasks = computed(() => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-8 max-w-[1600px] mx-auto space-y-8">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-8 space-y-8 w-full">
+            <div class="w-full">
                 <ProjectSwitcher
                     :projects="projects"
                     :current-project="currentProject"
                     @switch="(id) => router.get('/dashboard', { project: id })"
                 />
-
-                <div v-if="currentProject" class="relative w-full md:w-80 group">
+            </div>
+            <div class="flex flex-col md:flex-row md:items-center justify-start gap-4">
+                <div v-if="currentProject && hasVisibleTasks" class="relative w-full md:w-1/2 group">
                     <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                         v-model="searchQuery"
@@ -78,7 +79,7 @@ const hasVisibleTasks = computed(() => {
                 </div>
             </div>
 
-            <div v-if="currentProject" class="space-y-5">
+            <div v-if="currentProject && hasVisibleTasks" class="block w-full min-w-0">
                 <KanbanHeader
                     :column-statuses="columnStatuses"
                     :get-count="getColumnTaskCount"
@@ -93,7 +94,7 @@ const hasVisibleTasks = computed(() => {
                     <p class="text-gray-500 text-sm">Try adjusting your search query or press Escape.</p>
                 </div>
 
-                <div v-else class="space-y-1">
+                <div v-else class="space-y-1 w-full block">
                     <KanbanRow
                         v-for="row in workflowRows"
                         :key="row.key"
