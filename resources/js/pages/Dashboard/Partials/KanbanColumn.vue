@@ -24,9 +24,17 @@ const emit = defineEmits(['drag', 'open', 'create']);
             class="flex-1 space-y-4 min-h-[100px]"
             :ghost-class="KANBAN_UI.ghostCard"
             @change="emit('drag', $event)"
+
+            :component-data="{
+                tag: 'div',
+                type: 'transition-group',
+                name: 'kanban-list'
+            }"
         >
             <template #item="{ element: doc }">
-                <KanbanCard :doc="doc" @click="emit('open', doc)" />
+                <div class="kanban-item">
+                    <KanbanCard :doc="doc" @click="emit('open', doc)" />
+                </div>
             </template>
         </draggable>
 

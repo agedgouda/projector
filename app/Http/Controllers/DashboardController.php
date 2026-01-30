@@ -13,36 +13,32 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // 1. Get only projects the user is allowed to see (Policy-aligned)
         $projects = Project::visibleTo($request->user())
             ->with(['type', 'client.users'])
             ->latest()
             ->get();
 
+        // IF NO PROJECTS: Render the "Access Denied/Pending" page instead
+        if ($projects->isEmpty()) {
+            return Inertia::render('Dashboard/AccessPending', [
+                'user' => $request->user(),
+                'message' => 'Your account is currently awaiting assignment to a client.'
+            ]);
+        }
 
-        // 2. Determine active project context
-        // We find the project within the authorized $projects collection
-        // to prevent ID-guessing/unauthorized access.
         $projectId = $request->query('project');
-
         $currentProject = $projectId
             ? $projects->where('id', $projectId)->first()
             : $projects->first();
 
-        // 3. Fetch Kanban data only if a project exists and is accessible
-        $kanbanData = [];
-        if ($currentProject) {
-            $kanbanData = Document::where('project_id', $currentProject->id)
-                ->with('assignee')
-                ->get()
-                ->groupBy('type');
-        }
-
-        // 4. Match the prop contract exactly to Dashboard.vue
+        // Standard Dashboard render for users with projects
         return Inertia::render('Dashboard/Index', [
             'projects' => $projects,
             'currentProject' => $currentProject,
-            'kanbanData' => $kanbanData,
+            'kanbanData' => (object)Document::where('project_id', $currentProject->id)
+                ->with('assignee')
+                ->get()
+                ->groupBy('type'),
         ]);
     }
 }

@@ -14,20 +14,31 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import {
     STATUS_LABELS,
     PRIORITY_LABELS,
     statusDotClasses,
     priorityDotClasses
 } from '@/lib/constants';
-import { Clock, User as UserIcon, Calendar, Activity, ShieldAlert } from 'lucide-vue-next';
+import { Clock, User as UserIcon, Calendar, Activity, ShieldAlert, Sparkles } from 'lucide-vue-next';
 
 const props = defineProps<{
     open: boolean;
-    document: ProjectDocument;
+    document: UIProjectDocument;
+    reprocessableTypes: Set<string>;
 }>();
 
-const emit = defineEmits(['update:open', 'update-attribute']);
+const emit = defineEmits<{
+    // Standard V-Model for the Sheet
+    (e: 'update:open', val: boolean): void;
+
+    // Your custom attribute update funnel
+    (e: 'update-attribute', field: string, value: string | number | null): void;
+
+    // The new reprocessing action
+    (e: 'handleReprocess', id: string | number): void;
+}>();
 const page = usePage<AppPageProps>();
 
 const currentProject = computed(() => (page.props as any).currentProject as Project | null);
@@ -62,8 +73,11 @@ const handleUpdate = (field: string, value: any) => {
         finalValue = value === '' ? null : value;
     }
 
-    emit('update-attribute', field, finalValue);
+    emit('update-attribute', field, finalValue)
+
 };
+
+const isReprocessable = computed(() => props.reprocessableTypes.has(props.document.type));
 </script>
 
 <template>
@@ -72,10 +86,22 @@ const handleUpdate = (field: string, value: any) => {
             <template v-if="document">
                 <div class="mt-8 space-y-10">
                     <SheetHeader class="space-y-0.5 text-left p-0">
-                        <div class="flex items-center mb-3">
+                        <div class="flex items-center justify-between mt-5 mb-3">
                             <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
                                 {{ typeLabel }}
                             </span>
+
+                            <Button
+                                v-if="isReprocessable"
+                                variant="ghost"
+                                size="sm"
+                                @click.stop="emit('handleReprocess', document.id)"
+                                :disabled="document.currentStatus || document.processed_at === null"
+                                class="h-7 px-3 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg hover:bg-violet-100 transition-colors group/ai shrink-0"
+                            >
+                                <Sparkles class="h-3 w-3 mr-2" />
+                                <span class="text-[9px] font-black uppercase tracking-wider">Reprocess</span>
+                            </Button>
                         </div>
                         <SheetTitle class="text-3xl font-bold text-gray-900 leading-tight">
                             {{ document.name }}

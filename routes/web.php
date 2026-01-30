@@ -26,7 +26,7 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
+    return Inertia::render('Dashboard/AccessPeninding');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -43,10 +43,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('tasks', TaskController::class);
     });
 
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     // 2. Client & Project Management (PROTECTED BY MIDDLEWARE)
     // We apply the middleware to these groups
     Route::middleware(['client.access'])->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::resource('clients', ClientController::class);
         Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);

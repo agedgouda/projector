@@ -18,31 +18,50 @@ export function useKanbanState(props: KanbanProps) {
      */
     const applyLocalUpdate = (documentId: string | number, data: Record<string, any>) => {
         const docIdStr = String(documentId);
+        let found = false;
 
-        // If we're moving status, we need to move the item between arrays
-        if (data.task_status) {
-            const oldStatus = Object.keys(localKanbanData.value).find(status =>
-                localKanbanData.value[status].some(d => String(d.id) === docIdStr)
-            );
+        // 1. Try to update existing document
+        Object.keys(localKanbanData.value).forEach(rowKey => {
+            const index = localKanbanData.value[rowKey].findIndex(d => String(d.id) === docIdStr);
 
-            if (oldStatus && oldStatus !== data.task_status) {
-                const index = localKanbanData.value[oldStatus].findIndex(d => String(d.id) === docIdStr);
-                const [item] = localKanbanData.value[oldStatus].splice(index, 1);
+            if (index !== -1) {
+                found = true;
+                const existingDoc = localKanbanData.value[rowKey][index];
 
-                const newStatus = data.task_status as string;
-                if (!localKanbanData.value[newStatus]) localKanbanData.value[newStatus] = [];
+                // Handle status/column movement
+                if (data.task_status && data.task_status !== existingDoc.task_status) {
+                    // Remove from old location
+                    localKanbanData.value[rowKey].splice(index, 1);
 
-                // Push the updated item to the new column
-                localKanbanData.value[newStatus].push({ ...item, ...data });
+                    // Add to new status (on the same row/type)
+                    const targetRow = data.type || existingDoc.type || rowKey;
+                    if (!localKanbanData.value[targetRow]) localKanbanData.value[targetRow] = [];
+                    localKanbanData.value[targetRow].push({ ...existingDoc, ...data });
+                } else {
+                    // Simple field update
+                    localKanbanData.value[rowKey][index] = { ...existingDoc, ...data };
+                }
             }
-        } else {
-            // Just update fields (like name or priority) without moving columns
-            Object.keys(localKanbanData.value).forEach(status => {
-                const doc = localKanbanData.value[status].find(d => String(d.id) === docIdStr);
-                if (doc) Object.assign(doc, data);
-            });
+        });
+
+        // 2. NEW DOCUMENT CASE: If AI created a doc that isn't on the board yet
+        if (!found) {
+            // We use the 'type' field from the incoming data to decide which row it goes in
+            const rowKey = data.type;
+            if (rowKey) {
+                if (!localKanbanData.value[rowKey]) localKanbanData.value[rowKey] = [];
+
+                // Default to 'todo' if no status is provided by the AI yet
+                const newDoc = {
+                    id: documentId,
+                    task_status: 'todo',
+                    ...data
+                } as ProjectDocument;
+
+                localKanbanData.value[rowKey].push(newDoc);
+            }
         }
-    };
+};
 
     const documentsById = computed(() => {
         const map: Record<string | number, ProjectDocument> = {};
