@@ -54,6 +54,7 @@ const hasVisibleTasks = computed(() => {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-8 space-y-8 w-full">
+
             <div class="w-full">
                 <ProjectSwitcher
                     :projects="projects"
@@ -62,7 +63,7 @@ const hasVisibleTasks = computed(() => {
                 />
             </div>
             <div class="flex flex-col md:flex-row md:items-center justify-start gap-4">
-                <div v-if="currentProject && hasVisibleTasks" class="relative w-full md:w-1/2 group">
+                <div v-if="currentProject && hasVisibleTasks" class="relative w-full md:w-80 group">
                     <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                         v-model="searchQuery"

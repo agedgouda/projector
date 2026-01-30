@@ -16,6 +16,7 @@ export function useKanbanActions(
         data: Record<string, any>,
         successMessage?: string
     ) => {
+
         if (!props.currentProject) return;
 
         const docIdStr = String(documentId);

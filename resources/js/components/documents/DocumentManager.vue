@@ -5,15 +5,15 @@ import { toast } from 'vue-sonner';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useProjectState } from '@/composables/useProjectState';
 import { useAiProcessing } from '@/composables/useAiProcessing';
-import { PlusIcon, Search, RefreshCw } from 'lucide-vue-next';
+import { PlusIcon, Search } from 'lucide-vue-next';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { useWorkflow } from '@/composables/useWorkflow';
 
 // UI Components
-import AppLogoIcon from '@/components/AppLogoIcon.vue'
+import AiProgressBar from '@/components/AiProgressBar.vue';
+import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import TraceabilityRow from './TraceabilityRow.vue';
 
 
@@ -187,47 +187,13 @@ const { reprocessableTypes } = useWorkflow(props.project);
 
 <template>
     <div class="space-y-6">
-        <transition
-            enter-active-class="transition-opacity duration-300"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition-opacity duration-500"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
-        >
-            <div v-if="isAiProcessing" class="fixed top-0 left-0 right-0 z-[100] h-[3px] bg-indigo-100/20">
-                <div
-                    class="h-full bg-indigo-600 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(79,70,229,0.5)]"
-                    :style="{ width: `${aiProgress}%` }"
-                ></div>
-            </div>
-        </transition>
+        <AiProgressBar :is-processing="isAiProcessing" :progress="aiProgress" />
 
-
-        <transition
-            enter-active-class="transition duration-500"
-            enter-from-class="opacity-0 -translate-y-2"
-            enter-to-class="opacity-100 translate-y-0"
-        >
-            <Alert v-if="isAiProcessing" class="bg-indigo-50 border-indigo-100 p-0 block shadow-sm overflow-hidden mb-6">
-                <div class="p-4 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <AppLogoIcon class="h-10 w-10 text-indigo-600" />
-                        <div>
-                            <AlertTitle class="text-sm font-black text-indigo-900 animate-pulse uppercase tracking-widest">
-                                AI Sync Active
-                            </AlertTitle>
-                            <AlertDescription class="text-xs text-indigo-700/70 font-medium">
-                                {{ aiStatusMessage || 'Synchronizing project mapping...' }}
-                            </AlertDescription>
-                        </div>
-                    </div>
-                    <div class="flex flex-col items-end gap-1 mr-4">
-                        <RefreshCw class="animate-spin text-indigo-400 h-5 w-5" />
-                    </div>
-                </div>
-            </Alert>
-        </transition>
+        <AiProcessingHeader
+            :is-processing="isAiProcessing"
+            :progress="aiProgress"
+            :message="aiStatusMessage"
+        />
 
         <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div class="relative w-full md:w-80 lg:w-96">

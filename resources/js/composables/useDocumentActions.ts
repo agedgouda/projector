@@ -37,12 +37,12 @@ export function useDocumentActions(
             onSuccess: () => {
                 if (updateDocState) updateDocState(docId, data);
             },
+            onError: (errors) => console.error('PATCH FAILED:', errors),
         });
     };
 
     const updateField = (id: string, fieldName: string, rawValue: unknown) => {
         let normalizedValue: string | number | null = null;
-
         if (rawValue === 'unassigned' || rawValue == null) normalizedValue = null;
         else if (typeof rawValue === 'string' || typeof rawValue === 'number') normalizedValue = rawValue;
         else if (typeof rawValue === 'bigint') normalizedValue = Number(rawValue);
