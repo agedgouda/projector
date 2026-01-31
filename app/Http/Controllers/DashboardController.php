@@ -14,11 +14,10 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $projects = Project::visibleTo($request->user())
-            ->with(['type', 'client.users'])
             ->latest()
-            ->get();
+            ->get()
+            ->withDashboardContext();
 
-        // IF NO PROJECTS: Render the "Access Denied/Pending" page instead
         if ($projects->isEmpty()) {
             return Inertia::render('Dashboard/AccessPending', [
                 'user' => $request->user(),
@@ -26,19 +25,24 @@ class DashboardController extends Controller
             ]);
         }
 
-        $projectId = $request->query('project');
-        $currentProject = $projectId
-            ? $projects->where('id', $projectId)->first()
-            : $projects->first();
+        $currentProject = $projects->findCurrent($request->query('project'));
 
-        // Standard Dashboard render for users with projects
+        /**
+         * CRITICAL STEP:
+         * We compute both pipes based on the FRESHLY LOADED documents
+         * before we call setRelation.
+         */
+        $kanbanData = $currentProject->getKanbanPipe();
+        $documentation = $currentProject->getDocumentationPipe();
+
+        // Now it's safe to overwrite the relation for the UI tree
+        $currentProject->setRelation('documents', $documentation);
+
         return Inertia::render('Dashboard/Index', [
             'projects' => $projects,
             'currentProject' => $currentProject,
-            'kanbanData' => (object)Document::where('project_id', $currentProject->id)
-                ->with('assignee')
-                ->get()
-                ->groupBy('type'),
+            'kanbanData' => (object)$kanbanData,
+            'activeTab' => $request->query('tab', 'tasks')
         ]);
     }
 }

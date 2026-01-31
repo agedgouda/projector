@@ -2,25 +2,22 @@
 /* ---------------------------
    1. Imports & Types
 ---------------------------- */
-import { computed, ref, watch, type ComputedRef, nextTick } from 'vue';
-import { Head, usePage, router } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Head, usePage } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
-import { useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
+import { Trash2, Edit2, ArrowLeft, X } from 'lucide-vue-next';
 
 // Layouts & Components
 import AppLayout from '@/layouts/AppLayout.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import DocumentSidebar from './Partials/DocumentSidebar.vue';
-import DocumentContent from './Partials/DocumentContent.vue'; // New decomposed content partial
-import { Trash2, Edit2, ArrowLeft, X } from 'lucide-vue-next';
-// Routes & Logic
-import projectRoutes from '@/routes/projects/index';
-import projectDocumentsRoutes from '@/routes/projects/documents/';
-import { useDocumentActions } from '@/composables/useDocumentActions';
-import { type BreadcrumbItem } from '@/types';
+import DocumentContent from './Partials/DocumentContent.vue';
 
-type DocumentMetadata = { criteria: string[] };
+// Composables
+import { useDocumentActions } from '@/composables/useDocumentActions';
+import { useDocumentForm } from '@/composables/documents/useDocumentForm';
+import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
 
 /* ---------------------------
    2. Props
@@ -31,126 +28,36 @@ const props = defineProps<{
 }>();
 
 /* ---------------------------
-   3. Document Actions Setup
+   3. Logic Setup (Composables)
 ---------------------------- */
-
-
 const {
-    updateField,
-    safeJsonParse
-} = useDocumentActions(
-    {
-        project: props.project,
-        documentSchema: []
-    },
+    form,
+    isEditing,
+    isDeleting,
+    isDeleteModalOpen,
+    toggleEdit,
+    handleFormSubmit,
+    confirmDeletion
+} = useDocumentForm(props.project, props.item);
+
+const { breadcrumbs, handleBack } = useDocumentNavigation(props.project, props.item);
+
+const { updateField } = useDocumentActions(
+    { project: props.project, documentSchema: [] },
     ref('')
 );
 
 /* ---------------------------
-   4. Reactive & Computed State
+   4. Local UI State
 ---------------------------- */
-const isEditing = ref(false);
-const isDeleteModalOpen = ref(false);
-const isDeleting = ref(false);
-
-const parsedMetadata: ComputedRef<DocumentMetadata> = computed(() =>
-    safeJsonParse(props.item?.metadata)
-);
-
-const form = useForm<DocumentFields & { tab?: string }>({
-    id: props.item.id as string,
-    name: props.item.name,
-    content: props.item.content,
-    type: props.item.type,
-    assignee_id: props.item.assignee_id,
-    project_id: props.project.id,
-    metadata: parsedMetadata.value,
-    priority: props.item.priority,
-    task_status: props.item.task_status,
-    due_at: props.item.due_at,
-});
-
+// Proxy for the date picker to ensure it formats correctly for the input[type="date"]
 const dueAtProxy = computed<string>({
     get: () => props.item.due_at?.substring(0, 10) ?? '',
-    set: (val) => updateField(props.item.id, 'due_at', val)
+    set: (val) => updateField(props.item.id as string, 'due_at', val)
 });
 
-
-const breadcrumbs = computed<BreadcrumbItem[]>(() => {
-    // Get the current tab from the URL
-    const params = new URLSearchParams(window.location.search);
-    const returnTab = params.get('tab') || 'hierarchy';
-
-    return [
-        { title: 'Projects', href: projectRoutes.index.url() },
-        {
-            title: props.project.name,
-            // Append the tab to the breadcrumb link too
-            href: `${projectRoutes.show(props.project.id).url}?tab=${returnTab}`
-        },
-        { title: props.item.name, href: '' }
-    ];
-});
 /* ---------------------------
-   5. Action Handlers
----------------------------- */
-const toggleEdit = () => {
-    isEditing.value = !isEditing.value;
-    if (!isEditing.value) form.reset();
-};
-
-const handleFormSubmit = () => {
-    // Get the current tab from the browser
-    const params = new URLSearchParams(window.location.search);
-    form.tab = params.get('tab') || 'hierarchy';
-
-    const url = projectDocumentsRoutes.update({
-        project: props.project.id,
-        document: props.item.id
-    }).url;
-
-    form.put(url, {
-        preserveScroll: true,
-        onSuccess: async () => {
-            isEditing.value = false;
-            await nextTick();
-            setTimeout(() => toast.success('Document updated successfully'), 100);
-        },
-        onError: (errors) => {
-            console.error(errors);
-            toast.error('Failed to update document');
-        }
-    });
-};
-
-const openDeleteModal = () => { isDeleteModalOpen.value = true; };
-
-const confirmFinalDeletion = () => {
-    isDeleting.value = true;
-
-    const params = new URLSearchParams(window.location.search);
-    const returnTab = params.get('tab') || 'hierarchy';
-
-    const url = projectDocumentsRoutes.destroy({
-        project: props.project.id,
-        document: props.item.id
-    }).url;
-
-    router.delete(url, {
-        onSuccess: () => {
-            toast.success('Document deleted');
-            // MANUAL OVERRIDE: Tell Inertia exactly where to go and include the tab
-            router.visit(`${projectRoutes.show(props.project.id).url}?tab=${returnTab}`);
-        },
-        onFinish: () => {
-            isDeleting.value = false;
-            isDeleteModalOpen.value = false;
-        }
-    });
-};
-
-/* ---------------------------
-   6. Watchers
+   5. Watchers (Flash Messages)
 ---------------------------- */
 const page = usePage<{ flash?: { success?: string; error?: string } }>();
 watch(() => page.props.flash, (flash) => {
@@ -158,20 +65,7 @@ watch(() => page.props.flash, (flash) => {
     if (flash?.error) toast.error(flash.error);
 }, { deep: true, immediate: true });
 
-/* ---------------------------
-   7. Helpers
----------------------------- */
-const handleBack = () => {
-    const params = new URLSearchParams(window.location.search);
-    const returnTab = params.get('tab') || 'hierarchy';
-
-    router.visit(`${projectRoutes.show(props.project.id).url}?tab=${returnTab}`);
-};
-
-
 </script>
-
-
 
 <template>
     <Head :title="item.name" />
@@ -215,7 +109,7 @@ const handleBack = () => {
                         <Button
                             variant="ghost"
                             size="icon"
-                            @click="openDeleteModal"
+                            @click="isDeleteModalOpen = true"
                             class="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
                         >
                             <Trash2 class="h-4 w-4" />
@@ -224,7 +118,6 @@ const handleBack = () => {
                 </div>
             </nav>
 
-
             <main class="max-w-7xl mx-auto px-8 py-10">
                 <div class="grid grid-cols-12 gap-12">
                     <DocumentContent
@@ -232,9 +125,9 @@ const handleBack = () => {
                         :item="item"
                         :project="project"
                         :is-editing="isEditing"
-                        :metadata="parsedMetadata"
+                        :metadata="form.metadata"
                         :form="form"
-                        @submit="handleFormSubmit"
+                        @submit="() => handleFormSubmit()"
                         @cancel="toggleEdit"
                     />
 
@@ -243,7 +136,7 @@ const handleBack = () => {
                             :item="item"
                             :project="project"
                             v-model:dueAtProxy="dueAtProxy"
-                            @change="(field, val) => updateField(item.id, field, val)"
+                            @change="(field, val) => updateField(item.id as string, field, val)"
                         />
                     </aside>
                 </div>
@@ -255,7 +148,7 @@ const handleBack = () => {
             title="Delete Document"
             :description="`Are you sure you want to delete '${item.name}'? This action cannot be undone.`"
             :loading="isDeleting"
-            @confirm="confirmFinalDeletion"
+            @confirm="confirmDeletion"
             @close="isDeleteModalOpen = false"
         />
     </AppLayout>

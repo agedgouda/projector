@@ -2,20 +2,22 @@
 import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
-import { Search, X } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
+import { ShieldAlert } from 'lucide-vue-next';
+
 import AppLayout from '@/layouts/AppLayout.vue';
 import { STATUS_LABELS } from '@/lib/constants';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useWorkflow } from '@/composables/useWorkflow';
-import { KANBAN_UI } from '@/lib/kanban-theme';
+import DocumentManager from '@/components/documents/DocumentManager.vue';
+import projectRoutes from '@/routes/projects/index';
+import projectDocumentsRoutes from '@/routes/projects/documents/index'; // Added for delete logic
 
 // UI Components
 import ProjectSwitcher from './Partials/ProjectSwitcher.vue';
-import KanbanHeader from './Partials/KanbanHeader.vue';
-import KanbanRow from './Partials/KanbanRow.vue';
+import KanbanBoard from './Partials/KanbanBoard.vue';
 import DocumentDetailSheet from './Partials/DocumentDetailSheet.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
 import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
@@ -24,6 +26,7 @@ const props = defineProps<{
     projects: Project[];
     currentProject: Project | null;
     kanbanData: Record<string, ProjectDocument[]>;
+    activeTab: string;
 }>();
 
 const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
@@ -44,48 +47,41 @@ const {
     localKanbanData
 } = useKanbanBoard(props);
 
-
-
-
 // --- 2. AI PROCESSING (OBSERVER MODE) ---
-// We use a null ref because this page doesn't start the creation, it just watches it.
 const aiStatusMessageRef = ref('');
+const activeTab = ref(props.activeTab);
 const workflowRows = computed(() => props.currentProject?.type?.document_schema?.filter(s => s.is_task) || []);
 
 const {
     setDocToProcessing,
-
 } = useDocumentActions(
     {
         project: props.currentProject as Project,
-        documentSchema: workflowRows.value // or props.currentProject?.type?.document_schema
+        documentSchema: workflowRows.value
     },
     aiStatusMessageRef,
-    applyLocalUpdate // This ensures the UI reflects changes immediately
+    applyLocalUpdate
 );
 
 const targetBeingCreated = ref<string | null>(null);
+const isGenerating = ref(false);
 
 const allDocs = computed(() => {
     return Object.values(localKanbanData.value).flat() as ProjectDocument[];
 });
+
 const projectIdForEcho = computed(() => props.currentProject?.id?.toString() ?? null);
 
 const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
     projectIdForEcho.value ?? 'NO_PROJECT',
     allDocs,
     targetBeingCreated,
-    // CALLBACK: When Echo broadcasts a change
     (incomingDoc: any) => {
-        // This is the magic: as the AI works on the 'other page',
-        // the cards here will update or appear in real-time.
         applyLocalUpdate(incomingDoc.id, incomingDoc);
     },
-    // CALLBACK: Global Success
     () => {
         toast.success('Project Synced', { description: 'AI processing task completed.' });
     },
-    // CALLBACK: Global Error
     (errorMessage) => {
         toast.error('AI Sync Error', { description: errorMessage });
     }
@@ -115,16 +111,49 @@ const handleReprocess = (id: string | number) => {
 
     if (!doc) return;
 
-    // Start the UI progress bar immediately
     aiProgress.value = 5;
-
-    // Set local state to loading/processing
     void setDocToProcessing(doc);
-
-    // Optional: Close the detail sheet so the user can see the progress on the board
     isSheetOpen.value = false;
 };
 
+const updateTab = (tab: string) => {
+    activeTab.value = tab;
+
+    router.get(window.location.pathname,
+        {
+            project: props.currentProject?.id,
+            tab: tab
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true // Prevents flooding browser history with tab clicks
+        }
+    );
+};
+
+const generateDeliverables = () => {
+    if (!props.currentProject) return;
+    router.post(projectRoutes.generate.url(props.currentProject.id), {}, {
+        onBefore: () => { isGenerating.value = true; },
+        onFinish: () => { isGenerating.value = false; }
+    });
+};
+
+// --- 4. DOCUMENT MANAGER ACTIONS ---
+const confirmDelete = (doc: ProjectDocument) => {
+    if (!props.currentProject) return;
+
+    if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
+        router.delete(projectDocumentsRoutes.destroy({
+            project: props.currentProject.id,
+            document: doc.id
+        }).url, {
+            onSuccess: () => toast.success('Document deleted'),
+            onError: () => toast.error('Failed to delete document')
+        });
+    }
+};
 
 </script>
 
@@ -156,55 +185,40 @@ const handleReprocess = (id: string | number) => {
                     @switch="(id) => router.get('/dashboard', { project: id })"
                 />
             </div>
-            <div class="flex flex-col md:flex-row md:items-center justify-start gap-4">
-                <div v-if="currentProject && hasVisibleTasks" class="relative w-full md:w-80 group">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-                    <input
-                        v-model="searchQuery"
-                        placeholder="Search tasks or people... (Esc)"
-                        class="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                    />
-                    <button
-                        v-if="searchQuery"
-                        @click="searchQuery = ''"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded-full transition-colors"
-                    >
-                        <X class="w-3 h-3 text-gray-500" />
-                    </button>
-                </div>
+
+            <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
+                <button v-for="tab in ['tasks','hierarchy']" :key="tab"
+                    @click="updateTab(tab)"
+                    :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
+                        activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
+                    {{ tab === 'hierarchy' ? 'Documentation' : 'Tasks' }}
+                </button>
             </div>
 
-            <div v-if="currentProject && hasVisibleTasks" class="block w-full min-w-0">
-                <KanbanHeader
+            <div v-show="activeTab === 'tasks'">
+                <KanbanBoard
+                    v-model:searchQuery="searchQuery"
+                    :current-project="currentProject"
+                    :has-visible-tasks="hasVisibleTasks"
                     :column-statuses="columnStatuses"
-                    :get-count="getColumnTaskCount"
-                    :class="KANBAN_UI.columnHeader"
+                    :workflow-rows="workflowRows"
+                    :get-column-task-count="getColumnTaskCount"
+                    :can-create-task="canCreateTask"
+                    :get-tasks-by-row-and-status="getTasksByRowAndStatus"
+                    :on-drag-change="onDragChange"
+                    :open-detail="openDetail"
+                    :handle-create-new="handleCreateNew"
                 />
+            </div>
 
-                <div v-if="searchQuery && !hasVisibleTasks" class="flex flex-col items-center justify-center py-20 bg-gray-50/50 rounded-[2rem] border border-dashed border-gray-200">
-                    <div class="p-4 bg-white rounded-2xl shadow-sm mb-4">
-                        <Search class="w-8 h-8 text-gray-300" />
-                    </div>
-                    <p class="text-gray-900 font-bold">No tasks found</p>
-                    <p class="text-gray-500 text-sm">Try adjusting your search query or press Escape.</p>
-                </div>
+            <div v-if="activeTab === 'hierarchy'">
 
-                <div v-else class="space-y-1 w-full block">
-                    <KanbanRow
-                        v-for="row in workflowRows"
-                        :key="row.key"
-                        :row="row"
-                        :column-statuses="columnStatuses"
-                        :can-create-task="canCreateTask"
-                        :get-tasks="getTasksByRowAndStatus"
-                        :on-drag="onDragChange"
-                        :on-open="openDetail"
-                        :on-create="(key) => handleCreateNew(key)"
-                        :grid-style="{
-                            gridTemplateColumns: `repeat(${columnStatuses.length}, minmax(0, 1fr))`
-                        }"
-                    />
-                </div>
+                <DocumentManager
+                    :project="currentProject"
+                    :is-generating="isGenerating"
+                    @confirm-delete="confirmDelete"
+                    @generate="generateDeliverables"
+                />
             </div>
         </div>
 

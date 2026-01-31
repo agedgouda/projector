@@ -31,4 +31,24 @@ class ProjectCollection extends Collection
             ])->orderBy('created_at', 'desc')
         ]);
     }
+
+    /**
+     * For the Unified Dashboard.
+     * Loads documents once so we can split them into Tasks and Documentation in memory.
+     */
+    public function withDashboardContext(): self
+    {
+        return $this->load([
+            'type',
+            'client.users',
+            'documents' => function ($q) {
+                $q->with(['assignee', 'creator'])->latest();
+            }
+        ]);
+    }
+
+    public function findCurrent(?string $id)
+    {
+        return $id ? $this->where('id', $id)->first() : $this->first();
+    }
 }

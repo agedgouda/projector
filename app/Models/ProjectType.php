@@ -47,4 +47,26 @@ class ProjectType extends Model
     {
         return $this->hasMany(Project::class);
     }
+
+    /**
+     * Get keys that should appear in the Document Manager (Hierarchy).
+     */
+    public function getDocumentationKeys(): array
+    {
+        return collect($this->document_schema)
+            ->where('is_task', false)
+            ->pluck('key')
+            ->all();
+    }
+
+    /**
+     * Get keys that should appear in the Kanban Board.
+     */
+    public function getTaskKeys(): array
+    {
+        return collect($this->document_schema)
+            ->where('is_task', true)
+            ->pluck('key')
+            ->all();
+    }
 }

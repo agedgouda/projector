@@ -78,4 +78,29 @@ class Project extends Model
             $q->where('users.id', $user->id);
         });
     }
+
+    /**
+     * Get only the documentation documents (non-tasks).
+     */
+    public function getDocumentationPipe()
+    {
+        $keys = $this->type->getDocumentationKeys();
+
+        return $this->documents
+            ->whereIn('type', $keys)
+            ->sortBy('type')
+            ->values();
+    }
+
+    /**
+     * Get documents grouped for Kanban (tasks).
+     */
+    public function getKanbanPipe()
+    {
+        $keys = $this->type->getTaskKeys();
+
+        return $this->documents
+            ->whereIn('type', $keys)
+            ->groupBy('type');
+    }
 }
