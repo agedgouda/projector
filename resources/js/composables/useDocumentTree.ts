@@ -1,6 +1,9 @@
 import { ref, computed, type Ref } from 'vue';
 
-export function useDocumentTree(allDocs: Ref<ExtendedDocument[]>) {
+export function useDocumentTree(
+    allDocs: Ref<ExtendedDocument[]>,
+    schema: Ref<DocumentSchemaItem[]>
+    ) {
     const searchQuery = ref('');
     const expandedRootIds = ref<Set<string | number>>(new Set());
 
@@ -11,13 +14,26 @@ export function useDocumentTree(allDocs: Ref<ExtendedDocument[]>) {
      * this will re-run whenever a document is added or its parent_id changes.
      */
     const buildTree = (parentId: string | number | null = null): ExtendedDocument[] => {
-        return allDocs.value
-            .filter(d => d.parent_id === parentId || (parentId === null && d.type === 'intake'))
-            .map(d => ({
-                ...d,
-                children: buildTree(d.id) // This will always return an array, matching our filter logic
-            }));
-    };
+            return allDocs.value
+                .filter(d => {
+                    // If we are looking for children, match the parent_id
+                    if (parentId !== null) {
+                        return d.parent_id === parentId;
+                    }
+
+                    // If we are at the ROOT level (parentId is null):
+                    // 1. It must not have a parent_id
+                    // 2. Its type must be defined as is_task: false in the schema
+                    const schemaItem = schema.value.find(s => s.key === d.type);
+                    const isTask = schemaItem?.is_task ?? false;
+
+                    return d.parent_id === null && !isTask;
+                })
+                .map(d => ({
+                    ...d,
+                    children: buildTree(d.id)
+                }));
+        };
 
     const documentTree = computed(() => {
         const query = searchQuery.value.toLowerCase().trim();

@@ -15,6 +15,7 @@ import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 // Routes & Logic
 import projectRoutes from '@/routes/projects/index';
 import projectDocumentsRoutes from '@/routes/projects/documents/';
+import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
 /* ---------------------------
@@ -22,6 +23,7 @@ import { type BreadcrumbItem } from '@/types';
 ---------------------------- */
 const props = defineProps<{
     project: Project;
+    redirectUrl: string | null;
 }>();
 
 /* ---------------------------
@@ -54,14 +56,31 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
    5. Action Handlers
 ---------------------------- */
 const handleFormSubmit = () => {
-    form.post(projectDocumentsRoutes.store({ project: props.project.id }).url, {
+    // 1. Get the clean RESTful path from Wayfinder
+    const baseUrl = projectDocumentsRoutes.store({ project: props.project.id }).url;
+
+    // 2. Attach the "Context" (the redirect) to the URL Query String
+    // This is the "best" way because navigation is a concern of the URL, not the Payload.
+    const finalUrl = props.redirectUrl
+        ? `${baseUrl}?${new URLSearchParams({ redirect: props.redirectUrl }).toString()}`
+        : baseUrl;
+
+    form.post(finalUrl, {
         onSuccess: () => toast.success('Document created successfully'),
         onError: () => toast.error('Please correct the errors.')
     });
 };
-
 const handleCancel = () => {
-    router.visit(projectRoutes.show(props.project.id).url);
+
+    if (props.redirectUrl) {
+        return router.visit(props.redirectUrl);
+    }
+    router.visit(
+        dashboard({
+            project: props.project.id,
+            tab: 'tasks'
+        } as any).url
+    );
 };
 
 // Local update only - no API calls during creation
@@ -99,7 +118,6 @@ const updateFormValue = (field: string, val: any) => {
 
             <main class="max-w-7xl mx-auto px-8 py-10">
                 <div class="grid grid-cols-12 gap-12">
-
                     <div class="col-span-12 lg:col-span-8">
                         <div class="bg-slate-50 rounded-2xl p-8 border border-slate-200">
                             <InlineDocumentForm

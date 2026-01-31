@@ -26,17 +26,11 @@ class DashboardController extends Controller
         }
 
         $currentProject = $projects->findCurrent($request->query('project'));
-
-        /**
-         * CRITICAL STEP:
-         * We compute both pipes based on the FRESHLY LOADED documents
-         * before we call setRelation.
-         */
         $kanbanData = $currentProject->getKanbanPipe();
-        $documentation = $currentProject->getDocumentationPipe();
 
-        // Now it's safe to overwrite the relation for the UI tree
-        $currentProject->setRelation('documents', $documentation);
+        $sortedDocs = $currentProject->documents->sortBy('type')->values();
+        $currentProject->setRelation('documents', $sortedDocs);
+
 
         return Inertia::render('Dashboard/Index', [
             'projects' => $projects,

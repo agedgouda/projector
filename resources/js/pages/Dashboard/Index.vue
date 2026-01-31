@@ -3,7 +3,9 @@ import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
-import { ShieldAlert } from 'lucide-vue-next';
+import { PlusIcon, ShieldAlert } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { STATUS_LABELS } from '@/lib/constants';
@@ -155,6 +157,14 @@ const confirmDelete = (doc: ProjectDocument) => {
     }
 };
 
+const handleCreateNavigation = (projectId: string) => {
+    router.visit(projectDocumentsRoutes.create({ project: projectId }).url, {
+        data: {
+            redirect: window.location.href
+        }
+    });
+};
+
 </script>
 
 <template>
@@ -178,12 +188,23 @@ const confirmDelete = (doc: ProjectDocument) => {
                 :message="aiStatusMessage"
             />
 
-            <div class="w-full">
-                <ProjectSwitcher
-                    :projects="projects"
-                    :current-project="currentProject"
-                    @switch="(id) => router.get('/dashboard', { project: id })"
-                />
+            <div class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="w-full sm:w-auto">
+                    <ProjectSwitcher
+                        :projects="projects"
+                        :current-project="currentProject"
+                        @switch="(id) => router.get('/dashboard', { project: id })"
+                    />
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <Button
+                        @click="handleCreateNavigation(currentProject.id)"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
+                    >
+                        <PlusIcon class="h-4 w-4 mr-2" /> New Intake
+                    </Button>
+                </div>
             </div>
 
             <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">

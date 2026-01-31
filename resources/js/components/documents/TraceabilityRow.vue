@@ -19,7 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'toggleRoot', id: string | number): void;
-    (e: 'handleReprocess', id: string | number): void;
+    (e: 'handleReprocess', id: string ): void;
     (e: 'onDeleteRequested', item: any): void;
     (e: 'prepareEdit', item: any): void;
     (e: 'submit', callback: () => void): void;

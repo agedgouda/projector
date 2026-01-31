@@ -13,13 +13,13 @@ class DocumentController extends Controller
     /**
      * Show the form for creating a new document.
      */
-    public function create(Project $project)
+    public function create(Request $request, Project $project)
     {
-        // Use the same 'create' policy check as the store method
         Gate::authorize('create', [Document::class, $project]);
 
         return inertia('Documents/Create', [
             'project' => $project->load(['type', 'client.users']),
+            'redirectUrl' => $request->query('redirect'),
         ]);
     }
 
@@ -30,14 +30,18 @@ class DocumentController extends Controller
     {
         Gate::authorize('create', [Document::class, $project]);
 
-        // Merge the creator_id if your table tracks who made the doc
+        // The document only cares about validated data
         $document = $project->documents()->create(array_merge(
             $request->validated(),
             ['creator_id' => $request->user()->id]
         ));
 
-        return to_route('projects.show', $project->id)
-            ->with('success', 'Document created and queued for analysis.');
+        $target = $request->query('redirect')
+                ?? redirect()->intended()->getTargetUrl()
+                ?? route('dashboard', ['project' => $project->id]);
+
+        return redirect()->to($target)
+            ->with('success', 'Document created successfully.');
     }
 
     /**
