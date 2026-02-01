@@ -6,6 +6,7 @@ import ProjectIcon from '@/components/ProjectIcon.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ResourceCard from '@/components/ResourceCard.vue'; // The new base
 import projectRoutes from '@/routes/projects/index';
+import { dashboard } from '@/routes/';
 
 const props = defineProps<{
     project: {
@@ -36,8 +37,9 @@ const executeDelete = () => {
 const projectLink = computed(() => {
     const isClient = page.url.startsWith('/clients');
     const origin = isClient ? 'client' : 'index';
-    return `/projects/${props.project.id}?from=${origin}`;
+    return `${dashboard().url}?project=${props.project.id}&from=${origin}`;
 });
+
 </script>
 
 <template>

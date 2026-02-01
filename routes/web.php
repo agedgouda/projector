@@ -44,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
     // 2. Client & Project Management (PROTECTED BY MIDDLEWARE)
     // We apply the middleware to these groups
     Route::middleware(['client.access'])->group(function () {

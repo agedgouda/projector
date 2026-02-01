@@ -2,7 +2,6 @@ import { ref, nextTick } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import projectRoutes from '@/routes/projects/index';
 
 export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const isEditing = ref(false);
@@ -76,7 +75,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         router.delete(url, {
             onSuccess: () => {
                 toast.success('Document deleted');
-                router.visit(`${projectRoutes.show(project.id).url}?tab=${getCurrentTab()}`);
+                //router.visit(`${dashboard().url}?project=${project.id}&tab=${getCurrentTab()}`);
             },
             onFinish: () => {
                 isDeleting.value = false;

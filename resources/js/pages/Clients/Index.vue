@@ -2,20 +2,20 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import ClientEntryForm from './Partials/ClientEntryForm.vue';
 import clientRoutes from '@/routes/clients/index';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { type BreadcrumbItem } from '@/types';
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Plus, FolderOpen, Search, Pencil, Trash2, User as UserIcon } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, User as UserIcon } from 'lucide-vue-next';
 
 // Unified Components
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
-import ProjectIcon from '@/components/ProjectIcon.vue';
+import ProjectFolio from '@/components/ProjectFolio.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 
 const props = defineProps<{
@@ -168,26 +168,9 @@ const setViewMode = (clientId: number | string, mode: 'projects' | 'users') => {
                             <div v-if="client.projects?.length === 0" class="p-6 text-center text-gray-400 text-[10px] font-black uppercase tracking-widest border-2 border-dashed rounded-2xl">
                                 No Projects
                             </div>
-                            <ResourceCard
-                                v-for="project in client.projects"
-                                :key="`proj-${project.id}`"
-                                :title="project.name"
-                                :description="project.description"
-                                :pillText="project.type?.name"
-                                :show-delete="true"
-                            >
-                                <template #icon>
-                                    <div class="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600">
-                                        <ProjectIcon v-if="project.type" :name="project.type.icon" size="16" />
-                                        <FolderOpen v-else class="w-4 h-4" />
-                                    </div>
-                                </template>
-                                <template #actions>
-                                    <Link :href="`/projects/${project.id}`" class="mr-2">
-                                        <Search class="w-3.5 h-3.5 text-indigo-600" />
-                                    </Link>
-                                </template>
-                            </ResourceCard>
+                            <div v-else v-for="project in client.projects" :key="`proj-${project.id}`" class="w-full">
+                                <ProjectFolio :project="project" class="w-full" />
+                            </div>
                         </div>
 
                         <div v-else class="space-y-2">
