@@ -25,18 +25,26 @@ class DashboardController extends Controller
             ]);
         }
 
-        $currentProject = $projects->findCurrent($request->query('project'));
+        // Best way: Resolve ID from URL, then Cookie, then fallback to first project
+        $projectId = $request->query('project') ?? $request->cookie('last_project_id');
+
+        $currentProject = $projects->findCurrent($projectId);
         $kanbanData = $currentProject->getKanbanPipe();
 
         $sortedDocs = $currentProject->documents->sortBy('type')->values();
         $currentProject->setRelation('documents', $sortedDocs);
 
+        // Best way: Resolve Tab from URL, then Cookie, then fallback to 'tasks'
+        $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
 
         return Inertia::render('Dashboard/Index', [
-            'projects' => $projects,
-            'currentProject' => $currentProject,
-            'kanbanData' => (object)$kanbanData,
-            'activeTab' => $request->query('tab', 'tasks')
-        ]);
+    'projects' => $projects,
+    'currentProject' => $currentProject,
+    'kanbanData' => (object)$kanbanData,
+    'activeTab' => $tab
+])
+->toResponse($request)
+->withCookie(cookie()->forever('last_project_id', $currentProject->id))
+->withCookie(cookie()->forever('last_active_tab', $tab));
     }
 }

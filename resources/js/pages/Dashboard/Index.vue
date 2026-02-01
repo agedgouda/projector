@@ -32,6 +32,9 @@ const props = defineProps<{
 }>();
 
 const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
+const setPersistentCookie = (name: string, value: string) => {
+    document.cookie = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
+};
 
 // --- 1. KANBAN BASE LOGIC ---
 const {
@@ -120,6 +123,7 @@ const handleReprocess = (id: string | number) => {
 
 const updateTab = (tab: string) => {
     activeTab.value = tab;
+    setPersistentCookie('last_active_tab', tab);
 
     router.get(window.location.pathname,
         {
@@ -129,7 +133,7 @@ const updateTab = (tab: string) => {
         {
             preserveState: true,
             preserveScroll: true,
-            replace: true // Prevents flooding browser history with tab clicks
+            replace: true
         }
     );
 };
@@ -164,6 +168,12 @@ const handleCreateNavigation = (projectId: string) => {
         }
     });
 };
+
+watch(() => props.currentProject, (newProject) => {
+    if (newProject?.id) {
+        localStorage.setItem('last_project_id', newProject.id.toString());
+    }
+}, { immediate: true });
 
 </script>
 
