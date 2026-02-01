@@ -26,9 +26,19 @@ export function useAiProcessing(
 
     // --- 2. DERIVED STATE ---
     // AI is processing if there's an active target being created OR any document has null processed_at
-    const isAiProcessing = computed(() =>
-        !!targetBeingCreated.value || allDocs.value.some(d => d.processed_at === null)
-    );
+    const isAiProcessing = computed(() => {
+    const isTargeting = !!targetBeingCreated.value;
+    const pendingDoc = allDocs.value.find(d => d.processed_at === null);
+
+    if (isTargeting || pendingDoc) {
+        console.log('AI Still Processing because:', {
+            isTargeting,
+            pendingDocId: pendingDoc?.id
+        });
+    }
+
+    return isTargeting || !!pendingDoc;
+});
 
     // Sync Global AI State
     watch(isAiProcessing, (newVal) => {

@@ -27,34 +27,32 @@ class GenerateDocumentEmbedding implements ShouldQueue
 
     public function handle(VectorService $vectorService)
     {
-        // 1. Initial UI Status
         broadcast(new DocumentProcessingUpdate($this->document, 'Synthesizing Document Heuristics...'));
 
         try {
-            // Use the refactored service logic
-            $embedding = $vectorService->getEmbedding($this->document->content);
+            // The service now handles content extraction and error cleanup internally
+            $embedding = $vectorService->getEmbeddingForDocument($this->document);
 
             if (!$embedding) {
                 throw new \Exception("Vector Service returned empty embedding.");
             }
 
-            // 2. Secondary UI Status
             broadcast(new DocumentProcessingUpdate($this->document, 'Finalizing Vector Integration...'));
 
-            // 3. Silent Update (Prevents Observer Loops)
             $this->document->updateQuietly([
                 'embedding' => $embedding,
                 'processed_at' => now(),
             ]);
 
-            // 4. Guaranteed Post-Commit Broadcast
             DB::afterCommit(function () {
                 event(new DocumentVectorized($this->document->fresh()));
             });
 
         } catch (\Exception $e) {
+            // This still runs, but the Service has already killed the spinner
+            // by setting processed_at = now() before we got here.
             $this->failed($e);
-            throw $e; // Re-throw so the queue knows it failed
+            throw $e;
         }
     }
 

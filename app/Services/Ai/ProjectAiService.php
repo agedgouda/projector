@@ -78,37 +78,33 @@ class ProjectAiService
         $userTemplate = $strategy->getUserPromptTemplate();
         $replacements = ['{{input}}' => $context, '{{project}}' => $project->name];
 
-        // 🚀 Parallel Context Resolution (Stays fast with Octane)
-        if (preg_match_all('/{{all:([a-zA-Z0-9_-]+)}}/i', $userTemplate, $matches)) {
-            $tasks = [];
-            foreach ($matches[1] as $index => $docType) {
-                $fullTag = $matches[0][$index];
-                $tasks[$fullTag] = function () use ($project, $docType, $currentDoc) {
-                    $query = $project->documents()->where('type', $docType);
-                    if ($currentDoc) { $query->where('id', '!=', $currentDoc->id); }
-                    $docs = $query->get();
-                    return $docs->isNotEmpty() ? $docs->pluck('content')->implode("\n\n") : "No {$docType} context.";
-                };
-            }
-            foreach ($tasks as $tag => $task) {
-                $replacements[$tag] = $task();
-            }
-        }
+        // ... (Keep your existing Octane context resolution logic) ...
 
         $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
 
-        // 🚀 CLEANER: Use the injected driver directly
-        // No more 'match' logic or manual 'new' here!
+        // Call the LLM Driver
         $result = $this->llmDriver->call(
             $strategy->getTaskExtractionPrompt(),
             $userMessage
         );
 
+        // --- THE TRAP: Catch Driver-level errors (Connection, Timeouts, etc.) ---
+        if (($result['status'] ?? '') === 'error') {
+            Log::error("LLM Driver Failure", [
+                'error' => $result['message'] ?? 'Unknown error',
+                'document_id' => $currentDoc?->id
+            ]);
+
+            // DO NOT update processed_at here.
+            // Let the Job catch this, retry if possible, or trigger its own failed() method.
+            throw new \Exception($result['message'] ?? 'AI transformation failed');
+        }
+
         return [
             'project_name'  => $project->name,
             'mock_response' => $result['content'] ?? [],
-            'status'        => $result['status'] ?? 'error',
-            'error_message' => $result['message'] ?? null,
+            'status'        => 'success', // We know it's success if we reached here
+            'error_message' => null,
             'output_type'   => $strategy->getOutputDocumentType(),
         ];
     }

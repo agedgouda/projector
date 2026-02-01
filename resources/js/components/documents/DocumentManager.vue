@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { toast } from 'vue-sonner';
+import { Search } from 'lucide-vue-next';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useProjectState } from '@/composables/useProjectState';
 import { useAiProcessing } from '@/composables/useAiProcessing';
@@ -169,8 +170,6 @@ const { reprocessableTypes } = useWorkflow(props.project);
                 <Input v-model="searchQuery" placeholder="Search documentation..." class="pl-11 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300" />
             </div>
         </div>
-
-
 
         <div class="grid gap-3">
             <TraceabilityRow
