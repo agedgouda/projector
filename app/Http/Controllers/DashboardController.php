@@ -38,13 +38,13 @@ class DashboardController extends Controller
         $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
 
         return Inertia::render('Dashboard/Index', [
-    'projects' => $projects,
-    'currentProject' => $currentProject,
-    'kanbanData' => (object)$kanbanData,
-    'activeTab' => $tab
-])
-->toResponse($request)
-->withCookie(cookie()->forever('last_project_id', $currentProject->id))
-->withCookie(cookie()->forever('last_active_tab', $tab));
+            'projects' => $projects,
+            'currentProject' => $currentProject,
+            'kanbanData' => (object)$kanbanData,
+            'activeTab' => $tab
+        ])
+        ->toResponse($request)
+        ->withCookie(cookie()->forever('last_project_id', $currentProject->id))
+        ->withCookie(cookie()->forever('last_active_tab', $tab));
     }
 }
