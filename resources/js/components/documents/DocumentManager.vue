@@ -13,6 +13,7 @@ import TraceabilityRow from './TraceabilityRow.vue';
 
 const props = defineProps<{
     project: Project;
+    liveDocuments: ProjectDocument[];
     isGenerating: boolean;
 }>();
 

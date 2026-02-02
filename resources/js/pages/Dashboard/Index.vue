@@ -242,10 +242,11 @@ watch(() => props.currentProject, (newProject) => {
                 />
             </div>
 
-            <div v-if="activeTab === 'hierarchy'">
+            <div v-show="activeTab === 'hierarchy'">
 
                 <DocumentManager
                     :project="currentProject"
+                    :live-documents="allDocs"
                     :is-generating="isGenerating"
                     @confirm-delete="confirmDelete"
                     @generate="generateDeliverables"

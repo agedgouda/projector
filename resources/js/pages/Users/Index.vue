@@ -1,26 +1,21 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import UserInfo from '@/components/UserInfo.vue'; // Restored
-import RoleManager from './Partials/RoleManager.vue';
-import ClientAssignmentManager from './Partials/ClientAssignmentManager.vue';
-import { Head } from '@inertiajs/vue3';
+import UserInfo from '@/components/UserInfo.vue';
+import { Head, router } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import { ref } from 'vue';
-import { Shield, Users as UsersIcon } from 'lucide-vue-next';
+import {
+    Building2,
+    ChevronDown,
+    ChevronRight,
+    CircleUserRound,
+    ShieldAlert
+} from 'lucide-vue-next';
 import userRoutes from '@/routes/users/index';
 
-// Unified Components
-import ResourceHeader from '@/components/ResourceHeader.vue';
-import ResourceList from '@/components/ResourceList.vue';
-
-interface UserListItem extends User {
-    roles: string[];
-}
-
-const props = defineProps<{
-    users: UserListItem[];
+defineProps<{
+    users: Record<string, User[]>;
     allRoles: string[];
-    allClients: { id: string, company_name: string }[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -28,21 +23,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // --- STATE ---
-const collapsedUsers = ref<Record<number | string, boolean>>(
-    Object.fromEntries(props.users.map(u => [u.id, true]))
-);
+const collapsedOrgs = ref<Record<string, boolean>>({});
 
-const userViewMode = ref<Record<number | string, 'roles' | 'clients'>>(
-    Object.fromEntries(props.users.map(u => [u.id, 'roles']))
-);
-
-// --- METHODS ---
-const toggleUser = (id: number | string) => {
-    collapsedUsers.value[id] = !collapsedUsers.value[id];
+const toggleOrg = (orgName: string) => {
+    collapsedOrgs.value[orgName] = !collapsedOrgs.value[orgName];
 };
 
-const setViewMode = (userId: number | string, mode: 'roles' | 'clients') => {
-    userViewMode.value[userId] = mode;
+// --- METHODS ---
+const toggleAdminStatus = (user: User) => {
+    if (user.is_super) return;
+
+    // Wayfinder Implementation: Use .url from the route definition
+    router.put(userRoutes.update(user.id).url, {
+        organization_id: user.organization_id,
+        is_admin: !user.roles.includes('org-admin')
+    }, {
+        preserveScroll: true,
+    });
 };
 </script>
 
@@ -50,81 +47,73 @@ const setViewMode = (userId: number | string, mode: 'roles' | 'clients') => {
     <Head title="User Management" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 max-w-5xl mx-auto w-full">
+        <div class="p-8 max-w-5xl mx-auto w-full">
             <div class="mb-8">
-                <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase">
+                <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase flex items-center gap-3">
+                    <CircleUserRound class="w-8 h-8 text-indigo-500" />
                     User Management
                 </h1>
-                <p class="text-sm text-gray-500">
-                    Manage system access, permissions, and client visibility.
+                <p class="text-sm text-gray-500 mt-1">
+                    Manage system roles and administrative privileges by organization.
                 </p>
             </div>
 
-            <ResourceList :items="users">
-                <template #default="{ item: user }">
-                    <div class="w-full">
-                        <ResourceHeader
-                            title=""
-                            :collapsed="collapsedUsers[user.id]"
-                            @toggle="toggleUser(user.id)"
-                        >
-                            <template #title>
-                                <div class="flex items-center gap-3">
-                                    <UserInfo :user="user" />
-                                    <span v-if="user.roles.includes('admin')" class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-500/10 text-amber-600 text-[9px] uppercase font-black border border-amber-100 dark:border-amber-500/20">
-                                        Admin
-                                    </span>
-                                </div>
-                            </template>
-                        </ResourceHeader>
-
-                        <div v-if="!collapsedUsers[user.id]" class="ml-10 mt-4 space-y-4">
-
-                            <div class="flex items-center gap-4 border-b border-gray-100 dark:border-gray-800 pb-2">
-                                <button
-                                    @click="setViewMode(user.id, 'roles')"
-                                    :class="[
-                                        'flex items-center gap-2 text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 transition-all',
-                                        userViewMode[user.id] === 'roles'
-                                            ? 'border-indigo-500 text-indigo-600'
-                                            : 'border-transparent text-gray-400 hover:text-gray-600'
-                                    ]"
-                                >
-                                    <Shield class="w-3 h-3" />
-                                    Roles
-                                </button>
-                                <button
-                                    @click="setViewMode(user.id, 'clients')"
-                                    :class="[
-                                        'flex items-center gap-2 text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 transition-all',
-                                        userViewMode[user.id] === 'clients'
-                                            ? 'border-indigo-500 text-indigo-600'
-                                            : 'border-transparent text-gray-400 hover:text-gray-600'
-                                    ]"
-                                >
-                                    <UsersIcon class="w-3 h-3" />
-                                    Clients
-                                </button>
-                            </div>
-
-                            <div class="pt-2">
-                                <div v-if="userViewMode[user.id] === 'roles'" class="max-w-xl">
-                                    <RoleManager :user="user" :all-roles="allRoles" />
-                                </div>
-
-                                <div v-else class="max-w-xl">
-                                    <div v-if="user.roles.includes('admin')" class="p-4 rounded-2xl bg-amber-50/50 border border-amber-100 dark:bg-amber-500/5 dark:border-amber-500/20">
-                                        <p class="text-xs text-amber-700 dark:text-amber-400 font-bold leading-relaxed">
-                                            ADMIN ACCESS: This user has global visibility. Manual assignment is not required.
-                                        </p>
-                                    </div>
-                                    <ClientAssignmentManager v-else :user="user" :all-clients="allClients" />
-                                </div>
-                            </div>
+            <div class="space-y-6">
+                <div v-for="(orgUsers, orgName) in users" :key="orgName"
+                    class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm"
+                >
+                    <button
+                        @click="toggleOrg(orgName)"
+                        class="w-full flex items-center justify-between p-4 bg-gray-50/50 dark:bg-zinc-800/50 border-b border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                        <div class="flex items-center gap-3">
+                            <component :is="collapsedOrgs[orgName] ? ChevronRight : ChevronDown" class="w-4 h-4 text-gray-400" />
+                            <Building2 class="w-5 h-5 text-indigo-500" />
+                            <h2 class="font-black uppercase tracking-tight text-sm text-gray-700 dark:text-zinc-200">
+                                {{ orgName }}
+                            </h2>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-2 py-0.5 rounded-full font-black">
+                                {{ orgUsers.length }}
+                            </span>
                         </div>
+                    </button>
+
+                    <div v-if="!collapsedOrgs[orgName]">
+                        <table class="w-full text-left border-collapse table-fixed">
+                            <thead>
+                                <tr class="bg-gray-50/10 dark:bg-zinc-800/20 border-b border-gray-100 dark:border-zinc-800">
+                                    <th class="p-4 pl-8 text-[10px] font-black uppercase tracking-widest text-gray-400 w-full">User</th>
+                                    <th class="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 w-32 text-center pr-12">Admin</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50 dark:divide-zinc-800/50">
+                                <tr v-for="user in orgUsers" :key="user.row_key" class="hover:bg-gray-50/30 dark:hover:bg-zinc-800/10 transition-colors">
+                                    <td class="p-4 pl-8">
+                                        <div class="flex items-center gap-3">
+                                            <UserInfo :user="user" />
+                                            <div v-if="user.is_super" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20">
+                                                <ShieldAlert class="w-3 h-3" />
+                                                <span class="text-[9px] font-black uppercase tracking-tighter">Super</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4 pr-12">
+                                        <div class="flex justify-center">
+                                            <input
+                                                type="checkbox"
+                                                :checked="user.roles.includes('org-admin') || user.is_super"
+                                                :disabled="user.is_super"
+                                                @change="toggleAdminStatus(user)"
+                                                class="h-4 w-4 shrink-0 rounded-sm border border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer transition-all shadow-sm"
+                                            />
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                </template>
-            </ResourceList>
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>

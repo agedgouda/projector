@@ -6,16 +6,19 @@ use App\Models\User;
 
 class UserPolicy
 {
-    public function before(User $user)
+    use HandlesOrgPermissions;
+
+    public function viewAny(User $user): bool
     {
-        // Only admins can manage users/permissions
-        if (!$user->hasRole('admin')) return false;
+        return $this->isOrgAdmin($user);
     }
 
-    public function viewAny(User $user) { return true; }
-    public function update(User $user, User $model)
+    public function update(User $user, User $targetUser): bool
     {
-        // Example: Prevent admins from accidentally de-ranking themselves
-        return $user->id !== $model->id;
+        // Still allow Org Admins to manage users,
+        // but keep the specific "don't edit yourself" rule
+        if ($user->id === $targetUser->id) return false;
+
+        return $this->isOrgAdmin($user);
     }
 }

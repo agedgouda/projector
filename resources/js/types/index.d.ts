@@ -14,16 +14,24 @@ declare global {
         roles: string[];
         clients: string[];
         permissions: string[];
+        organizations?: Organization[];
+        // These are populated when viewing the User Index
+        row_key?: string;
+        is_super?: boolean;
+        organization_name?: string;
+        organization_id?: string | null;
     }
 
     export interface Auth {
         user: User;
+        active_org_id: string | null;
         [key: string]: any;
     }
 
     // --- CORE MODELS ---
     export interface Client {
         id: string; // UUID
+        organization_id: string;
         company_name: string;
         contact_name: string;
         contact_phone: string;
@@ -147,7 +155,31 @@ declare global {
         metadata: DocumentMetadata;
     }
 
+    export interface Task {
+        // Primary & Foreign Keys (UUIDs)
+        id: number;
+        project_id: string;
+        assignee_id: number | null;
+        document_id: string | null;
 
+        // Task Content
+        title: string;
+        description: string | null;
+
+        // Workflow State
+        status: TaskStatus;
+        priority: TaskPriority;
+
+        // Dates
+        due_at: string | null; // ISO string from Laravel backend
+        created_at: string;
+        updated_at: string;
+
+        // Optional Eager-Loaded Relationships
+        project: Project;
+        document?: ProjectDocument;
+        assignee?: User;
+    }
 
     export interface TaskFromDoc {
         id: string;                  // document ID
@@ -186,6 +218,14 @@ declare global {
         user?: User;
     }
 
+    export interface Organization {
+        id: string; // UUID
+        name: string;
+        logo?: string;
+        created_at?: string;
+        updated_at?: string;
+    }
+
     // --- UI & STATE HELPERS ---
     export interface DocumentThread {
         root: ProjectDocument;
@@ -206,6 +246,7 @@ declare global {
         name: string;
         quote: { message: string; author: string };
         sidebarOpen: boolean;
+        currentOrganization?: Organization | null;
         requirementStatus: RequirementStatus[];
         flash: {
             success: string | null;

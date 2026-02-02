@@ -46,10 +46,10 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
             preserveState: true,
             onFinish: () => {
                 // This runs regardless of success or failure
-                console.log('Request finished');
+                //console.log('Request finished');
             },
             onSuccess: () => {
-                console.log('Success triggered'); // Check your console!
+                //console.log('Success triggered'); // Check your console!
                 onSuccess();
             },
             onError: (errors) => {

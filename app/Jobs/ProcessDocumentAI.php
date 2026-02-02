@@ -84,19 +84,15 @@ class ProcessDocumentAI implements ShouldQueue
      */
     public function failed(Throwable $exception)
     {
-        Log::error("AI Job Exhausted Retries for Doc #{$this->document->id}");
+        Log::error("AI Job Failed: " . $exception->getMessage());
 
-        $this->document->update([
-            'processed_at' => now(),
-            'metadata' => array_merge($this->document->metadata ?? [], [
-                'error' => $exception->getMessage(),
-                'failed_at' => now()
-            ])
-        ]);
+        // Mark as processed so the computed property 'isAiProcessing' flips to false
+        $this->document->update(['processed_at' => now()]);
 
         event(new DocumentProcessingUpdate(
-        $this->document,
-        'Error: ' . $exception->getMessage()
-    ));
+            $this->document,
+            'AI Service Unavailable: ' . $exception->getMessage(),
+            0 // Reset progress to 0 to trigger the "Error" UI state
+        ));
     }
 }

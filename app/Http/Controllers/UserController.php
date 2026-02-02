@@ -2,48 +2,62 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{User, Client};
+use App\Models\{User, Client, Organization};
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of users within the current organization.
+     */
+    public function index(Request $request)
     {
-        // 1. Security check
         Gate::authorize('viewAny', User::class);
 
+        $auth = auth()->user();
+        $currentOrgId = getPermissionsTeamId();
+
+        $users = User::query()
+            ->with(['organizations']) // Removed 'clients'
+            ->when(!$auth->hasRole('super-admin'), function($q) use ($currentOrgId) {
+                return $q->whereHas('organizations', fn($sq) => $sq->where('organizations.id', $currentOrgId));
+            })
+            ->get();
+
         return inertia('Users/Index', [
-            'users' => User::with(['roles', 'clients'])->get()->map(fn($user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'avatar' => $user->avatar,
-                'roles' => $user->getRoleNames(),
-                'clients' => $user->clients->pluck('id')->map(fn($id) => (string) $id),
-            ]),
-            'allRoles' => Role::pluck('name'),
-            'allClients' => Client::select('id', 'company_name')->get()->map(fn($c) => [
-                'id' => (string) $c->id,
-                'company_name' => $c->company_name,
-            ]),
+            'users' => $users->forInertia(),
+            'allRoles' => Role::where('team_id', $currentOrgId)->orWhereNull('team_id')->pluck('name'),
         ]);
     }
 
+    /**
+     * Update user permissions and client assignments.
+     */
     public function update(Request $request, User $user)
     {
         Gate::authorize('update', $user);
 
-        // 2. Optimized Role Toggle
-        if ($role = $request->get('role')) {
-            $user->hasRole($role) ? $user->removeRole($role) : $user->assignRole($role);
+        $validated = $request->validate([
+            'organization_id' => ['required', 'uuid', 'exists:organizations,id'],
+            'is_admin'        => ['required', 'boolean'],
+        ]);
+
+        // 1. Lock Spatie to the organization context provided by the UI
+        setPermissionsTeamId($validated['organization_id']);
+
+        // 2. Prevent modifying Super Admins to avoid accidental lockouts
+        if ($user->hasRole('super-admin')) {
+            return back()->with('error', 'Super Admin permissions cannot be modified here.');
         }
 
-        // 3. Client Syncing
-        if ($request->has('client_ids')) {
-            $user->clients()->sync($request->client_ids);
-        }
+        // 3. Handle Admin status
+        // If true, ensure they have the role; if false, ensure it's removed.
+        $validated['is_admin']
+            ? $user->assignRole('org-admin')
+            : $user->removeRole('org-admin');
 
         return back()->with('success', 'Permissions updated.');
     }

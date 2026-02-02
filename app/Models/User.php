@@ -9,6 +9,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
+use App\Collections\UserCollection;
 
 class User extends Authenticatable
 {
@@ -68,5 +69,45 @@ class User extends Authenticatable
     public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Task::class, 'assignee_id');
+    }
+
+    public function organizations()
+    {
+        return $this->belongsToMany(Organization::class)
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    /**
+     * Check if user is an admin of a specific organization
+     */
+    public function isOrgAdmin($organizationId): bool
+    {
+        return $this->organizations()
+            ->where('organization_id', $organizationId)
+            ->wherePivot('role', 'admin')
+            ->exists();
+    }
+
+    public function newCollection(array $models = []): UserCollection
+    {
+        return new UserCollection($models);
+    }
+
+    public function scopeInOrganization($query, $organizationId)
+    {
+        return $query->whereHas('organizations', function ($q) use ($organizationId) {
+            $q->where('organizations.id', $organizationId);
+        });
+    }
+
+    /**
+     * Get the current active organization for the user.
+     */
+    public function activeOrganization()
+    {
+        // This allows us to eager load the specific organization we care about
+        return $this->belongsToMany(Organization::class)
+            ->where('organizations.id', getPermissionsTeamId());
     }
 }

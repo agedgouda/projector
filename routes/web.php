@@ -4,20 +4,11 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ClientController;
-use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\ProjectTypeController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\TaskController;
-use App\Http\Controllers\CommentController;
-use App\Http\Controllers\AiTemplateController;
-
-
-use App\Events\DocumentProcessingUpdate;
-use App\Models\Document;
+use App\Http\Controllers\{
+    DocumentController, DashboardController, ClientController, ProjectController,
+    ProjectTypeController, UserController, RoleController, TaskController,
+    CommentController, AiTemplateController
+};
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -25,39 +16,51 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::get('dashboard', function () {
+/**
+ * Access Pending:
+ * A fallback page for users who are logged in but not yet assigned
+ * to an organization or lack a global role.
+ */
+Route::get('access-pending', function () {
     return Inertia::render('Dashboard/AccessPending');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard.pending');
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // 1. Admin ONLY
-    Route::middleware(['role:admin'])->group(function () {
+    /**
+     * 1. Management & Admin Area
+     * We allow both Global Super Admins and Organization Admins here.
+     * Note: Use the pipe '|' to allow multiple roles in Spatie's middleware.
+     */
+    Route::middleware(['role:super-admin|org-admin'])->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+
         Route::resource('roles', RoleController::class);
         Route::delete('/roles/{role}/users/{user}', [RoleController::class, 'unassignUser'])
             ->name('roles.users.destroy');
+
         Route::resource('project-types', ProjectTypeController::class);
         Route::resource('ai-templates', AiTemplateController::class);
         Route::resource('tasks', TaskController::class);
     });
 
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Main Entry Point
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // 2. Client & Project Management (PROTECTED BY MIDDLEWARE)
-    // We apply the middleware to these groups
+    /**
+     * 2. Client & Project Management
+     * This uses your updated 'EnsureUserCanAccessClient' middleware (aliased as client.access)
+     */
     Route::middleware(['client.access'])->group(function () {
         Route::resource('clients', ClientController::class);
-        Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);
-
         Route::resource('projects', ProjectController::class);
 
         Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])
             ->name('projects.generate');
 
-        // 3. Project Documents (Using the existing prefix)
+        // 3. Project Documents
         Route::prefix('projects/{project}')->name('projects.')->group(function () {
             Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
                 ->name('documents.search');
@@ -68,6 +71,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 });
-
 
 require __DIR__.'/settings.php';

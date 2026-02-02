@@ -4,22 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Client;
-use App\Models\Document;
 use App\Models\ProjectType;
-use App\Services\Ai\ProjectAiService;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
-
     public function index(Request $request)
     {
-        $projects = Project::visibleTo($request->user())->latest()->get()->withSummary();
+        // 1. Authorize access to the list
+        Gate::authorize('viewAny', Project::class);
 
-        if (!$request->user()->hasRole('admin') && $request->user()->clients()->doesntExist()) {
+        // 2. Fetch scoped projects using your Model Scope + Custom Collection Summary
+        $projects = Project::visibleTo($request->user())
+            ->latest()
+            ->get()
+            ->withSummary();
+
+        // 3. Security: If they aren't a Super-Admin and have no clients assigned,
+        // they shouldn't even see an empty index.
+        if (!$request->user()->hasRole('super-admin') && $request->user()->clients()->doesntExist()) {
             abort(404);
         }
 
@@ -32,6 +36,7 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
+        // 1. Authorize via ProjectPolicy@view
         Gate::authorize('view', $project);
 
         return inertia('Projects/Show', [
@@ -40,9 +45,28 @@ class ProjectController extends Controller
         ]);
     }
 
+    public function store(Request $request)
+    {
+        // 1. Authorize via ProjectPolicy@create
+        Gate::authorize('create', Project::class);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'client_id' => 'required|exists:clients,id',
+            'project_type_id' => 'required|exists:project_types,id',
+        ]);
+
+        Project::create($validated);
+
+        return redirect()->back()->with('success', 'Project created successfully.');
+    }
 
     public function update(Request $request, Project $project)
     {
+        // 1. Authorize via ProjectPolicy@update
+        Gate::authorize('update', $project);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -56,44 +80,34 @@ class ProjectController extends Controller
         return redirect()->back()->with('success', 'Project updated successfully.');
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'client_id' => 'required|exists:clients,id',
-            'project_type_id' => 'required|exists:project_types,id',
-        ]);
-
-        Project::create($validated);
-
-        return redirect()->back();
-    }
-
     public function destroy(Project $project)
     {
+        // 1. Authorize via ProjectPolicy@delete
+        Gate::authorize('delete', $project);
+
         $project->delete();
         $message = 'Project was successfully deleted.';
 
-        // 1. Check if the frontend requested a specific destination
         if (request()->has('redirect_to')) {
             return redirect(request()->get('redirect_to'))->with('success', $message);
         }
 
-        // 2. Fallback for the ClientProjects list (where 'back' is safe)
         return redirect()->back()->with('success', $message);
     }
 
     public function storeDocument(Request $request, Project $project)
     {
+        // 1. Reuse update authorization or specific document logic
+        Gate::authorize('update', $project);
+
         $validated = $request->validate([
             'name' => 'required|string',
-            'type' => 'required|string', // tech_spec, functional_spec, etc.
+            'type' => 'required|string',
             'content' => 'required|string',
         ]);
 
-        $document = $project->documents()->create($validated);
+        $project->documents()->create($validated);
+
         return back()->with('success', 'Document added and indexed.');
     }
-
 }

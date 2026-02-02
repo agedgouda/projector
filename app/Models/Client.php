@@ -5,42 +5,73 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Client extends Model
 {
     use HasUuids;
 
     protected $fillable = [
+        'organization_id',
         'company_name',
         'contact_name',
         'contact_phone',
     ];
 
-    // Explicitly define the primary key type
     protected $keyType = 'string';
     public $incrementing = false;
 
-    public function projects()
+    /**
+     * Get the organization that owns the client.
+     */
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
+    public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
     }
 
+    /**
+     * Direct user associations (useful for Consultants or specific project access)
+     */
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();
     }
 
-    public function scopeVisibleTo($query, $user)
+    /**
+     * Scope: Visibility logic for the new Hierarchy
+     */
+    public function scopeVisibleTo($query, User $user)
     {
-        if ($user->hasRole('admin')) {
+        // 1. Global Super Admin sees everything
+        if ($user->hasRole('super-admin')) {
             return $query;
         }
 
-        // A Client is visible if the user is attached via the pivot table
-        return $query->whereHas('users', function ($q) use ($user) {
-            $q->where('users.id', $user->id);
+        /** * 2. Organization Admin
+         * They see all clients belonging to the organization currently set
+         * in the Spatie Team context (via Middleware).
+         */
+        if ($user->hasRole('org-admin')) {
+            return $query->where('organization_id', getPermissionsTeamId());
+        }
+
+        /**
+         * 3. Org Members / Consultants
+         * A client is visible if:
+         * a) It belongs to the current organization AND the user is a member
+         * b) OR the user is explicitly attached via the pivot table
+         */
+        return $query->where(function ($q) use ($user) {
+            $q->where('organization_id', getPermissionsTeamId())
+              ->whereHas('users', function ($sub) use ($user) {
+                  $sub->where('users.id', $user->id);
+              });
         });
     }
-
-
 }

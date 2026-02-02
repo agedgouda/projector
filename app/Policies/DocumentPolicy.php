@@ -9,35 +9,51 @@ use App\Models\User;
 class DocumentPolicy
 {
     /**
-     * Universal check: Does the user belong to the client that owns the project?
+     * Helper to verify if the user has access to the project's parent hierarchy.
      */
-    private function canAccessProject(User $user, string $clientId): bool
+    private function canAccessProject(User $user, Project $project): bool
     {
-        if ($user->hasRole('admin')) return true;
+        // 1. Super Admin bypass
+        if ($user->hasRole('super-admin')) {
+            return true;
+        }
 
-        // Ensure the project's client_id matches one of the user's clients
+        // 2. Organization Check (Security Wall)
+        // Ensure the project belongs to the organization currently active in the session
+        if ($project->client->organization_id !== getPermissionsTeamId()) {
+            return false;
+        }
+
+        // 3. Role-based check
+        // Org Admins see all projects in their org.
+        if ($user->hasRole('org-admin')) {
+            return true;
+        }
+
+        // Members/Consultants must be explicitly attached to the Client
         return $user->clients()
-            ->where('clients.id', $clientId)
+            ->where('clients.id', $project->client_id)
             ->exists();
     }
 
     public function view(User $user, Document $document): bool
     {
-        return $this->canAccessProject($user, $document->project->client_id);
+        return $this->canAccessProject($user, $document->project);
     }
 
     public function create(User $user, Project $project): bool
     {
-        return $this->canAccessProject($user, $project->client_id);
+        return $this->canAccessProject($user, $project);
     }
 
     public function update(User $user, Document $document): bool
     {
-        return $this->canAccessProject($user, $document->project->client_id);
+        return $this->canAccessProject($user, $document->project);
     }
 
     public function delete(User $user, Document $document): bool
     {
-        return $this->canAccessProject($user, $document->project->client_id);
+        // Optional: You might want to restrict deleting documents to admins only
+        return $this->canAccessProject($user, $document->project);
     }
 }

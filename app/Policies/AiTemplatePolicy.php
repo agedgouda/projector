@@ -9,7 +9,7 @@ class AiTemplatePolicy
     public function before(User $user)
     {
         // Global admin check
-        if (!$user->hasRole('admin')) {
+        if (!$user->hasRole('super-admin')) {
             return false;
         }
     }

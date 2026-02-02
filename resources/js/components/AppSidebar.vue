@@ -31,9 +31,10 @@ import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();
 const userRoles = computed(() => page.props.auth.user.roles);
-const isAdmin = computed(() => userRoles.value.includes('admin'));
+const isSuperAdmin = computed(() => userRoles.value.includes('super-admin'));
+const isOrgAdmin = computed(() => userRoles.value.includes('org-admin'));
 const hasClients = computed(() => (page.props.auth.user.clients?.length ?? 0) > 0);
-const canAccessWorkspace = computed(() => isAdmin.value || hasClients.value);
+const canAccessWorkspace = computed(() => isSuperAdmin.value || hasClients.value);
 
 const mainNavItems: NavItem[] = [
     {
@@ -57,25 +58,25 @@ const mainNavItems: NavItem[] = [
         title: 'Project Types',
         href: projectTypeRoutes.index(),
         icon: Workflow,
-        hidden: !isAdmin.value,
+        hidden: !isSuperAdmin.value,
     },
     {
         title: 'Users',
         href: userRoutes.index(),
         icon: User,
-        hidden: !isAdmin.value,
+        hidden: !isSuperAdmin.value && !isOrgAdmin.value,
     },
     {
         title: 'Roles',
         href: roleRoutes.index(),
         icon: Settings2,
-        hidden: !isAdmin.value,
+        hidden: !isSuperAdmin.value,
     },
     {
         title: 'AI Workflows',
         href: aiRoutes.index(),
         icon: Sparkles,
-        hidden: !isAdmin.value,
+        hidden: !isSuperAdmin.value,
     },
 ];
 

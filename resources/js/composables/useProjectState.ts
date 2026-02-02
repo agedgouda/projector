@@ -1,18 +1,35 @@
-import { ref, computed, Ref } from 'vue';
+import { ref, computed, Ref, watch, toValue } from 'vue';
 import { useDocumentTree } from '@/composables/useDocumentTree';
 
 export function useProjectState(
-    initialDocs: ProjectDocument[] = [],
-    schema: Ref<DocumentSchemaItem[]> // Received from DocumentManager
+    initialDocs: ProjectDocument[] | Ref<ProjectDocument[]> | (() => ProjectDocument[]) = [],
+    schema: Ref<DocumentSchemaItem[]>
 ) {
     // 1. CENTRALIZED STATE
-    // We initialize the Map with the full document list (including tasks)
-    const documentsMap = ref(new Map(initialDocs.map(doc => [doc.id, doc])));
+    // Initialize the Map with the current value of the docs
+    const documentsMap = ref(new Map(toValue(initialDocs).map(doc => [String(doc.id), doc])));
+
+    /**
+     * SYNC INTERNAL STATE:
+     * When the parent (Dashboard) updates the liveDocuments array (via Echo/AI),
+     * we must update our internal Map so the Hierarchy tab reflects those changes.
+     */
+    watch(() => toValue(initialDocs), (newDocs) => {
+        newDocs.forEach(doc => {
+            const stringId = String(doc.id);
+            const existing = documentsMap.value.get(stringId);
+
+            // Only update if the data has actually changed or is new
+            // This prevents unnecessary re-renders of the tree
+            if (!existing || JSON.stringify(existing) !== JSON.stringify(doc)) {
+                updateDocument(stringId, doc);
+            }
+        });
+    }, { deep: true });
 
     /**
      * expandToParent
      * Internal helper to ensure all ancestors of a document are expanded.
-     * Useful for deep-nesting so child tasks don't get lost.
      */
     const expandToParent = (parentId: string | null) => {
         let currentId = parentId;
@@ -28,8 +45,7 @@ export function useProjectState(
 
     /**
      * PASSING SCHEMA:
-     * We pass both the docs AND the schema to useDocumentTree so it
-     * knows which types are allowed to be "Roots" (is_task: false).
+     * We pass both the docs AND the schema to useDocumentTree.
      */
     const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTree(allDocs, schema);
 
@@ -38,7 +54,6 @@ export function useProjectState(
      * THE UNIFIED FUNNEL: Every event (Echo, Form, AI) must pass through here.
      */
     const updateDocument = (id: string | number, data: Partial<ExtendedDocument>) => {
-        // Cast ID to string to satisfy the Map<string, ProjectDocument> requirement
         const stringId = String(id);
         const existingDoc = documentsMap.value.get(stringId);
 
@@ -46,7 +61,7 @@ export function useProjectState(
         if (!existingDoc) {
             const newDoc = {
                 ...data,
-                id: stringId, // Ensure the ID matches the string type
+                id: stringId,
                 metadata: typeof data.metadata === 'string'
                     ? JSON.parse(data.metadata)
                     : (data.metadata || {})

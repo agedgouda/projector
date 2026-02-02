@@ -9,7 +9,7 @@ class ProjectTypePolicy
     public function before(User $user)
     {
         // Only admins can touch the Library configuration
-        if (!$user->hasRole('admin')) return false;
+        if (!$user->hasRole('super-admin')) return false;
     }
 
     public function viewAny(User $user) { return true; }

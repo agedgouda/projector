@@ -10,17 +10,11 @@ class HandleInertiaRequests extends Middleware
 {
     /**
      * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
      */
     protected $rootView = 'app';
 
     /**
      * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
      */
     public function version(Request $request): ?string
     {
@@ -29,30 +23,56 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
-     * @return array<string, mixed>
      */
     public function share(Request $request): array
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+
+        $user = $request->user();
+
+        if ($user) {
+            /**
+             * 1. Determine the Organization Context.
+             * We prioritize the session (for the switcher) or fallback to their first org.
+             * Super-admins can operate with a null context, but if they are "impersonating"
+             * an org or the user is a local admin, we set the UUID.
+             */
+            $activeOrgId = $request->session()->get('active_org_id')
+                           ?? $user->organizations->first()?->id;
+
+            // 2. Set the Spatie Team ID globally for this request
+            setPermissionsTeamId($activeOrgId);
+
+            /**
+             * 3. THE FIX: Clear Model Caches.
+             * Spatie caches roles on the User model instance. If a check was performed
+             * before the Team ID was set (or with a different ID), the roles will
+             * come back empty. Unsetting these forces a fresh, context-aware query.
+             */
+            $user->unsetRelation('roles')->unsetRelation('permissions');
+        }
 
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user() ? [
-                    'id' => $request->user()->id,
-                    'first_name' => $request->user()->first_name,
-                    'last_name' => $request->user()->last_name,
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                    'roles' => $request->user()->getRoleNames(),
-                    'permissions' => $request->user()->getAllPermissions()->pluck('name'),
-                    'clients' => $request->user()->clients->pluck('id')->map(fn($id) => (string) $id),
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    /**
+                     * These methods now respect the Team ID set above.
+                     * Org-admins will see ['org-admin'],
+                     * Super-admins will see ['super-admin'] (provided it's a global role).
+                     */
+                    'roles' => $user->getRoleNames(),
+                    'permissions' => $user->getAllPermissions()->pluck('name'),
+                    'clients' => $user->clients->pluck('id')->map(fn($id) => (string) $id),
                 ] : null,
+                'active_org_id' => getPermissionsTeamId(),
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
@@ -60,7 +80,6 @@ class HandleInertiaRequests extends Middleware
                 'aiResults' => fn () => $request->session()->get('aiResults'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-
         ];
     }
 }
