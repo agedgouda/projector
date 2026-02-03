@@ -7,7 +7,7 @@ use Laravel\Fortify\Features;
 use App\Http\Controllers\{
     DocumentController, DashboardController, ClientController, ProjectController,
     ProjectTypeController, UserController, RoleController, TaskController,
-    CommentController, AiTemplateController
+    CommentController, AiTemplateController, OrganizationController
 };
 
 Route::get('/', function () {
@@ -56,6 +56,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);
         Route::resource('projects', ProjectController::class);
+
+        Route::resource('organizations', OrganizationController::class);
 
         Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])
             ->name('projects.generate');

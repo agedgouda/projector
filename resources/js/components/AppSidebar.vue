@@ -24,7 +24,7 @@ import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-import { BookOpen, Folder, LayoutGrid, Users, User, Workflow, Settings2, Sparkles } from 'lucide-vue-next';
+import { BookOpen, LayoutGrid, Users, User, Workflow, Settings2, Sparkles } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 
@@ -76,11 +76,6 @@ const mainNavItems: NavItem[] = [
 const filteredNavItems = computed(() => mainNavItems.filter(item => !item.hidden));
 
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
     {
         title: 'Documentation',
         href: 'https://laravel.com/docs/starter-kits#vue',

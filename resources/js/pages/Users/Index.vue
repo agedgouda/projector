@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import UserInfo from '@/components/UserInfo.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
+import OrgUserTable from '@/components/user/OrgUserTable.vue'; // New home
 import { useResourceExpansion } from '@/composables/useResourceExpansion';
-import { Head, router } from '@inertiajs/vue3';
-import { type BreadcrumbItem } from '@/types';
+import { Head } from '@inertiajs/vue3';
+import { type BreadcrumbItem} from '@/types';
 import { ref, computed } from 'vue';
 import {
     Building2,
     ChevronDown,
     ChevronRight,
     CircleUserRound,
-    ShieldAlert
 } from 'lucide-vue-next';
 import userRoutes from '@/routes/users/index';
 
@@ -25,7 +24,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // --- SEARCH & FILTERING ---
-// Transform the Record<string, User[]> into a searchable Array
 const orgData = computed(() =>
     Object.entries(props.users).map(([name, members]) => ({
         id: name,
@@ -43,17 +41,7 @@ const {
     handleSearchExpand
 } = useResourceExpansion(orgData.value);
 
-// --- METHODS ---
-const toggleAdminStatus = (user: User) => {
-    if (user.is_super) return;
-
-    router.put(userRoutes.update(user.id).url, {
-        organization_id: user.organization_id,
-        is_admin: !user.roles.includes('org-admin')
-    }, {
-        preserveScroll: true,
-    });
-};
+// Note: toggleAdminStatus is removed from here as it's now inside OrgUserTable
 </script>
 
 <template>
@@ -105,37 +93,11 @@ const toggleAdminStatus = (user: User) => {
                         </div>
                     </button>
 
-                    <div v-if="!collapsedOrgs[org.id]">
-                        <div class="grid grid-cols-[1fr_128px] bg-gray-50/10 dark:bg-zinc-800/20 border-b border-gray-100 dark:border-zinc-800">
-                            <div class="p-4 pl-8 text-[10px] font-black uppercase tracking-widest text-gray-400">User</div>
-                            <div class="p-4 pr-12 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Admin</div>
-                        </div>
-
-                        <div class="divide-y divide-gray-50 dark:divide-zinc-800/50">
-                            <div v-for="user in org.members" :key="user.row_key"
-                                class="grid grid-cols-[1fr_128px] items-center hover:bg-gray-50/30 dark:hover:bg-zinc-800/10 transition-colors"
-                            >
-                                <div class="p-4 pl-8 min-w-0">
-                                    <div class="flex items-center gap-3">
-                                        <UserInfo :user="user" />
-                                        <div v-if="user.is_super" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20">
-                                            <ShieldAlert class="w-3 h-3" />
-                                            <span class="text-[9px] font-black uppercase tracking-tighter">Super</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="p-4 pr-12 flex justify-center">
-                                    <input
-                                        type="checkbox"
-                                        :checked="user.roles.includes('org-admin') || user.is_super"
-                                        :disabled="user.is_super"
-                                        @change="toggleAdminStatus(user)"
-                                        class="h-4 w-4 shrink-0 rounded-sm border border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer transition-all shadow-sm"
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                    <div v-if="!collapsedOrgs[org.id]" class="p-4 border-t border-gray-100 dark:border-zinc-800">
+                        <OrgUserTable
+                            :users="org.members"
+                            :show-admin-toggle="true"
+                        />
                     </div>
                 </div>
             </div>
