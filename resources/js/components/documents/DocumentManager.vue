@@ -35,7 +35,7 @@ const {
     documentTree,
     toggleRoot,
     updateDocument
-} = useProjectState(props.project.documents, schema);
+} = useProjectState(() => props.liveDocuments, schema);
 
 const getDocLabel = (typeKey: string) => {
     return schema.value.find((item: any) => item.key === typeKey)?.label || typeKey.replace(/_/g, ' ');

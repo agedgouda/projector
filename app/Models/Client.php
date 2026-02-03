@@ -48,30 +48,14 @@ class Client extends Model
      */
     public function scopeVisibleTo($query, User $user)
     {
-        // 1. Global Super Admin sees everything
+        // 1. Global Super Admin sees everything across all orgs
         if ($user->hasRole('super-admin')) {
             return $query;
         }
 
-        /** * 2. Organization Admin
-         * They see all clients belonging to the organization currently set
-         * in the Spatie Team context (via Middleware).
-         */
-        if ($user->hasRole('org-admin')) {
-            return $query->where('organization_id', getPermissionsTeamId());
-        }
-
-        /**
-         * 3. Org Members / Consultants
-         * A client is visible if:
-         * a) It belongs to the current organization AND the user is a member
-         * b) OR the user is explicitly attached via the pivot table
-         */
-        return $query->where(function ($q) use ($user) {
-            $q->where('organization_id', getPermissionsTeamId())
-              ->whereHas('users', function ($sub) use ($user) {
-                  $sub->where('users.id', $user->id);
-              });
-        });
+        // 2. Organization Visibility
+        // Any user (org-admin, org-member, etc.) sees all clients
+        // belonging to the current organization context.
+        return $query->where('organization_id', getPermissionsTeamId());
     }
 }

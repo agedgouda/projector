@@ -12,23 +12,13 @@ class ClientPolicy
      */
     public function view(User $user, Client $client): bool
     {
-        // 1. Platform-wide Super Admin
         if ($user->hasRole('super-admin')) {
             return true;
         }
 
-        // 2. Organization Admin
-        // Can view any client belonging to their active organization
-        if ($user->hasRole('org-admin') && $client->organization_id === getPermissionsTeamId()) {
-            return true;
-        }
-
-        // 3. Organization Member / Consultant
-        // Can only view if it's in their org AND they are explicitly attached via the pivot
-        return $client->organization_id === getPermissionsTeamId() &&
-               $user->clients()->where('clients.id', $client->id)->exists();
+        // Logic: If it's in your current org, you can see it.
+        return $client->organization_id === getPermissionsTeamId();
     }
-
     /**
      * Determine if the user can update the client.
      */

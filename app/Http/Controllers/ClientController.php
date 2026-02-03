@@ -12,14 +12,11 @@ class ClientController extends Controller
     {
         $user = $request->user();
 
+        // Removed 'users' from with() since we aren't doing assignments now
         $clients = Client::visibleTo($user)
             ->latest()
-            ->with(['projects.type', 'users'])
+            ->with(['projects.type'])
             ->get();
-
-        if (!$user->hasRole('admin') && $clients->isEmpty()) {
-            abort(404);
-        }
 
         return inertia('Clients/Index', [
             'clients' => $clients,
