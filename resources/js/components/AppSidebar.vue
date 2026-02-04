@@ -17,6 +17,7 @@ import { dashboard } from '@/routes';
 import clientRoutes from '@/routes/clients/index';
 import userRoutes from '@/routes/users/index';
 import projectTypeRoutes from '@/routes/project-types/index';
+import organizationRoutes from '@/routes/organizations/index';
 import roleRoutes from '@/routes/roles/index';
 import aiRoutes from '@/routes/ai-templates/index';
 
@@ -24,7 +25,7 @@ import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-import { BookOpen, LayoutGrid, Users, User, Workflow, Settings2, Sparkles } from 'lucide-vue-next';
+import { BookOpen, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 
@@ -58,6 +59,12 @@ const mainNavItems: NavItem[] = [
         href: userRoutes.index(),
         icon: User,
         hidden: !isSuperAdmin.value && !isOrgAdmin.value,
+    },
+    {
+        title: 'Organizations',
+        href: organizationRoutes.index(),
+        icon: Building2,
+        hidden: !isSuperAdmin.value,
     },
     {
         title: 'Roles',

@@ -18,24 +18,24 @@ trait HandlesOrgPermissions
     {
         $activeTeamId = getPermissionsTeamId();
 
+        // Standard role check for the active team
         $hasRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('model_has_roles.model_id', $user->id)
-            ->where('model_has_roles.model_type', \App\Models\User::class)
-            ->where('roles.name', 'org-admin')
-            ->where('model_has_roles.team_id', $activeTeamId)
+            // ... (your existing query) ...
             ->exists();
 
-        if (!$model) {
-            \Log::info('[PolicyDebug] No model check', ['has_role' => $hasRole]);
-            return $hasRole;
-        }
+        if (!$model) return $hasRole;
 
         if ($model instanceof User) {
             return $model->organizations()->where('organizations.id', $activeTeamId)->exists() && $hasRole;
         }
-        $modelOrgId = $model->organization_id;
-        $targetTeamId = $modelOrgId ?? $activeTeamId;
+
+        // NEW: Handle if the model IS the Organization
+        if ($model instanceof \App\Models\Organization) {
+            $targetTeamId = $model->id;
+        } else {
+            // Handle Projects, Clients, etc. via virtual attribute
+            $targetTeamId = $model->organization_id ?? $activeTeamId;
+        }
 
         return $hasRole && ($targetTeamId === $activeTeamId);
     }

@@ -2,7 +2,8 @@
 import {
     Check,
     ChevronsUpDown,
-    Building2
+    Building2,
+    Plus
 } from "lucide-vue-next";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
+    CommandSeparator
 } from "@/components/ui/command";
 import {
     Popover,
@@ -20,6 +22,8 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { ref } from "vue";
+import { Link } from "@inertiajs/vue3";
+import organizationRoutes from '@/routes/organizations/index';
 
 defineProps<{
     organizations: any[];
@@ -60,7 +64,23 @@ const handleSelect = (orgId: string | number) => {
                 <CommandInput placeholder="Search organizations..." />
                 <CommandList>
                     <CommandEmpty>No organization found.</CommandEmpty>
+
                     <CommandGroup>
+                        <CommandItem
+                            value="create-new-organization"
+                            as-child
+                            class="flex items-center gap-2 py-3 cursor-pointer text-indigo-600 dark:text-indigo-400 font-black uppercase text-[10px] tracking-widest"
+                        >
+                            <Link :href="organizationRoutes.create.url()" @click="open = false">
+                                <Plus class="h-4 w-4" />
+                                Create New Organization
+                            </Link>
+                        </CommandItem>
+                    </CommandGroup>
+
+                    <CommandSeparator />
+
+                    <CommandGroup heading="Organizations">
                         <CommandItem
                             v-for="org in organizations"
                             :key="org.id"

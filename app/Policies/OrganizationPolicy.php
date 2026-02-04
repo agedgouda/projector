@@ -7,42 +7,30 @@ use App\Models\User;
 
 class OrganizationPolicy
 {
+    use HandlesOrgPermissions;
+
     /**
-     * Determine if a user can see the organization settings/dashboard.
+     * Can the user see the dashboard?
      */
     public function view(User $user, Organization $organization): bool
     {
-        // Super Admin sees all.
-        if ($user->hasRole('super-admin')) return true;
-
-        // Regular users can only "view" the org they are currently switched into.
-        return $organization->id === getPermissionsTeamId();
+        // Trait's before() handles Super Admin.
+        // For others, ensure they belong to this org and it's their active context.
+        return $user->organizations->contains($organization->id) &&
+               $organization->id === getPermissionsTeamId();
     }
 
     /**
-     * Determine if a user can edit the organization (name, settings, etc).
+     * Can they edit org settings?
      */
     public function update(User $user, Organization $organization): bool
     {
-        return $user->hasRole('super-admin') ||
-               ($user->hasRole('org-admin') && $organization->id === getPermissionsTeamId());
+        // We pass the organization as the $model to isOrgAdmin
+        return $this->isOrgAdmin($user, $organization);
     }
 
-    /**
-     * Determine if a user can invite or remove users from this organization.
-     */
     public function manageUsers(User $user, Organization $organization): bool
     {
-        return $user->hasRole('super-admin') ||
-               ($user->hasRole('org-admin') && $organization->id === getPermissionsTeamId());
-    }
-
-    /**
-     * Determine who can delete the entire organization.
-     */
-    public function delete(User $user, Organization $organization): bool
-    {
-        // Usually restricted to Super Admin to prevent accidental company-wide data loss.
-        return $user->hasRole('super-admin');
+        return $this->isOrgAdmin($user, $organization);
     }
 }

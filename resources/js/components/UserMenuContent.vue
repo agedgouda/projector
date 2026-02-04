@@ -11,6 +11,8 @@ import { edit } from '@/routes/profile';
 import { Link, router } from '@inertiajs/vue3';
 import { LogOut, Settings, Building2 } from 'lucide-vue-next';
 
+import organizationRoutes from '@/routes/organizations/index';
+
 interface Props {
     user: User;
 }
@@ -31,7 +33,7 @@ defineProps<Props>();
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">
-            <Link class="block w-full cursor-pointer" :href="edit()" prefetch as="button">
+            <Link class="block w-full cursor-pointer" :href="organizationRoutes.index()" prefetch as="button">
                 <Building2 class="mr-2 h-4 w-4" />
                 Organization
             </Link>

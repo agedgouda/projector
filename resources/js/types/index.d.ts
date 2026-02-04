@@ -222,8 +222,18 @@ declare global {
         id: string; // UUID
         name: string;
         logo?: string;
+        website?: string;
+        email?: string;
         created_at?: string;
         updated_at?: string;
+
+        // Optional relations and permissions included globally
+        users?: User[];
+        can?: {
+            update: boolean;
+            manage_users: boolean;
+            delete: boolean;
+        };
     }
 
     // --- UI & STATE HELPERS ---
