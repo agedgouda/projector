@@ -29,7 +29,7 @@ import ResourceSearch from '@/components/ResourceSearch.vue';
 const props = defineProps<{
     clients: any[];
     projectTypes: any[];
-    activeClientId?: string;
+    activeOrg: Organization;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Clients', href: clientRoutes.index.url() }];
@@ -109,9 +109,11 @@ const handleFormSuccess = () => {
                 <div>
                     <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase flex items-center gap-3">
                         <Building2 class="w-8 h-8 text-indigo-500" />
-                        Client Management
+                        {{ activeOrg.name }} Client Management
                     </h1>
                     <p class="text-sm text-gray-500 mt-1">Manage client relationships and project history.</p>
+
+                    Clients for {{ activeOrg?.name }}
                 </div>
 
                 <div class="flex items-center gap-3 w-full md:w-auto">
