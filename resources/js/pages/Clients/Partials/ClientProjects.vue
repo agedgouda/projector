@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import ProjectFolio from '@/components/ProjectFolio.vue';
+import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import { Search, X, Plus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';

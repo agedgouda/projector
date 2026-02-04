@@ -62,4 +62,35 @@ class UserCollection extends Collection
             'row_key'           => $user->id . '-' . ($orgId ?? 'global'),
         ];
     }
+
+    /**
+     * Get a flattened list of organizations the users have access to,
+     * formatted for project creation selects.
+     */
+    public function availableClients(): array
+    {
+        // Check if any user in this collection is a super-admin
+        // (In the context of the Dashboard, this collection usually only contains the current user)
+        $isSuperAdmin = $this->contains(fn($user) => $user->hasRole('super-admin'));
+
+        if ($isSuperAdmin) {
+            return \App\Models\Organization::all()
+                ->map(fn($org) => [
+                    'id' => $org->id,
+                    'company_name' => $org->name,
+                ])
+                ->values()
+                ->toArray();
+        }
+
+        // Default logic for standard users
+        return $this->flatMap(fn($user) => $user->organizations)
+            ->unique('id')
+            ->map(fn($org) => [
+                'id' => $org->id,
+                'company_name' => $org->name,
+            ])
+            ->values()
+            ->toArray();
+    }
 }

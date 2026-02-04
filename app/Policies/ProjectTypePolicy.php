@@ -23,4 +23,5 @@ class ProjectTypePolicy
         return $type->projects_count === 0 && !$type->projects()->exists();
     }
 
+
 }

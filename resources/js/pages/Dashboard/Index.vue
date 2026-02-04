@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 
 
 import AppLayout from '@/layouts/AppLayout.vue';
+
 import { STATUS_LABELS } from '@/lib/constants';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
@@ -15,7 +16,8 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useWorkflow } from '@/composables/useWorkflow';
 import DocumentManager from '@/components/documents/DocumentManager.vue';
 import projectRoutes from '@/routes/projects/index';
-import projectDocumentsRoutes from '@/routes/projects/documents/index'; // Added for delete logic
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
+
 
 // UI Components
 import ProjectSwitcher from './Partials/ProjectSwitcher.vue';
@@ -28,7 +30,8 @@ const props = defineProps<{
     projects: Project[];
     currentProject: Project | null;
     kanbanData: Record<string, ProjectDocument[]>;
-    activeTab: string;
+    activeTab: string;clients: Client[];
+    projectTypes: ProjectType[];
 }>();
 
 const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
@@ -203,6 +206,8 @@ watch(() => props.currentProject, (newProject) => {
                     <ProjectSwitcher
                         :projects="projects"
                         :current-project="currentProject"
+                        :clients="clients"
+                        :project-types="projectTypes"
                         @switch="(id) => router.get('/dashboard', { project: id })"
                     />
                 </div>

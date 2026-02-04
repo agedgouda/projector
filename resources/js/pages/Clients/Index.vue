@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import ClientEntryForm from './Partials/ClientEntryForm.vue';
+import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue'; // Assumed component path
 import { useResourceExpansion } from '@/composables/useResourceExpansion';
 import clientRoutes from '@/routes/clients/index';
 import { Head, router } from '@inertiajs/vue3';
@@ -17,10 +18,11 @@ import {
     Building2,
     ChevronDown,
     ChevronRight,
+    FolderPlus,
 } from 'lucide-vue-next';
 
 // Unified Components
-import ProjectFolio from '@/components/ProjectFolio.vue';
+import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
 
@@ -36,6 +38,10 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Clients', href: clientRoutes.in
 const filteredClients = ref([...props.clients]);
 const isFormOpen = ref(false);
 const clientToEdit = ref<any | null>(null);
+
+// --- NEW STATE: PROJECT CREATION ---
+const isProjectFormOpen = ref(false);
+const targetClientForProject = ref<any | null>(null);
 
 // --- RESOURCE EXPANSION (Shared Logic) ---
 const {
@@ -57,6 +63,17 @@ const openCreateModal = () => {
 const handleEditRequest = (client: any) => {
     clientToEdit.value = client;
     isFormOpen.value = true;
+};
+
+// --- NEW METHOD: ADD PROJECT ---
+const openAddProjectModal = (client: any) => {
+    targetClientForProject.value = client;
+    isProjectFormOpen.value = true;
+};
+
+const handleProjectSuccess = () => {
+    isProjectFormOpen.value = false;
+    targetClientForProject.value = null;
 };
 
 const confirmDeleteClient = (client: any) => {
@@ -81,6 +98,7 @@ const handleFormSuccess = () => {
     clientToEdit.value = null;
 };
 </script>
+
 <template>
     <Head title="Clients" />
 
@@ -149,6 +167,10 @@ const handleFormSuccess = () => {
                         </button>
 
                         <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button @click="openAddProjectModal(client)" class="p-2 text-gray-400 hover:text-emerald-600 transition-colors" title="Add Project">
+                                <FolderPlus class="w-4 h-4" />
+                            </button>
+
                             <button @click="handleEditRequest(client)" class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
                                 <Pencil class="w-4 h-4" />
                             </button>
@@ -171,6 +193,22 @@ const handleFormSuccess = () => {
                 </div>
             </div>
         </div>
+
+        <Dialog v-model:open="isProjectFormOpen">
+            <DialogContent class="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>New Project for {{ targetClientForProject?.company_name }}</DialogTitle>
+                    <DialogDescription>Initialize a new project record for this client.</DialogDescription>
+                </DialogHeader>
+                <ProjectEntryForm
+                    v-if="targetClientForProject"
+                    :client="targetClientForProject"
+                    :project-types="projectTypes"
+                    @success="handleProjectSuccess"
+                    @cancel="isProjectFormOpen = false"
+                />
+            </DialogContent>
+        </Dialog>
 
         <ConfirmDeleteModal
             :open="isDeleteModalOpen"

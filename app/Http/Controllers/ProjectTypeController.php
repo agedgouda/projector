@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\{ProjectType, AiTemplate};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class ProjectTypeController extends Controller
 {
@@ -17,6 +18,16 @@ class ProjectTypeController extends Controller
                 ->orderBy('name')
                 ->get(),
             'aiTemplates' => AiTemplate::select('id', 'name')->get(),
+        ]);
+    }
+
+    public function create(Request $request)
+    {
+        Gate::authorize('create', ProjectType::class);
+
+//        return inertia('ProjectTypes/Create', [
+        return inertia('ProjectTypes/Show', [
+            'aiTemplates' => AiTemplate::select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 
@@ -35,9 +46,11 @@ class ProjectTypeController extends Controller
         Gate::authorize('create', ProjectType::class);
 
         $validated = $this->validateProtocol($request);
-        ProjectType::create($validated);
+        $projectType = ProjectType::create($validated);
 
-        return back()->with('message', 'success');
+        // Redirect to the edit/show page for the newly created UUID
+        return to_route('project-types.edit', $projectType->id)
+            ->with('success', 'Protocol created successfully.');
     }
 
     public function update(Request $request, ProjectType $projectType)
@@ -65,12 +78,21 @@ class ProjectTypeController extends Controller
     protected function validateProtocol(Request $request, $id = null)
     {
         return $request->validate([
-            'name' => 'required|string|max:255|unique:project_types,name,' . $id,
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('project_types', 'name')->ignore($id),
+            ],
             'icon' => 'nullable|string|max:100',
-            'document_schema' => 'nullable|array',
+
+            // Document Schema
+            'document_schema' => 'required|array|min:1',
             'document_schema.*.label' => 'required|string',
             'document_schema.*.key' => 'required|string',
             'document_schema.*.is_task' => 'required|boolean',
+
+            // Workflow - REMOVED the 'exists:document_schema' part
             'workflow' => 'nullable|array',
             'workflow.*.from_key' => 'required|string',
             'workflow.*.to_key' => 'required|string',

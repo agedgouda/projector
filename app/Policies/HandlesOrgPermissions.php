@@ -18,7 +18,6 @@ trait HandlesOrgPermissions
     {
         $activeTeamId = getPermissionsTeamId();
 
-        // We check the database for ANY role named 'org-admin'
         $hasRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
             ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
             ->where('model_has_roles.model_id', $user->id)
@@ -27,21 +26,17 @@ trait HandlesOrgPermissions
             ->where('model_has_roles.team_id', $activeTeamId)
             ->exists();
 
-        // Logic for viewAny vs Model instance
         if (!$model) {
+            \Log::info('[PolicyDebug] No model check', ['has_role' => $hasRole]);
             return $hasRole;
         }
 
         if ($model instanceof User) {
-            $isSameOrg = $model->organizations()
-                ->where('organizations.id', $activeTeamId)
-                ->exists();
-            return $isSameOrg && $hasRole;
+            return $model->organizations()->where('organizations.id', $activeTeamId)->exists() && $hasRole;
         }
+        $modelOrgId = $model->organization_id;
+        $targetTeamId = $modelOrgId ?? $activeTeamId;
 
-        $targetTeamId = $model->organization_id ?? $activeTeamId;
-
-        // Final check for non-user models
         return $hasRole && ($targetTeamId === $activeTeamId);
     }
 }

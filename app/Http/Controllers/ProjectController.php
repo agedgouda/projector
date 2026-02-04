@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
-use App\Models\Client;
+use App\Models\Organization;
 use App\Models\ProjectType;
+use App\Http\Requests\ProjectRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -12,77 +13,90 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
-        // 1. Authorize access to the list
         Gate::authorize('viewAny', Project::class);
 
-        // 2. Fetch scoped projects using your Model Scope + Custom Collection Summary
         $projects = Project::visibleTo($request->user())
             ->latest()
             ->get()
             ->withSummary();
 
-        // 3. Security: If they aren't a Super-Admin and have no clients assigned,
-        // they shouldn't even see an empty index.
-        if (!$request->user()->hasRole('super-admin') && $request->user()->clients()->doesntExist()) {
+        // Security: If not a Super-Admin and not assigned to any organization, deny.
+        if (!$request->user()->hasRole('super-admin') && $request->user()->organizations()->doesntExist()) {
             abort(404);
         }
 
         return inertia('Projects/Index', [
             'projects' => $projects,
-            'clients' => Client::visibleTo($request->user())->get(),
-            'projectTypes' => ProjectType::all(),
+            // Use the new Collection method we created for role-based client listing
+            'clients' => $request->user()->newCollection([$request->user()])->availableClients(),
+            'projectTypes' => ProjectType::all(['id', 'name']),
         ]);
     }
 
     public function show(Project $project)
     {
-        // 1. Authorize via ProjectPolicy@view
+        // Set context based on the project being viewed to satisfy the Policy trait
+        setPermissionsTeamId($project->organization_id);
+
         Gate::authorize('view', $project);
 
         return inertia('Projects/Show', [
             'project' => $project->loadFullPipeline(),
-            'projectTypes' => ProjectType::all(),
+            'projectTypes' => ProjectType::all(['id', 'name']),
         ]);
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created project.
+     * Uses ProjectRequest to handle context-switching and authorization.
+     */
+    public function store(ProjectRequest $request)
     {
-        // 1. Authorize via ProjectPolicy@create
-        Gate::authorize('create', Project::class);
+        try {
+            // Validation and Authorization already handled by ProjectRequest
+            // But we'll call Gate::authorize here to ensure the standard 403 flow
+            Gate::authorize('create', Project::class);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'client_id' => 'required|exists:clients,id',
-            'project_type_id' => 'required|exists:project_types,id',
-        ]);
+            $project = Project::create($request->validated());
 
-        Project::create($validated);
+            return redirect()->route('dashboard', ['project' => $project->id])
+                ->with('success', 'Project created successfully.');
 
-        return redirect()->back()->with('success', 'Project created successfully.');
+        } catch (\Exception $e) {
+            \Log::error('[ProjectController] Store failed', [
+                'error' => $e->getMessage(),
+                'trace' => substr($e->getTraceAsString(), 0, 300)
+            ]);
+            throw $e;
+        }
     }
 
-    public function update(Request $request, Project $project)
-    {
-        // 1. Authorize via ProjectPolicy@update
+public function update(ProjectRequest $request, Project $project)
+{
+    try {
         Gate::authorize('update', $project);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'project_type_id' => 'required|exists:project_types,id',
-            'client_id' => 'sometimes|required|exists:clients,id',
-            'status' => 'sometimes|string',
-        ]);
 
-        $project->update($validated);
+
+        $project->update($request->validated());
 
         return redirect()->back()->with('success', 'Project updated successfully.');
+
+    } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+
+        \Log::error('[ControllerDebug] Authorization Failed', [
+            'user_id' => auth()->id(),
+            'project_org_id' => $project->organization_id, // Hits our new accessor
+            'active_team_id' => getPermissionsTeamId(),
+        ]);
+        throw $e;
     }
+}
 
     public function destroy(Project $project)
     {
-        // 1. Authorize via ProjectPolicy@delete
+        setPermissionsTeamId($project->organization_id);
+
         Gate::authorize('delete', $project);
 
         $project->delete();
@@ -92,12 +106,13 @@ class ProjectController extends Controller
             return redirect(request()->get('redirect_to'))->with('success', $message);
         }
 
-        return redirect()->back()->with('success', $message);
+        return redirect()->route('dashboard')->with('success', $message);
     }
 
     public function storeDocument(Request $request, Project $project)
     {
-        // 1. Reuse update authorization or specific document logic
+        setPermissionsTeamId($project->organization_id);
+
         Gate::authorize('update', $project);
 
         $validated = $request->validate([

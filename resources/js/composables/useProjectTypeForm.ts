@@ -37,26 +37,24 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
     }
 
     const submit = () => {
+        // Optional: Filter out empty workflow steps if you want to allow "blank" rows in UI
+        // form.workflow = form.workflow.filter(w => w.from_key && w.to_key);
+
         const url = editData
             ? projectTypeRoutes.update.url(editData.id)
             : projectTypeRoutes.store.url();
 
-        form[editData ? 'put' : 'post'](url, {
+        // Use the method name dynamically
+        const method = editData ? 'put' : 'post';
+
+        form[method](url, {
             preserveScroll: true,
-            preserveState: true,
-            onFinish: () => {
-                // This runs regardless of success or failure
-                //console.log('Request finished');
-            },
-            onSuccess: () => {
-                //console.log('Success triggered'); // Check your console!
-                onSuccess();
-            },
+            onSuccess: () => onSuccess(),
             onError: (errors) => {
                 console.error('Validation errors:', errors);
             }
         });
-};
+    };
 
     const suggestKey = (index: number) => {
         const doc = form.document_schema[index]

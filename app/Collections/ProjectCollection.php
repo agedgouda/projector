@@ -51,4 +51,15 @@ class ProjectCollection extends Collection
     {
         return $id ? $this->where('id', $id)->first() : $this->first();
     }
+
+    /**
+     * Intelligent current project resolver.
+     * Handles the fallback to the first project if the ID is missing or invalid.
+     */
+    public function resolveCurrent(?string $id)
+    {
+        $current = $id ? $this->where('id', $id)->first() : null;
+
+        return $current ?: $this->first();
+    }
 }

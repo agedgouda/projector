@@ -40,6 +40,20 @@ class Project extends Model
         return $this->newCollection([$this])->withFullPipeline()->first();
     }
 
+    public function getOrganizationIdAttribute()
+    {
+        $orgId = $this->client?->organization_id;
+
+        if (!$orgId) {
+            \Log::warning('[ModelDebug] Project could not reach Organization ID', [
+                'project_id' => $this->id,
+                'has_client' => !!$this->client,
+            ]);
+        }
+
+        return $orgId;
+    }
+
     /**
      * Get the client that owns the project.
      */
@@ -80,31 +94,32 @@ class Project extends Model
      */
     public function scopeVisibleTo($query, User $user)
     {
-        // 1. Global Platform Admin (God Mode)
+        // 1. Super-Admin bypass
         if ($user->hasRole('super-admin')) {
             return $query;
         }
 
-        /**
-         * 2. Organization Scoped Access
-         * We look for the current team_id set by the Middleware.
-         */
         $currentOrgId = getPermissionsTeamId();
 
+        // 2. Fail-safe: If no org context is set, return no projects.
+        if (!$currentOrgId) {
+            return $query->whereRaw('1 = 0');
+        }
+
         if ($user->hasRole('org-admin')) {
-            // Org Admins see all projects for all clients in this organization
+            // Org Admins: All projects for clients in this organization
             return $query->whereHas('client', function ($q) use ($currentOrgId) {
                 $q->where('organization_id', $currentOrgId);
             });
         }
 
         // 3. Members / Consultants
-        // They see projects only if the client belongs to the org AND they are attached to that client
+        // Filter by Org context AND check if user is explicitly attached to the Client
         return $query->whereHas('client', function ($q) use ($user, $currentOrgId) {
             $q->where('organization_id', $currentOrgId)
-              ->whereHas('users', function ($sub) use ($user) {
-                  $sub->where('users.id', $user->id);
-              });
+            ->whereHas('users', function ($sub) use ($user) {
+                $sub->where('users.id', $user->id);
+            });
         });
     }
 
