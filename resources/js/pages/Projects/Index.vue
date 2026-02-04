@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
-import ProjectFolio from '@/components/ProjectFolio.vue';
+import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import projectRoutes from '@/routes/projects/index';
