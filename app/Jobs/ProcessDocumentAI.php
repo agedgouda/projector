@@ -53,11 +53,19 @@ class ProcessDocumentAI implements ShouldQueue
                 ->delete();
 
             foreach ($generatedItems as $data) {
+                // 1. Extract the specific content using the dynamic key
+                $content = $data[$outputType] ?? null;
+
+                // 2. Fail if the content is missing
+                if (empty($content)) {
+                    throw new \Exception("AI Validation Error: Required key '{$outputType}' was missing from the response.");
+                }
+
                 $this->document->project->documents()->create([
                     'parent_id'    => $this->document->id,
                     'type'         => $outputType,
                     'name'         => $data['title'] ?? 'Untitled Deliverable',
-                    'content'      => $data['story'] ?? $data['description'] ?? $data['content'] ?? '',
+                    'content'      => $content,
                     'metadata'     => [
                         'criteria' => $data['criteria'] ?? [],
                         'category' => $data['category'] ?? 'general',

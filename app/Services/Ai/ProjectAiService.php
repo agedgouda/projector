@@ -9,11 +9,9 @@ use App\Services\VectorService;
 use App\Contracts\LlmDriver;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use Illuminate\Support\Facades\Log;
-use Laravel\Octane\Facades\Octane;
 
 class ProjectAiService
 {
-    // 🚀 NEW: Inject the LlmDriver alongside VectorService
     public function __construct(
         protected VectorService $vectorService,
         protected LlmDriver $llmDriver
@@ -21,13 +19,10 @@ class ProjectAiService
 
     public function process(Document $document)
     {
-
         $document->loadMissing('project.type');
         $typeModel = $document->project->type;
-
         $project = $document->project;
 
-        // 2. RESTORED: Find the specific step in the workflow
         $workflow = collect($typeModel->workflow ?? []);
         $step = $workflow->firstWhere('from_key', $document->type);
 
@@ -36,75 +31,55 @@ class ProjectAiService
             return null;
         }
 
-        // 3. RESTORED: Find the template by ID from that step
+        $outputKey = $step['to_key'];
+
         $template = AiTemplate::find($step['ai_template_id']);
         if (!$template) {
             Log::error("AI Template ID {$step['ai_template_id']} not found.");
             return null;
         }
 
-        // 4. Initialize Strategy
-        $strategy = new DynamicWorkflowStrategy($template, $step['from_key'], $step['to_key']);
+        $strategy = new DynamicWorkflowStrategy($template, $step['from_key'], $outputKey);
 
-        // 5. Call LLM using the Injected Driver
-        $result = $this->callLlm($project, $strategy, $document->content, $document);
+        $result = $this->callLlm($project, $strategy, $document->content, $document, $outputKey);
 
-        // 6. Restore your original validation logic
-        $mockResponse = $result['mock_response'] ?? [];
         if (($result['status'] ?? '') === 'success') {
-            $generatedItems = collect($mockResponse);
-
-            $hasSubstantialContent = $generatedItems->isNotEmpty() && $generatedItems->every(function ($item) {
-                $text = $item['story'] ?? $item['description'] ?? $item['content'] ?? '';
-                return strlen(trim($text)) > 10;
-            });
-
-            if (!$hasSubstantialContent) {
-                return [
-                    'status' => 'error',
-                    'message' => 'AI returned empty or insufficient content.',
-                    'output_type' => $strategy->getOutputDocumentType(),
-                ];
-            }
-
             $result['output_type'] = $strategy->getOutputDocumentType();
         }
 
         return $result;
     }
 
-    protected function callLlm(Project $project, $strategy, string $context, Document $currentDoc = null)
+    protected function callLlm(Project $project, $strategy, string $context, Document $currentDoc = null, string $outputKey = 'content')
     {
         $userTemplate = $strategy->getUserPromptTemplate();
-        $replacements = ['{{input}}' => $context, '{{project}}' => $project->name];
 
-        // ... (Keep your existing Octane context resolution logic) ...
+        $replacements = [
+            '{{input}}' => $context,
+            '{{project}}' => $project->name,
+            '{{output_key}}' => $outputKey
+        ];
 
-        $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
+        $baseMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
 
-        // Call the LLM Driver
+        $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", and \"criteria\".";
+
+        $userMessage = $baseMessage . $schemaInstruction;
+
         $result = $this->llmDriver->call(
             $strategy->getTaskExtractionPrompt(),
             $userMessage
         );
 
-        // --- THE TRAP: Catch Driver-level errors (Connection, Timeouts, etc.) ---
         if (($result['status'] ?? '') === 'error') {
-            Log::error("LLM Driver Failure", [
-                'error' => $result['message'] ?? 'Unknown error',
-                'document_id' => $currentDoc?->id
-            ]);
-
-            // DO NOT update processed_at here.
-            // Let the Job catch this, retry if possible, or trigger its own failed() method.
+            Log::error("LLM Driver Failure", ['error' => $result['message'] ?? 'Unknown error']);
             throw new \Exception($result['message'] ?? 'AI transformation failed');
         }
 
         return [
             'project_name'  => $project->name,
             'mock_response' => $result['content'] ?? [],
-            'status'        => 'success', // We know it's success if we reached here
-            'error_message' => null,
+            'status'        => 'success',
             'output_type'   => $strategy->getOutputDocumentType(),
         ];
     }
