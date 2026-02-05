@@ -17,6 +17,11 @@ const props = defineProps<{
     isGenerating: boolean;
 }>();
 
+// Add this at the very top of <script setup>
+console.log('--- VUE DATA INGESTION ---');
+console.log('Props liveDocuments Count:', props.liveDocuments?.length);
+console.log('First Doc Details:', props.liveDocuments?.[0]);
+
 const emit = defineEmits(['confirmDelete', 'generate']);
 
 // --- 1. ENCAPSULATED STATE ---

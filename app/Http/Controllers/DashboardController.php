@@ -36,6 +36,16 @@ class DashboardController extends Controller
 
         $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
 
+        \Log::info('PRODUCTION DATA CHECK', [
+            'project_id' => $currentProject->id,
+            'docs_count' => count($liveDocuments),
+            'sample_doc' => !empty($liveDocuments) ? [
+                'id' => $liveDocuments[0]['id'],
+                'parent_id' => $liveDocuments[0]['parent_id'] ?? 'NULL',
+                'type' => $liveDocuments[0]['type']
+            ] : 'EMPTY'
+        ]);
+
         return Inertia::render('Dashboard/Index', [
             'projects'     => $projects,
             'currentProject' => $currentProject,
