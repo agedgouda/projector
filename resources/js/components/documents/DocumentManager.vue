@@ -18,7 +18,7 @@ const props = defineProps<{
 }>();
 
 // Add this at the very top of <script setup>
-console.log('--- VUE DATA INGESTION ---');
+console.log('--- VUE DOCUMENT MANAGER INGESTION ---');
 console.log('Props liveDocuments Count:', props.liveDocuments?.length);
 console.log('First Doc Details:', props.liveDocuments?.[0]);
 

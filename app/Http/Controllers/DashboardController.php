@@ -37,13 +37,13 @@ class DashboardController extends Controller
         $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
 
         \Log::info('PRODUCTION DATA CHECK', [
-            'project_id' => $currentProject->id,
-            'docs_count' => count($liveDocuments),
-            'sample_doc' => !empty($liveDocuments) ? [
-                'id' => $liveDocuments[0]['id'],
-                'parent_id' => $liveDocuments[0]['parent_id'] ?? 'NULL',
-                'type' => $liveDocuments[0]['type']
-            ] : 'EMPTY'
+            'project_id' => $projects,
+            'projects'     => $projects,
+            'currentProject' => $currentProject,
+            'kanbanData'   => (object) $currentProject->getKanbanPipe(),
+            'activeTab'    => $tab,
+            'clients'      => $clients,
+            'projectTypes' => \App\Models\ProjectType::all(['id', 'name']),
         ]);
 
         return Inertia::render('Dashboard/Index', [
