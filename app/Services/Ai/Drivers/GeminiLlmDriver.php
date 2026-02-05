@@ -12,19 +12,26 @@ class GeminiLlmDriver implements LlmDriver
     public function call(string $systemPrompt, string $userPrompt): array
     {
         $apiKey = config('services.gemini.key');
-        // Using the stable 2.5 Flash model
         $url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={$apiKey}";
-
-        $fullPrompt = "{$systemPrompt}\n\n{$userPrompt}";
 
         try {
             $response = Http::timeout(60)->post($url, [
+                // 1. Isolation: Moves rules to a privileged instruction block
+                'system_instruction' => [
+                    'parts' => [['text' => $systemPrompt]]
+                ],
                 'contents' => [
-                    ['parts' => [['text' => $fullPrompt]]]
+                    ['parts' => [['text' => $userPrompt]]]
+                ],
+                // 2. Determinism: Locks the AI's "dice roll"
+                'generationConfig' => [
+                    'temperature' => 0,      // No creativity, strict logic only
+                    'topP' => 1,            // Consider all tokens but prioritize the top
+                    'topK' => 1,            // Greedy decoding (pick ONLY the best match)
+                    'responseMimeType' => 'application/json', // Force internal JSON validation
                 ]
             ]);
 
-            // 1. Handle API/HTTP Failures (429 Rate Limit, 403 Key Error, etc.)
             if ($response->failed()) {
                 $errorType = $response->status() === 429 ? 'rate_limit' : 'api_error';
                 Log::error("Gemini API Failure", ['status' => $response->status(), 'body' => $response->body()]);
@@ -38,9 +45,6 @@ class GeminiLlmDriver implements LlmDriver
             }
 
             $data = $response->json();
-
-            // 2. Handle Safety/Finish Reasons
-            // If Google blocks the content, the 'parts' array will be missing.
             $candidate = $data['candidates'][0] ?? null;
             $finishReason = $candidate['finishReason'] ?? 'UNKNOWN';
 
