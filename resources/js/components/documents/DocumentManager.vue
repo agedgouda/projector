@@ -11,11 +11,14 @@ import { useWorkflow } from '@/composables/useWorkflow';
 import { Input } from '@/components/ui/input';
 import TraceabilityRow from './TraceabilityRow.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     project: Project;
-    liveDocuments: ProjectDocument[];
+    liveDocuments?: ProjectDocument[]; // The '?' makes it optional
     isGenerating: boolean;
-}>();
+}>(), {
+    liveDocuments: () => [], // Provides a default empty array
+    isGenerating: false
+});
 
 // Add this at the very top of <script setup>
 console.log('--- VUE DOCUMENT MANAGER INGESTION ---');
