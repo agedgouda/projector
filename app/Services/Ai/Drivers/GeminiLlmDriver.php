@@ -16,19 +16,19 @@ class GeminiLlmDriver implements LlmDriver
 
         try {
             $response = Http::timeout(60)->post($url, [
-                // 1. Isolation: Moves rules to a privileged instruction block
+                // 1. Isolation: Separates instructions from user data
                 'system_instruction' => [
                     'parts' => [['text' => $systemPrompt]]
                 ],
                 'contents' => [
                     ['parts' => [['text' => $userPrompt]]]
                 ],
-                // 2. Determinism: Locks the AI's "dice roll"
+                // 2. Determinism: Forces identical output every time
                 'generationConfig' => [
-                    'temperature' => 0,      // No creativity, strict logic only
-                    'topP' => 1,            // Consider all tokens but prioritize the top
-                    'topK' => 1,            // Greedy decoding (pick ONLY the best match)
-                    'responseMimeType' => 'application/json', // Force internal JSON validation
+                    'temperature' => 0,      // Eliminates randomness
+                    'topP' => 1,            // Considers full probability spectrum
+                    'topK' => 1,            // Greedy decoding: always pick the #1 word
+                    'responseMimeType' => 'application/json', // Internal rigid JSON mode
                 ]
             ]);
 
