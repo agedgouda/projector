@@ -8,25 +8,34 @@ use App\Models\User;
 
 class DocumentPolicy
 {
+    use HandlesOrgPermissions; // This enables the before() bypass for Super Admins
+
+    /**
+     * Determine if the user can view any documents.
+     */
+    public function viewAny(User $user): bool
+    {
+        // For non-super-admins, we check if they are at least an org-admin
+        // or have basic access to the current team context.
+        return $this->isOrgAdmin($user);
+    }
+
     /**
      * Helper to verify if the user has access to the project's parent hierarchy.
      */
     private function canAccessProject(User $user, Project $project): bool
     {
-        // 1. Super Admin bypass
-        if ($user->hasRole('super-admin')) {
-            return true;
-        }
+        // NOTE: The Super Admin check is now handled automatically by the trait's before() method.
 
-        // 2. Organization Check (Security Wall)
+        // 1. Organization Check (Security Wall)
         // Ensure the project belongs to the organization currently active in the session
         if ($project->client->organization_id !== getPermissionsTeamId()) {
             return false;
         }
 
-        // 3. Role-based check
-        // Org Admins see all projects in their org.
-        if ($user->hasRole('org-admin')) {
+        // 2. Role-based check
+        // Use the trait helper for a more robust check
+        if ($this->isOrgAdmin($user, $project)) {
             return true;
         }
 
@@ -53,7 +62,6 @@ class DocumentPolicy
 
     public function delete(User $user, Document $document): bool
     {
-        // Optional: You might want to restrict deleting documents to admins only
         return $this->canAccessProject($user, $document->project);
     }
 }

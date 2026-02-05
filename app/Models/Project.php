@@ -88,13 +88,11 @@ class Project extends Model
 
     /**
      * Multi-tenant visibility scope.
-     * 1. super-admin: Sees everything.
-     * 2. org-admin: Sees everything within their active Organization.
-     * 3. org-member: Sees only clients/projects they are explicitly attached to.
      */
     public function scopeVisibleTo($query, User $user)
     {
         // 1. Super-Admin bypass
+        // Note: We check roles without the team context to ensure global admins aren't filtered out
         if ($user->hasRole('super-admin')) {
             return $query;
         }
@@ -107,19 +105,17 @@ class Project extends Model
         }
 
         if ($user->hasRole('org-admin')) {
-            // Org Admins: All projects for clients in this organization
             return $query->whereHas('client', function ($q) use ($currentOrgId) {
                 $q->where('organization_id', $currentOrgId);
             });
         }
 
         // 3. Members / Consultants
-        // Filter by Org context AND check if user is explicitly attached to the Client
         return $query->whereHas('client', function ($q) use ($user, $currentOrgId) {
             $q->where('organization_id', $currentOrgId)
-            ->whereHas('users', function ($sub) use ($user) {
-                $sub->where('users.id', $user->id);
-            });
+                ->whereHas('users', function ($sub) use ($user) {
+                    $sub->where('users.id', $user->id);
+                });
         });
     }
 
