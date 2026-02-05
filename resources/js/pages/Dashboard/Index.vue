@@ -254,7 +254,7 @@ watch(() => props.currentProject, (newProject) => {
 
                 <DocumentManager
                     :project="currentProject"
-                    :live-documents="allDocs"
+                    :live-documents="currentProject.documents"
                     :is-generating="isGenerating"
                     @confirm-delete="confirmDelete"
                     @generate="generateDeliverables"
