@@ -36,35 +36,28 @@ class ProcessDocumentAI implements ShouldQueue
             return;
         }
 
-        // Case 2: AI Error handling with built-in retry logic
+        // Case 2: AI Error handling
         if ($result['status'] === 'error') {
             throw new \Exception($result['message'] ?? 'AI transformation failed');
         }
 
         event(new DocumentProcessingUpdate($this->document, 'Generating project deliverables...', 65));
 
-        // The Payload
         $generatedItems = $result['mock_response'] ?? [];
         $outputType = $result['output_type'];
 
-        // Wrap everything in a transaction to ensure all-or-nothing delivery
         DB::transaction(function () use ($generatedItems, $outputType) {
-
-            // 1. Precise Cleanup: Only remove previous AI-generated versions of this specific intake
             $this->document->project->documents()
                 ->where('parent_id', $this->document->id)
                 ->where('type', $outputType)
                 ->delete();
 
-            // 2. Bulk Creation: Let the Project handle the creation
             foreach ($generatedItems as $data) {
                 $this->document->project->documents()->create([
                     'parent_id'    => $this->document->id,
                     'type'         => $outputType,
                     'name'         => $data['title'] ?? 'Untitled Deliverable',
                     'content'      => $data['story'] ?? $data['description'] ?? $data['content'] ?? '',
-                    // Note: We do NOT set processed_at here.
-                    // Why? Because we want the Observer to see them as "new content" and vectorize them.
                     'metadata'     => [
                         'criteria' => $data['criteria'] ?? [],
                         'category' => $data['category'] ?? 'general',
@@ -72,7 +65,6 @@ class ProcessDocumentAI implements ShouldQueue
                 ]);
             }
 
-            // 3. Mark the Intake as finished
             $this->document->update(['processed_at' => now()]);
         });
 
@@ -80,19 +72,20 @@ class ProcessDocumentAI implements ShouldQueue
     }
 
     /**
-     * If all 3 tries fail, this method stops the spinner.
+     * Final cleanup if all retries are exhausted.
      */
     public function failed(Throwable $exception)
     {
-        Log::error("AI Job Failed: " . $exception->getMessage());
+        Log::error("AI Job Exhausted Retries: " . $exception->getMessage());
 
-        // Mark as processed so the computed property 'isAiProcessing' flips to false
-        $this->document->update(['processed_at' => now()]);
+        if (!$this->document->processed_at) {
+            $this->document->update(['processed_at' => now()]);
+        }
 
         event(new DocumentProcessingUpdate(
             $this->document,
-            'AI Service Unavailable: ' . $exception->getMessage(),
-            0 // Reset progress to 0 to trigger the "Error" UI state
+            'AI Service Failed after multiple attempts: ' . $exception->getMessage(),
+            0
         ));
     }
 }

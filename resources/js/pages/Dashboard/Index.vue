@@ -33,9 +33,6 @@ const props = defineProps<{
     activeTab: string;clients: Client[];
     projectTypes: ProjectType[];
 }>();
-console.log('--- VUE DOCUMENT MANAGER INGESTION ---');
-console.log('Props liveDocuments Count:', props.currentProject);
-
 
 const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
 const setPersistentCookie = (name: string, value: string) => {

@@ -20,10 +20,6 @@ const props = withDefaults(defineProps<{
     isGenerating: false
 });
 
-// Add this at the very top of <script setup>
-console.log('--- VUE DOCUMENT MANAGER INGESTION ---');
-console.log('Props liveDocuments Count:', props.liveDocuments?.length);
-console.log('First Doc Details:', props.liveDocuments?.[0]);
 
 const emit = defineEmits(['confirmDelete', 'generate']);
 
@@ -93,7 +89,6 @@ const isDetailsSheetOpen = ref(false);
 
 const selectedSheetItem = computed(() => {
     if (!selectedSheetId.value) return null;
-    // Map is keyed by UUID string
     return (documentsMap.value.get(selectedSheetId.value) as ExtendedDocument) || null;
 });
 
