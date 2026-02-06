@@ -35,13 +35,23 @@ return [
         ],
     ],
 
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'embed_model' => env('OPENAI_EMBED_MODEL', 'text-embedding-3-small'),
+    ],
+
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
+        'model'       => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+        'embed_model' => env('GEMINI_EMBED_MODEL', 'text-embedding-004'),
     ],
 
 
     'ollama' => [
         'host' => env('OLLAMA_HOST'),
+        'model' => env('OLLAMA_MODEL', 'deepseek-r1:8b'),
+        'embedding_model' => env('OLLAMA_EMBED_MODEL', 'nomic-embed-text'),
     ],
 
     'vector_driver' => env('VECTOR_DRIVER', 'gemini'),

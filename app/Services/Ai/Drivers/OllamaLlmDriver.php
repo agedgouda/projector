@@ -12,8 +12,9 @@ class OllamaLlmDriver implements LlmDriver
 {
     public function call(string $systemPrompt, string $userPrompt): array
     {
-        $host = config('services.ollama.host');
-        $model = 'deepseek-r1:8b';
+        // Using config instead of hardcoded strings
+        $host = config('services.ollama.host', 'http://localhost:11434');
+        $model = config('services.ollama.model', 'deepseek-r1:8b');
 
         Log::info("Ollama Driver: Starting request", ['model' => $model]);
 
@@ -27,11 +28,10 @@ class OllamaLlmDriver implements LlmDriver
                 'options' => [
                     'temperature' => 0.2,
                     'top_p'       => 0.1,
-                    'num_predict' => 2048, // Prevents premature cutoff
+                    'num_predict' => 2048,
                 ],
             ]);
 
-            // 1. Handle HTTP Failures (e.g., 404 model not found, 500 server crash)
             if ($response->failed()) {
                 return [
                     'status' => 'error',
@@ -52,11 +52,9 @@ class OllamaLlmDriver implements LlmDriver
                 ];
             }
 
-            // 2. DeepSeek Clean-up
             $noThinking = preg_replace('/<think>.*?<\/think>/s', '', $rawText);
             $cleanJson = trim(preg_replace('/^```json\s*|```$/m', '', $noThinking));
 
-            // 3. JSON Decode with Error Capture
             $decoded = json_decode($cleanJson, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
@@ -73,7 +71,6 @@ class OllamaLlmDriver implements LlmDriver
                 ];
             }
 
-            // 4. Safety Net: Consistency check
             if (is_array($decoded) && !array_is_list($decoded)) {
                 $decoded = [$decoded];
             }
@@ -96,6 +93,40 @@ class OllamaLlmDriver implements LlmDriver
                 'message' => $e->getMessage(),
                 'content' => []
             ];
+        }
+    }
+
+    /**
+     * Generate vectors locally using Ollama.
+     */
+    public function getEmbedding(string $text): array
+    {
+        $host = config('services.ollama.host', 'http://localhost:11434');
+
+        // Pointing to the new config key for embeddings
+        $model = config('services.ollama.embedding_model', 'nomic-embed-text');
+
+        try {
+            $response = Http::timeout(30)->post("{$host}/api/embed", [
+                'model' => $model,
+                'input' => $text
+            ]);
+
+            if ($response->failed()) {
+                Log::error("Ollama Embedding Failure", [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return [];
+            }
+
+            $data = $response->json();
+
+            return $data['embeddings'][0] ?? [];
+
+        } catch (Exception $e) {
+            Log::error("Ollama Embedding Exception: " . $e->getMessage());
+            return [];
         }
     }
 }

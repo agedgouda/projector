@@ -2,99 +2,77 @@
 
 namespace App\Services\Ai\Drivers;
 
-use App\Contracts\LlmDriver;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
-class GeminiLlmDriver implements LlmDriver
+class GeminiLlmDriver extends AbstractLlmDriver
 {
     public function call(string $systemPrompt, string $userPrompt): array
     {
         $apiKey = config('services.gemini.key');
-        $url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+        // Using Gemini 2.0 or 1.5 Flash for speed and schema support
+        $model = config('services.gemini.model', 'gemini-2.0-flash');
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
         try {
             $response = Http::timeout(60)->post($url, [
-                // 1. Isolation: Separates instructions from user data
                 'system_instruction' => [
                     'parts' => [['text' => $systemPrompt]]
                 ],
                 'contents' => [
                     ['parts' => [['text' => $userPrompt]]]
                 ],
-                // 2. Determinism: Forces identical output every time
                 'generationConfig' => [
-                    'temperature' => 0,      // Eliminates randomness
-                    'topP' => 1,            // Considers full probability spectrum
-                    'topK' => 1,            // Greedy decoding: always pick the #1 word
-                    'responseMimeType' => 'application/json', // Internal rigid JSON mode
+                    'temperature' => 0,
+                    'responseMimeType' => 'application/json',
+                    // This is the magic: Gemini's version of Structured Outputs
+                    'responseSchema' => $this->getOutputSchema(),
                 ]
             ]);
 
             if ($response->failed()) {
-                $errorType = $response->status() === 429 ? 'rate_limit' : 'api_error';
-                Log::error("Gemini API Failure", ['status' => $response->status(), 'body' => $response->body()]);
-
-                return [
-                    'status' => 'error',
-                    'error_type' => $errorType,
-                    'message' => "Gemini API returned status " . $response->status(),
-                    'content' => []
-                ];
+                Log::error("Gemini API Failure", ['body' => $response->body()]);
+                return ['status' => 'error', 'message' => "Gemini Error: " . $response->status(), 'content' => []];
             }
 
             $data = $response->json();
-            $candidate = $data['candidates'][0] ?? null;
-            $finishReason = $candidate['finishReason'] ?? 'UNKNOWN';
+            $textResponse = $data['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
 
-            if ($finishReason !== 'STOP') {
-                return [
-                    'status' => 'error',
-                    'error_type' => 'safety_block',
-                    'message' => "Gemini stopped generating. Reason: {$finishReason}",
-                    'content' => []
-                ];
-            }
-
-            $textResponse = $candidate['content']['parts'][0]['text'] ?? null;
-
-            if (!$textResponse) {
-                return [
-                    'status' => 'error',
-                    'error_type' => 'empty_response',
-                    'message' => "Gemini returned no text content.",
-                    'content' => []
-                ];
-            }
-
-            // 3. Clean and Parse JSON
-            $cleanJson = trim(preg_replace('/^```json\s*|```$/m', '', $textResponse));
-            $decoded = json_decode($cleanJson, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                Log::error("Gemini JSON Parse Error", ['raw' => $cleanJson]);
-                return [
-                    'status' => 'error',
-                    'error_type' => 'json_parse',
-                    'message' => "JSON Parse Error: " . json_last_error_msg(),
-                    'content' => []
-                ];
-            }
+            // No regex cleanup needed; responseSchema guarantees valid JSON
+            $decoded = json_decode($textResponse, true);
 
             return [
                 'status' => 'success',
-                'content' => $decoded ?? []
+                // Always return the flat 'items' array to match OpenAI/Ollama drivers
+                'content' => $decoded['items'] ?? []
             ];
 
         } catch (Exception $e) {
             Log::error("Gemini Driver Exception: " . $e->getMessage());
-            return [
-                'status' => 'error',
-                'error_type' => 'exception',
-                'message' => $e->getMessage(),
-                'content' => []
-            ];
+            return ['status' => 'error', 'message' => $e->getMessage(), 'content' => []];
+        }
+    }
+
+    public function getEmbedding(string $text): array
+    {
+        $apiKey = config('services.gemini.key');
+        $model = config('services.gemini.embed_model', 'text-embedding-004');
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:embedContent?key={$apiKey}";
+
+        try {
+            $response = Http::timeout(30)->post($url, [
+                'content' => ['parts' => [['text' => $text]]],
+                // Lock dimensionality to 1536 to match your DB and OpenAI/Ollama
+                'outputDimensionality' => $this->getEmbeddingDimensions(),
+                'taskType' => 'RETRIEVAL_DOCUMENT',
+            ]);
+
+            return $response->json('embedding.values') ?? [];
+
+        } catch (Exception $e) {
+            Log::error("Gemini Embedding Exception: " . $e->getMessage());
+            return [];
         }
     }
 }

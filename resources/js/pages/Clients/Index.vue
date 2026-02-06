@@ -112,8 +112,6 @@ const handleFormSuccess = () => {
                         {{ activeOrg.name }} Client Management
                     </h1>
                     <p class="text-sm text-gray-500 mt-1">Manage client relationships and project history.</p>
-
-                    Clients for {{ activeOrg?.name }}
                 </div>
 
                 <div class="flex items-center gap-3 w-full md:w-auto">

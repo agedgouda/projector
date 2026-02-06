@@ -80,11 +80,18 @@ class Document extends Model
     /**
      * Scopes
      */
-    public function scopeNearestNeighbors(Builder $query, array $vector, int $limit = 5): void
+    // public function scopeNearestNeighbors(Builder $query, array $vector, int $limit = 5): void
+    // {
+    //     $vectorString = '[' . implode(',', $vector) . ']';
+    //     $query->orderByRaw("embedding <=> ?::vector", [$vectorString])
+    //           ->limit($limit);
+    // }
+
+    public function scopeNearestNeighbors(Builder $query, array|Vector $vector, int $limit = 5): void
     {
-        $vectorString = '[' . implode(',', $vector) . ']';
-        $query->orderByRaw("embedding <=> ?::vector", [$vectorString])
-              ->limit($limit);
+        // The trait 'HasNeighbors' already gives you 'nearestNeighbors'
+        // But if you use your manual one, ensure the string conversion is safe
+        $query->nearestNeighbors('embedding', $vector)->limit($limit);
     }
 
     public function scopeVisibleTo(Builder $query, $user)
