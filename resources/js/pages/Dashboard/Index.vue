@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
 import { PlusIcon, ShieldAlert } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+
+//testing the connection issues
+import { echo } from '@laravel/echo-vue';
+import axios from 'axios';
 
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -177,6 +181,60 @@ watch(() => props.currentProject, (newProject) => {
         localStorage.setItem('last_project_id', newProject.id.toString());
     }
 }, { immediate: true });
+
+//testing the connection issues
+const connectionStatus = ref('initializing');
+
+/**
+ * LOG AND RECONNECT LOGIC
+ */
+const handleStatusChange = async (newStatus: string) => {
+    console.log(`📡 [Echo Watchdog]: Raw State -> ${newStatus}`);
+
+    const badStates = ['disconnected', 'failed', 'unavailable'];
+
+    if (badStates.includes(newStatus)) {
+        console.warn('⚠️ Watchdog triggered. Reporting and reconnecting...');
+
+        // 1. Log to Laravel Backend
+        try {
+            // Adjust the URL to your specific route
+            await axios.post('/api/log-connection-issue', {
+                state: newStatus,
+                project_id: props.currentProject?.id,
+                url: window.location.href
+            });
+        } catch (e) {
+            console.error('Watchdog could not reach backend', e);
+        }
+
+        // 2. Force Reconnect
+        const instance = echo();
+        // Force the type to 'any' to get past the 'pusher' property error
+        const connector = instance?.connector as any;
+        if (connector?.pusher) {
+            connector.pusher.connect();
+        }
+    }
+};
+
+onMounted(() => {
+    const instance = echo();
+    const connector = instance?.connector as any;
+
+    if (connector?.pusher) {
+        const pusher = connector.pusher;
+
+        // Bind to the raw Pusher connection state changes
+        pusher.connection.bind('state_change', (states: { current: string }) => {
+            connectionStatus.value = states.current;
+            handleStatusChange(states.current);
+        });
+
+        // Set initial state
+        connectionStatus.value = pusher.connection.state;
+    }
+});
 
 </script>
 

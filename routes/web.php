@@ -16,6 +16,16 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+Route::post('/log-connection-issue', function (Request $request) {
+    Log::warning('Frontend WebSocket Issue Detected', [
+        'user_id' => auth()->id(),
+        'state' => $request->input('state'),
+        'last_error' => $request->input('error'),
+        'user_agent' => $request->userAgent(),
+    ]);
+    return response()->json(['status' => 'logged']);
+});
+
 /**
  * Access Pending:
  * A fallback page for users who are logged in but not yet assigned
