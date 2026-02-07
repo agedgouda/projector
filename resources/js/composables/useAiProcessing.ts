@@ -30,13 +30,6 @@ export function useAiProcessing(
     const isTargeting = !!targetBeingCreated.value;
     const pendingDoc = allDocs.value.find(d => d.processed_at === null);
 
-    if (isTargeting || pendingDoc) {
-        console.log('AI Still Processing because:', {
-            isTargeting,
-            pendingDocId: pendingDoc?.id
-        });
-    }
-
     return isTargeting || !!pendingDoc;
 });
 
