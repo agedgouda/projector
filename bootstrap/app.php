@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->redirectGuestsTo(fn () => route('login', ['expired' => 1]));
 
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
@@ -44,4 +45,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e, $request) {
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
         });
+
+        // 3. Catch CSRF/Session timeouts
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            if ($e->getStatusCode() === 419) {
+                return redirect()->route('login')->with([
+                    'message' => 'Your session expired. Please log in again.',
+                ]);
+            }
+        });
+
     })->create();

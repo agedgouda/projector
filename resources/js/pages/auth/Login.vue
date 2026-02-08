@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
+import { usePage } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -12,11 +14,24 @@ import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 import { Form, Head } from '@inertiajs/vue3';
 
-defineProps<{
+const props = defineProps<{
     status?: string;
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
+
+const page = usePage<AppPageProps>();
+
+const displayStatus = computed(() => {
+    // 1. Check if the URL has our expired flag
+    if (page.url.includes('expired=1')) {
+        return 'Your session expired. Please log in again.';
+    }
+
+    // 2. Fallback to the actual status prop from Laravel
+    return props.status;
+});
+
 </script>
 
 <template>
@@ -27,10 +42,10 @@ defineProps<{
         <Head title="Log in" />
 
         <div
-            v-if="status"
+            v-if="displayStatus"
             class="mb-4 text-center text-sm font-medium text-green-600"
         >
-            {{ status }}
+            {{ displayStatus }}
         </div>
 
         <Form

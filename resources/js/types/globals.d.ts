@@ -123,6 +123,7 @@ declare global {
         flash: {
             success: string | null;
             error: string | null;
+            message: string | null;
             aiResults?: any;
         };
         [key: string]: unknown;
