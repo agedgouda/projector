@@ -61,20 +61,7 @@ class ProjectAiService
             '{{document_name}}' => $currentDoc?->name ?? 'Document',
         ];
 
-        // 1. Log the keys and the template before the swap
-        Log::info("DIAGNOSTIC 1: Template and Keys", [
-            'template_raw_hex' => bin2hex($userTemplate), // Reveals hidden chars in DB
-            'replacement_keys' => array_keys($replacements),
-            'document_name_value' => $currentDoc?->name
-        ]);
-
         $baseMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
-
-        // 2. Log the result of the swap
-        Log::info("DIAGNOSTIC 2: Final Message", [
-            'final_message_preview' => substr($baseMessage, 0, 500), // See the first 500 chars
-            'found_placeholder_still' => str_contains($baseMessage, '{{document_name}}') ? 'YES' : 'NO'
-        ]);
 
         $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", and \"criteria\".";
 
