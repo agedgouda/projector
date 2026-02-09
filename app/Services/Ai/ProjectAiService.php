@@ -53,7 +53,7 @@ class ProjectAiService
     protected function callLlm(Project $project, $strategy, string $context, Document $currentDoc = null, string $outputKey = 'content')
     {
         $userTemplate = $strategy->getUserPromptTemplate();
-
+        //did this change?
         $replacements = [
             '{{input}}' => $context,
             '{{project}}' => $project->name,
