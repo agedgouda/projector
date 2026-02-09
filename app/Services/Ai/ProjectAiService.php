@@ -57,7 +57,8 @@ class ProjectAiService
         $replacements = [
             '{{input}}' => $context,
             '{{project}}' => $project->name,
-            '{{output_key}}' => $outputKey
+            '{{output_key}}' => $outputKey,
+            '{{document_name}}' => $currentDoc?->name ?? 'Document',
         ];
 
         $baseMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
