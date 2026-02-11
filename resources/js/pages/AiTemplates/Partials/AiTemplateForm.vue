@@ -1,115 +1,87 @@
 <script setup lang="ts">
-import { watch } from 'vue';
-import { useForm } from '@inertiajs/vue3';
-import { Save, Sparkles, Info, Terminal } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
-const props = defineProps<{
-    editData: any | null;
+/* ---------------------------
+   1. Props & Emits
+   Instead of a single 'form' prop, we define the individual
+   model values to allow clean parent-child synchronization.
+---------------------------- */
+defineProps<{
+    name: string;
+    systemPrompt: string;
+    userPrompt: string;
+    processing: boolean;
+    errors: Record<string, string>;
+    isEditing: boolean;
 }>();
 
-const emit = defineEmits(['success']);
+const emit = defineEmits<{
+    (e: 'update:name', value: string): void;
+    (e: 'update:systemPrompt', value: string): void;
+    (e: 'update:userPrompt', value: string): void;
+    (e: 'submit'): void;
+    (e: 'cancel'): void;
+}>();
 
-const form = useForm({
-    name: '',
-    system_prompt: '',
-    user_prompt: '',
-});
 
-// Sync form with editData when opening the modal for editing
-watch(() => props.editData, (newVal) => {
-    if (newVal) {
-        form.name = newVal.name;
-        form.system_prompt = newVal.system_prompt;
-        form.user_prompt = newVal.user_prompt;
-    } else {
-        form.reset();
-    }
-}, { immediate: true });
-
-const submit = () => {
-    const url = props.editData
-        ? `/ai-templates/${props.editData.id}`
-        : '/ai-templates';
-
-    form[props.editData ? 'put' : 'post'](url, {
-        onSuccess: () => {
-            form.reset();
-            emit('success');
-        },
-        preserveScroll: true
-    });
-};
-
-// Simple visual helper for prompt engineering
-const highlightVariables = (text: string) => {
-    if (!text) return 'Enter prompt logic...';
-    return text.replace(/\{\{input\}\}/g, '<span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-black tracking-widest text-[10px] border border-indigo-500/30">INPUT</span>');
-};
 </script>
 
 <template>
-    <form @submit.prevent="submit" class="space-y-8">
-
+    <form @submit.prevent="emit('submit')" class="space-y-8">
         <div class="space-y-2">
             <div class="flex items-center gap-2 mb-1">
-                <Terminal class="w-3 h-3 text-indigo-500" />
-                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Template Identifier</Label>
+                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Name</Label>
             </div>
             <Input
-                v-model="form.name"
+                :model-value="name"
+                @update:model-value="val => emit('update:name', val as string)"
                 placeholder="e.g. Software: Note to User Story"
                 class="h-12 rounded-xl border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 focus:ring-4 focus:ring-indigo-500/5"
             />
-            <div v-if="form.errors.name" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ form.errors.name }}</div>
+            <div v-if="errors.name" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ errors.name }}</div>
         </div>
 
         <div class="space-y-2">
             <div class="flex items-center gap-2 mb-1">
-                <Info class="w-3 h-3 text-amber-500" />
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">System Instructions (The Persona)</Label>
             </div>
             <textarea
-                v-model="form.system_prompt"
+                :value="systemPrompt"
+                @input="e => emit('update:systemPrompt', (e.target as HTMLTextAreaElement).value)"
                 placeholder="Describe the AI's expertise and constraints..."
                 class="w-full min-h-[100px] rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/30 p-4 text-sm leading-relaxed outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all font-medium text-gray-700 dark:text-gray-300"
             />
-            <div v-if="form.errors.system_prompt" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ form.errors.system_prompt }}</div>
+            <div v-if="errors.system_prompt" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ errors.system_prompt }}</div>
         </div>
 
         <div class="space-y-2">
             <div class="flex items-center gap-2 mb-1">
-                <Sparkles class="w-3 h-3 text-indigo-500" />
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">User Prompt (The Transformation)</Label>
             </div>
 
             <div class="relative group">
                 <textarea
-                    v-model="form.user_prompt"
+                    :value="userPrompt"
+                    @input="e => emit('update:userPrompt', (e.target as HTMLTextAreaElement).value)"
                     placeholder="Based on these notes: {{input}}, create a..."
                     class="w-full min-h-[180px] rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/30 p-4 text-sm font-mono leading-relaxed outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all text-gray-700 dark:text-gray-300"
                 />
-
-                <div class="mt-3 p-4 bg-indigo-50/30 dark:bg-indigo-500/5 rounded-xl border border-indigo-100/50 dark:border-indigo-500/10">
-                    <p class="text-[8px] font-black uppercase text-indigo-600 mb-2 tracking-widest flex items-center gap-1">
-                        Injection Preview
-                    </p>
-                    <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed" v-html="highlightVariables(form.user_prompt)"></p>
-                </div>
             </div>
-            <div v-if="form.errors.user_prompt" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ form.errors.user_prompt }}</div>
+            <div v-if="errors.user_prompt" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ errors.user_prompt }}</div>
         </div>
 
-        <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
+        <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
+            <Button type="button" variant="ghost" @click="emit('cancel')" class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                Cancel
+            </Button>
             <Button
                 type="submit"
-                :disabled="form.processing"
-                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black px-10 h-12 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 uppercase text-[10px] tracking-[0.2em]"
+                :disabled="processing"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl shadow-lg"
             >
-                <Save class="w-4 h-4 mr-2" />
-                {{ editData ? 'Update AI Logic' : 'Activate Intelligence' }}
+                {{ isEditing ? 'Save Changes' : 'Activate Intelligence' }}
             </Button>
         </div>
     </form>

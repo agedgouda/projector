@@ -75,7 +75,6 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         router.delete(url, {
             onSuccess: () => {
                 toast.success('Document deleted');
-                //router.visit(`${dashboard().url}?project=${project.id}&tab=${getCurrentTab()}`);
             },
             onFinish: () => {
                 isDeleting.value = false;

@@ -30,7 +30,7 @@ const emit = defineEmits(['close', 'confirm']);
                 </DialogDescription>
             </DialogHeader>
 
-            <DialogFooter class="gap-2 sm:gap-0">
+            <DialogFooter class="gap-2 sm:gap-4">
                 <Button variant="outline" @click="emit('close')" :disabled="loading">
                     Cancel
                 </Button>
