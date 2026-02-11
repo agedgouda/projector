@@ -70,3 +70,25 @@ const { getDocLabel } = useDocumentPresenter(props.project);
         </div>
     </div>
 </template>
+<style scoped>
+/* The :deep() selector is required because the AI-generated HTML
+  is injected (likely via v-html) and isn't part of the
+  template during initial compilation.
+*/
+:deep(ol) {
+    list-style-type: decimal !important;
+    padding-left: 1.5rem !important;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+:deep(ol li) {
+    margin-bottom: 0.5rem;
+}
+
+/* Optional: Style <ul> tags while you're at it */
+:deep(ul) {
+    list-style-type: disc !important;
+    padding-left: 1.5rem !important;
+}
+</style>

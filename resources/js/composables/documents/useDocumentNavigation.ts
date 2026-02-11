@@ -1,6 +1,6 @@
 // resources/js/composables/documents/useDocumentNavigation.ts
 import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+//import { router } from '@inertiajs/vue3';
 import projectRoutes from '@/routes/projects/index';
 import { dashboard } from '@/routes';
 
@@ -21,7 +21,7 @@ export function useDocumentNavigation(project: Project, item?: Partial<ExtendedD
         }
     ]);
 
-    const handleBack = () => router.visit(getReturnUrl());
+    const handleBack = () => window.history.back();
 
     return {
         breadcrumbs,

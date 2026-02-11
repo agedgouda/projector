@@ -1,39 +1,63 @@
-import { ref, computed, type Ref } from 'vue';
+import { ref, computed, type Ref, watch } from 'vue';
 
 export function useDocumentTree(
     allDocs: Ref<ExtendedDocument[]>,
     schema: Ref<DocumentSchemaItem[]>
-    ) {
+) {
     const searchQuery = ref('');
-    const expandedRootIds = ref<Set<string | number>>(new Set());
+
+    // --- 1. PERSISTENCE LOGIC ---
 
     /**
-     * buildTree
-     * Recursively builds the hierarchy.
-     * Since allDocs is a computed array from our Map,
-     * this will re-run whenever a document is added or its parent_id changes.
+     * Helper to parse the current URL and return a Set of expanded IDs.
      */
+    const getExpandedFromUrl = () => {
+        if (typeof window === 'undefined') return new Set<string | number>();
+        const params = new URLSearchParams(window.location.search);
+        const expanded = params.get('expanded');
+        return new Set(expanded ? expanded.split(',') : []);
+    };
+
+    const expandedRootIds = ref<Set<string | number>>(getExpandedFromUrl());
+
+    /**
+     * Sync expanded state to the URL.
+     * We use window.history.replaceState to avoid polluting browser history
+     * with every single click, but keep the URL current for "Back" button events.
+     */
+    watch(expandedRootIds, (newSet) => {
+        if (typeof window === 'undefined') return;
+
+        const url = new URL(window.location.href);
+        const ids = Array.from(newSet).join(',');
+
+        if (ids) {
+            url.searchParams.set('expanded', ids);
+        } else {
+            url.searchParams.delete('expanded');
+        }
+
+        window.history.replaceState({}, '', url);
+    }, { deep: true });
+
+
+    // --- 2. TREE BUILDING LOGIC ---
+
     const buildTree = (parentId: string | number | null = null): ExtendedDocument[] => {
-            return allDocs.value
-                .filter(d => {
-                    // If we are looking for children, match the parent_id
-                    if (parentId !== null) {
-                        return d.parent_id === parentId;
-                    }
-
-                    // If we are at the ROOT level (parentId is null):
-                    // 1. It must not have a parent_id
-                    // 2. Its type must be defined as is_task: false in the schema
-                    const schemaItem = schema.value.find(s => s.key === d.type);
-                    const isTask = schemaItem?.is_task ?? false;
-
-                    return d.parent_id === null && !isTask;
-                })
-                .map(d => ({
-                    ...d,
-                    children: buildTree(d.id)
-                }));
-        };
+        return allDocs.value
+            .filter(d => {
+                if (parentId !== null) {
+                    return d.parent_id === parentId;
+                }
+                const schemaItem = schema.value.find(s => s.key === d.type);
+                const isTask = schemaItem?.is_task ?? false;
+                return d.parent_id === null && !isTask;
+            })
+            .map(d => ({
+                ...d,
+                children: buildTree(d.id)
+            }));
+    };
 
     const documentTree = computed(() => {
         const query = searchQuery.value.toLowerCase().trim();
@@ -41,10 +65,9 @@ export function useDocumentTree(
 
         if (!query) return fullTree;
 
-        // Automatically expand all roots when searching so results aren't hidden
         const filterNodes = (nodes: ExtendedDocument[]): ExtendedDocument[] => {
             return nodes
-                .map((node): ExtendedDocument | null => { // 1. Explicitly allow null in map return
+                .map((node): ExtendedDocument | null => {
                     const filteredChildren = filterNodes(node.children || []);
                     const nameMatch = node.name.toLowerCase().includes(query);
 
@@ -52,26 +75,30 @@ export function useDocumentTree(
                         if (filteredChildren.length > 0) {
                             expandedRootIds.value.add(node.id);
                         }
-                        // 2. Return the full node spread with the new children
-                        return {
-                            ...node,
-                            children: filteredChildren
-                        };
+                        return { ...node, children: filteredChildren };
                     }
                     return null;
                 })
-                // 3. Simple filter check
                 .filter((n): n is ExtendedDocument => n !== null);
         };
 
         return filterNodes(fullTree);
     });
 
+    // --- 3. ACTIONS ---
+
     const toggleRoot = (id: string | number) => {
-        // We use a new Set to trigger Vue's reactivity properly
         const next = new Set(expandedRootIds.value);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        // Ensure we compare strings to avoid type mismatches from URL parsing
+        const stringId = String(id);
+
+        // Check for both the raw ID and stringified ID
+        if (next.has(id) || next.has(stringId)) {
+            next.delete(id);
+            next.delete(stringId);
+        } else {
+            next.add(stringId);
+        }
         expandedRootIds.value = next;
     };
 
