@@ -15,15 +15,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.aiTemplate ? 'Edit Template' : 'New Template', href: '#' },
 ];
 
-const handleShow = (id: number | null) => {
-    // If no ID exists, return to the index library
-    if (!id) {
-        router.visit(aiTemplateRoutes.index().url);
-        return;
-    }
-
-    // Otherwise, navigate to the specific protocol details
-    router.visit(aiTemplateRoutes.show({ ai_template: id }).url);
+const handleShow = () => {
+    router.visit(aiTemplateRoutes.index().url);
 };
 
 
@@ -52,6 +45,7 @@ const submit = () => {
         }
     });
 };
+
 </script>
 
 <template>
@@ -59,7 +53,7 @@ const submit = () => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 w-full">
-            <button @click="handleShow(aiTemplate?.id ?? null)" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium mb-4">
+            <button @click="handleShow()" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium mb-4">
                 &larr; Back
             </button>
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
