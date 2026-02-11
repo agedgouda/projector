@@ -272,6 +272,14 @@ declare global {
         to_key: string;
         ai_template_id: string | null;
     }
+     export interface AiTemplate {
+        id: number;
+        name: string;
+        system_prompt: string;
+        user_prompt: string;
+        created_at: string;
+        updated_at: string;
+     }
 }
 
 // Module-level exports

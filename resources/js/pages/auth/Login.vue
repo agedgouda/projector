@@ -27,7 +27,6 @@ const displayStatus = computed(() => {
     if (page.url.includes('expired=1')) {
         return 'Your session expired. Please log in again.';
     }
-
     // 2. Fallback to the actual status prop from Laravel
     return props.status;
 });

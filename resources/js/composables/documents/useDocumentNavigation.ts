@@ -1,4 +1,3 @@
-// resources/js/composables/documents/useDocumentNavigation.ts
 import { computed } from 'vue';
 //import { router } from '@inertiajs/vue3';
 import projectRoutes from '@/routes/projects/index';
@@ -21,7 +20,18 @@ export function useDocumentNavigation(project: Project, item?: Partial<ExtendedD
         }
     ]);
 
-    const handleBack = () => window.history.back();
+    const handleBack = () => {
+        const hasHistory = window.appHasHistory || (window.history.state && window.history.state.back);
+
+        if (hasHistory && window.history.length > 1) {
+            window.history.back();
+        } else {
+            // Force navigate to the logical parent (Project Dashboard)
+            const url = getReturnUrl();
+            // Use window.location for a hard reset if router.visit fails you
+            window.location.href = url;
+        }
+    };
 
     return {
         breadcrumbs,

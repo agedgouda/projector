@@ -6,9 +6,6 @@ import {
     Wand2,
     Settings2,
     ArrowLeft,
-    Info,
-    Sparkles,
-    Terminal,
     Copy
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
@@ -75,7 +72,6 @@ const goBack = () => {
                 </div>
                 <div>
                     <div class="flex items-center gap-2 mb-1">
-                        <Terminal class="w-3 h-3 text-indigo-500" />
                         <span class="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500/60">Intelligence Protocol</span>
                     </div>
                     <h1 class="text-4xl font-black tracking-tighter text-gray-900 dark:text-white uppercase italic">
@@ -89,7 +85,6 @@ const goBack = () => {
                 <section class="space-y-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            <Info class="w-4 h-4 text-amber-500" />
                             System Persona (Instructions)
                         </div>
                         <button @click="copyToClipboard(aiTemplate.system_prompt)" class="text-[10px] font-bold text-indigo-500 hover:underline flex items-center gap-1">
@@ -106,7 +101,6 @@ const goBack = () => {
                 <section class="space-y-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            <Sparkles class="w-4 h-4 text-indigo-500" />
                             Transformation Logic (Prompt)
                         </div>
                         <button @click="copyToClipboard(aiTemplate.user_prompt)" class="text-[10px] font-bold text-indigo-500 hover:underline flex items-center gap-1">

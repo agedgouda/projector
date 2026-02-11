@@ -6,6 +6,12 @@ import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 import { configureEcho } from '@laravel/echo-vue';
 
+import { router } from '@inertiajs/vue3';
+declare global {
+    interface Window {
+        appHasHistory: boolean;
+    }
+}
 // Keep your existing plugin config as well
 configureEcho({
     broadcaster: 'reverb',
@@ -18,6 +24,13 @@ configureEcho({
 });
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+// Add a simple global variable or reactive ref
+window.appHasHistory = false;
+
+router.on('finish', () => {
+    window.appHasHistory = true;
+});
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
