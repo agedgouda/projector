@@ -74,8 +74,9 @@ test('two factor settings page returns forbidden response when two factor is dis
 
     $user = User::factory()->create();
 
+    // The app converts 403 → 404 for security (see bootstrap/app.php exception handler).
     $this->actingAs($user)
         ->withSession(['auth.password_confirmed_at' => time()])
         ->get(route('two-factor.show'))
-        ->assertForbidden();
+        ->assertNotFound();
 });

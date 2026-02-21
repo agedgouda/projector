@@ -11,6 +11,13 @@ return new class extends Migration
         $tableNames = config('permission.table_names');
         $columnNames = config('permission.column_names');
 
+        // These columns are added by the initial create_permission_tables migration when
+        // permission.teams is true. This migration is a no-op in that case to allow
+        // fresh migrations to run without conflicts.
+        if (Schema::hasColumn($tableNames['roles'], $columnNames['team_foreign_key'])) {
+            return;
+        }
+
         // 1. Update Roles Table
         Schema::table($tableNames['roles'], function (Blueprint $table) use ($columnNames) {
             // Must be nullable so Global Roles (Super Admin) don't need an Org

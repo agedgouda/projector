@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Pgvector\Laravel\HasNeighbors;
 use Pgvector\Laravel\Vector;
@@ -14,6 +14,7 @@ class Document extends Model
     use HasNeighbors, HasUuids;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     /**
@@ -42,7 +43,7 @@ class Document extends Model
         'assignee_id',
         'task_status',
         'priority',
-        'due_at'
+        'due_at',
     ];
 
     /**
@@ -73,9 +74,20 @@ class Document extends Model
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    public function creator(): BelongsTo { return $this->belongsTo(User::class, 'creator_id'); }
-    public function editor(): BelongsTo { return $this->belongsTo(User::class, 'editor_id'); }
-    public function assignee(): BelongsTo { return $this->belongsTo(User::class, 'assignee_id'); }
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    public function editor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'editor_id');
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assignee_id');
+    }
 
     /**
      * Scopes
@@ -96,7 +108,7 @@ class Document extends Model
 
     public function scopeVisibleTo(Builder $query, $user)
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('super-admin')) {
             return $query;
         }
 
