@@ -34,6 +34,10 @@ export function formatPhoneNumber(phoneNumberString: string | null | undefined):
     return phoneNumberString;
 }
 
+export function setPersistentCookie(name: string, value: string): void {
+    document.cookie = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
+}
+
 export const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
 

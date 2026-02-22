@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
-use App\Models\Organization;
-use App\Models\ProjectType;
 use App\Http\Requests\ProjectRequest;
+use App\Models\Organization;
+use App\Models\Project;
+use App\Models\ProjectType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -21,7 +21,7 @@ class ProjectController extends Controller
             ->withSummary();
 
         // Security: If not a Super-Admin and not assigned to any organization, deny.
-        if (!$request->user()->hasRole('super-admin') && $request->user()->organizations()->doesntExist()) {
+        if (! $request->user()->hasRole('super-admin') && $request->user()->organizations()->doesntExist()) {
             abort(404);
         }
 
@@ -65,33 +65,31 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             \Log::error('[ProjectController] Store failed', [
                 'error' => $e->getMessage(),
-                'trace' => substr($e->getTraceAsString(), 0, 300)
+                'trace' => substr($e->getTraceAsString(), 0, 300),
             ]);
             throw $e;
         }
     }
 
-public function update(ProjectRequest $request, Project $project)
-{
-    try {
-        Gate::authorize('update', $project);
+    public function update(ProjectRequest $request, Project $project)
+    {
+        try {
+            Gate::authorize('update', $project);
 
+            $project->update($request->validated());
 
+            return redirect()->back()->with('success', 'Project updated successfully.');
 
-        $project->update($request->validated());
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
 
-        return redirect()->back()->with('success', 'Project updated successfully.');
-
-    } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-
-        \Log::error('[ControllerDebug] Authorization Failed', [
-            'user_id' => auth()->id(),
-            'project_org_id' => $project->organization_id, // Hits our new accessor
-            'active_team_id' => getPermissionsTeamId(),
-        ]);
-        throw $e;
+            \Log::error('[ControllerDebug] Authorization Failed', [
+                'user_id' => auth()->id(),
+                'project_org_id' => $project->organization_id, // Hits our new accessor
+                'active_team_id' => getPermissionsTeamId(),
+            ]);
+            throw $e;
+        }
     }
-}
 
     public function destroy(Project $project)
     {
@@ -102,8 +100,9 @@ public function update(ProjectRequest $request, Project $project)
         $project->delete();
         $message = 'Project was successfully deleted.';
 
-        if (request()->has('redirect_to')) {
-            return redirect(request()->get('redirect_to'))->with('success', $message);
+        $redirectTo = request()->get('redirect_to');
+        if ($redirectTo && str_starts_with($redirectTo, '/') && ! str_starts_with($redirectTo, '//')) {
+            return redirect($redirectTo)->with('success', $message);
         }
 
         return redirect()->route('dashboard')->with('success', $message);

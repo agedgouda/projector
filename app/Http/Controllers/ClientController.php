@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Client, ProjectType, Organization};
-use Illuminate\Http\Request;
 use App\Http\Requests\ClientRequest;
+use App\Models\Client;
+use App\Models\Organization;
+use App\Models\ProjectType;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class ClientController extends Controller
@@ -57,7 +59,7 @@ class ClientController extends Controller
      */
     public function store(ClientRequest $request)
     {
-        $orgId = $request->cookie('last_org_id');
+        $orgId = $request->cookie('last_org_id') ?? getPermissionsTeamId();
         setPermissionsTeamId($orgId);
 
         Gate::authorize('create', Client::class);
@@ -92,6 +94,7 @@ class ClientController extends Controller
         Gate::authorize('delete', $client);
 
         $client->delete();
+
         return back()->with('success', 'Client deleted.');
     }
 }

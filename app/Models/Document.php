@@ -121,4 +121,9 @@ class Document extends Model
     {
         return $this->hasMany(Task::class, 'document_id');
     }
+
+    public function comments(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable')->oldest();
+    }
 }

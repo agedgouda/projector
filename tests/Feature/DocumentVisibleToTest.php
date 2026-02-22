@@ -11,6 +11,7 @@ use Spatie\Permission\Models\Role;
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
+    setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'member', 'guard_name' => 'web']);

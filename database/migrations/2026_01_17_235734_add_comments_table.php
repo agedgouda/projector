@@ -16,8 +16,8 @@ return new class extends Migration
 
             // The author of the comment
             $table->foreignId('user_id')
-                  ->constrained()
-                  ->cascadeOnDelete();
+                ->constrained()
+                ->cascadeOnDelete();
 
             $table->text('body');
 
@@ -26,7 +26,9 @@ return new class extends Migration
              * 2. commentable_type (string)
              * Plus an index on both for performance.
              */
-            $table->morphs('commentable');
+            $table->string('commentable_id');
+            $table->string('commentable_type');
+            $table->index(['commentable_type', 'commentable_id']);
 
             $table->timestamps();
 

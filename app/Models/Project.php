@@ -22,6 +22,7 @@ class Project extends Model
 
     // Explicitly define the primary key type for UUIDs
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     /**
@@ -35,7 +36,7 @@ class Project extends Model
     /**
      * Helper for single-model loading (used in show).
      */
-    public function loadFullPipeline(): self
+    public function loadFullPipeline(): ?self
     {
         return $this->newCollection([$this])->withFullPipeline()->first();
     }
@@ -44,10 +45,10 @@ class Project extends Model
     {
         $orgId = $this->client?->organization_id;
 
-        if (!$orgId) {
+        if (! $orgId) {
             \Log::warning('[ModelDebug] Project could not reach Organization ID', [
                 'project_id' => $this->id,
-                'has_client' => !!$this->client,
+                'has_client' => (bool) $this->client,
             ]);
         }
 
@@ -100,7 +101,7 @@ class Project extends Model
         $currentOrgId = getPermissionsTeamId();
 
         // 2. Fail-safe: If no org context is set, return no projects.
-        if (!$currentOrgId) {
+        if (! $currentOrgId) {
             return $query->whereRaw('1 = 0');
         }
 

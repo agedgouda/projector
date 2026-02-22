@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Comment;
 use App\Models\Document;
 use App\Models\Task;
-
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class CommentController extends Controller
 {
@@ -15,7 +15,7 @@ class CommentController extends Controller
         $validated = $request->validate([
             'body' => 'required|string',
             'type' => 'required|in:task,document', // Validates against our two types
-            'id'   => 'required',
+            'id' => 'required',
         ]);
 
         // Map the simple 'type' from Vue to the actual Model class
@@ -27,21 +27,19 @@ class CommentController extends Controller
         $modelClass = $modelMap[$validated['type']];
         $commentable = $modelClass::findOrFail($validated['id']);
 
+        Gate::authorize('view', $commentable);
+
         $commentable->comments()->create([
-            'body'    => $validated['body'],
+            'body' => $validated['body'],
             'user_id' => $request->user()->id,
         ]);
-
 
         return back();
     }
 
     public function destroy(Comment $comment)
     {
-        // Authorization: Ensure only the author can delete
-        if (auth()->id() !== $comment->user_id) {
-            abort(403, 'You are not authorized to delete this comment.');
-        }
+        Gate::authorize('delete', $comment);
 
         $comment->delete();
 

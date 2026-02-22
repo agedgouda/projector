@@ -1,14 +1,20 @@
 <?php
 
+use App\Http\Controllers\AiTemplateController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\CommentController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectTypeController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\UserController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
-
-use App\Http\Controllers\{
-    DocumentController, DashboardController, ClientController, ProjectController,
-    ProjectTypeController, UserController, RoleController, TaskController,
-    CommentController, AiTemplateController, OrganizationController
-};
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -23,8 +29,9 @@ Route::post('/log-connection-issue', function (Request $request) {
         'last_error' => $request->input('error'),
         'user_agent' => $request->userAgent(),
     ]);
+
     return response()->json(['status' => 'logged']);
-});
+})->middleware(['auth', 'throttle:60,1']);
 
 /**
  * Access Pending:
@@ -75,8 +82,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // 3. Project Documents
         Route::prefix('projects/{project}')->name('projects.')->group(function () {
             Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
+                ->middleware('throttle:30,1')
                 ->name('documents.search');
             Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
+                ->middleware('throttle:10,1')
                 ->name('documents.reprocess');
 
             Route::resource('documents', DocumentController::class);

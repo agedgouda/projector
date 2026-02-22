@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class StoreDocumentRequest extends FormRequest
 {
@@ -11,8 +12,9 @@ class StoreDocumentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Change this to true or add your logic to check if user owns the project
-        return true;
+        $project = $this->route('project');
+
+        return $project && Gate::check('update', $project);
     }
 
     /**
@@ -23,14 +25,14 @@ class StoreDocumentRequest extends FormRequest
         $isUpdate = $this->isMethod('PUT') || $this->isMethod('PATCH');
 
         return [
-            'name'        => [($isUpdate ? 'sometimes' : 'required'), 'string', 'max:255'],
-            'type'        => [($isUpdate ? 'sometimes' : 'required'), 'string'],
-            'content'     => [($isUpdate ? 'sometimes' : 'required'), 'string'],
-            'priority'    => [($isUpdate ? 'sometimes' : 'required'), 'string'],
+            'name' => [($isUpdate ? 'sometimes' : 'required'), 'string', 'max:255'],
+            'type' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
+            'content' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
+            'priority' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
             'task_status' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
-            'due_at'      => ['nullable', 'date'],
+            'due_at' => ['nullable', 'date'],
             'assignee_id' => ['nullable', 'exists:users,id'],
-            'metadata'    => ['nullable', 'array'],
+            'metadata' => ['nullable', 'array'],
         ];
     }
 }

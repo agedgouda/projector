@@ -2,15 +2,22 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Client;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class ClientRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Authorization remains in the Controller
-        return true;
+        $client = $this->route('client');
+
+        if ($client) {
+            return Gate::check('update', $client);
+        }
+
+        return Gate::check('create', Client::class);
     }
 
     public function rules(): array
@@ -26,12 +33,12 @@ class ClientRequest extends FormRequest
                 'max:255',
                 Rule::unique('clients')
                     ->where(fn ($query) => $query->where('organization_id', $teamId))
-                    ->ignore($client?->id)
+                    ->ignore($client?->id),
             ],
-            'contact_name'  => 'required', 'string', 'max:255',
+            'contact_name' => 'required', 'string', 'max:255',
             'contact_phone' => 'required', 'string', 'max:20',
-            'email'         => 'nullable', 'email', 'max:255',
-            'website'       => 'nullable', 'url', 'max:255',
+            'email' => 'nullable', 'email', 'max:255',
+            'website' => 'nullable', 'url', 'max:255',
         ];
     }
 }
