@@ -1,5 +1,6 @@
 import { watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
+import { toast } from 'vue-sonner'
 import projectTypeRoutes from '@/routes/project-types'
 
 export function useProjectTypeForm(editData: any | null, onSuccess: () => void) {
@@ -8,6 +9,7 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
         icon: 'Briefcase',
         document_schema: [{ label: 'Notes', key: 'intake', is_task: false }] as DocumentSchemaItem[],
         workflow: [] as WorkflowStep[],
+        lifecycle_steps: [] as LifecycleStep[],
     })
 
     const hydrate = (data: any) => {
@@ -18,6 +20,7 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
             is_task: !!doc.is_task,
         }))
         form.workflow = data.workflow ? [...data.workflow] : []
+        form.lifecycle_steps = data.lifecycle_steps ? [...data.lifecycle_steps] : []
     }
 
     watch(() => editData, (val) => (val ? hydrate(val) : form.reset()), { immediate: true })
@@ -36,6 +39,15 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
         })
     }
 
+    const addLifecycleStep = () => {
+        form.lifecycle_steps.push({
+            order: form.lifecycle_steps.length + 1,
+            label: '',
+            description: '',
+            color: 'indigo',
+        })
+    }
+
     const submit = () => {
         // Optional: Filter out empty workflow steps if you want to allow "blank" rows in UI
         // form.workflow = form.workflow.filter(w => w.from_key && w.to_key);
@@ -51,7 +63,8 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
             preserveScroll: true,
             onSuccess: () => onSuccess(),
             onError: (errors) => {
-                console.error('Validation errors:', errors);
+                const firstError = Object.values(errors)[0]
+                toast.error(firstError ?? 'Failed to save protocol. Please check the form and try again.')
             }
         });
     };
@@ -64,5 +77,5 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
 
 
 
-    return { form, submit, addSchemaItem, addWorkflowStep, suggestKey }
+    return { form, submit, addSchemaItem, addWorkflowStep, suggestKey, addLifecycleStep }
 }

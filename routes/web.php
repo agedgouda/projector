@@ -79,6 +79,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])
             ->name('projects.generate');
 
+        Route::patch('/projects/{project}/lifecycle-step', [ProjectController::class, 'updateLifecycleStep'])
+            ->name('projects.lifecycle-step');
+
         // 3. Project Documents
         Route::prefix('projects/{project}')->name('projects.')->group(function () {
             Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])

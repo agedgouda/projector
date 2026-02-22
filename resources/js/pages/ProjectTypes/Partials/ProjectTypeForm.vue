@@ -19,11 +19,29 @@ const {
     submit,
     addSchemaItem,
     addWorkflowStep,
-    suggestKey
+    suggestKey,
+    addLifecycleStep,
 } = useProjectTypeForm(
     props.editData,
     () => emit('success')
 );
+
+const colorPalette = [
+    { key: 'indigo', class: 'bg-indigo-500' },
+    { key: 'blue', class: 'bg-blue-500' },
+    { key: 'green', class: 'bg-green-500' },
+    { key: 'amber', class: 'bg-amber-500' },
+    { key: 'orange', class: 'bg-orange-500' },
+    { key: 'red', class: 'bg-red-500' },
+    { key: 'purple', class: 'bg-purple-500' },
+    { key: 'pink', class: 'bg-pink-500' },
+    { key: 'slate', class: 'bg-slate-500' },
+];
+
+const removeLifecycleStep = (index: number) => {
+    form.lifecycle_steps.splice(index, 1);
+    form.lifecycle_steps.forEach((step, i) => { step.order = i + 1; });
+};
 </script>
 
 <template>
@@ -120,6 +138,51 @@ const {
                 <Button type="button" variant="ghost" size="icon" @click="form.workflow.splice(index, 1)" class="h-8 w-8 text-gray-300 hover:text-red-500 transition-colors shrink-0">
                     <X class="w-4 h-4" />
                 </Button>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between px-1 max-w-2xl">
+            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Lifecycle Steps</h3>
+            <Button type="button" variant="ghost" size="sm" @click="addLifecycleStep" class="h-6 px-2 text-[9px] font-black rounded uppercase text-indigo-600 hover:bg-indigo-50">
+                <Plus class="w-3 h-3 mr-1" /> Add Step
+            </Button>
+        </div>
+
+        <div class="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-950">
+            <div class="flex items-center px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+                <div class="w-10 shrink-0 text-[9px] font-black uppercase text-gray-400 flex justify-center">#</div>
+                <div class="w-48 shrink-0 px-4 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">Label</div>
+                <div class="flex-1 px-4 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">Description</div>
+                <div class="w-40 shrink-0 px-4 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">Color</div>
+                <div class="w-8 shrink-0"></div>
+            </div>
+
+            <div v-if="form.lifecycle_steps.length === 0" class="px-4 py-6 text-center text-[11px] text-gray-400">
+                No lifecycle steps defined. Add steps to track project progress.
+            </div>
+
+            <div v-for="(step, index) in form.lifecycle_steps" :key="index" class="flex items-center px-4 py-1 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
+                <div class="w-10 shrink-0 flex justify-center text-[11px] text-gray-400 font-mono">{{ step.order }}</div>
+                <div class="w-48 shrink-0 border-l border-gray-100 dark:border-gray-800 px-4">
+                    <Input v-model="step.label" placeholder="e.g. Intake" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-900 dark:text-gray-100" />
+                </div>
+                <div class="flex-1 border-l border-gray-100 dark:border-gray-800 px-4">
+                    <Input v-model="step.description" placeholder="Optional description" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-500 dark:text-gray-400" />
+                </div>
+                <div class="w-40 shrink-0 border-l border-gray-100 dark:border-gray-800 px-4 flex items-center gap-1">
+                    <button
+                        v-for="color in colorPalette"
+                        :key="color.key"
+                        type="button"
+                        @click="step.color = color.key"
+                        :class="['w-4 h-4 rounded-full transition-all', color.class, step.color === color.key ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'opacity-60 hover:opacity-100']"
+                    />
+                </div>
+                <div class="shrink-0">
+                    <Button type="button" variant="ghost" size="icon" @click="removeLifecycleStep(index)" class="h-8 w-8 text-gray-300 hover:text-red-500 transition-colors">
+                        <X class="w-4 h-4" />
+                    </Button>
+                </div>
             </div>
         </div>
 

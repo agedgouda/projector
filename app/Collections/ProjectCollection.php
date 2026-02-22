@@ -23,12 +23,12 @@ class ProjectCollection extends Collection
     {
         return $this->load([
             'client.users',
-            'type',
-            'tasks' => fn($q) => $q->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
-            'documents' => fn($q) => $q->with([
+            'type.lifecycleSteps',
+            'tasks' => fn ($q) => $q->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
+            'documents' => fn ($q) => $q->with([
                 'creator', 'editor', 'assignee',
-                'tasks' => fn($t) => $t->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc')
-            ])->orderBy('created_at', 'desc')
+                'tasks' => fn ($t) => $t->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
+            ])->orderBy('created_at', 'desc'),
         ]);
     }
 
@@ -39,11 +39,12 @@ class ProjectCollection extends Collection
     public function withDashboardContext(): self
     {
         return $this->load([
-            'type',
+            'type.lifecycleSteps',
+            'currentLifecycleStep',
             'client.users',
             'documents' => function ($q) {
                 $q->with(['assignee', 'creator'])->latest();
-            }
+            },
         ]);
     }
 

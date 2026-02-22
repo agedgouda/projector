@@ -18,6 +18,7 @@ class Project extends Model
         'project_type_id',
         'client_id',
         'document_id',
+        'current_lifecycle_step_id',
     ];
 
     // Explicitly define the primary key type for UUIDs
@@ -77,6 +78,14 @@ class Project extends Model
     public function type(): BelongsTo
     {
         return $this->belongsTo(ProjectType::class, 'project_type_id');
+    }
+
+    /**
+     * Get the current lifecycle step for this project.
+     */
+    public function currentLifecycleStep(): BelongsTo
+    {
+        return $this->belongsTo(LifecycleStep::class, 'current_lifecycle_step_id');
     }
 
     /**

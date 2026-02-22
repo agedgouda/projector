@@ -48,12 +48,22 @@ declare global {
         plural_label?: string;
     }
 
+    export interface LifecycleStep {
+        id?: number;
+        project_type_id?: string;
+        order: number;
+        label: string;
+        description?: string | null;
+        color?: string | null;
+    }
+
     export interface ProjectType {
         id: string; // UUID
         name: string;
         icon: string;
         workflow?: any[];
         document_schema?: DocumentSchemaItem[];
+        lifecycle_steps?: LifecycleStep[];
         created_at: string;
         updated_at: string;
     }
@@ -64,12 +74,14 @@ declare global {
         description: string | null;
         client_id: string;
         project_type_id: string | null;
+        current_lifecycle_step_id?: number | null;
 
         // Relationships
         client: Client;
         type: ProjectType;
         documents?: ProjectDocument[];
         tasks: Task[];
+        current_lifecycle_step?: LifecycleStep | null;
 
         // Meta
         documents_count?: number;

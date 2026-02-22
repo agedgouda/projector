@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class ProjectType extends Model
 {
-    use HasUuids; // Ensures the ID is generated as a UUID automatically
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'name',
@@ -30,10 +31,13 @@ class ProjectType extends Model
             get: function ($value) {
                 $schema = json_decode($value ?? '[]', true);
 
-                if (!$schema) return [];
+                if (! $schema) {
+                    return [];
+                }
 
                 return array_map(function ($item) {
                     $item['plural_label'] = Str::plural($item['label'] ?? '');
+
                     return $item;
                 }, $schema);
             }
@@ -46,6 +50,14 @@ class ProjectType extends Model
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    /**
+     * Get lifecycle steps for this project type, ordered by position.
+     */
+    public function lifecycleSteps(): HasMany
+    {
+        return $this->hasMany(LifecycleStep::class)->orderBy('order');
     }
 
     /**

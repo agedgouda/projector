@@ -22,6 +22,7 @@ import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 // UI Components
 import ProjectSwitcher from './Partials/ProjectSwitcher.vue';
+import LifecycleStepPicker from '@/components/LifecycleStepPicker.vue';
 import KanbanBoard from './Partials/KanbanBoard.vue';
 import DocumentDetailSheet from './Partials/DocumentDetailSheet.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
@@ -203,7 +204,7 @@ watch(() => props.currentProject, (newProject) => {
             />
 
             <div class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div class="w-full sm:w-auto">
+                <div class="flex items-center gap-3 w-full sm:w-auto">
                     <ProjectSwitcher
                         :projects="projects"
                         :current-project="currentProject"
@@ -211,6 +212,7 @@ watch(() => props.currentProject, (newProject) => {
                         :project-types="projectTypes"
                         @switch="(id) => router.get('/dashboard', { project: id })"
                     />
+                    <LifecycleStepPicker :project="currentProject" />
                 </div>
 
                 <div class="flex items-center gap-2 w-full sm:w-auto">

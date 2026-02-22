@@ -6,6 +6,7 @@ use App\Http\Requests\ProjectRequest;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectType;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -106,6 +107,20 @@ class ProjectController extends Controller
         }
 
         return redirect()->route('dashboard')->with('success', $message);
+    }
+
+    public function updateLifecycleStep(Request $request, Project $project): RedirectResponse
+    {
+        setPermissionsTeamId($project->organization_id);
+        Gate::authorize('update', $project);
+
+        $validated = $request->validate([
+            'current_lifecycle_step_id' => 'nullable|integer|exists:lifecycle_steps,id',
+        ]);
+
+        $project->update($validated);
+
+        return back();
     }
 
     public function storeDocument(Request $request, Project $project)

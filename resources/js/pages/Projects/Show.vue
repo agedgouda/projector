@@ -3,6 +3,7 @@ import {  ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectHeader from './Partials/ProjectHeader.vue';
+import LifecycleProgress from '@/components/LifecycleProgress.vue';
 import DocumentManager from '@/components/documents/DocumentManager.vue';
 import TaskMasterList from '@/components/tasks/TaskMasterList.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
@@ -86,6 +87,14 @@ const updateTab = (tab: string) => {
                 @update:active-tab="updateTab"
                 @edit="isEditModalOpen = true"
                 @back="handleBack"
+            />
+
+            <LifecycleProgress
+                v-if="project.type?.lifecycle_steps?.length"
+                :steps="project.type.lifecycle_steps"
+                :current-step-id="project.current_lifecycle_step_id ?? null"
+                :project-id="project.id"
+                class="mt-4"
             />
 
             <div class="mt-6">
