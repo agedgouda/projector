@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import { ref } from 'vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 import { Head, router, Link, usePage } from '@inertiajs/vue3';
@@ -7,11 +8,15 @@ import { Building2, Globe, Mail, Plus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import type { BreadcrumbItem } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
-
+import {
+    Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
+} from "@/components/ui/dialog";
+import UserList from '@/components/users/UserList.vue';
 
 
 defineProps<{
     organizations: Organization[];
+    users: User[];
     currentOrg: Organization;
 }>();
 
@@ -30,6 +35,8 @@ const handleOrgSwitch = (id: string) => {
         preserveScroll: true
     });
 };
+
+const isAddUserListOpen = ref(false);
 </script>
 
 <template>
@@ -89,6 +96,32 @@ const handleOrgSwitch = (id: string) => {
                     :show-admin-toggle="currentOrg.can?.manage_users ?? false"
                 />
             </div>
+
+            <Button
+                v-if="isSuperAdmin"
+                variant="outline"
+                @click="isAddUserListOpen = true"
+                class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+            >
+            Add User
+            </Button>
+
+            <Dialog v-model:open="isAddUserListOpen">
+            <DialogContent class="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>New User for {{ currentOrg.name }}</DialogTitle>
+                    <DialogDescription>Add a user for this organization.</DialogDescription>
+                </DialogHeader>
+                <UserList
+                    :users="users"
+                    :organization-id="currentOrg.id"
+                    @user-added="isAddUserListOpen = false"
+                />
+            </DialogContent>
+        </Dialog>
+
+
+
         </div>
     </AppLayout>
 </template>

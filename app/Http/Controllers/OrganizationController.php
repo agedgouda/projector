@@ -59,9 +59,21 @@ class OrganizationController extends Controller
             ],
         ]);
 
+        // Temporarily clear team context so Spatie's roles() relationship
+        // queries globally, allowing us to correctly exclude super-admins.
+        setPermissionsTeamId(null);
+        $addableUsers = $user->hasRole('super-admin')
+            ? User::query()
+                ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'super-admin'))
+                ->whereDoesntHave('organizations', fn ($q) => $q->where('organizations.id', $currentOrg->id))
+                ->get()
+            : collect();
+        setPermissionsTeamId($currentOrg->id);
+
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
             'currentOrg' => $currentOrgData,
+            'users' => $addableUsers,
         ])
             ->toResponse($request)
             ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));

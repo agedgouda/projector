@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{User, Client, Organization};
+use App\Models\Client;
+use App\Models\Organization;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -22,8 +23,8 @@ class UserController extends Controller
 
         $users = User::query()
             ->with(['organizations']) // Removed 'clients'
-            ->when(!$auth->hasRole('super-admin'), function($q) use ($currentOrgId) {
-                return $q->whereHas('organizations', fn($sq) => $sq->where('organizations.id', $currentOrgId));
+            ->when(! $auth->hasRole('super-admin'), function ($q) use ($currentOrgId) {
+                return $q->whereHas('organizations', fn ($sq) => $sq->where('organizations.id', $currentOrgId));
             })
             ->get();
 
@@ -32,6 +33,7 @@ class UserController extends Controller
             'allRoles' => Role::where('team_id', $currentOrgId)->orWhereNull('team_id')->pluck('name'),
         ]);
     }
+
 
     /**
      * Update user permissions and client assignments.
@@ -42,7 +44,7 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'organization_id' => ['required', 'uuid', 'exists:organizations,id'],
-            'is_admin'        => ['required', 'boolean'],
+            'is_admin' => ['required', 'boolean'],
         ]);
 
         // 1. Lock Spatie to the organization context provided by the UI
