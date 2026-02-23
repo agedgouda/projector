@@ -49,6 +49,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
      * We allow both Global Super Admins and Organization Admins here.
      * Note: Use the pipe '|' to allow multiple roles in Spatie's middleware.
      */
+    Route::middleware(['role:super-admin'])->group(function () {
+        Route::post('/organizations/{organization}/users', [OrganizationController::class, 'addUser'])
+            ->name('organizations.users.store');
+    });
+
     Route::middleware(['role:super-admin|org-admin'])->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');

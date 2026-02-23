@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{User, Organization};
+use App\Models\Organization;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Str;
 use Inertia\Inertia;
 
 class OrganizationController extends Controller
@@ -19,6 +19,10 @@ class OrganizationController extends Controller
 
         if ($user->hasRole('super-admin')) {
             $organizations = Organization::all();
+            if (! $organizations || $organizations->isEmpty()) {
+                // there are no organizations, so show the create page
+                return Inertia::render('Organizations/Create');
+            }
         } else {
             $organizations = $user->organizations()->get();
         }
@@ -39,7 +43,7 @@ class OrganizationController extends Controller
 
         // 4. Get the users formatted via forInertia()
         $usersRecord = User::query()
-            ->whereHas('organizations', fn($q) => $q->where('organizations.id', $currentOrg->id))
+            ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $currentOrg->id))
             ->get()
             ->forInertia();
 
@@ -52,15 +56,15 @@ class OrganizationController extends Controller
                 'update' => $user->can('update', $currentOrg),
                 'manage_users' => $user->can('manageUsers', $currentOrg),
                 'delete' => $user->can('delete', $currentOrg),
-            ]
+            ],
         ]);
 
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
-            'currentOrg'   => $currentOrgData,
+            'currentOrg' => $currentOrgData,
         ])
-        ->toResponse($request)
-        ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));
+            ->toResponse($request)
+            ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));
     }
 
     /**
@@ -83,7 +87,7 @@ class OrganizationController extends Controller
 
         if (Organization::where('normalized_name', $normalized)->exists()) {
             return back()->withErrors([
-                'name' => "An organization with a similar name already exists."
+                'name' => 'An organization with a similar name already exists.',
             ]);
         }
 
@@ -96,7 +100,7 @@ class OrganizationController extends Controller
         $user = $request->user();
 
         // Super-admins do not need to be in the pivot table to see or manage the org
-        if (!$user->hasRole('super-admin')) {
+        if (! $user->hasRole('super-admin')) {
             $user->organizations()->attach($org->id);
         }
 
@@ -138,6 +142,24 @@ class OrganizationController extends Controller
         ]);
 
         return back()->with('success', 'Organization updated.');
+    }
+
+    /**
+     * Add a user to the specified organization. Super-admins only.
+     */
+    public function addUser(Request $request, Organization $organization): \Illuminate\Http\RedirectResponse
+    {
+        $request->validate(['user_id' => 'required|integer|exists:users,id']);
+
+        $user = User::findOrFail($request->user_id);
+
+        if ($organization->users()->where('user_id', $user->id)->exists()) {
+            return back()->withErrors(['user_id' => 'User is already a member of this organization.']);
+        }
+
+        $organization->users()->attach($user->id);
+
+        return back()->with('success', 'User added to organization.');
     }
 
     /**
