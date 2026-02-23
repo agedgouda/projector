@@ -9,6 +9,7 @@ import { Search, X, PlusIcon, Edit2, Trash2} from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import aiTemplateRoutes from '@/routes/ai-templates';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import { toast } from 'vue-sonner';
 
 const props = defineProps<{
@@ -20,41 +21,36 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const searchQuery = ref('');
-const deleteItem = ref<AiTemplate | null>(null);
-const isDeleteModalOpen = ref(false);
-const isDeleting = ref(false);
 
-
-/* ---------------------------
-   Navigation Handlers
----------------------------- */
-const confirmDeletion = () => {
-    if (!deleteItem.value) return;
-
-    isDeleting.value = true;
-
-    router.delete(aiTemplateRoutes.destroy({ ai_template: deleteItem.value.id }).url, {
-        onSuccess: () => {
-            isDeleteModalOpen.value = false;
-            deleteItem.value = null;
-            toast.success('Protocol purged from library');
-        },
-        onFinish: () => isDeleting.value = false
-    });
-}
 
 const handleCreate = () => {
     router.visit(aiTemplateRoutes.create().url);
 };
 
-const handleDelete = (item:AiTemplate) => {
-    deleteItem.value = item;
-    isDeleteModalOpen.value = true;
-};
 
 const handleShow = (id: string | number) => {
     // Navigate to the Show page using Wayfinder
     router.visit(aiTemplateRoutes.show({ ai_template: id }).url);
+};
+
+const {
+    isModalOpen,
+    itemToDelete,
+    deleteForm,
+    openModal,
+    closeModal,
+    executeDelete
+} = useConfirmDelete();
+
+const handleDelete = () => {
+    if (!itemToDelete.value) return;
+
+    executeDelete(aiTemplateRoutes.destroy.url(itemToDelete.value.id), {
+        onSuccess: () => {
+            itemToDelete.value = null;
+            toast.success('AI Template purged from library');
+        }
+    });
 };
 
 
@@ -148,7 +144,7 @@ const displayItems = computed(() => {
                                     <Edit2 class="w-5 h-5" />
                                 </div>
                                 <div
-                                    @click="handleDelete(item)"
+                                    @click="openModal({ id: item.id, name: item.name })"
                                     class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors mr-2"
                                     >
                                     <Trash2 class="w-5 h-5" />
@@ -161,12 +157,12 @@ const displayItems = computed(() => {
         </div>
 
         <ConfirmDeleteModal
-            :open="isDeleteModalOpen"
-            title="Delete Document"
-            :description="`Are you sure you want to delete '${deleteItem?.name}'? This action cannot be undone.`"
-            :loading="isDeleting"
-            @confirm="confirmDeletion"
-            @close="isDeleteModalOpen = false"
+            :open="isModalOpen"
+            title="Delete AI Template"
+            :description="`Are you sure you want to delete '${itemToDelete?.name}'? This action cannot be undone.`"
+            :loading="deleteForm.processing"
+            @confirm="handleDelete"
+            @close="closeModal"
         />
     </AppLayout>
 </template>
