@@ -3,9 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
-use App\Models\Document;
-use App\Models\Client;
-use App\Models\ProjectType;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,7 +18,7 @@ class DashboardController extends Controller
         if ($projects->isEmpty()) {
             return Inertia::render('Dashboard/AccessPending', [
                 'user' => $user,
-                'message' => 'Your account is currently awaiting assignment to a client.'
+                'message' => 'Your account is currently awaiting assignment to a client.',
             ]);
         }
 
@@ -37,15 +34,17 @@ class DashboardController extends Controller
         $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
 
         return Inertia::render('Dashboard/Index', [
-            'projects'     => $projects,
+            'projects' => $projects,
             'currentProject' => $currentProject,
-            'kanbanData'   => (object) $currentProject->getKanbanPipe(),
-            'activeTab'    => $tab,
-            'clients'      => $clients,
-            'projectTypes' => \App\Models\ProjectType::all(['id', 'name']),
+            'kanbanData' => (object) $currentProject->getKanbanPipe(),
+            'activeTab' => $tab,
+            'clients' => $clients,
+            'projectTypes' => $user->hasRole('super-admin')
+                ? \App\Models\ProjectType::all(['id', 'name'])
+                : \App\Models\ProjectType::where('organization_id', getPermissionsTeamId())->get(['id', 'name']),
         ])
-        ->toResponse($request)
-        ->withCookie(cookie()->forever('last_project_id', $currentProject->id))
-        ->withCookie(cookie()->forever('last_active_tab', $tab));
+            ->toResponse($request)
+            ->withCookie(cookie()->forever('last_project_id', $currentProject->id))
+            ->withCookie(cookie()->forever('last_active_tab', $tab));
     }
 }

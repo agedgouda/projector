@@ -1,17 +1,23 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Plus, X, ArrowRight } from 'lucide-vue-next';
+import { usePage } from '@inertiajs/vue3';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useProjectTypeForm } from '@/composables/useProjectTypeForm'; // Adjust path as needed
+import { useProjectTypeForm } from '@/composables/useProjectTypeForm';
 
 const props = defineProps<{
     editData: any | null;
     iconLibrary: { name: string; component: any }[];
     aiTemplates: { id: string, name: string }[];
+    organizations: { id: string; name: string }[];
 }>();
 
 const emit = defineEmits(['success', 'cancel']);
+
+const page = usePage<AppPageProps>();
+const isSuperAdmin = computed(() => page.props.auth.user.roles.includes('super-admin'));
 
 // Use the new composable
 const {
@@ -47,6 +53,17 @@ const removeLifecycleStep = (index: number) => {
 <template>
     <form @submit.prevent="submit" class="space-y-10 px-10">
         <div class="space-y-10 max-w-2xl">
+            <div v-if="isSuperAdmin" class="space-y-4">
+                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Organization</Label>
+                <select
+                    v-model="form.organization_id"
+                    class="w-full h-12 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                >
+                    <option value="">— No Organization (super-admin only) —</option>
+                    <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
+                </select>
+            </div>
+
             <div class="space-y-4">
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Name</Label>
                 <Input v-model="form.name" placeholder="e.g. Enterprise SaaS Workflow" class="rounded-xl h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-lg font-bold focus:ring-4 focus:ring-indigo-500/5 transition-all" />

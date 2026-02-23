@@ -30,7 +30,9 @@ class ProjectController extends Controller
             'projects' => $projects,
             // Use the new Collection method we created for role-based client listing
             'clients' => $request->user()->newCollection([$request->user()])->availableClients(),
-            'projectTypes' => ProjectType::all(['id', 'name']),
+            'projectTypes' => $request->user()->hasRole('super-admin')
+                ? ProjectType::all(['id', 'name'])
+                : ProjectType::where('organization_id', getPermissionsTeamId())->get(['id', 'name']),
         ]);
     }
 
@@ -43,7 +45,9 @@ class ProjectController extends Controller
 
         return inertia('Projects/Show', [
             'project' => $project->loadFullPipeline(),
-            'projectTypes' => ProjectType::all(['id', 'name']),
+            'projectTypes' => auth()->user()->hasRole('super-admin')
+                ? ProjectType::all(['id', 'name'])
+                : ProjectType::where('organization_id', $project->organization_id)->get(['id', 'name']),
         ]);
     }
 

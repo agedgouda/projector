@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Organization extends Model
@@ -42,9 +43,17 @@ class Organization extends Model
     /**
      * Relationship: Clients owned by this Organization
      */
-    public function clients()
+    public function clients(): HasMany
     {
         return $this->hasMany(Client::class);
+    }
+
+    /**
+     * Relationship: Project Types owned by this Organization
+     */
+    public function projectTypes(): HasMany
+    {
+        return $this->hasMany(ProjectType::class);
     }
 
     /**
@@ -56,6 +65,7 @@ class Organization extends Model
         $name = strtolower($name);
         $suffixes = [' inc', ' corp', ' ltd', ' limited', ' llc', ' incorporated'];
         $clean = str_replace($suffixes, '', $name);
+
         return Str::slug(trim($clean));
     }
 }

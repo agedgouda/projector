@@ -2,26 +2,32 @@
 
 namespace App\Policies;
 
-use App\Models\{User, ProjectType};
+use App\Models\ProjectType;
+use App\Models\User;
 
 class ProjectTypePolicy
 {
-    public function before(User $user)
+    use HandlesOrgPermissions;
+
+    public function viewAny(User $user): bool
     {
-        // Only admins can touch the Library configuration
-        if (!$user->hasRole('super-admin')) return false;
+        return true;
     }
 
-    public function viewAny(User $user) { return true; }
-    public function create(User $user) { return true; }
-    public function update(User $user, ProjectType $type) { return true; }
-
-    public function delete(User $user, ProjectType $type)
+    public function create(User $user): bool
     {
-        // "Tight" security check: Prevent breaking the system
-        // if projects are already using this protocol.
-        return $type->projects_count === 0 && !$type->projects()->exists();
+        return $this->isOrgAdmin($user);
     }
 
+    public function update(User $user, ProjectType $type): bool
+    {
+        return $this->isOrgAdmin($user, $type);
+    }
 
+    public function delete(User $user, ProjectType $type): bool
+    {
+        return $this->isOrgAdmin($user, $type)
+            && $type->projects_count === 0
+            && ! $type->projects()->exists();
+    }
 }

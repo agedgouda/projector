@@ -10,6 +10,7 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
         document_schema: [{ label: 'Notes', key: 'intake', is_task: false }] as DocumentSchemaItem[],
         workflow: [] as WorkflowStep[],
         lifecycle_steps: [] as LifecycleStep[],
+        organization_id: '' as string,
     })
 
     const hydrate = (data: any) => {
@@ -21,6 +22,7 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
         }))
         form.workflow = data.workflow ? [...data.workflow] : []
         form.lifecycle_steps = data.lifecycle_steps ? [...data.lifecycle_steps] : []
+        form.organization_id = data.organization_id ?? ''
     }
 
     watch(() => editData, (val) => (val ? hydrate(val) : form.reset()), { immediate: true })

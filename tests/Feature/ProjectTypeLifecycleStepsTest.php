@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\LifecycleStep;
+use App\Models\Organization;
 use App\Models\ProjectType;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
@@ -14,7 +15,8 @@ beforeEach(function () {
     $this->superAdmin = User::factory()->create();
     $this->superAdmin->assignRole('super-admin');
 
-    $this->projectType = ProjectType::factory()->create();
+    $this->org = Organization::create(['name' => 'Test Org']);
+    $this->projectType = ProjectType::factory()->create(['organization_id' => $this->org->id]);
 });
 
 it('creates lifecycle steps when storing a project type', function () {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
@@ -8,7 +8,7 @@ import {
     ArrowRight, Plus, Edit2, Info, Code, Megaphone, Calendar, Layout,
     Database, Globe, Settings, PenTool, Rocket, Microscope,
     Briefcase, Music, Camera, Zap, Heart, Search,
-    Layers
+    Layers, Copy
 } from 'lucide-vue-next';
 
 // UI Components
@@ -19,7 +19,11 @@ import { type BreadcrumbItem } from '@/types';
 const props = defineProps<{
     projectTypes: any[];
     aiTemplates: { id: string, name: string }[];
+    organizations: { id: string; name: string }[];
 }>();
+
+const page = usePage<AppPageProps>();
+const isSuperAdmin = computed(() => page.props.auth.user.roles.includes('super-admin'));
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Project Protocols', href: '/project-types' }];
 
@@ -50,6 +54,16 @@ const iconLibrary = [
 ];
 
 const getIcon = (name: string) => iconLibrary.find(i => i.name === name)?.component || Info;
+
+// --- Duplicate Logic (super-admin only) ---
+const duplicateTargetOrgId = ref<Record<string, string>>({});
+
+const duplicateType = (typeId: string) => {
+    const orgId = duplicateTargetOrgId.value[typeId];
+    if (!orgId) return;
+
+    router.post(`/project-types/${typeId}/duplicate`, { organization_id: orgId });
+};
 </script>
 
 <template>
@@ -102,6 +116,17 @@ const getIcon = (name: string) => iconLibrary.find(i => i.name === name)?.compon
                             </template>
 
                             <div class="space-y-6 mt-4">
+                                <div v-if="isSuperAdmin && type.organization" class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
+                                        {{ type.organization.name }}
+                                    </span>
+                                </div>
+                                <div v-else-if="isSuperAdmin && !type.organization" class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-gray-50 dark:bg-gray-800 text-gray-400 border border-gray-100 dark:border-gray-700">
+                                        Global
+                                    </span>
+                                </div>
+
                                 <div>
                                     <p class="text-[8px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 px-1">Structure</p>
                                     <div class="flex flex-wrap gap-1.5">
@@ -137,6 +162,26 @@ const getIcon = (name: string) => iconLibrary.find(i => i.name === name)?.compon
                                             <div v-if="Number(idx) < type.workflow.length - 1" class="ml-2 w-1 h-1 rounded-full bg-gray-200 dark:bg-gray-800"></div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div v-if="isSuperAdmin" class="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                    <select
+                                        v-model="duplicateTargetOrgId[type.id]"
+                                        class="flex-1 h-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-[11px] text-gray-600 dark:text-gray-400 outline-none"
+                                    >
+                                        <option value="">Select org to duplicate into...</option>
+                                        <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
+                                    </select>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        :disabled="!duplicateTargetOrgId[type.id]"
+                                        @click="duplicateType(type.id)"
+                                        class="h-8 px-3 text-[10px] font-black uppercase text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 disabled:opacity-40"
+                                    >
+                                        <Copy class="w-3 h-3 mr-1" /> Duplicate
+                                    </Button>
                                 </div>
                             </div>
 

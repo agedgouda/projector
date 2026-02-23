@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -18,6 +19,7 @@ class ProjectType extends Model
         'icon',
         'document_schema',
         'workflow',
+        'organization_id',
     ];
 
     protected $casts = [
@@ -42,6 +44,14 @@ class ProjectType extends Model
                 }, $schema);
             }
         );
+    }
+
+    /**
+     * Get the organization this project type belongs to.
+     */
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
     }
 
     /**

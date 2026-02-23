@@ -64,6 +64,9 @@ declare global {
         workflow?: any[];
         document_schema?: DocumentSchemaItem[];
         lifecycle_steps?: LifecycleStep[];
+        organization_id?: string | null;
+        organization?: { id: string; name: string } | null;
+        projects_count?: number;
         created_at: string;
         updated_at: string;
     }

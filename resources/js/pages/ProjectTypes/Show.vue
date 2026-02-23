@@ -35,8 +35,9 @@ const iconLibrary = [
 ];
 
 const props = defineProps<{
-    projectType?: ProjectType; // Optional
+    projectType?: ProjectType;
     aiTemplates: { id: string, name: string }[];
+    organizations?: { id: string; name: string }[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -72,6 +73,7 @@ const handleSuccess = () => {
                 :edit-data="projectType"
                 :icon-library="iconLibrary"
                 :ai-templates="aiTemplates"
+                :organizations="organizations ?? []"
                 @success="handleSuccess"
                 @cancel="() => $inertia.visit('/project-types')"
             />

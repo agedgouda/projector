@@ -58,6 +58,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('roles.users.destroy');
 
         Route::resource('project-types', ProjectTypeController::class);
+        Route::post('/project-types/{projectType}/duplicate', [ProjectTypeController::class, 'duplicate'])
+            ->name('project-types.duplicate');
         Route::resource('ai-templates', AiTemplateController::class);
         Route::resource('tasks', TaskController::class);
     });
