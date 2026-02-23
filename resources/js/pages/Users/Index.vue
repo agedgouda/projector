@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
-import OrgUserTable from '@/components/user/OrgUserTable.vue'; // New home
+import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import { useResourceExpansion } from '@/composables/useResourceExpansion';
 import { Head } from '@inertiajs/vue3';
 import { type BreadcrumbItem} from '@/types';
