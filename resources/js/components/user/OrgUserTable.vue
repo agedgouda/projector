@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { computed } from 'vue';
+import { formatRoleName } from '@/lib/utils';
 
 const props = defineProps<{
     users: User[];
@@ -101,12 +102,12 @@ const promoteToSuperAdmin = (user: User) => {
                         <SelectContent>
                             <SelectItem :value="NO_ROLE">No role</SelectItem>
                             <SelectItem v-for="role in allRoles" :key="role" :value="role">
-                                {{ role }}
+                                {{ formatRoleName(role) }}
                             </SelectItem>
                         </SelectContent>
                     </Select>
                     <span v-else class="text-xs text-gray-500 dark:text-zinc-400">
-                        {{ user.roles[0] ?? '—' }}
+                        {{ user.roles[0] ? formatRoleName(user.roles[0]) : '—' }}
                     </span>
                 </div>
             </div>

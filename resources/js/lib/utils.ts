@@ -34,6 +34,10 @@ export function formatPhoneNumber(phoneNumberString: string | null | undefined):
     return phoneNumberString;
 }
 
+export function formatRoleName(role: string): string {
+    return role.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export function setPersistentCookie(name: string, value: string): void {
     document.cookie = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
 }

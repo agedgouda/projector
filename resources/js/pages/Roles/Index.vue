@@ -10,6 +10,7 @@ import ResourceCard from '@/components/ResourceCard.vue';
 import ResourceList from '@/components/ResourceList.vue'; // Unified List component
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import roleRoutes from '@/routes/roles/index';
+import { formatRoleName } from '@/lib/utils';
 
 const props = defineProps<{
     roles: any[];
@@ -101,7 +102,7 @@ const breadcrumbs = [{ title: 'Roles', href: '#' }];
                 <template #default="{ item: role }">
                     <div class="flex items-center gap-2 group">
                         <ResourceHeader
-                            :title="role.name"
+                            :title="formatRoleName(role.name)"
                             :count="role.users_count"
                             :collapsed="collapsedRoles[role.id]"
                             @toggle="toggleRole(role.id)"

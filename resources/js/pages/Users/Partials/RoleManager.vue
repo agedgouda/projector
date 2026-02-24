@@ -12,6 +12,7 @@ import {
 import { Settings2, Loader2 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import userRoutes from '@/routes/users/index';
+import { formatRoleName } from '@/lib/utils';
 
 const props = defineProps<{
     // Using the global User type
@@ -41,9 +42,9 @@ const toggleRole = (roleName: string) => {
                 v-for="role in user.roles"
                 :key="role"
                 variant="outline"
-                class="capitalize bg-primary/5 text-primary border-primary/20"
+                class="bg-primary/5 text-primary border-primary/20"
             >
-                {{ role }}
+                {{ formatRoleName(role) }}
             </Badge>
             <span v-if="user.roles.length === 0" class="text-xs text-muted-foreground italic">
                 No roles assigned
@@ -65,9 +66,9 @@ const toggleRole = (roleName: string) => {
                     :key="role"
                     :checked="user.roles.includes(role)"
                     @select.prevent="toggleRole(role)"
-                    class="capitalize cursor-pointer"
+                    class="cursor-pointer"
                 >
-                    {{ role }}
+                    {{ formatRoleName(role) }}
                 </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
         </DropdownMenu>
