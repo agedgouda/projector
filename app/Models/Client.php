@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Client extends Model
@@ -20,6 +20,7 @@ class Client extends Model
     ];
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     /**
@@ -54,7 +55,7 @@ class Client extends Model
         }
 
         // 2. Organization Visibility
-        // Any user (org-admin, org-member, etc.) sees all clients
+        // Any org user (org-admin, project-lead, team-member, etc.) sees all clients
         // belonging to the current organization context.
         return $query->where('organization_id', getPermissionsTeamId());
     }

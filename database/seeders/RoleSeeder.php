@@ -19,9 +19,11 @@ class RoleSeeder extends Seeder
         // 2. Organization Scoped Roles (Created with NULL team_id initially)
         // Spatie uses these as "templates" for teams
         $admin = Role::firstOrCreate(['name' => 'org-admin', 'team_id' => null]);
-        $member = Role::firstOrCreate(['name' => 'org-member', 'team_id' => null]);
         $projectLead = Role::firstOrCreate(['name' => 'project-lead', 'team_id' => null]);
         $teamMember = Role::firstOrCreate(['name' => 'team-member', 'team_id' => null]);
+
+        // Remove deprecated org-member role
+        Role::where('name', 'org-member')->delete();
 
         // 3. Define Permissions
         $permissions = [
@@ -37,7 +39,6 @@ class RoleSeeder extends Seeder
 
         // 4. Assign Permissions to Scoped Roles
         $admin->givePermissionTo($permissions);
-        $member->givePermissionTo(['view-org-reports']);
         $projectLead->givePermissionTo(['view-org-reports', 'manage-org-clients']);
         $teamMember->givePermissionTo(['view-org-reports']);
     }
