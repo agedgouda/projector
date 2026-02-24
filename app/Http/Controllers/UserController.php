@@ -32,7 +32,9 @@ class UserController extends Controller
 
         return inertia('Users/Index', [
             'users' => $users->forInertia(),
-            'allRoles' => Role::where('team_id', $currentOrgId)->orWhereNull('team_id')->pluck('name'),
+            'allRoles' => Role::whereNull('team_id')
+                ->where('name', '!=', 'super-admin')
+                ->pluck('name'),
         ]);
     }
 
@@ -64,9 +66,14 @@ class UserController extends Controller
     {
         Gate::authorize('update', $user);
 
+        $assignableRoles = Role::whereNull('team_id')
+            ->where('name', '!=', 'super-admin')
+            ->pluck('name')
+            ->toArray();
+
         $validated = $request->validate([
             'organization_id' => ['required', 'uuid', 'exists:organizations,id'],
-            'is_admin' => ['required', 'boolean'],
+            'role' => ['nullable', 'string', 'in:'.implode(',', $assignableRoles)],
         ]);
 
         // 1. Lock Spatie to the organization context provided by the UI
@@ -77,12 +84,9 @@ class UserController extends Controller
             return back()->with('error', 'Super Admin permissions cannot be modified here.');
         }
 
-        // 3. Handle Admin status
-        // If true, ensure they have the role; if false, ensure it's removed.
-        $validated['is_admin']
-            ? $user->assignRole('org-admin')
-            : $user->removeRole('org-admin');
+        // 3. Remove all current org-scoped roles, then assign the selected one
+        $user->syncRoles($validated['role'] ? [$validated['role']] : []);
 
-        return back()->with('success', 'Permissions updated.');
+        return back()->with('success', 'Role updated.');
     }
 }

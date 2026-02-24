@@ -18,6 +18,7 @@ defineProps<{
     organizations: Organization[];
     users: User[];
     currentOrg: Organization;
+    allRoles: string[];
 }>();
 
 const page = usePage<AppPageProps>();
@@ -94,6 +95,7 @@ const isAddUserListOpen = ref(false);
                 <OrgUserTable
                     :users="currentOrg.users || []"
                     :show-admin-toggle="currentOrg.can?.manage_users ?? false"
+                    :all-roles="allRoles"
                 />
             </div>
 

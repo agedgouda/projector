@@ -97,6 +97,7 @@ const {
                         <OrgUserTable
                             :users="org.members"
                             :show-admin-toggle="true"
+                            :all-roles="allRoles"
                         />
                     </div>
                 </div>

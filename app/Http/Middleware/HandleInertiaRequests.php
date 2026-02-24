@@ -29,6 +29,7 @@ class HandleInertiaRequests extends Middleware
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         $user = $request->user();
+        $isSuperAdmin = false;
 
         if ($user) {
             /**
@@ -50,6 +51,17 @@ class HandleInertiaRequests extends Middleware
              * come back empty. Unsetting these forces a fresh, context-aware query.
              */
             $user->unsetRelation('roles')->unsetRelation('permissions');
+
+            // Check super-admin status against the global (null) team context, since
+            // the super-admin role is stored with team_id = null and won't be found
+            // when an org team context is active.
+            setPermissionsTeamId(null);
+            $isSuperAdmin = $user->hasRole('super-admin');
+            $user->unsetRelation('roles')->unsetRelation('permissions');
+
+            // Restore the org context for the rest of the request
+            setPermissionsTeamId($activeOrgId);
+            $user->unsetRelation('roles')->unsetRelation('permissions');
         }
 
         return [
@@ -63,14 +75,10 @@ class HandleInertiaRequests extends Middleware
                     'last_name' => $user->last_name,
                     'name' => $user->name,
                     'email' => $user->email,
-                    /**
-                     * These methods now respect the Team ID set above.
-                     * Org-admins will see ['org-admin'],
-                     * Super-admins will see ['super-admin'] (provided it's a global role).
-                     */
+                    'is_super' => $isSuperAdmin,
                     'roles' => $user->getRoleNames(),
                     'permissions' => $user->getAllPermissions()->pluck('name'),
-                    'clients' => $user->clients->pluck('id')->map(fn($id) => (string) $id),
+                    'clients' => $user->clients->pluck('id')->map(fn ($id) => (string) $id),
                 ] : null,
                 'active_org_id' => getPermissionsTeamId(),
             ],

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
 
 class OrganizationController extends Controller
 {
@@ -74,6 +75,9 @@ class OrganizationController extends Controller
             'organizations' => $organizations,
             'currentOrg' => $currentOrgData,
             'users' => $addableUsers,
+            'allRoles' => Role::whereNull('team_id')
+                ->where('name', '!=', 'super-admin')
+                ->pluck('name'),
         ])
             ->toResponse($request)
             ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));

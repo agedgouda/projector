@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RoleSeeder extends Seeder
 {
@@ -20,13 +20,15 @@ class RoleSeeder extends Seeder
         // Spatie uses these as "templates" for teams
         $admin = Role::firstOrCreate(['name' => 'org-admin', 'team_id' => null]);
         $member = Role::firstOrCreate(['name' => 'org-member', 'team_id' => null]);
+        $projectLead = Role::firstOrCreate(['name' => 'project-lead', 'team_id' => null]);
+        $teamMember = Role::firstOrCreate(['name' => 'team-member', 'team_id' => null]);
 
         // 3. Define Permissions
         $permissions = [
             'manage-org-users',
             'manage-org-clients',
             'view-org-reports',
-            'edit-org-settings'
+            'edit-org-settings',
         ];
 
         foreach ($permissions as $p) {
@@ -36,5 +38,7 @@ class RoleSeeder extends Seeder
         // 4. Assign Permissions to Scoped Roles
         $admin->givePermissionTo($permissions);
         $member->givePermissionTo(['view-org-reports']);
+        $projectLead->givePermissionTo(['view-org-reports', 'manage-org-clients']);
+        $teamMember->givePermissionTo(['view-org-reports']);
     }
 }
