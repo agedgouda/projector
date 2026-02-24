@@ -6,8 +6,10 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
@@ -34,6 +36,26 @@ class UserController extends Controller
         ]);
     }
 
+    /**
+     * Promote a user to super-admin, removing them from all organizations. Super-admins only.
+     */
+    public function promote(User $user): \Illuminate\Http\RedirectResponse
+    {
+        setPermissionsTeamId(null);
+
+        if ($user->hasRole('super-admin')) {
+            return back()->with('error', 'User is already a super-admin.');
+        }
+
+        $user->organizations()->detach();
+
+        DB::table('model_has_roles')->where('model_id', $user->id)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $user->assignRole('super-admin');
+
+        return back()->with('success', "{$user->name} has been promoted to super-admin.");
+    }
 
     /**
      * Update user permissions and client assignments.

@@ -52,6 +52,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:super-admin'])->group(function () {
         Route::post('/organizations/{organization}/users', [OrganizationController::class, 'addUser'])
             ->name('organizations.users.store');
+        Route::get('/users/list', [UserController::class, 'list'])
+            ->name('users.list');
+        Route::post('/users/{user}/promote', [UserController::class, 'promote'])
+            ->name('users.promote');
     });
 
     Route::middleware(['role:super-admin|org-admin'])->group(function () {
