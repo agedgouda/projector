@@ -116,12 +116,7 @@ class OrganizationController extends Controller
         $user = $request->user();
 
         // Super-admins do not need to be in the pivot table to see or manage the org
-        if (! $user->hasRole('super-admin')) {
-            $user->organizations()->attach($org->id);
-        }
-
         setPermissionsTeamId($org->id);
-        $user->assignRole('org-admin');
 
         return redirect()->route('organizations.index', ['org' => $org->id])
             ->with('success', 'Organization created successfully.');
