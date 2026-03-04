@@ -110,7 +110,7 @@ const breadcrumbs = [{ title: 'Roles', href: '#' }];
                         />
 
                         <button
-                            v-if="role.name !== 'admin'"
+                            v-if="role.name !== 'super-admin'"
                             type="button"
                             @click="deleteRole(role.id)"
                             class="mt-4 opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
@@ -135,7 +135,7 @@ const breadcrumbs = [{ title: 'Roles', href: '#' }];
                             </template>
 
                             <template #actions>
-                                <div v-if="role.name === 'admin' && user.id === authUser.id" class="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic pr-3">
+                                <div v-if="role.name === 'super-admin' && user.id === authUser.id" class="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic pr-3">
                                     Current User
                                 </div>
                                 <div v-else class="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-red-500 transition-colors">

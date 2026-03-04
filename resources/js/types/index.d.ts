@@ -232,7 +232,10 @@ declare global {
         deleted_at?: string | null;
         user?: User;
     }
-
+export interface AiDriverOption {
+    value: string;
+    label: string;
+}
     export interface Organization {
         id: string; // UUID
         name: string;
@@ -241,6 +244,10 @@ declare global {
         email?: string;
         created_at?: string;
         updated_at?: string;
+        vector_driver?: string;
+        llm_driver?: string;
+        vector_config?: string;
+        llm_config?: string;
 
         // Optional relations and permissions included globally
         users?: User[];
@@ -308,5 +315,7 @@ export interface NavItem {
     isActive?: boolean;
     hidden?: boolean;
 }
+
+
 
 export {};

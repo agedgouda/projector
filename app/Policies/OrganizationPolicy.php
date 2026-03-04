@@ -21,6 +21,15 @@ class OrganizationPolicy
     }
 
     /**
+     * Determine whether the user can create models.
+     */
+    public function create(User $user): bool
+    {
+        // Checks if user has 'org-admin' role for the currently set Team ID
+        return $this->isOrgAdmin($user);
+    }
+
+    /**
      * Can they edit org settings?
      */
     public function update(User $user, Organization $organization): bool

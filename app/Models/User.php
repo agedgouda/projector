@@ -85,7 +85,7 @@ class User extends Authenticatable
     {
         return $this->organizations()
             ->where('organization_id', $organizationId)
-            ->wherePivot('role', 'admin')
+            ->wherePivot('role', 'org-admin')
             ->exists();
     }
 
@@ -109,5 +109,12 @@ class User extends Authenticatable
         // This allows us to eager load the specific organization we care about
         return $this->belongsToMany(Organization::class)
             ->where('organizations.id', getPermissionsTeamId());
+    }
+
+    public function scopeAddableToOrganization($query, Organization $organization)
+    {
+        // We filter out super-admins and existing members of the current org
+        return $query->whereDoesntHave('roles', fn($q) => $q->where('name', 'super-admin'))
+                    ->whereDoesntHave('organizations', fn($q) => $q->where('organizations.id', $organization->id));
     }
 }

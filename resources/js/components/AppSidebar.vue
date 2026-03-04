@@ -64,7 +64,7 @@ const mainNavItems: NavItem[] = [
         title: 'Organizations',
         href: organizationRoutes.index(),
         icon: Building2,
-        hidden: !isSuperAdmin.value,
+       hidden: !isSuperAdmin.value && !isOrgAdmin.value,
     },
     {
         title: 'Roles',

@@ -25,6 +25,7 @@ const page = usePage<AppPageProps>();
 
 // Helper to check for super-admin role
 const isSuperAdmin = page.props.auth.user.roles?.includes('super-admin');
+const isOrgAdmin = page.props.auth.user.roles?.includes('org-admin');
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Organization Profile', href: '' }
@@ -106,6 +107,25 @@ const isAddUserListOpen = ref(false);
                 class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
             >
             Add User
+            </Button>
+
+            <div>
+                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">AI Drivers</h3>
+
+                {{
+                    currentOrg.llm_driver?.length
+                        ? currentOrg.llm_driver
+                        : 'System Default'
+                }}
+
+            </div>
+
+            <Button
+                v-if="isSuperAdmin || isOrgAdmin"
+                @click="router.visit(organizationRoutes.edit.url(currentOrg.id))"
+                class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+            >
+            Edit Organization Information
             </Button>
 
             <Dialog v-model:open="isAddUserListOpen">

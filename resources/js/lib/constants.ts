@@ -36,3 +36,21 @@ export const priorityDotClasses: Record<string, string> = {
     medium: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]',
     high: 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'
 };
+
+
+export const LLM_DRIVERS: AiDriverOption[] = [
+    { value: '',       label: 'System Default' },
+    { value: 'openai', label: 'OpenAI' },
+    { value: 'gemini', label: 'Google Gemini' },
+    { value: 'claude', label: 'Anthropic Claude' },
+    { value: 'ollama', label: 'Ollama (self-hosted)' },
+];
+
+/** Claude is excluded — Anthropic has no public embeddings API. */
+export const VECTOR_DRIVERS: AiDriverOption[] = [
+    { value: '',       label: 'System Default' },
+    { value: 'same',   label: 'Same as LLM Driver' },
+    { value: 'openai', label: 'OpenAI' },
+    { value: 'gemini', label: 'Google Gemini' },
+    { value: 'ollama', label: 'Ollama (self-hosted)' },
+];

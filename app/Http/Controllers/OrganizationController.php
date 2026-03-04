@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Organization;
 use App\Models\User;
+use App\Http\Requests\OrganizationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -18,31 +19,27 @@ class OrganizationController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasRole('super-admin')) {
-            $organizations = Organization::all();
-            if (! $organizations || $organizations->isEmpty()) {
-                // there are no organizations, so show the create page
-                return Inertia::render('Organizations/Create');
-            }
-        } else {
-            $organizations = $user->organizations()->get();
-        }
+        // 1. Fetch available organizations using the 'accessibleBy' scope
+        $organizations = Organization::accessibleBy($user)->get();
 
+        // 2. Handle empty states (Super-admin vs Member)
         if ($organizations->isEmpty()) {
-            return Inertia::render('Organizations/AccessPending');
+            return $user->hasRole('super-admin')
+                ? Inertia::render('Organizations/Create')
+                : Inertia::render('Organizations/AccessPending');
         }
 
-        // 1. Resolve the current Org (URL > Cookie > First)
-        $orgId = $request->query('org') ?? $request->cookie('last_org_id');
+        // 3. Resolve the Current Org (Query > Cookie > First Available)
+        $orgId = $request->query('org', $request->cookie('last_org_id'));
         $currentOrg = $organizations->firstWhere('id', $orgId) ?? $organizations->first();
 
-        // 2. Set the Spatie context BEFORE checking the Policy
+        // 4. Set the Spatie context BEFORE checking the Policy
         setPermissionsTeamId($currentOrg->id);
 
-        // 3. Verify the user has permission to view this specific organization
+        // 5. Verify the user has permission to view this specific organization
         Gate::authorize('view', $currentOrg);
 
-        // 4. Get the users formatted via forInertia()
+        // 6. Get members formatted for Inertia (using your existing macro/method)
         $usersRecord = User::query()
             ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $currentOrg->id))
             ->get()
@@ -50,8 +47,14 @@ class OrganizationController extends Controller
 
         $members = $usersRecord[$currentOrg->name] ?? [];
 
-        // 5. Build the data array with frontend permissions (can)
-        $currentOrgData = array_merge($currentOrg->toArray(), [
+        // 7. Get Addable Users using the new 'addableToOrganization' scope
+        $addableUsers = $user->hasRole('super-admin')
+            ? User::addableToOrganization($currentOrg)->get()
+            : collect();
+
+        $currentOrgData = array_merge($currentOrg->makeHidden(['llm_config', 'vector_config'])->toArray(), [
+            'llm_config_form' => $currentOrg->llmConfigForForm(),
+            'vector_config_form' => $currentOrg->vectorConfigForForm(),
             'users' => $members,
             'can' => [
                 'update' => $user->can('update', $currentOrg),
@@ -59,28 +62,24 @@ class OrganizationController extends Controller
                 'delete' => $user->can('delete', $currentOrg),
             ],
         ]);
-
-        // Temporarily clear team context so Spatie's roles() relationship
-        // queries globally, allowing us to correctly exclude super-admins.
-        setPermissionsTeamId(null);
-        $addableUsers = $user->hasRole('super-admin')
-            ? User::query()
-                ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'super-admin'))
-                ->whereDoesntHave('organizations', fn ($q) => $q->where('organizations.id', $currentOrg->id))
-                ->get()
-            : collect();
-        setPermissionsTeamId($currentOrg->id);
-
+//dd($currentOrgData);
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
-            'currentOrg' => $currentOrgData,
+            'currentOrg' => array_merge($currentOrg->toArray(), [
+                'users' => $members,
+                'can' => [
+                    'update' => $user->can('update', $currentOrg),
+                    'manage_users' => $user->can('manageUsers', $currentOrg),
+                    'delete' => $user->can('delete', $currentOrg),
+                ],
+            ]),
             'users' => $addableUsers,
             'allRoles' => Role::whereNull('team_id')
                 ->where('name', '!=', 'super-admin')
                 ->pluck('name'),
         ])
-            ->toResponse($request)
-            ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));
+        ->toResponse($request)
+        ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));
     }
 
     /**
@@ -95,27 +94,12 @@ class OrganizationController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(OrganizationRequest $request)
     {
-        $request->validate(['name' => 'required|string|max:255']);
+        // The validation & normalized check already passed.
+        $org = Organization::create($request->validated());
 
-        $normalized = Organization::normalize($request->name);
-
-        if (Organization::where('normalized_name', $normalized)->exists()) {
-            return back()->withErrors([
-                'name' => 'An organization with a similar name already exists.',
-            ]);
-        }
-
-        $org = Organization::create([
-            'name' => $request->name,
-            'slug' => \Illuminate\Support\Str::slug($request->name),
-            'normalized_name' => $normalized,
-        ]);
-
-        $user = $request->user();
-
-        // Super-admins do not need to be in the pivot table to see or manage the org
+        // Set the team context for the newly created org
         setPermissionsTeamId($org->id);
 
         return redirect()->route('organizations.index', ['org' => $org->id])
@@ -131,26 +115,24 @@ class OrganizationController extends Controller
         return redirect()->route('organizations.index', ['org' => $organization->id]);
     }
 
+        public function edit(Organization $organization)
+    {
+        Gate::authorize('update', $organization);
+
+        $user = auth()->user();
+
+        return inertia('Organizations/Edit', [
+            'organization' => $organization->load('users'),
+        ]);
+    }
+
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Organization $organization)
+    public function update(OrganizationRequest $request, Organization $organization)
     {
-        // Set the team context before checking permissions
-        setPermissionsTeamId($organization->id);
-
-        // This checks OrganizationPolicy@update via the isOrgAdmin trait method
-        Gate::authorize('update', $organization);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-        ]);
-
-        $organization->update([
-            'name' => $validated['name'],
-            'slug' => \Illuminate\Support\Str::slug($validated['name']),
-            'normalized_name' => Organization::normalize($validated['name']),
-        ]);
+        dd($request);
+        $organization->update($request->validated());
 
         return back()->with('success', 'Organization updated.');
     }

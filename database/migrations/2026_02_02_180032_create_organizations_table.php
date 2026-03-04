@@ -23,7 +23,7 @@ return new class extends Migration
             $table->id(); // Keep pivot ID as auto-increment for performance
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('organization_id')->constrained('organizations')->cascadeOnDelete();
-            $table->string('role')->default('member'); // 'admin', 'member'
+            $table->string('role')->default('team-member');
             $table->timestamps();
         });
 

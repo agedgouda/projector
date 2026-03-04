@@ -56,7 +56,7 @@ class RoleController extends Controller
     public function unassignUser(Role $role, User $user): RedirectResponse
     {
         // 1. Security: Prevent current user from removing their own admin role
-        if ($role->name === 'admin' && $user->id === auth()->id()) {
+        if ($role->name === 'super-admin' && $user->id === auth()->id()) {
             return back()->with('error', 'You cannot remove the admin role from yourself.');
         }
 
@@ -70,8 +70,8 @@ class RoleController extends Controller
     public function destroy(Role $role)
     {
         // Prevent deleting the core admin role
-        if ($role->name === 'admin') {
-            return back()->with('error', 'The admin role cannot be deleted.');
+        if ($role->name === 'super-admin') {
+            return back()->with('error', 'The super-admin role cannot be deleted.');
         }
 
         $role->delete();

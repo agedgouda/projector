@@ -5,6 +5,11 @@ import { Head, router } from '@inertiajs/vue3';
 import organizationRoutes from '@/routes/organizations/index';
 import type { BreadcrumbItem } from '@/types';
 
+defineProps<{
+    organization: Organization;
+}>();
+
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Organizations', href: organizationRoutes.index.url() },
     { title: 'New Organization', href: '' }
@@ -19,14 +24,12 @@ const breadcrumbs: BreadcrumbItem[] = [
         <div class="p-8 max-w-5xl mx-auto w-full space-y-8">
             <div class="mb-10">
                 <h1 class="text-3xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">
-                    New Organization
+                    {{ organization.name }}
                 </h1>
-                <p class="text-sm text-gray-500 font-medium mt-1">
-                    Setup a workspace to manage your clients and protocols.
-                </p>
             </div>
 
             <OrganizationForm
+                :organization="organization"
                 @cancel="router.visit(organizationRoutes.index.url())"
                 @success="router.visit(organizationRoutes.index.url())"
             />
