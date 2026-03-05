@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { Search, FolderOpen, Trash2, Pencil } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import ProjectIcon from '@/components/ProjectIcon.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
@@ -13,14 +13,14 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import projectRoutes from '@/routes/projects/index';
-import { dashboard } from '@/routes/';
+//import { dashboard } from '@/routes/';
 
 const props = defineProps<{
     project: Project
     showClient?: boolean;
 }>();
 
-const page = usePage();
+//const page = usePage();
 
 // --- EDIT STATE ---
 const isEditModalOpen = ref(false);
@@ -39,11 +39,11 @@ const executeDelete = () => {
     });
 };
 
-const projectLink = computed(() => {
-    const isClient = page.url.startsWith('/clients');
-    const origin = isClient ? 'client' : 'index';
-    return `${dashboard().url}?project=${props.project.id}&from=${origin}`;
-});
+// const projectLink = computed(() => {
+//     const isClient = page.url.startsWith('/clients');
+//     const origin = isClient ? 'client' : 'index';
+//     return `${dashboard().url}?project=${props.project.id}&from=${origin}`;
+// });
 </script>
 
 <template>
@@ -74,7 +74,7 @@ const projectLink = computed(() => {
 
         <div class="flex justify-end min-w-[120px]">
             <Link
-                :href="projectLink"
+                :href="projectRoutes.show.url(String(project.id))"
                 class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all group/btn"
             >
                 <Search class="w-3.5 h-3.5" />

@@ -9,6 +9,7 @@ use App\Models\ProjectType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
@@ -36,19 +37,39 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function show(Project $project)
+    public function show(Project $project, Request $request)
     {
-        // Set context based on the project being viewed to satisfy the Policy trait
-        setPermissionsTeamId($project->organization_id);
+        $user = auth()->user();
 
-        Gate::authorize('view', $project);
+        // 1. Get projects using your custom collection
+        $projects = Project::visibleTo($user)->latest()->get()->withDashboardContext();
 
-        return inertia('Projects/Show', [
-            'project' => $project->loadFullPipeline(),
-            'projectTypes' => auth()->user()->hasRole('super-admin')
-                ? ProjectType::all(['id', 'name'])
-                : ProjectType::where('organization_id', $project->organization_id)->get(['id', 'name']),
-        ]);
+        if ($projects->isEmpty()) {
+            return Inertia::render('Dashboard/AccessPending', [
+                'user' => $user,
+                'message' => 'Your account is currently awaiting assignment to a client.',
+            ]);
+        }
+
+        // 3. Extract clients from the user's own collection
+        // (Assuming your User model uses the UserCollection)
+        $clients = $user->newCollection([$user])->availableClients();
+
+        $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
+
+        return Inertia::render('Projects/Show', [
+            'projects' => $projects,
+            'currentProject' => $project,
+            'kanbanData' => (object) $project->getKanbanPipe(),
+            'activeTab' => $tab,
+            'clients' => $clients,
+            'projectTypes' => $user->hasRole('super-admin')
+                ? \App\Models\ProjectType::all(['id', 'name'])
+                : \App\Models\ProjectType::where('organization_id', getPermissionsTeamId())->get(['id', 'name']),
+        ])
+            ->toResponse($request)
+            ->withCookie(cookie()->forever('last_project_id', $project->id))
+            ->withCookie(cookie()->forever('last_active_tab', $tab));
     }
 
     /**

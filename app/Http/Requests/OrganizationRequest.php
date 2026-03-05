@@ -34,32 +34,43 @@ class OrganizationRequest extends FormRequest
     public function rules(): array
     {
         $organization = $this->route('organization');
-        $slug = $this->slug;
-        $normalized = $this->normalized_name;
+        $slug = Str::slug($this->name);
+        $normalized = Organization::normalize($this->name);
 
         return [
             'name' => [
-                'required',
-                'string',
-                'max:255',
+                'required', 'string', 'max:255',
                 function ($attribute, $value, $fail) use ($organization, $slug, $normalized) {
-                    // Look for the conflicting record
                     $conflict = Organization::where(function ($query) use ($slug, $normalized) {
                             $query->where('slug', $slug)
-                                  ->orWhere('normalized_name', $normalized);
+                                ->orWhere('normalized_name', $normalized);
                         })
-                        ->when($organization, function ($query) use ($organization) {
-                            $query->where('id', '!=', $organization->id);
-                        })
-                        ->first(['name']); // We only need the name for the error message
+                        ->when($organization, fn($q) => $q->where('id', '!=', $organization->id))
+                        ->first(['name']);
 
                     if ($conflict) {
-                        $fail("An organization the name '{$conflict->name}' already exists. Please choose a different name.");
+                        $fail("An organization with the name '{$conflict->name}' already exists.");
                     }
                 },
             ],
-            'slug' => 'required|string',
-            'normalized_name' => 'required|string',
+            'website' => 'nullable|url|max:255',
+
+            // Driver Validation
+            'llm_driver'    => 'nullable|string',
+            'vector_driver' => 'nullable|string',
+
+            // ADD THESE TWO LINES:
+            'llm_config'    => 'nullable|array',
+            'vector_config' => 'nullable|array',
+
+            // Nested Config Validation
+            'llm_config.model' => 'nullable|required_with:llm_driver|string',
+            'llm_config.host'  => 'nullable|string',
+            'llm_config.key'   => 'nullable|string',
+
+            'vector_config.model' => 'nullable|required_with:vector_driver|string',
+            'vector_config.host'  => 'nullable|string',
+            'vector_config.key'   => 'nullable|string',
         ];
     }
 }

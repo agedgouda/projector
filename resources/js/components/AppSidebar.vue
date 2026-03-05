@@ -16,6 +16,7 @@ import {
 import { dashboard } from '@/routes';
 import clientRoutes from '@/routes/clients/index';
 import userRoutes from '@/routes/users/index';
+import projectRoutes from '@/routes/projects/index';
 import projectTypeRoutes from '@/routes/project-types/index';
 import organizationRoutes from '@/routes/organizations/index';
 import roleRoutes from '@/routes/roles/index';
@@ -45,6 +46,12 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Clients',
         href: clientRoutes.index(),
+        icon: Users,
+        hidden: !canAccessWorkspace.value,
+    },
+    {
+        title: 'Projects',
+        href: projectRoutes.index(),
         icon: Users,
         hidden: !canAccessWorkspace.value,
     },

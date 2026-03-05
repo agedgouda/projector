@@ -1,156 +1,278 @@
 <script setup lang="ts">
-import {  ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import ProjectHeader from './Partials/ProjectHeader.vue';
-import LifecycleProgress from '@/components/LifecycleProgress.vue';
-import DocumentManager from '@/components/documents/DocumentManager.vue';
-import TaskMasterList from '@/components/tasks/TaskMasterList.vue';
-import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
-import ProjectForm from '@/components/ProjectForm.vue';
-import { type BreadcrumbItem } from '@/types';
+import { ref, computed, watch } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { onKeyStroke } from '@vueuse/core';
+import { toast } from 'vue-sonner';
+import { PlusIcon, ShieldAlert } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-vue-next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+import AppLayout from '@/layouts/AppLayout.vue';
+
+import { STATUS_LABELS } from '@/lib/constants';
+import { setPersistentCookie } from '@/lib/utils';
+import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
+import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
+import { useAiProcessing } from '@/composables/useAiProcessing';
+import { useDocumentActions } from '@/composables/useDocumentActions';
+import { useWorkflow } from '@/composables/useWorkflow';
+import DocumentManager from '@/components/documents/DocumentManager.vue';
 import projectRoutes from '@/routes/projects/index';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { useProjectDashboard } from '@/composables/useProjectDashboard';
 
+
+// UI Components
+import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
+import LifecycleStepPicker from '@/components/LifecycleStepPicker.vue';
+import KanbanBoard from '@/components/projects/KanbanBoard.vue';
+import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
+import AiProgressBar from '@/components/AiProgressBar.vue';
+import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 
 const props = defineProps<{
-    project: Project;
+    projects: Project[];
+    currentProject: Project | null;
+    kanbanData: Record<string, ProjectDocument[]>;
+    activeTab: string;
+    clients: Client[];
     projectTypes: ProjectType[];
-    users?: User[];
-    origin?: string | null;
 }>();
 
-// --- COMPOSABLE LOGIC ---
-const {
-    isDeleteModalOpen,
-    isDeleting,
-    documentToDelete,
-    confirmDelete,
-    deleteAction,
-    activeTab,
-    isEditModalOpen,
-    handleBack,
-    backLabel,
-} = useProjectDashboard(props);
+const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
 
-// --- LOCAL STATE ---
+useEchoWatchdog(() => props.currentProject?.id);
+
+// --- 1. KANBAN BASE LOGIC ---
+const {
+    selectedDocument,
+    isSheetOpen,
+    handleCreateNew,
+    getTasksByRowAndStatus,
+    getColumnTaskCount,
+    updateAttribute,
+    onDragChange,
+    openDetail,
+    canCreateTask,
+    searchQuery,
+    applyLocalUpdate,
+    localKanbanData
+} = useKanbanBoard(props);
+
+// --- 2. AI PROCESSING (OBSERVER MODE) ---
+const aiStatusMessageRef = ref('');
+const activeTab = ref(props.activeTab);
+const workflowRows = computed(() => props.currentProject?.type?.document_schema?.filter(s => s.is_task) || []);
+
+const {
+    setDocToProcessing,
+} = useDocumentActions(
+    {
+        project: props.currentProject as Project,
+        documentSchema: workflowRows.value
+    },
+    aiStatusMessageRef,
+    applyLocalUpdate
+);
+
+const targetBeingCreated = ref<string | null>(null);
 const isGenerating = ref(false);
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Projects', href: projectRoutes.index.url() },
-    { title: props.project.name, href: '#' },
-];
+const allDocs = computed(() => {
+    return Object.values(localKanbanData.value).flat() as ProjectDocument[];
+});
 
-// --- METHODS ---
+const projectIdForEcho = computed(() => props.currentProject?.id?.toString() ?? null);
+
+const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
+    projectIdForEcho.value ?? 'NO_PROJECT',
+    allDocs,
+    targetBeingCreated,
+    (incomingDoc: any) => {
+        applyLocalUpdate(incomingDoc.id, incomingDoc);
+    },
+    () => {
+        toast.success('Project Synced', { description: 'AI processing task completed.' });
+    },
+    (errorMessage) => {
+        toast.error('AI Sync Error', { description: errorMessage });
+    }
+);
+
+// --- 3. UI METHODS & BREADCRUMBS ---
+onKeyStroke('Escape', () => {
+    searchQuery.value = '';
+});
+
+watch(aiStatusMessage, (val) => aiStatusMessageRef.value = val);
+
+const breadcrumbs = computed(() => [
+    { title: 'Projects', href: '/projects' },
+    { title: props.currentProject?.name ?? 'Select Project', href: '' }
+]);
+
+const hasVisibleTasks = computed(() => {
+    return columnStatuses.some(status => getColumnTaskCount(status) > 0);
+});
+
+const { reprocessableTypes } = useWorkflow(props.currentProject);
+
+const handleReprocess = (id: string | number) => {
+    const stringId = id.toString();
+    const doc = allDocs.value.find(d => d.id.toString() === stringId) as UIProjectDocument | undefined;
+
+    if (!doc) return;
+
+    aiProgress.value = 5;
+    void setDocToProcessing(doc);
+    isSheetOpen.value = false;
+};
+
+const updateTab = (tab: string) => {
+    activeTab.value = tab;
+    setPersistentCookie('last_active_tab', tab);
+
+    router.get(window.location.pathname,
+        {
+            project: props.currentProject?.id,
+            tab: tab
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        }
+    );
+};
+
 const generateDeliverables = () => {
-    router.post(projectRoutes.generate.url(props.project.id), {}, {
+    if (!props.currentProject) return;
+    router.post(projectRoutes.generate.url(props.currentProject.id), {}, {
         onBefore: () => { isGenerating.value = true; },
         onFinish: () => { isGenerating.value = false; }
     });
 };
 
-const handleSuccess = () => {
-    isEditModalOpen.value = false;
-};
+// --- 4. DOCUMENT MANAGER ACTIONS ---
+const confirmDelete = (doc: ProjectDocument) => {
+    if (!props.currentProject) return;
 
-const confirmFinalDeletion = () => {
-    deleteAction({
-        projects: projectRoutes,
-        documents: projectDocumentsRoutes
-    });
-};
-const updateTab = (tab: string) => {
-    activeTab.value = tab;
-    if (typeof window !== 'undefined') {
-        const url = new URL(window.location.href);
-        url.searchParams.set('tab', tab);
-        window.history.replaceState({}, '', url);
+    if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
+        router.delete(projectDocumentsRoutes.destroy({
+            project: props.currentProject.id,
+            document: doc.id
+        }).url, {
+            onSuccess: () => toast.success('Document deleted'),
+            onError: () => toast.error('Failed to delete document')
+        });
     }
 };
+
+const handleCreateNavigation = (projectId: string) => {
+    router.visit(projectDocumentsRoutes.create({ project: projectId }).url, {
+        data: {
+            redirect: window.location.href
+        }
+    });
+};
+
+watch(() => props.currentProject, (newProject) => {
+    if (newProject?.id) {
+        localStorage.setItem('last_project_id', newProject.id.toString());
+    }
+}, { immediate: true });
 
 </script>
 
 <template>
-    <Head :title="project.name" />
-
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 max-w-7xl mx-auto w-full">
-            <ProjectHeader
-                :project="project"
-                :origin="origin ?? null"
-                :active-tab="activeTab"
-                :back-label="backLabel"
-                @update:active-tab="updateTab"
-                @edit="isEditModalOpen = true"
-                @back="handleBack"
-            />
-
-            <LifecycleProgress
-                v-if="project.type?.lifecycle_steps?.length"
-                :steps="project.type.lifecycle_steps"
-                :current-step-id="project.current_lifecycle_step_id ?? null"
-                :project-id="project.id"
-                class="mt-4"
-            />
-
-            <div class="mt-6">
-                <div v-show="activeTab === 'hierarchy'">
-                    <DocumentManager
-                        :project="project"
-                        :is-generating="isGenerating"
-                        @confirm-delete="confirmDelete"
-                        @generate="generateDeliverables"
-                    />
-                </div>
-
-                <div v-show="activeTab === 'tasks'">
-                    <TaskMasterList
-                        :tasks="project.documents ?? []"
-                        :users="project.client?.users || []"
-                    />
-                </div>
+        <div v-if="!currentProject" class="p-8 flex flex-col items-center justify-center min-h-[60vh]">
+            <div class="p-4 bg-gray-100 rounded-full mb-4">
+                <ShieldAlert class="w-12 h-12 text-gray-400" />
             </div>
+            <h2 class="text-xl font-bold text-gray-900">No Projects Found</h2>
+            <p class="text-gray-500 max-w-xs text-center">
+                You haven't been assigned to any projects yet. Please contact your administrator.
+            </p>
+        </div>
 
-            <div class="mt-12 bg-white dark:bg-gray-800 rounded-xl border border-red-100 dark:border-red-900/30 shadow-sm overflow-hidden">
-                <div class="px-6 py-4 border-b border-red-50 dark:border-red-900/20 bg-red-50/50 dark:bg-red-900/10">
-                    <h2 class="font-black text-red-600 dark:text-red-400 uppercase text-[10px] tracking-[0.2em]">Danger Zone</h2>
+        <div v-else class="p-8 space-y-8 w-full">
+            <AiProgressBar :is-processing="isAiProcessing" :progress="aiProgress" />
+
+            <AiProcessingHeader
+                :is-processing="isAiProcessing"
+                :progress="aiProgress"
+                :message="aiStatusMessage"
+            />
+
+            <div class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <ProjectSwitcher
+                        :projects="projects"
+                        :current-project="currentProject"
+                        :clients="clients"
+                        :project-types="projectTypes"
+                        @switch="(id) => router.get('/projects/' + id)"
+                    />
+                    <LifecycleStepPicker :project="currentProject" />
                 </div>
-                <div class="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <p class="text-sm font-bold text-gray-900 dark:text-white">Delete this project</p>
-                        <p class="text-sm text-gray-500">Once you delete a project, there is no going back.</p>
-                    </div>
-                    <Button variant="destructive" @click="confirmDelete()" class="font-bold text-xs uppercase tracking-widest px-6 shadow-sm">
-                        <Trash2 class="w-4 h-4 mr-2" /> Delete Project
+
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <Button
+                        @click="handleCreateNavigation(currentProject.id)"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
+                    >
+                        <PlusIcon class="h-4 w-4 mr-2" /> New Intake
                     </Button>
                 </div>
             </div>
+
+            <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
+                <button v-for="tab in ['tasks','hierarchy']" :key="tab"
+                    @click="updateTab(tab)"
+                    :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
+                        activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
+                    {{ tab === 'hierarchy' ? 'Documentation' : 'Tasks' }}
+                </button>
+            </div>
+
+            <div v-show="activeTab === 'tasks'">
+                <KanbanBoard
+                    v-model:searchQuery="searchQuery"
+                    :current-project="currentProject"
+                    :has-visible-tasks="hasVisibleTasks"
+                    :column-statuses="columnStatuses"
+                    :workflow-rows="workflowRows"
+                    :get-column-task-count="getColumnTaskCount"
+                    :can-create-task="canCreateTask"
+                    :get-tasks-by-row-and-status="getTasksByRowAndStatus"
+                    :on-drag-change="onDragChange"
+                    :open-detail="openDetail"
+                    :handle-create-new="handleCreateNew"
+                />
+            </div>
+
+            <div v-show="activeTab === 'hierarchy'">
+
+                <DocumentManager
+                    :project="currentProject"
+                    :live-documents="currentProject.documents"
+                    :is-generating="isGenerating"
+                    @confirm-delete="confirmDelete"
+                    @generate="generateDeliverables"
+                />
+            </div>
         </div>
 
-        <Dialog :open="isEditModalOpen" @update:open="isEditModalOpen = $event">
-            <DialogContent class="sm:max-w-[500px]">
-                <DialogHeader>
-                    <DialogTitle>Edit Project Details</DialogTitle>
-                </DialogHeader>
-                <div class="py-4">
-                    <ProjectForm :project="project" :project-types="projectTypes" @success="handleSuccess" />
-                </div>
-            </DialogContent>
-        </Dialog>
-
-        <ConfirmDeleteModal
-            :open="isDeleteModalOpen"
-            :title="documentToDelete ? 'Delete Document' : 'Delete ' + project.name"
-            :description="documentToDelete
-                ? `Are you sure you want to delete '${documentToDelete.name}'?`
-                : 'Are you sure you want to delete this project?'"
-            :loading="isDeleting"
-            @confirm="confirmFinalDeletion"
-            @close="isDeleteModalOpen = false; documentToDelete = null"
+        <DocumentDetailSheet
+            v-if="selectedDocument"
+            :reprocessable-types="reprocessableTypes"
+            v-model:open="isSheetOpen"
+            :document="selectedDocument as ProjectDocument"
+             @handle-reprocess="handleReprocess"
+            @update-attribute="(attr, val) => updateAttribute(
+                selectedDocument!.id,
+                { [attr]: val },
+                'Changes saved'
+            )"
         />
     </AppLayout>
 </template>

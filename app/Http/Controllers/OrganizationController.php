@@ -62,7 +62,7 @@ class OrganizationController extends Controller
                 'delete' => $user->can('delete', $currentOrg),
             ],
         ]);
-//dd($currentOrgData);
+
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
             'currentOrg' => array_merge($currentOrg->toArray(), [
@@ -131,10 +131,27 @@ class OrganizationController extends Controller
      */
     public function update(OrganizationRequest $request, Organization $organization)
     {
-        dd($request);
-        $organization->update($request->validated());
+        // 1. Only fill the flat, basic attributes first
+        // We exclude the config arrays from the initial fill to let the model method handle them
+        $organization->fill($request->safe()->except(['llm_config', 'vector_config']));
 
-        return back()->with('success', 'Organization updated.');
+        // 2. Explicitly pass the input arrays to the merge logic
+        $organization->fillConfiguration(
+            'llm',
+            $request->input('llm_driver'),
+            $request->input('llm_config', [])
+        );
+
+        $organization->fillConfiguration(
+            'vector',
+            $request->input('vector_driver'),
+            $request->input('vector_config', [])
+        );
+
+        // 3. Save everything
+        $organization->save();
+
+        return back()->with('success', 'Organization updated successfully.');
     }
 
     /**

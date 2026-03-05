@@ -21,10 +21,10 @@ import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 
 // UI Components
-import ProjectSwitcher from './Partials/ProjectSwitcher.vue';
+import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
 import LifecycleStepPicker from '@/components/LifecycleStepPicker.vue';
-import KanbanBoard from './Partials/KanbanBoard.vue';
-import DocumentDetailSheet from './Partials/DocumentDetailSheet.vue';
+import KanbanBoard from '@/components/projects/KanbanBoard.vue';
+import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
 import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 
@@ -210,7 +210,7 @@ watch(() => props.currentProject, (newProject) => {
                         :current-project="currentProject"
                         :clients="clients"
                         :project-types="projectTypes"
-                        @switch="(id) => router.get('/dashboard', { project: id })"
+                        @switch="(id) => router.get('/projects/' + id)"
                     />
                     <LifecycleStepPicker :project="currentProject" />
                 </div>

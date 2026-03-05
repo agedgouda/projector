@@ -2,7 +2,7 @@
 import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import clientRoutes from '@/routes/clients/index';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
-import ClientProjects from './ClientProjects.vue'; // Ensure path is correct
+import ClientProjects from './ClientProjects.vue';
 import { router } from '@inertiajs/vue3';
 import { formatPhoneNumber } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
