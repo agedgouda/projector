@@ -15,7 +15,6 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->org = Organization::create(['name' => 'Test Org']);
     $projectType = ProjectType::create(['name' => 'General', 'document_schema' => []]);
@@ -43,16 +42,12 @@ beforeEach(function () {
         'content' => 'Hello world',
     ]);
 
-    $orgAdminRole = Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
-
     $this->admin = User::factory()->create();
-    setPermissionsTeamId($this->org->id);
-    $this->admin->organizations()->syncWithoutDetaching([$this->org->id]);
-    $this->admin->assignRole($orgAdminRole);
+    $this->org->users()->attach($this->admin->id, ['role' => 'org-admin']);
     $this->client->users()->attach($this->admin->id);
 
     $this->member = User::factory()->create();
-    $this->member->organizations()->syncWithoutDetaching([$this->org->id]);
+    $this->org->users()->attach($this->member->id, ['role' => 'team-member']);
     $this->client->users()->attach($this->member->id);
 });
 
@@ -83,8 +78,7 @@ it('allows a member to comment on a document they have access to', function () {
 it('blocks a user from another org from commenting on a task', function () {
     $otherOrg = Organization::create(['name' => 'Other Org']);
     $stranger = User::factory()->create();
-    setPermissionsTeamId($otherOrg->id);
-    $stranger->organizations()->syncWithoutDetaching([$otherOrg->id]);
+    $otherOrg->users()->attach($stranger->id, ['role' => 'team-member']);
 
     $otherClient = Client::create([
         'organization_id' => $otherOrg->id,
@@ -108,8 +102,7 @@ it('blocks a user from another org from commenting on a task', function () {
 it('blocks a user from another org from commenting on a document', function () {
     $otherOrg = Organization::create(['name' => 'Other Org']);
     $stranger = User::factory()->create();
-    setPermissionsTeamId($otherOrg->id);
-    $stranger->organizations()->syncWithoutDetaching([$otherOrg->id]);
+    $otherOrg->users()->attach($stranger->id, ['role' => 'team-member']);
 
     $otherClient = Client::create([
         'organization_id' => $otherOrg->id,
@@ -162,7 +155,7 @@ it('allows an org-admin to delete any comment in their org', function () {
 
 it('blocks a non-author non-admin from deleting a comment', function () {
     $author = User::factory()->create();
-    $author->organizations()->syncWithoutDetaching([$this->org->id]);
+    $this->org->users()->attach($author->id, ['role' => 'team-member']);
     $this->client->users()->attach($author->id);
 
     $comment = Comment::create([

@@ -99,33 +99,33 @@ class Project extends Model
     /**
      * Multi-tenant visibility scope.
      */
-    public function scopeVisibleTo($query, User $user)
+    public function scopeVisibleTo($query, User $user, ?string $orgId = null)
     {
-        // 1. Super-Admin bypass
-        // Note: We check roles without the team context to ensure global admins aren't filtered out
+        $currentOrgId = $orgId ?? getPermissionsTeamId();
+
+        // 1. Super-Admin: see all projects for the org (or all orgs if no org context).
         if ($user->hasRole('super-admin')) {
+            if ($currentOrgId) {
+                return $query->whereHas('client', fn ($q) => $q->where('organization_id', $currentOrgId));
+            }
+
             return $query;
         }
-
-        $currentOrgId = getPermissionsTeamId();
 
         // 2. Fail-safe: If no org context is set, return no projects.
         if (! $currentOrgId) {
             return $query->whereRaw('1 = 0');
         }
 
-        if ($user->hasRole('org-admin')) {
-            return $query->whereHas('client', function ($q) use ($currentOrgId) {
-                $q->where('organization_id', $currentOrgId);
-            });
+        // 3. Org-admins see all projects in the org.
+        if ($user->organizations()->where('organizations.id', $currentOrgId)->wherePivot('role', 'org-admin')->exists()) {
+            return $query->whereHas('client', fn ($q) => $q->where('organization_id', $currentOrgId));
         }
 
-        // 3. Members / Consultants
+        // 4. Members / Consultants see only projects for their assigned clients.
         return $query->whereHas('client', function ($q) use ($user, $currentOrgId) {
             $q->where('organization_id', $currentOrgId)
-                ->whereHas('users', function ($sub) use ($user) {
-                    $sub->where('users.id', $user->id);
-                });
+                ->whereHas('users', fn ($sub) => $sub->where('users.id', $user->id));
         });
     }
 

@@ -11,16 +11,18 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-
-        // 1. Get projects using your custom collection
-        $projects = Project::visibleTo($user)->latest()->get()->withDashboardContext();
-
-        if ($projects->isEmpty()) {
+        if ($user->organizations->isEmpty()) {
             return Inertia::render('Dashboard/AccessPending', [
                 'user' => $user,
-                'message' => 'Your account is currently awaiting assignment to a client.',
+                'message' => 'You have not yet been added to an organization.',
             ]);
+        } else {
+            $user->load('tasks');
         }
+
+        // 1. Get projects using your custom collection
+        $projects = Project::whereIn('id', $user->organizations->pluck('id'))->get();
+        dd($user->tasks);
 
         // 2. Use the new collection method to resolve project
         $currentProject = $projects->resolveCurrent(

@@ -10,16 +10,11 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->org = Organization::create(['name' => 'Test Org']);
 
-    $orgAdminRole = Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
-
     $this->admin = User::factory()->create();
-    setPermissionsTeamId($this->org->id);
-    $this->admin->organizations()->syncWithoutDetaching([$this->org->id]);
-    $this->admin->assignRole($orgAdminRole);
+    $this->org->users()->attach($this->admin->id, ['role' => 'org-admin']);
 
     // Member attached to a client (needed to pass client.access middleware)
     $this->existingClient = Client::create([
@@ -29,7 +24,7 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
     $this->member = User::factory()->create();
-    $this->member->organizations()->syncWithoutDetaching([$this->org->id]);
+    $this->org->users()->attach($this->member->id, ['role' => 'team-member']);
     $this->existingClient->users()->attach($this->member->id);
 });
 

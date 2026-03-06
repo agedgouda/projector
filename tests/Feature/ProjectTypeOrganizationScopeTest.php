@@ -10,7 +10,6 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->orgA = Organization::create(['name' => 'Org A']);
     $this->orgB = Organization::create(['name' => 'Org B']);
@@ -20,12 +19,8 @@ beforeEach(function () {
     $this->superAdmin->assignRole('super-admin');
 
     // Org A admin
-    setPermissionsTeamId($this->orgA->id);
     $this->orgAAdmin = User::factory()->create();
-    $this->orgAAdmin->organizations()->syncWithoutDetaching([$this->orgA->id]);
-    $this->orgAAdmin->assignRole('org-admin');
-
-    setPermissionsTeamId(null);
+    $this->orgA->users()->attach($this->orgAAdmin->id, ['role' => 'org-admin']);
 
     $this->typeA = ProjectType::factory()->create(['organization_id' => $this->orgA->id, 'name' => 'Type A']);
     $this->typeB = ProjectType::factory()->create(['organization_id' => $this->orgB->id, 'name' => 'Type B']);

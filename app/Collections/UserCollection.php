@@ -2,64 +2,64 @@
 
 namespace App\Collections;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use App\Models\User;
 
 class UserCollection extends Collection
 {
     public function forInertia(): array
     {
-        // 1. Efficiently map roles per user AND per team
-        $roleMap = DB::table('model_has_roles')
+        // Detect global super-admins via Spatie (team_id IS NULL)
+        $superAdminIds = DB::table('model_has_roles')
             ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
             ->whereIn('model_has_roles.model_id', $this->pluck('id'))
             ->where('model_has_roles.model_type', User::class)
-            ->select('model_has_roles.model_id', 'roles.name', 'model_has_roles.team_id')
-            ->get();
+            ->whereNull('model_has_roles.team_id')
+            ->where('roles.name', 'super-admin')
+            ->pluck('model_has_roles.model_id')
+            ->flip()
+            ->all();
 
         $grouped = [];
 
         foreach ($this as $user) {
-            // Check if user is a global Super Admin
-            $isSuper = $roleMap->where('model_id', $user->id)->contains('name', 'super-admin');
+            $isSuper = isset($superAdminIds[$user->id]);
 
             if ($isSuper) {
-                $grouped['System Administration'][] = $this->transformUser($user, $roleMap, null);
+                $grouped['System Administration'][] = $this->transformUser($user, null, null, true);
+
                 continue;
             }
 
             if ($user->organizations->isEmpty()) {
-                $grouped['Unassigned / External'][] = $this->transformUser($user, $roleMap, null);
+                $grouped['Unassigned / External'][] = $this->transformUser($user, null, null, false);
+
                 continue;
             }
 
             foreach ($user->organizations as $org) {
-                $grouped[$org->name][] = $this->transformUser($user, $roleMap, $org->id, $org->name);
+                $grouped[$org->name][] = $this->transformUser($user, $org->pivot->role, $org->id, false, $org->name);
             }
         }
 
         ksort($grouped);
+
         return $grouped;
     }
 
-    protected function transformUser($user, $roleMap, $orgId, $orgName = null): array
+    protected function transformUser(User $user, ?string $role, ?string $orgId, bool $isSuper, ?string $orgName = null): array
     {
-        $contextRoles = $roleMap->where('model_id', $user->id)
-            ->where('team_id', $orgId)
-            ->pluck('name')
-            ->toArray();
-
         return [
-            'id'                => $user->id,
-            'name'              => $user->name,
-            'email'             => $user->email,
-            'avatar'            => $user->avatar,
-            'roles'             => $contextRoles,
-            'is_super'          => $roleMap->where('model_id', $user->id)->contains('name', 'super-admin'),
-            'organization_id'   => $orgId,
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'avatar' => $user->avatar,
+            'roles' => $role ? [$role] : [],
+            'is_super' => $isSuper,
+            'organization_id' => $orgId,
             'organization_name' => $orgName ?? 'System Access',
-            'row_key'           => $user->id . '-' . ($orgId ?? 'global'),
+            'row_key' => $user->id.'-'.($orgId ?? 'global'),
         ];
     }
 
@@ -71,11 +71,11 @@ class UserCollection extends Collection
     {
         // Check if any user in this collection is a super-admin
         // (In the context of the Dashboard, this collection usually only contains the current user)
-        $isSuperAdmin = $this->contains(fn($user) => $user->hasRole('super-admin'));
+        $isSuperAdmin = $this->contains(fn ($user) => $user->hasRole('super-admin'));
 
         if ($isSuperAdmin) {
             return \App\Models\Organization::all()
-                ->map(fn($org) => [
+                ->map(fn ($org) => [
                     'id' => $org->id,
                     'company_name' => $org->name,
                 ])
@@ -84,9 +84,9 @@ class UserCollection extends Collection
         }
 
         // Default logic for standard users
-        return $this->flatMap(fn($user) => $user->organizations)
+        return $this->flatMap(fn ($user) => $user->organizations)
             ->unique('id')
-            ->map(fn($org) => [
+            ->map(fn ($org) => [
                 'id' => $org->id,
                 'company_name' => $org->name,
             ])

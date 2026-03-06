@@ -89,16 +89,6 @@ class Document extends Model
         return $this->belongsTo(User::class, 'assignee_id');
     }
 
-    /**
-     * Scopes
-     */
-    // public function scopeNearestNeighbors(Builder $query, array $vector, int $limit = 5): void
-    // {
-    //     $vectorString = '[' . implode(',', $vector) . ']';
-    //     $query->orderByRaw("embedding <=> ?::vector", [$vectorString])
-    //           ->limit($limit);
-    // }
-
     public function scopeNearestNeighbors(Builder $query, array|Vector $vector, int $limit = 5): void
     {
         // The trait 'HasNeighbors' already gives you 'nearestNeighbors'

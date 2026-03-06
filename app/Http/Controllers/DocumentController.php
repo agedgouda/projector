@@ -18,7 +18,7 @@ class DocumentController extends Controller
         Gate::authorize('create', [Document::class, $project]);
 
         return inertia('Documents/Create', [
-            'project' => $project->load(['type', 'client.users']),
+            'project' => $project->load(['type', 'organization.users']),
             'redirectUrl' => $request->query('redirect'),
         ]);
     }
@@ -56,7 +56,7 @@ class DocumentController extends Controller
         }
 
         return inertia('Documents/Show', [
-            'project' => $project->load(['type', 'client.users']),
+            'project' => $project->load(['type', 'client.organization.users']),
             'item' => $document->load(['assignee', 'creator', 'editor']),
         ]);
     }

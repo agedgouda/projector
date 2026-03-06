@@ -3,18 +3,18 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Collections\UserCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
-use App\Collections\UserCollection;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasRoles;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -68,7 +68,7 @@ class User extends Authenticatable
 
     public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(Task::class, 'assignee_id');
+        return $this->hasMany(Document::class, 'assignee_id');
     }
 
     public function organizations()
@@ -79,14 +79,26 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is an admin of a specific organization
+     * Check if user is an admin of a specific organization.
      */
-    public function isOrgAdmin($organizationId): bool
+    public function isOrgAdmin(string $organizationId): bool
     {
         return $this->organizations()
-            ->where('organization_id', $organizationId)
+            ->where('organizations.id', $organizationId)
             ->wherePivot('role', 'org-admin')
             ->exists();
+    }
+
+    /**
+     * Get the user's role within a specific organization.
+     */
+    public function roleInOrganization(string $organizationId): ?string
+    {
+        return $this->organizations()
+            ->where('organizations.id', $organizationId)
+            ->first()
+            ?->pivot
+            ?->role;
     }
 
     public function newCollection(array $models = []): UserCollection
@@ -114,7 +126,7 @@ class User extends Authenticatable
     public function scopeAddableToOrganization($query, Organization $organization)
     {
         // We filter out super-admins and existing members of the current org
-        return $query->whereDoesntHave('roles', fn($q) => $q->where('name', 'super-admin'))
-                    ->whereDoesntHave('organizations', fn($q) => $q->where('organizations.id', $organization->id));
+        return $query->whereDoesntHave('roles', fn ($q) => $q->where('name', 'super-admin'))
+            ->whereDoesntHave('organizations', fn ($q) => $q->where('organizations.id', $organization->id));
     }
 }

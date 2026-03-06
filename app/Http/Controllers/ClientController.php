@@ -16,7 +16,7 @@ class ClientController extends Controller
         $user = $request->user();
 
         // 1. Resolve Org Context (same logic as your OrganizationController)
-        $orgId = $request->query('org') ?? $request->cookie('last_org_id');
+        $orgId = $request->query('org') ?? $request->cookie('last_org_id') ?? getPermissionsTeamId();
 
         // Ensure the user actually has access to this org (or is super-admin)
         $organization = $user->hasRole('super-admin')

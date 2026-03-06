@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -12,40 +13,65 @@ class EnsureUserCanAccessClient
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             Log::warning('[AccessClient] No user found in request.');
             abort(404);
         }
 
         // 1. Identify Context
-        $sessionOrgId = $request->session()->get('active_org_id');
-        $fallbackOrgId = $user->organizations->first()?->id;
-        $activeOrgId = $sessionOrgId ?? $fallbackOrgId;
+        $activeOrgId = $request->session()->get('active_org_id')
+            ?? $request->cookie('last_org_id')
+            ?? $user->organizations->first()?->id;
 
-        // 2. Set Context and Clear Cache
-        setPermissionsTeamId($activeOrgId);
+        // 2. Super-admin check must use null team context (global role has team_id = null)
+        setPermissionsTeamId(null);
         $user->unsetRelation('roles');
 
-        // 4. Permission Logic
         if ($user->hasRole('super-admin')) {
+            setPermissionsTeamId($activeOrgId);
+
             return $next($request);
         }
 
-        if ($user->hasRole('org-admin')) {
+        // 3. Restore org context and check access
+        setPermissionsTeamId($activeOrgId);
+
+        if ($this->canAccessOrg($user, $activeOrgId)) {
             return $next($request);
         }
 
-        if ($activeOrgId) {
-            $hasClientAccess = $user->clients()
-                ->where('clients.organization_id', $activeOrgId)
-                ->exists();
+        // 4. Active org denied — try any org where the user is an org-admin (uses loaded relation)
+        $adminOrg = $user->organizations->first(fn ($org) => $org->pivot->role === 'org-admin');
 
-            if ($hasClientAccess) {
+        if ($adminOrg) {
+            setPermissionsTeamId($adminOrg->id);
+
+            return $next($request);
+        }
+
+        // 5. Last resort — try any org where the user has direct client access
+        foreach ($user->organizations as $org) {
+            if ($user->clients()->where('clients.organization_id', $org->id)->exists()) {
+                setPermissionsTeamId($org->id);
+
                 return $next($request);
             }
         }
 
-        Log::error('[AccessClient] Access Denied for User ' . $user->id);
+        Log::error('[AccessClient] Access Denied for User '.$user->id);
         abort(404);
+    }
+
+    private function canAccessOrg(User $user, ?string $orgId): bool
+    {
+        if (! $orgId) {
+            return false;
+        }
+
+        if ($user->isOrgAdmin($orgId)) {
+            return true;
+        }
+
+        return $user->clients()->where('clients.organization_id', $orgId)->exists();
     }
 }

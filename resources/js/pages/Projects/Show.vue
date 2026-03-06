@@ -235,6 +235,7 @@ watch(() => props.currentProject, (newProject) => {
             </div>
 
             <div v-show="activeTab === 'tasks'">
+
                 <KanbanBoard
                     v-model:searchQuery="searchQuery"
                     :current-project="currentProject"

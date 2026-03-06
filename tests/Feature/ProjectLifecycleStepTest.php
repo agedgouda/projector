@@ -13,7 +13,6 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->org = Organization::create(['name' => 'Test Org']);
     $this->projectType = ProjectType::factory()->create();
@@ -35,12 +34,8 @@ beforeEach(function () {
         'color' => 'indigo',
     ]);
 
-    $orgAdminRole = Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
-
     $this->admin = User::factory()->create();
-    setPermissionsTeamId($this->org->id);
-    $this->admin->organizations()->syncWithoutDetaching([$this->org->id]);
-    $this->admin->assignRole($orgAdminRole);
+    $this->org->users()->attach($this->admin->id, ['role' => 'org-admin']);
 
     $this->stranger = User::factory()->create();
 });
@@ -78,9 +73,7 @@ it('rejects an invalid lifecycle step id', function () {
 it('forbids a user from another org from updating the lifecycle step', function () {
     $otherOrg = Organization::create(['name' => 'Other Org']);
     $otherAdmin = User::factory()->create();
-    setPermissionsTeamId($otherOrg->id);
-    $otherAdmin->organizations()->syncWithoutDetaching([$otherOrg->id]);
-    $otherAdmin->assignRole(Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']));
+    $otherOrg->users()->attach($otherAdmin->id, ['role' => 'org-admin']);
 
     $this->actingAs($otherAdmin)
         ->patch(route('projects.lifecycle-step', $this->project), [

@@ -12,7 +12,6 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->org = Organization::create(['name' => 'Test Org']);
     $projectType = ProjectType::create(['name' => 'General', 'document_schema' => []]);
@@ -28,12 +27,8 @@ beforeEach(function () {
         'project_type_id' => $projectType->id,
     ]);
 
-    $orgAdminRole = Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
-
     $this->admin = User::factory()->create();
-    setPermissionsTeamId($this->org->id);
-    $this->admin->organizations()->syncWithoutDetaching([$this->org->id]);
-    $this->admin->assignRole($orgAdminRole);
+    $this->org->users()->attach($this->admin->id, ['role' => 'org-admin']);
     $this->client->users()->attach($this->admin->id);
 });
 

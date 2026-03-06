@@ -30,38 +30,33 @@ class HandleInertiaRequests extends Middleware
 
         $user = $request->user();
         $isSuperAdmin = false;
+        $roles = [];
 
         if ($user) {
-            /**
-             * 1. Determine the Organization Context.
-             * We prioritize the session (for the switcher) or fallback to their first org.
-             * Super-admins can operate with a null context, but if they are "impersonating"
-             * an org or the user is a local admin, we set the UUID.
-             */
-            $activeOrgId = $request->session()->get('active_org_id')
+            $activeOrgId = $request->query('org')
+                           ?? $request->session()->get('active_org_id')
+                           ?? $request->cookie('last_org_id')
                            ?? $user->organizations->first()?->id;
 
-            // 2. Set the Spatie Team ID globally for this request
             setPermissionsTeamId($activeOrgId);
 
-            /**
-             * 3. THE FIX: Clear Model Caches.
-             * Spatie caches roles on the User model instance. If a check was performed
-             * before the Team ID was set (or with a different ID), the roles will
-             * come back empty. Unsetting these forces a fresh, context-aware query.
-             */
-            $user->unsetRelation('roles')->unsetRelation('permissions');
-
-            // Check super-admin status against the global (null) team context, since
-            // the super-admin role is stored with team_id = null and won't be found
-            // when an org team context is active.
+            // Check super-admin against global (null) context since the role has team_id = null
             setPermissionsTeamId(null);
+            $user->unsetRelation('roles');
             $isSuperAdmin = $user->hasRole('super-admin');
-            $user->unsetRelation('roles')->unsetRelation('permissions');
 
-            // Restore the org context for the rest of the request
+            // Restore org context
             setPermissionsTeamId($activeOrgId);
-            $user->unsetRelation('roles')->unsetRelation('permissions');
+
+            if ($isSuperAdmin) {
+                $roles = ['super-admin'];
+            } else {
+                $orgRole = $user->organizations->firstWhere('id', $activeOrgId)?->pivot?->role;
+
+                if ($orgRole) {
+                    $roles = [$orgRole];
+                }
+            }
         }
 
         return [
@@ -76,8 +71,8 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'is_super' => $isSuperAdmin,
-                    'roles' => $user->getRoleNames(),
-                    'permissions' => $user->getAllPermissions()->pluck('name'),
+                    'roles' => $roles,
+                    'organizations' => $user->organizations->pluck('id')->map(fn ($id) => (string) $id),
                     'clients' => $user->clients->pluck('id')->map(fn ($id) => (string) $id),
                 ] : null,
                 'active_org_id' => getPermissionsTeamId(),

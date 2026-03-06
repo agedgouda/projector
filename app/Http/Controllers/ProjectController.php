@@ -17,23 +17,26 @@ class ProjectController extends Controller
     {
         Gate::authorize('viewAny', Project::class);
 
-        $projects = Project::visibleTo($request->user())
+        $orgId = $request->query('org') ?? $request->cookie('last_org_id') ?? getPermissionsTeamId();
+
+        $user = $request->user();
+
+        // Security: If not a Super-Admin and not assigned to any organization, deny.
+        if (! $user->hasRole('super-admin') && $user->organizations()->doesntExist()) {
+            abort(404);
+        }
+
+        $projects = Project::visibleTo($user, $orgId)
             ->latest()
             ->get()
             ->withSummary();
 
-        // Security: If not a Super-Admin and not assigned to any organization, deny.
-        if (! $request->user()->hasRole('super-admin') && $request->user()->organizations()->doesntExist()) {
-            abort(404);
-        }
-
         return inertia('Projects/Index', [
             'projects' => $projects,
-            // Use the new Collection method we created for role-based client listing
-            'clients' => $request->user()->newCollection([$request->user()])->availableClients(),
-            'projectTypes' => $request->user()->hasRole('super-admin')
+            'clients' => $user->newCollection([$user])->availableClients(),
+            'projectTypes' => $user->hasRole('super-admin')
                 ? ProjectType::all(['id', 'name'])
-                : ProjectType::where('organization_id', getPermissionsTeamId())->get(['id', 'name']),
+                : ProjectType::where('organization_id', $orgId)->get(['id', 'name']),
         ]);
     }
 
@@ -47,7 +50,7 @@ class ProjectController extends Controller
         if ($projects->isEmpty()) {
             return Inertia::render('Dashboard/AccessPending', [
                 'user' => $user,
-                'message' => 'Your account is currently awaiting assignment to a client.',
+                'message' => 'There are no projects available.',
             ]);
         }
 

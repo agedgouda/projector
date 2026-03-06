@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\OrganizationRequest;
 use App\Models\Organization;
 use App\Models\User;
-use App\Http\Requests\OrganizationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Role;
 
 class OrganizationController extends Controller
 {
@@ -74,12 +73,10 @@ class OrganizationController extends Controller
                 ],
             ]),
             'users' => $addableUsers,
-            'allRoles' => Role::whereNull('team_id')
-                ->where('name', '!=', 'super-admin')
-                ->pluck('name'),
+            'allRoles' => ['org-admin', 'project-lead', 'team-member'],
         ])
-        ->toResponse($request)
-        ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));
+            ->toResponse($request)
+            ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));
     }
 
     /**
@@ -115,7 +112,7 @@ class OrganizationController extends Controller
         return redirect()->route('organizations.index', ['org' => $organization->id]);
     }
 
-        public function edit(Organization $organization)
+    public function edit(Organization $organization)
     {
         Gate::authorize('update', $organization);
 

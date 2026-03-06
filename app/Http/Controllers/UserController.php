@@ -8,11 +8,13 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
+    /** @var list<string> */
+    protected const ASSIGNABLE_ROLES = ['org-admin', 'project-lead', 'team-member'];
+
     /**
      * Display a listing of users within the current organization.
      */
@@ -24,7 +26,7 @@ class UserController extends Controller
         $currentOrgId = getPermissionsTeamId();
 
         $users = User::query()
-            ->with(['organizations']) // Removed 'clients'
+            ->with(['organizations'])
             ->when(! $auth->hasRole('super-admin'), function ($q) use ($currentOrgId) {
                 return $q->whereHas('organizations', fn ($sq) => $sq->where('organizations.id', $currentOrgId));
             })
@@ -32,9 +34,7 @@ class UserController extends Controller
 
         return inertia('Users/Index', [
             'users' => $users->forInertia(),
-            'allRoles' => Role::whereNull('team_id')
-                ->where('name', '!=', 'super-admin')
-                ->pluck('name'),
+            'allRoles' => self::ASSIGNABLE_ROLES,
         ]);
     }
 
@@ -66,28 +66,25 @@ class UserController extends Controller
     {
         Gate::authorize('update', $user);
 
-        $assignableRoles = Role::whereNull('team_id')
-            ->where('name', '!=', 'super-admin')
-            ->pluck('name')
-            ->toArray();
-
         $validated = $request->validate([
             'organization_id' => ['required', 'uuid', 'exists:organizations,id'],
-            'role' => ['nullable', 'string', 'in:'.implode(',', $assignableRoles)],
+            'role' => ['nullable', 'string', 'in:'.implode(',', self::ASSIGNABLE_ROLES)],
         ]);
 
-        // 1. Lock Spatie to the organization context provided by the UI
-        setPermissionsTeamId($validated['organization_id']);
+        setPermissionsTeamId(null);
 
-        // 2. Prevent modifying Super Admins to avoid accidental lockouts
         if ($user->hasRole('super-admin')) {
             return back()->with('error', 'Super Admin permissions cannot be modified here.');
         }
 
-        // 3. Remove all current org-scoped roles, then assign the selected one
-        $user->syncRoles($validated['role'] ? [$validated['role']] : []);
+        if ($validated['role']) {
+            $user->organizations()->updateExistingPivot($validated['organization_id'], [
+                'role' => $validated['role'],
+            ]);
+        } else {
+            $user->organizations()->detach($validated['organization_id']);
+        }
 
         return back()->with('success', 'Role updated.');
     }
-
 }

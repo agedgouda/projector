@@ -200,7 +200,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.docume
 
                         <h4 class="text-[11px] font-black uppercase tracking-widest text-gray-400 mt-10">Content</h4>
                         <div class="bg-white rounded-2xl p-0 text-base text-gray-600 leading-relaxed min-h-[300px] whitespace-pre-wrap mt-4">
-                            {{ document.content || 'No content provided.' }}
+                            <span v-html="document.content || 'No content provided.'"></span>
                         </div>
                     </section>
                 </div>

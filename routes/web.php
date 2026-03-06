@@ -58,7 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('users.promote');
     });
 
-    Route::middleware(['role:super-admin|org-admin'])->group(function () {
+    Route::middleware(['org-role:org-admin'])->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
 

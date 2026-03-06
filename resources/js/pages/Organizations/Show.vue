@@ -101,7 +101,7 @@ const isAddUserListOpen = ref(false);
             </div>
 
             <Button
-                v-if="isSuperAdmin"
+                v-if="isSuperAdmin || isOrgAdmin"
                 variant="outline"
                 @click="isAddUserListOpen = true"
                 class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"

@@ -25,17 +25,16 @@ import aiRoutes from '@/routes/ai-templates/index';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 import { BookOpen, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
-
 const page = usePage<AppPageProps>();
-const userRoles = computed(() => page.props.auth.user.roles);
-const isSuperAdmin = computed(() => userRoles.value.includes('super-admin'));
-const isOrgAdmin = computed(() => userRoles.value.includes('org-admin'));
-const hasClients = computed(() => (page.props.auth.user.clients?.length ?? 0) > 0);
-const canAccessWorkspace = computed(() => isSuperAdmin.value || hasClients.value);
+const { hasRole } = usePermissions();
+const isSuperAdmin = computed(() => hasRole('super-admin'));
+const hasOrganizations = computed(() => (page.props.auth.user.organizations?.length ?? 0) > 0);
+
 
 const mainNavItems: NavItem[] = [
     {
@@ -47,13 +46,11 @@ const mainNavItems: NavItem[] = [
         title: 'Clients',
         href: clientRoutes.index(),
         icon: Users,
-        hidden: !canAccessWorkspace.value,
     },
     {
         title: 'Projects',
         href: projectRoutes.index(),
         icon: Users,
-        hidden: !canAccessWorkspace.value,
     },
     {
         title: 'Project Types',
@@ -65,13 +62,13 @@ const mainNavItems: NavItem[] = [
         title: 'Users',
         href: userRoutes.index(),
         icon: User,
-        hidden: !isSuperAdmin.value && !isOrgAdmin.value,
+        hidden: !isSuperAdmin.value,
     },
     {
         title: 'Organizations',
         href: organizationRoutes.index(),
         icon: Building2,
-       hidden: !isSuperAdmin.value && !isOrgAdmin.value,
+        hidden: !isSuperAdmin.value && !hasOrganizations.value,
     },
     {
         title: 'Roles',

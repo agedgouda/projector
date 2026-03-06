@@ -9,18 +9,14 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->org = Organization::create(['name' => 'Test Org']);
 
     $this->superAdmin = User::factory()->create();
     $this->superAdmin->assignRole('super-admin');
 
-    setPermissionsTeamId($this->org->id);
     $this->orgAdmin = User::factory()->create();
-    $this->orgAdmin->organizations()->syncWithoutDetaching([$this->org->id]);
-    $this->orgAdmin->assignRole('org-admin');
-    setPermissionsTeamId(null);
+    $this->org->users()->attach($this->orgAdmin->id, ['role' => 'org-admin']);
 
     $this->target = User::factory()->create();
 });
