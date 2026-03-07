@@ -68,6 +68,7 @@ declare global {
         parent_id: string | null;
         name: string;
         type: string;
+        type_label?: string;
         content: string | null;
 
         // --- Actionable Columns ---

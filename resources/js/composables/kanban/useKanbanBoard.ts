@@ -13,7 +13,7 @@ export type DocumentUpdatePayload = Partial<ProjectDocument> & {
 
 export interface KanbanProps {
     projects: Project[];
-    currentProject: Project | null;
+    currentProject?: Project | null;
     kanbanData: Record<string, ProjectDocument[]>;
 }
 
@@ -21,7 +21,7 @@ export function useKanbanBoard(props: KanbanProps) {
 
     const state = useKanbanState(props);
     const queries = useKanbanQueries(props, state.localKanbanData);
-    const actions = useKanbanActions(props, state.applyLocalUpdate);
+    const actions = useKanbanActions(props, state.applyLocalUpdate, state.documentsById);
     const dnd = useKanbanDnD(props, actions.updateAttribute);
     const permissions = useKanbanPermissions();
     const rules = useKanbanRules(props, permissions);

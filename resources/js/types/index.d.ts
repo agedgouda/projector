@@ -94,7 +94,7 @@ declare global {
     }
 
     // --- TASKS, DISCUSSIONS & FLAT TYPES ---
-    export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done' | 'backlog';
+    export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done' ;
     export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
     export interface DocumentMetadata {

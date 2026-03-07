@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Project, Document};
 use App\Http\Requests\StoreDocumentRequest;
+use App\Models\Document;
+use App\Models\Project;
 use App\Services\VectorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,7 +19,7 @@ class DocumentController extends Controller
         Gate::authorize('create', [Document::class, $project]);
 
         return inertia('Documents/Create', [
-            'project' => $project->load(['type', 'organization.users']),
+            'project' => $project->load(['type', 'client.users']),
             'redirectUrl' => $request->query('redirect'),
         ]);
     }
@@ -89,7 +90,9 @@ class DocumentController extends Controller
         Gate::authorize('view', $project);
 
         $queryText = $request->input('query');
-        if (!$queryText) return back();
+        if (! $queryText) {
+            return back();
+        }
 
         $results = $vectorService->searchContext(
             $project,

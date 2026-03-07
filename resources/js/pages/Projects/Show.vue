@@ -51,7 +51,6 @@ const {
     updateAttribute,
     onDragChange,
     openDetail,
-    canCreateTask,
     searchQuery,
     applyLocalUpdate,
     localKanbanData
@@ -60,14 +59,22 @@ const {
 // --- 2. AI PROCESSING (OBSERVER MODE) ---
 const aiStatusMessageRef = ref('');
 const activeTab = ref(props.activeTab);
-const workflowRows = computed(() => props.currentProject?.type?.document_schema?.filter(s => s.is_task) || []);
+const workflowRows = computed(() =>
+    Object.keys(props.kanbanData).map(projectId => {
+        const project = props.projects.find(p => p.id === projectId);
+        return { key: projectId, label: project?.name ?? projectId, is_task: true };
+    })
+);
+const currentProjectDocumentSchema = computed(() =>
+    props.currentProject?.type?.document_schema?.filter((s: any) => s.is_task) ?? []
+);
 
 const {
     setDocToProcessing,
 } = useDocumentActions(
     {
         project: props.currentProject as Project,
-        documentSchema: workflowRows.value
+        documentSchema: currentProjectDocumentSchema.value
     },
     aiStatusMessageRef,
     applyLocalUpdate
@@ -243,7 +250,6 @@ watch(() => props.currentProject, (newProject) => {
                     :column-statuses="columnStatuses"
                     :workflow-rows="workflowRows"
                     :get-column-task-count="getColumnTaskCount"
-                    :can-create-task="canCreateTask"
                     :get-tasks-by-row-and-status="getTasksByRowAndStatus"
                     :on-drag-change="onDragChange"
                     :open-detail="openDetail"

@@ -22,10 +22,12 @@ const getInitials = (user: any) =>
         @keydown.enter.prevent="emit('open', doc)"
         @keydown.space.prevent="emit('open', doc)"
     >
-        <h4 :class="[KANBAN_UI.cardTitle, 'mb-5 group-hover:text-indigo-600 transition-colors']">
+        <h4 :class="[KANBAN_UI.cardTitle, 'mb-1 group-hover:text-indigo-600 transition-colors']">
             {{ doc.name }}
         </h4>
-
+        <div class="mb-5 text-xs  ">
+            {{ doc.type_label ?? doc.type }}
+        </div>
         <div class="flex items-center justify-between">
             <div class="flex -space-x-2">
                 <div v-if="doc.assignee"

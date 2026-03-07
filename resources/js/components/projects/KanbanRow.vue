@@ -5,7 +5,6 @@ import { KANBAN_UI } from '@/lib/kanban-theme'; // Import theme
 defineProps<{
     row: any;
     columnStatuses: TaskStatus[];
-    canCreateTask: (status: TaskStatus) => boolean;
     gridStyle: Record<string, string>;
     getTasks: (rowKey: string, status: TaskStatus) => ProjectDocument[];
     onDrag: (evt: any, status: TaskStatus) => void;
@@ -29,7 +28,6 @@ defineProps<{
                     :status="status"
                     :tasks="getTasks(row.key, status)"
                     :row-label="row.label"
-                    :can-create-task="canCreateTask"
                     @drag="(evt) => onDrag(evt, status)"
                     @open="onOpen"
                     @create="onCreate(row.key)"

@@ -63,4 +63,16 @@ class ProjectCollection extends Collection
 
         return $current ?: $this->first();
     }
+
+    /**
+     * Return kanban data keyed by project ID for use as swimlanes.
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    public function asKanbanData(): array
+    {
+        return $this->mapWithKeys(fn ($project) => [
+            (string) $project->id => $project->getKanbanDocuments(),
+        ])->toArray();
+    }
 }

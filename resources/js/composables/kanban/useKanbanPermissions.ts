@@ -5,9 +5,9 @@ import { usePage } from '@inertiajs/vue3';
 export function useKanbanPermissions() {
     const page = usePage<AppPageProps>();
 
-    const isAdmin = computed(() =>
+    const isCreator = computed(() =>
         page.props.auth?.user?.roles?.some((role: any) => role.name === 'super-admin') ?? false
     );
 
-    return { isAdmin };
+    return { isCreator };
 }

@@ -4,12 +4,11 @@ import KanbanHeader from './KanbanHeader.vue';
 import KanbanRow from './KanbanRow.vue';
 
 defineProps<{
-    currentProject: Project | null;
+    currentProject?: Project | null;
     hasVisibleTasks: boolean;
     columnStatuses: TaskStatus[];
     workflowRows: DocumentSchemaItem[];
     getColumnTaskCount: (status: TaskStatus) => number;
-    canCreateTask: (status: TaskStatus, rowKey: string) => boolean;
     getTasksByRowAndStatus: (rowKey: string, status: TaskStatus) => ProjectDocument[];
     onDragChange: (event: any, status: TaskStatus, rowKey: string) => void;
     openDetail: (doc: ProjectDocument) => void;
@@ -20,7 +19,7 @@ const searchQuery = defineModel<string>('searchQuery', { default: '' });
 </script>
 
 <template>
-    <div v-if="currentProject && hasVisibleTasks" class="space-y-6">
+    <div v-if="hasVisibleTasks" class="space-y-6">
         <div class="flex flex-col md:flex-row md:items-center justify-start gap-4">
             <div class="relative w-full md:w-80 group">
                 <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -59,7 +58,6 @@ const searchQuery = defineModel<string>('searchQuery', { default: '' });
                     :key="row.key"
                     :row="row"
                     :column-statuses="columnStatuses"
-                    :can-create-task="(status) => canCreateTask(status, row.key)"
                     :get-tasks="(rowKey, status) => getTasksByRowAndStatus(rowKey, status)"
                     :on-drag="(evt, status) => onDragChange(evt, status, row.key)"
                     :on-open="openDetail"

@@ -5,7 +5,7 @@ export function useKanbanRules(
     props: KanbanProps,
     permissions: ReturnType<typeof useKanbanPermissions>
 ) {
-    const { isAdmin } = permissions;
+    const { isCreator } = permissions;
 
 
     /**
@@ -15,7 +15,7 @@ export function useKanbanRules(
         // Applying the same 'unknown' bridge here
         const creativeStatuses = ['backlog', 'todo'] as unknown as TaskStatus[];
 
-        return creativeStatuses.includes(status) && isAdmin.value;
+        return creativeStatuses.includes(status) && isCreator.value;
     };
 
     return {

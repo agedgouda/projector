@@ -1,5 +1,4 @@
 export const STATUS_LABELS: Record<string, string> = {
-    backlog: 'Backlog',
     todo: 'To Do',
     in_progress: 'In Progress',
     done: 'Done'
@@ -7,14 +6,12 @@ export const STATUS_LABELS: Record<string, string> = {
 
 export const statusClasses: Record<string, string> = {
     todo: 'bg-slate-100 text-slate-500',
-    backlog: 'bg-gray-100 text-gray-400',
     in_progress: 'bg-indigo-50 text-indigo-600',
     done: 'bg-emerald-50 text-emerald-600'
 };
 
 export const statusDotClasses: Record<string, string> = {
     todo: 'bg-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.4)]',
-    backlog: 'bg-gray-300 shadow-none',
     in_progress: 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]',
     done: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
 };

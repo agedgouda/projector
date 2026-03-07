@@ -63,7 +63,7 @@ class ProjectController extends Controller
         return Inertia::render('Projects/Show', [
             'projects' => $projects,
             'currentProject' => $project,
-            'kanbanData' => (object) $project->getKanbanPipe(),
+            'kanbanData' => [(string) $project->id => $project->getKanbanDocuments()],
             'activeTab' => $tab,
             'clients' => $clients,
             'projectTypes' => $user->hasRole('super-admin')

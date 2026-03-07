@@ -22,7 +22,7 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('project.' . $this->document->project_id),
+            new PrivateChannel('project.'.$this->document->project_id),
         ];
     }
 
@@ -33,11 +33,15 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
+        $document = $this->document->load(['assignee', 'project.type']);
+        $schema = collect($document->project?->type?->document_schema ?? [])->keyBy('key');
+        $typeLabel = $schema->get($document->type)['label'] ?? $document->type;
+
         return [
             'statusMessage' => $this->statusMessage,
-            'document_id'   => $this->document->id,
-            'progress'      => $this->progress, // Added to broadcast payload
-            'document'      => $this->document->load('assignee'), // Keeps assignee synced
+            'document_id' => $this->document->id,
+            'progress' => $this->progress,
+            'document' => array_merge($document->toArray(), ['type_label' => $typeLabel]),
         ];
     }
 }

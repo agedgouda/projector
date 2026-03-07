@@ -6,11 +6,14 @@ export function useKanbanState(props: KanbanProps) {
     const isSheetOpen = ref(false);
 
     // 1. Create a local copy of the kanban data for optimistic updates
-    const localKanbanData = ref<Record<string, ProjectDocument[]>>({ ...props.kanbanData });
+    const deepCopyKanbanData = (data: Record<string, ProjectDocument[]>) =>
+        Object.fromEntries(Object.entries(data).map(([k, v]) => [k, [...v]]));
+
+    const localKanbanData = ref<Record<string, ProjectDocument[]>>(deepCopyKanbanData(props.kanbanData));
 
     // 2. Keep local state in sync when server-side props change (e.g., after a real refresh)
     watch(() => props.kanbanData, (newData) => {
-        localKanbanData.value = { ...newData };
+        localKanbanData.value = deepCopyKanbanData(newData);
     }, { deep: true });
 
     /**
@@ -33,10 +36,8 @@ export function useKanbanState(props: KanbanProps) {
                     // Remove from old location
                     localKanbanData.value[rowKey].splice(index, 1);
 
-                    // Add to new status (on the same row/type)
-                    const targetRow = data.type || existingDoc.type || rowKey;
-                    if (!localKanbanData.value[targetRow]) localKanbanData.value[targetRow] = [];
-                    localKanbanData.value[targetRow].push({ ...existingDoc, ...data });
+                    // Document stays in the same project row; only the status column changes
+                    localKanbanData.value[rowKey].push({ ...existingDoc, ...data });
                 } else {
                     // Simple field update
                     localKanbanData.value[rowKey][index] = { ...existingDoc, ...data };
@@ -46,8 +47,8 @@ export function useKanbanState(props: KanbanProps) {
 
         // 2. NEW DOCUMENT CASE: If AI created a doc that isn't on the board yet
         if (!found) {
-            // We use the 'type' field from the incoming data to decide which row it goes in
-            const rowKey = data.type;
+            // Rows are keyed by project ID
+            const rowKey = data.project_id;
             if (rowKey) {
                 if (!localKanbanData.value[rowKey]) localKanbanData.value[rowKey] = [];
 

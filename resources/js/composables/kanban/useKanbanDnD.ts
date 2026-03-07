@@ -6,7 +6,7 @@ export function useKanbanDnD(
     updateAttribute: (id: string | number, data: DocumentUpdatePayload, msg?: string) => void
 ) {
     const onDragChange = (evt: any, newStatus: TaskStatus) => {
-        if (!props.currentProject || !evt.added) return;
+        if (!evt.added) return;
 
         const doc = evt.added.element as ProjectDocument;
 

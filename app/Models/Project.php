@@ -103,8 +103,13 @@ class Project extends Model
     {
         $currentOrgId = $orgId ?? getPermissionsTeamId();
 
-        // 1. Super-Admin: see all projects for the org (or all orgs if no org context).
-        if ($user->hasRole('super-admin')) {
+        // 1. Super-Admin check requires null team context (the role has team_id = null).
+        setPermissionsTeamId(null);
+        $user->unsetRelation('roles');
+        $isSuperAdmin = $user->hasRole('super-admin');
+        setPermissionsTeamId($currentOrgId);
+
+        if ($isSuperAdmin) {
             if ($currentOrgId) {
                 return $query->whereHas('client', fn ($q) => $q->where('organization_id', $currentOrgId));
             }
@@ -117,8 +122,8 @@ class Project extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        // 3. Org-admins see all projects in the org.
-        if ($user->organizations()->where('organizations.id', $currentOrgId)->wherePivot('role', 'org-admin')->exists()) {
+        // 3. Org-admins and project-leads see all projects in the org.
+        if ($user->organizations()->where('organizations.id', $currentOrgId)->wherePivotIn('role', ['org-admin', 'project-lead'])->exists()) {
             return $query->whereHas('client', fn ($q) => $q->where('organization_id', $currentOrgId));
         }
 
@@ -152,5 +157,21 @@ class Project extends Model
         return $this->documents
             ->whereIn('type', $keys)
             ->groupBy('type');
+    }
+
+    /**
+     * Get task documents for this project enriched with type_label from the schema.
+     */
+    public function getKanbanDocuments(): \Illuminate\Support\Collection
+    {
+        $schema = collect($this->type?->document_schema ?? [])->keyBy('key');
+        $taskKeys = $this->type?->getTaskKeys() ?? [];
+
+        return $this->documents
+            ->whereIn('type', $taskKeys)
+            ->map(fn ($doc) => array_merge($doc->toArray(), [
+                'type_label' => $schema->get($doc->type)['label'] ?? $doc->type,
+            ]))
+            ->values();
     }
 }

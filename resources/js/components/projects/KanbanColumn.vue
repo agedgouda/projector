@@ -4,12 +4,14 @@ import { Plus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import KanbanCard from './KanbanCard.vue';
 import { KANBAN_UI } from '@/lib/kanban-theme';
+import { useKanbanPermissions } from '@/composables/kanban/useKanbanPermissions';
+
+const { isCreator } = useKanbanPermissions();
 
 defineProps<{
     status: TaskStatus;
     tasks: ProjectDocument[];
     rowLabel: string;
-    canCreateTask: (status: TaskStatus) => boolean;
 }>();
 
 const emit = defineEmits(['drag', 'open', 'create']);
@@ -39,7 +41,7 @@ const emit = defineEmits(['drag', 'open', 'create']);
         </draggable>
 
         <Button
-            v-if="canCreateTask(status)"
+            v-if="isCreator"
             variant="ghost"
             @click="emit('create')"
             :class="[

@@ -21,7 +21,7 @@ class TaskController extends Controller
             'assignee_id' => ['nullable', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'status' => ['required', 'string', 'in:todo,in_progress,done,backlog'],
+            'status' => ['required', 'string', 'in:todo,in_progress,done'],
             'priority' => ['required', 'string', 'in:low,medium,high'],
             'due_at' => ['nullable', 'date'],
         ]);

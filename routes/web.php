@@ -76,6 +76,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Main Entry Point
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Organizations are accessible to any org member; policy handles per-action authorization.
+    Route::resource('organizations', OrganizationController::class);
+
     /**
      * 2. Client & Project Management
      * This uses your updated 'EnsureUserCanAccessClient' middleware (aliased as client.access)
@@ -84,8 +87,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);
         Route::resource('projects', ProjectController::class);
-
-        Route::resource('organizations', OrganizationController::class);
 
         Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])
             ->name('projects.generate');
