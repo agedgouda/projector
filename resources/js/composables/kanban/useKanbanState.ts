@@ -1,4 +1,6 @@
 import { ref, computed, watch } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { show } from '@/routes/projects/documents';
 import type { KanbanProps } from './useKanbanBoard';
 
 export function useKanbanState(props: KanbanProps) {
@@ -80,8 +82,14 @@ export function useKanbanState(props: KanbanProps) {
     );
 
     const openDetail = (doc: ProjectDocument) => {
-        selectedDocumentId.value = doc.id;
-        isSheetOpen.value = true;
+        const projectId = doc.project_id ?? props.currentProject?.id;
+        if (!projectId) return;
+
+        const url = show.url(
+            { project: String(projectId), document: String(doc.id) },
+            { query: { from: window.location.href } }
+        );
+        router.visit(url);
     };
 
     return {

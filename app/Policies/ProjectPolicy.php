@@ -18,9 +18,7 @@ class ProjectPolicy
 
     public function view(User $user, Project $project): bool
     {
-        // isOrgAdmin handles the comparison of $project->organization_id
-        // (the virtual attribute) against the active team context.
-        return $this->isOrgAdmin($user, $project);
+        return $this->isOrgMember($user, $project);
     }
 
     public function create(User $user): bool

@@ -42,6 +42,8 @@ class ProjectController extends Controller
 
     public function show(Project $project, Request $request)
     {
+        Gate::authorize('view', $project);
+
         $user = auth()->user();
 
         // 1. Get projects using your custom collection

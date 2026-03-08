@@ -6,19 +6,30 @@ import { dashboard } from '@/routes';
 export function useDocumentNavigation(project: Project, item?: Partial<ExtendedDocument> | null) {
     const getReturnUrl = () => {
         const params = new URLSearchParams(window.location.search);
+        const from = params.get('from');
+        if (from) return from;
         const returnTab = params.get('tab') || 'hierarchy';
         return `${dashboard().url}?tab=${returnTab}`;
     };
 
-    const breadcrumbs = computed(() => [
-        { title: 'Projects', href: projectRoutes.index.url() },
-        { title: project.name, href: getReturnUrl() },
-        {
-            // Fallback to "New Document" if the name is empty or item is null
-            title: item?.name || 'New Document',
-            href: ''
+    const breadcrumbs = computed(() => {
+        const returnUrl = getReturnUrl();
+        const fromUrl = new URLSearchParams(window.location.search).get('from');
+        const isDashboard = fromUrl && new URL(fromUrl).pathname === dashboard().url;
+
+        if (isDashboard) {
+            return [
+                { title: 'Dashboard', href: returnUrl },
+                { title: item?.name || 'New Document', href: '' },
+            ];
         }
-    ]);
+
+        return [
+            { title: 'Projects', href: projectRoutes.index.url() },
+            { title: project.name, href: returnUrl },
+            { title: item?.name || 'New Document', href: '' },
+        ];
+    });
 
     const handleBack = () => {
         const hasHistory = window.appHasHistory || (window.history.state && window.history.state.back);

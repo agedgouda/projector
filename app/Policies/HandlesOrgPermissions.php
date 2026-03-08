@@ -16,6 +16,30 @@ trait HandlesOrgPermissions
         }
     }
 
+    protected function isOrgMember(User $user, $model = null): bool
+    {
+        $activeTeamId = getPermissionsTeamId();
+
+        if (! $activeTeamId) {
+            return false;
+        }
+
+        $isMember = $user->organizations()
+            ->where('organizations.id', $activeTeamId)
+            ->exists();
+
+        if (! $model) {
+            return $isMember;
+        }
+
+        $targetTeamId = match (true) {
+            $model instanceof \App\Models\Organization => $model->id,
+            default => $model->organization_id ?? $activeTeamId,
+        };
+
+        return $isMember && ($targetTeamId === $activeTeamId);
+    }
+
     protected function isOrgAdmin(User $user, $model = null): bool
     {
         $activeTeamId = getPermissionsTeamId();

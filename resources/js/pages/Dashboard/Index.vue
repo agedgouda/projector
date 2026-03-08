@@ -141,7 +141,7 @@ const updateTab = (tab: string) => {
 
         <div v-else class="p-8 space-y-8 w-full">
             <AiProgressBar :is-processing="isAiProcessing" :progress="aiProgress" />
-
+{{ isSheetOpen }}
             <AiProcessingHeader
                 :is-processing="isAiProcessing"
                 :progress="aiProgress"
