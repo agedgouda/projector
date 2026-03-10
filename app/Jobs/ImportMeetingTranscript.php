@@ -51,9 +51,13 @@ class ImportMeetingTranscript implements ShouldQueue
 
         event(new DocumentProcessingUpdate($this->document, 'Saving transcript...', 65));
 
-        $this->document->update(['content' => $transcriptText]);
+        // Save transcript content without triggering the observer (which would prematurely
+        // dispatch GenerateDocumentEmbedding before AI processing has run).
+        $this->document->content = $transcriptText;
+        $this->document->processed_at = null;
+        $this->document->saveQuietly();
 
-        GenerateDocumentEmbedding::dispatch($this->document);
+        ProcessDocumentAI::dispatch($this->document);
     }
 
     public function failed(Throwable $exception): void

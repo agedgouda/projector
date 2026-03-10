@@ -269,6 +269,26 @@ export interface AiDriverOption {
         };
     }
 
+    // --- MEETING TRANSCRIPTS ---
+    export interface Recording {
+        id: string;
+        title: string;
+        started_at: string;
+        duration_minutes: number;
+    }
+
+    export interface ImportedTranscript {
+        id: string;
+        name: string;
+        processed_at: string | null;
+        metadata: {
+            recording_id?: string;
+            provider?: string;
+            meeting_date?: string;
+        };
+        created_at: string;
+    }
+
     // --- UI & STATE HELPERS ---
     export interface DocumentThread {
         root: ProjectDocument;

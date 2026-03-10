@@ -226,7 +226,6 @@ it('marks already-imported recordings in importedIds', function () {
         ->assertInertia(fn ($page) => $page
             ->has('importedIds', 1)
             ->where('importedIds.0', 'conferenceRecords/already')
-            ->has('imported', 1)
         );
 });
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Deferred } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
 import { PlusIcon, ShieldAlert } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -35,6 +36,15 @@ const props = defineProps<{
     activeTab: string;
     clients: Client[];
     projectTypes: ProjectType[];
+    canManageTranscripts: boolean;
+    meetingProvider: string | null;
+    recordingsData?: {
+        recordings: Recording[];
+        importedIds: string[];
+        crossProjectImportedIds: string[];
+        providerError: string | null;
+        canManage: boolean;
+    };
 }>();
 
 const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
@@ -122,6 +132,13 @@ const hasVisibleTasks = computed(() => {
 
 const { reprocessableTypes } = useWorkflow(props.currentProject);
 
+const onImportQueued = () => {
+    targetBeingCreated.value = 'transcript';
+    aiProgress.value = 5;
+    activeTab.value = 'hierarchy';
+    setPersistentCookie('last_active_tab', 'hierarchy');
+};
+
 const handleReprocess = (id: string | number) => {
     const stringId = id.toString();
     const doc = allDocs.value.find(d => d.id.toString() === stringId) as UIProjectDocument | undefined;
@@ -145,7 +162,8 @@ const updateTab = (tab: string) => {
         {
             preserveState: true,
             preserveScroll: true,
-            replace: true
+            replace: true,
+            except: ['recordingsData'],
         }
     );
 };
@@ -233,11 +251,11 @@ watch(() => props.currentProject, (newProject) => {
             </div>
 
             <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
-                <button v-for="tab in ['tasks','hierarchy']" :key="tab"
+                <button v-for="tab in ['tasks', 'hierarchy', 'recordings']" :key="tab"
                     @click="updateTab(tab)"
                     :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
                         activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
-                    {{ tab === 'hierarchy' ? 'Documentation' : 'Tasks' }}
+                    {{ tab === 'hierarchy' ? 'Documentation' : tab === 'recordings' ? 'Recordings' : 'Tasks' }}
                 </button>
             </div>
 
@@ -266,6 +284,39 @@ watch(() => props.currentProject, (newProject) => {
                     @confirm-delete="confirmDelete"
                     @generate="generateDeliverables"
                 />
+            </div>
+
+            <div v-show="activeTab === 'recordings'">
+                <div v-if="!meetingProvider" class="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                    <p class="text-sm font-bold text-gray-500">No meeting provider configured</p>
+                    <p class="text-xs text-gray-400 mt-1">Configure a provider in Organization Settings to import recordings.</p>
+                </div>
+
+                <Deferred v-else data="recordingsData">
+                    <template #fallback>
+                        <div class="space-y-3">
+                            <div v-for="i in 4" :key="i" class="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 animate-pulse">
+                                <div class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 shrink-0" />
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/3" />
+                                    <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-1/5" />
+                                </div>
+                                <div class="h-9 w-24 bg-gray-100 dark:bg-gray-800 rounded-xl" />
+                            </div>
+                        </div>
+                    </template>
+
+                    <AvailableRecordings
+                        :project-id="currentProject.id"
+                        :recordings="recordingsData!.recordings"
+                        :imported-ids="recordingsData!.importedIds"
+                        :cross-project-imported-ids="recordingsData!.crossProjectImportedIds"
+                        :can-manage="recordingsData!.canManage"
+                        :provider-error="recordingsData!.providerError"
+                        @import-queued="onImportQueued"
+                        @import-failed="targetBeingCreated = null"
+                    />
+                </Deferred>
             </div>
         </div>
 

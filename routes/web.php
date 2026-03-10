@@ -111,6 +111,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/transcripts', [MeetingTranscriptController::class, 'store'])
                 ->middleware('throttle:20,1')
                 ->name('transcripts.store');
+            Route::post('/transcripts/dismiss', [MeetingTranscriptController::class, 'destroy'])
+                ->name('transcripts.destroy');
         });
     });
 });

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProjectRequest;
+use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectType;
+use App\Services\MeetingTranscriptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -40,7 +42,7 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function show(Project $project, Request $request)
+    public function show(Project $project, Request $request, MeetingTranscriptService $service)
     {
         Gate::authorize('view', $project);
 
@@ -62,6 +64,16 @@ class ProjectController extends Controller
 
         $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
 
+        $organization = $project->client->organization;
+
+        setPermissionsTeamId(null);
+        $user->unsetRelation('roles');
+        $isSuperAdmin = $user->hasRole('super-admin');
+        setPermissionsTeamId($organization->id);
+
+        $orgRole = $user->roleInOrganization($organization->id);
+        $canManageTranscripts = $isSuperAdmin || in_array($orgRole, ['org-admin', 'project-lead']);
+
         return Inertia::render('Projects/Show', [
             'projects' => $projects,
             'currentProject' => $project,
@@ -71,6 +83,49 @@ class ProjectController extends Controller
             'projectTypes' => $user->hasRole('super-admin')
                 ? \App\Models\ProjectType::all(['id', 'name'])
                 : \App\Models\ProjectType::where('organization_id', getPermissionsTeamId())->get(['id', 'name']),
+            'canManageTranscripts' => $canManageTranscripts,
+            'meetingProvider' => $organization->meeting_provider,
+            'recordingsData' => Inertia::defer(function () use ($project, $service, $organization, $canManageTranscripts) {
+                $importedIds = $project->documents()
+                    ->whereNotNull('metadata->recording_id')
+                    ->get(['metadata'])
+                    ->pluck('metadata.recording_id')
+                    ->filter()
+                    ->values();
+
+                $crossProjectImportedIds = Document::whereNotNull('metadata->recording_id')
+                    ->where('project_id', '!=', $project->id)
+                    ->get(['metadata'])
+                    ->pluck('metadata.recording_id')
+                    ->filter()
+                    ->diff($importedIds)
+                    ->values();
+
+                $dismissedIds = $project->dismissedRecordings()->pluck('recording_id');
+
+                $recordings = [];
+                $providerError = null;
+
+                if ($organization->meeting_provider) {
+                    try {
+                        $all = $service->listRecordings($organization, now()->subDays(30));
+                        $recordings = array_values(array_filter(
+                            $all,
+                            fn ($r) => ! $dismissedIds->contains($r['id'])
+                        ));
+                    } catch (\Throwable $e) {
+                        $providerError = $e->getMessage();
+                    }
+                }
+
+                return [
+                    'recordings' => $recordings,
+                    'importedIds' => $importedIds,
+                    'crossProjectImportedIds' => $crossProjectImportedIds,
+                    'providerError' => $providerError,
+                    'canManage' => $canManageTranscripts,
+                ];
+            })->once(),
         ])
             ->toResponse($request)
             ->withCookie(cookie()->forever('last_project_id', $project->id))

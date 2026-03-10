@@ -29,19 +29,6 @@ class DashboardController extends Controller
             ]);
         }
 
-        // Super-admins must always land on an org that has projects.
-        if ($isSuperAdmin) {
-            $hasProjects = $orgId && Project::whereHas('client', fn ($q) => $q->where('organization_id', $orgId))->exists();
-
-            if (! $hasProjects) {
-                $orgId = Organization::whereHas('clients.projects')->value('id');
-                if ($orgId) {
-                    return redirect()->route('dashboard', ['org' => $orgId])
-                        ->withCookie(cookie()->forever('last_org_id', (string) $orgId));
-                }
-            }
-        }
-
         setPermissionsTeamId($orgId);
 
         $orgRole = $orgId ? $user->roleInOrganization($orgId) : null;
@@ -76,10 +63,6 @@ class DashboardController extends Controller
         ])->toResponse($request);
 
         $response = $response->withCookie(cookie()->forever('last_active_tab', $tab));
-
-        if ($isSuperAdmin && $orgId) {
-            $response = $response->withCookie(cookie()->forever('last_org_id', (string) $orgId));
-        }
 
         return $response;
     }

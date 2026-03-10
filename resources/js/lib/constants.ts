@@ -50,6 +50,9 @@ export const MEETING_PROVIDERS: { value: string; label: string }[] = [
     { value: 'google_meet', label: 'Google Meet' },
 ];
 
+export const meetingProviderLabel = (provider: string | null): string | null =>
+    MEETING_PROVIDERS.find(p => p.value === provider)?.label ?? null;
+
 /** Claude is excluded — Anthropic has no public embeddings API. */
 export const VECTOR_DRIVERS: AiDriverOption[] = [
     { value: '',       label: 'System Default' },

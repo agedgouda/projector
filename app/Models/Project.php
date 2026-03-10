@@ -72,6 +72,11 @@ class Project extends Model
         return $this->hasMany(Document::class, 'project_id');
     }
 
+    public function dismissedRecordings(): HasMany
+    {
+        return $this->hasMany(DismissedRecording::class, 'project_id');
+    }
+
     /**
      * Get the type that this project belongs to.
      */
