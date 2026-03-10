@@ -9,7 +9,7 @@ export function useDocumentNavigation(project: Project, item?: Partial<ExtendedD
         const from = params.get('from');
         if (from) return from;
         const returnTab = params.get('tab') || 'hierarchy';
-        return `${dashboard().url}?tab=${returnTab}`;
+        return `${projectRoutes.show.url(project.id)}?tab=${returnTab}`;
     };
 
     const breadcrumbs = computed(() => {

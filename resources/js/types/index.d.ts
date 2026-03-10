@@ -249,6 +249,16 @@ export interface AiDriverOption {
         llm_driver?: string;
         vector_config?: string;
         llm_config?: string;
+        meeting_provider?: string;
+        meeting_config_form?: {
+            account_id: string;
+            tenant_id: string;
+            client_id: string;
+            has_client_secret: boolean;
+            service_account_email: string;
+            impersonate_email: string;
+            has_private_key: boolean;
+        };
 
         // Optional relations and permissions included globally
         users?: User[];

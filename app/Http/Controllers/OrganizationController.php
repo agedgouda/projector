@@ -116,10 +116,11 @@ class OrganizationController extends Controller
     {
         Gate::authorize('update', $organization);
 
-        $user = auth()->user();
-
         return inertia('Organizations/Edit', [
-            'organization' => $organization->load('users'),
+            'organization' => array_merge(
+                $organization->load('users')->makeHidden(['meeting_config'])->toArray(),
+                ['meeting_config_form' => $organization->meetingConfigForForm()]
+            ),
         ]);
     }
 
@@ -130,7 +131,7 @@ class OrganizationController extends Controller
     {
         // 1. Only fill the flat, basic attributes first
         // We exclude the config arrays from the initial fill to let the model method handle them
-        $organization->fill($request->safe()->except(['llm_config', 'vector_config']));
+        $organization->fill($request->safe()->except(['llm_config', 'vector_config', 'meeting_config']));
 
         // 2. Explicitly pass the input arrays to the merge logic
         $organization->fillConfiguration(
@@ -143,6 +144,11 @@ class OrganizationController extends Controller
             'vector',
             $request->input('vector_driver'),
             $request->input('vector_config', [])
+        );
+
+        $organization->fillMeetingConfiguration(
+            $request->input('meeting_provider'),
+            $request->input('meeting_config', [])
         );
 
         // 3. Save everything

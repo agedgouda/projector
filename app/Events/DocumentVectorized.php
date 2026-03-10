@@ -22,7 +22,7 @@ class DocumentVectorized implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('project.' . $this->document->project_id),
+            new PrivateChannel('project.'.$this->document->project_id),
         ];
     }
 
@@ -42,15 +42,14 @@ class DocumentVectorized implements ShouldBroadcast
 
         return [
             'document' => [
-                'id'           => $this->document->id,
-                'name'         => $this->document->name,
-                'type'         => $this->document->type,
-                'parent_id'    => $this->document->parent_id,
-                'content'      => $this->document->content,
-                'metadata'     => $this->document->metadata, // Criteria lives here
+                'id' => $this->document->id,
+                'name' => $this->document->name,
+                'type' => $this->document->type,
+                'parent_id' => $this->document->parent_id,
+                'metadata' => $this->document->metadata,
                 'processed_at' => $this->document->processed_at?->toIso8601String(),
-                'created_at'   => $this->document->created_at?->toIso8601String(),
-                'updated_at'   => $this->document->updated_at?->toIso8601String(),
+                'created_at' => $this->document->created_at?->toIso8601String(),
+                'updated_at' => $this->document->updated_at?->toIso8601String(),
             ],
         ];
     }

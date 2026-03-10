@@ -41,7 +41,10 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
             'statusMessage' => $this->statusMessage,
             'document_id' => $this->document->id,
             'progress' => $this->progress,
-            'document' => array_merge($document->toArray(), ['type_label' => $typeLabel]),
+            'document' => array_merge(
+                $document->makeHidden('content')->toArray(),
+                ['type_label' => $typeLabel]
+            ),
         ];
     }
 }

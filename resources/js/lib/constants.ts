@@ -43,6 +43,13 @@ export const LLM_DRIVERS: AiDriverOption[] = [
     { value: 'ollama', label: 'Ollama (self-hosted)' },
 ];
 
+export const MEETING_PROVIDERS: { value: string; label: string }[] = [
+    { value: '', label: 'None' },
+    { value: 'zoom', label: 'Zoom' },
+    { value: 'teams', label: 'Microsoft Teams' },
+    { value: 'google_meet', label: 'Google Meet' },
+];
+
 /** Claude is excluded — Anthropic has no public embeddings API. */
 export const VECTOR_DRIVERS: AiDriverOption[] = [
     { value: '',       label: 'System Default' },

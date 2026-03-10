@@ -5,6 +5,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\MeetingTranscriptController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTypeController;
@@ -94,7 +95,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/projects/{project}/lifecycle-step', [ProjectController::class, 'updateLifecycleStep'])
             ->name('projects.lifecycle-step');
 
-        // 3. Project Documents
+        // 3. Project Documents & Transcripts
         Route::prefix('projects/{project}')->name('projects.')->group(function () {
             Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
                 ->middleware('throttle:30,1')
@@ -104,6 +105,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->name('documents.reprocess');
 
             Route::resource('documents', DocumentController::class);
+
+            Route::get('/transcripts', [MeetingTranscriptController::class, 'index'])
+                ->name('transcripts.index');
+            Route::post('/transcripts', [MeetingTranscriptController::class, 'store'])
+                ->middleware('throttle:20,1')
+                ->name('transcripts.store');
         });
     });
 });

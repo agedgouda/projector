@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from "vue-sonner";
 import organizationRoutes from '@/routes/organizations/index';
-import { LLM_DRIVERS, VECTOR_DRIVERS } from '@/lib/constants';
+import { LLM_DRIVERS, VECTOR_DRIVERS, MEETING_PROVIDERS } from '@/lib/constants';
 
 interface AiConfigForm {
     model: string;
@@ -19,6 +19,16 @@ interface Props {
         llm_config_form?: AiConfigForm;
         vector_config_form?: AiConfigForm;
     };
+}
+
+interface MeetingConfigForm {
+    account_id: string;
+    tenant_id: string;
+    client_id: string;
+    client_secret: string;
+    service_account_email: string;
+    impersonate_email: string;
+    private_key: string;
 }
 
 
@@ -41,6 +51,16 @@ const form = useForm({
         model: props.organization?.vector_config_form?.model || '',
         host:  props.organization?.vector_config_form?.host  || '',
     },
+    meeting_provider: props.organization?.meeting_provider || '',
+    meeting_config: {
+        account_id:            props.organization?.meeting_config_form?.account_id            || '',
+        tenant_id:             props.organization?.meeting_config_form?.tenant_id             || '',
+        client_id:             props.organization?.meeting_config_form?.client_id             || '',
+        client_secret:         '',
+        service_account_email: props.organization?.meeting_config_form?.service_account_email || '',
+        impersonate_email:     props.organization?.meeting_config_form?.impersonate_email     || '',
+        private_key:           '',
+    } as MeetingConfigForm,
 });
 
 const usesApiKey = computed(() =>
@@ -96,6 +116,23 @@ const vectorDefaultModelPlaceholder = computed((): string => {
     };
     return defaults[form.vector_driver] ?? '';
 });
+
+const meetingShowsConfig = computed(() => !!form.meeting_provider);
+const isZoom = computed(() => form.meeting_provider === 'zoom');
+const isTeams = computed(() => form.meeting_provider === 'teams');
+const isGoogleMeet = computed(() => form.meeting_provider === 'google_meet');
+
+const clientSecretPlaceholder = computed(() =>
+    props.organization?.meeting_config_form?.has_client_secret
+        ? 'Leave blank to keep existing secret'
+        : 'Enter client secret'
+);
+
+const privateKeyPlaceholder = computed(() =>
+    props.organization?.meeting_config_form?.has_private_key
+        ? 'Leave blank to keep existing private key'
+        : 'Paste PEM private key here'
+);
 
 const submit = () => {
     const url = isEditing
@@ -283,6 +320,136 @@ const submit = () => {
                         </p>
                     </div>
                 </template>
+        </div>
+
+        <!-- Meeting Provider -->
+        <div class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                Meeting Transcripts
+            </p>
+
+            <div class="grid gap-2">
+                <Label for="meeting_provider" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    Meeting Provider
+                </Label>
+                <select
+                    id="meeting_provider"
+                    v-model="form.meeting_provider"
+                    class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                >
+                    <option v-for="p in MEETING_PROVIDERS" :key="p.value" :value="p.value">
+                        {{ p.label }}
+                    </option>
+                </select>
+                <p class="text-[10px] text-gray-400 px-1">
+                    Select a video conferencing provider to enable meeting transcript capture.
+                </p>
+            </div>
+
+            <template v-if="meetingShowsConfig">
+                <!-- Zoom: Account ID -->
+                <div v-if="isZoom" class="grid gap-2">
+                    <Label for="meeting_account_id" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        Account ID
+                    </Label>
+                    <Input
+                        id="meeting_account_id"
+                        v-model="form.meeting_config.account_id"
+                        placeholder="Your Zoom Account ID"
+                        class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                    />
+                </div>
+
+                <!-- Teams: Tenant ID -->
+                <div v-if="isTeams" class="grid gap-2">
+                    <Label for="meeting_tenant_id" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        Tenant ID
+                    </Label>
+                    <Input
+                        id="meeting_tenant_id"
+                        v-model="form.meeting_config.tenant_id"
+                        placeholder="Your Azure Tenant ID"
+                        class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                    />
+                </div>
+
+                <!-- Zoom / Teams: Client ID + Secret -->
+                <template v-if="!isGoogleMeet">
+                    <div class="grid gap-2">
+                        <Label for="meeting_client_id" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                            Client ID
+                        </Label>
+                        <Input
+                            id="meeting_client_id"
+                            v-model="form.meeting_config.client_id"
+                            placeholder="OAuth Client ID"
+                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                        />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="meeting_client_secret" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                            Client Secret
+                        </Label>
+                        <Input
+                            id="meeting_client_secret"
+                            v-model="form.meeting_config.client_secret"
+                            type="password"
+                            autocomplete="off"
+                            :placeholder="clientSecretPlaceholder"
+                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                        />
+                    </div>
+                </template>
+
+                <!-- Google Meet: Service Account fields -->
+                <template v-if="isGoogleMeet">
+                    <div class="grid gap-2">
+                        <Label for="meeting_service_account_email" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                            Service Account Email
+                        </Label>
+                        <Input
+                            id="meeting_service_account_email"
+                            v-model="form.meeting_config.service_account_email"
+                            type="email"
+                            placeholder="name@project.iam.gserviceaccount.com"
+                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                        />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="meeting_private_key" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                            Private Key (PEM)
+                        </Label>
+                        <textarea
+                            id="meeting_private_key"
+                            v-model="form.meeting_config.private_key"
+                            rows="6"
+                            :placeholder="privateKeyPlaceholder"
+                            class="w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 resize-y"
+                        />
+                        <p class="text-[10px] text-gray-400 px-1">
+                            Paste the full PEM private key from your Google service account JSON file.
+                        </p>
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="meeting_impersonate_email" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                            Impersonate Email
+                        </Label>
+                        <Input
+                            id="meeting_impersonate_email"
+                            v-model="form.meeting_config.impersonate_email"
+                            type="email"
+                            placeholder="user@yourworkspace.com"
+                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                        />
+                        <p class="text-[10px] text-gray-400 px-1">
+                            A Google Workspace user the service account will impersonate (requires domain-wide delegation).
+                        </p>
+                    </div>
+                </template>
+            </template>
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
