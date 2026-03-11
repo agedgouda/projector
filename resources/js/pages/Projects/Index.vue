@@ -32,7 +32,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 // --- State Management ---
 const searchQuery = ref('');
-const statusFilter = ref('all');
 const collapsedGroups = ref<Record<number | string, boolean>>(
     Object.fromEntries(props.clients.map(client => [client.id, true]))
 );
@@ -150,22 +149,6 @@ watch(searchQuery, (newVal) => {
                     />
                     <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
                         <X class="w-4 h-4" />
-                    </button>
-                </div>
-
-                <div class="flex bg-gray-100/50 dark:bg-gray-800/50 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-fit">
-                    <button
-                        v-for="status in ['all', 'active', 'completed']"
-                        :key="status"
-                        @click="statusFilter = status"
-                        :class="[
-                            'px-6 py-2 text-xs font-black rounded-xl transition-all capitalize tracking-wider',
-                            statusFilter === status
-                                ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                                : 'text-gray-500'
-                        ]"
-                    >
-                        {{ status }}
                     </button>
                 </div>
             </div>

@@ -36,9 +36,7 @@ class ProjectController extends Controller
         return inertia('Projects/Index', [
             'projects' => $projects,
             'clients' => $user->newCollection([$user])->availableClients($orgId),
-            'projectTypes' => $user->hasRole('super-admin')
-                ? ProjectType::all(['id', 'name'])
-                : ProjectType::where('organization_id', $orgId)->get(['id', 'name']),
+            'projectTypes' => ProjectType::all(['id', 'name'])
         ]);
     }
 
@@ -157,8 +155,7 @@ class ProjectController extends Controller
 
             $project = Project::create($request->validated());
 
-            return redirect()->route('dashboard', ['project' => $project->id])
-                ->with('success', 'Project created successfully.');
+            return redirect()->back()->with('success', 'Project successfully created.');
 
         } catch (\Exception $e) {
             \Log::error('[ProjectController] Store failed', [
