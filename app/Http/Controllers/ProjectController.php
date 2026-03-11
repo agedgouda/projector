@@ -35,7 +35,7 @@ class ProjectController extends Controller
 
         return inertia('Projects/Index', [
             'projects' => $projects,
-            'clients' => $user->newCollection([$user])->availableClients(),
+            'clients' => $user->newCollection([$user])->availableClients($orgId),
             'projectTypes' => $user->hasRole('super-admin')
                 ? ProjectType::all(['id', 'name'])
                 : ProjectType::where('organization_id', $orgId)->get(['id', 'name']),
@@ -148,9 +148,11 @@ class ProjectController extends Controller
      */
     public function store(ProjectRequest $request)
     {
+
         try {
             // Validation and Authorization already handled by ProjectRequest
             // But we'll call Gate::authorize here to ensure the standard 403 flow
+
             Gate::authorize('create', Project::class);
 
             $project = Project::create($request->validated());

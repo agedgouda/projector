@@ -21,9 +21,9 @@ import { Button } from '@/components/ui/button';
 import { PlusIcon } from 'lucide-vue-next';
 
 const props = defineProps<{
-    projects: any[];
-    clients: any[];
-    projectTypes: any[];
+    projects: Project[];
+    clients: Client[];
+    projectTypes: ProjectType[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -109,7 +109,7 @@ watch(searchQuery, (newVal) => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 w-full">
-
+{{ clients }}
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
                     <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">Project Portfolio</h1>
