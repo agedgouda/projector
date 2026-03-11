@@ -20,6 +20,16 @@ declare global {
         [key: string]: any;
     }
 
+    export interface Organization {
+        id: string;
+        name: string;
+        meeting_provider?: string | null;
+        llm_driver?: string | null;
+        vector_driver?: string | null;
+        created_at?: string;
+        updated_at?: string;
+    }
+
     export interface Client {
         id: string; // UUID
         company_name: string;
@@ -27,6 +37,7 @@ declare global {
         contact_phone: string;
         users?: User[];
         projects?: Project[];
+        organization?: Organization;
         created_at: string;
         updated_at: string;
     }
@@ -59,7 +70,8 @@ declare global {
 
         // Meta/Counts
         documents_count?: number;
-        tasks: Task[];
+        tasks?: Task[];
+        current_lifecycle_step?: { id: string; label: string; color: string; order: number } | null;
     }
 
     export interface ProjectDocument {
@@ -78,11 +90,12 @@ declare global {
         assignee_id: number | null;
 
         // --- Relationships ---
-        project: Project;
-        creator: User;
+        project?: Project;
+        creator?: User;
         editor?: User;
         assignee?: User;
         children?: ProjectDocument[]; // For parent/child relationships
+        tasks?: Task[];
 
         embedding: any | null;
         metadata: {
@@ -154,7 +167,7 @@ declare global {
         updated_at: string;
 
         // Optional Eager-Loaded Relationships
-        project: Project;
+        project?: Project;
         document?: ProjectDocument;
         assignee?: User;
     }

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem } from '@/types';
 
-const breadcrumbItems: BreadcrumbItem[] = [
+const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Password settings',
         href: edit().url,
@@ -21,7 +21,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbItems">
+    <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Password settings" />
 
         <SettingsLayout>

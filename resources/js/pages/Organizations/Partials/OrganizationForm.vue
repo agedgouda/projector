@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from "vue-sonner";
+import { HelpCircle } from 'lucide-vue-next';
 import organizationRoutes from '@/routes/organizations/index';
 import { LLM_DRIVERS, VECTOR_DRIVERS, MEETING_PROVIDERS } from '@/lib/constants';
+import MeetingProviderSetupModal from '@/components/MeetingProviderSetupModal.vue';
 
 interface AiConfigForm {
     model: string;
@@ -118,6 +120,7 @@ const vectorDefaultModelPlaceholder = computed((): string => {
 });
 
 const meetingShowsConfig = computed(() => !!form.meeting_provider);
+const isSetupGuideOpen = ref(false);
 const isZoom = computed(() => form.meeting_provider === 'zoom');
 const isTeams = computed(() => form.meeting_provider === 'teams');
 const isGoogleMeet = computed(() => form.meeting_provider === 'google_meet');
@@ -324,9 +327,20 @@ const submit = () => {
 
         <!-- Meeting Provider -->
         <div class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
-            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                Meeting Transcripts
-            </p>
+            <div class="flex items-center justify-between">
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    Meeting Transcripts
+                </p>
+                <button
+                    v-if="form.meeting_provider"
+                    type="button"
+                    @click="isSetupGuideOpen = true"
+                    class="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                >
+                    <HelpCircle class="w-3.5 h-3.5" />
+                    Setup Guide
+                </button>
+            </div>
 
             <div class="grid gap-2">
                 <Label for="meeting_provider" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
@@ -451,6 +465,12 @@ const submit = () => {
                 </template>
             </template>
         </div>
+
+        <MeetingProviderSetupModal
+            :open="isSetupGuideOpen"
+            :provider="form.meeting_provider"
+            @close="isSetupGuideOpen = false"
+        />
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
             <Button type="button" variant="ghost" @click="emit('cancel')" class="text-[10px] font-black uppercase tracking-widest text-gray-400">

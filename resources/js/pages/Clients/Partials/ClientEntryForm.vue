@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 // We define 'editData' as the prop. When this is null, we are in "Create" mode.
 // When this has a client object, we are in "Edit" mode.
 const props = defineProps<{
-    editData: any | null;
+    editData: Client | null;
 }>();
 
 const emit = defineEmits(['clear-edit']);

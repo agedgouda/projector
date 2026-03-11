@@ -25,7 +25,7 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'AI Templates', href: aiTemplateRoutes.index().url },
-    { title: props.aiTemplate.name, href: '#' },
+    { title: props.aiTemplate.name, href: '' },
 ];
 
 const copyToClipboard = (text: string) => {

@@ -3,6 +3,7 @@ import { CheckCircle2 } from 'lucide-vue-next';
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { type InertiaForm } from '@inertiajs/vue3';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
+import DOMPurify from 'dompurify';
 
 // The partial metadata interface for the "View" mode section
 interface DocumentMetadata {
@@ -26,6 +27,8 @@ const handleFormSubmit = () => emit('submit');
 const handleCancel = () => emit('cancel');
 
 const { getDocLabel } = useDocumentPresenter(props.project);
+
+const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
 </script>
 
 <template>
@@ -48,7 +51,7 @@ const { getDocLabel } = useDocumentPresenter(props.project);
                 </div>
                 <div
                     class="text-[15px] text-slate-600 leading-relaxed prose prose-slate max-w-none"
-                    v-html="item.content || 'No description provided.'"
+                    v-html="sanitize(item.content) || 'No description provided.'"
                 ></div>
             </section>
 

@@ -6,6 +6,12 @@ Unlike generic AI chat tools, Projector uses **admin-defined database pipelines*
 
 ---
 
+## Documentation
+
+- [Google Meet Transcription Setup](docs/google-meet-transcription-setup.md)
+
+---
+
 ## Core Philosophy
 
 * **AI Synthesizes:** AI generates structured drafts from raw notes according to strict pipeline logic.

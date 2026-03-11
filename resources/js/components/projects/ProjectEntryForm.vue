@@ -22,7 +22,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits(['success', 'cancel']);
+const emit = defineEmits<{
+    success: [clientId: string];
+    cancel: [];
+}>();
 
 // Determine mode
 const isEditing = !!props.editData;
@@ -49,7 +52,7 @@ const submit = () => {
         preserveScroll: true,
         onSuccess: () => {
             toast.success(isEditing ? 'Project Updated' : 'Project Created');
-            emit('success');
+            emit('success', form.client_id);
         },
         onError: () => {
             toast.error('Submission failed', {

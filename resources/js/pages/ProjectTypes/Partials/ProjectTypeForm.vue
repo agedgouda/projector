@@ -17,7 +17,7 @@ const props = defineProps<{
 const emit = defineEmits(['success', 'cancel']);
 
 const page = usePage<AppPageProps>();
-const isSuperAdmin = computed(() => page.props.auth.user.roles.includes('super-admin'));
+const isSuperAdmin = computed(() => page.props.auth.user?.roles?.includes('super-admin') ?? false);
 
 // Use the new composable
 const {
@@ -184,7 +184,7 @@ const removeLifecycleStep = (index: number) => {
                     <Input v-model="step.label" placeholder="e.g. Intake" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-900 dark:text-gray-100" />
                 </div>
                 <div class="flex-1 border-l border-gray-100 dark:border-gray-800 px-4">
-                    <Input v-model="step.description" placeholder="Optional description" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-500 dark:text-gray-400" />
+                    <Input :model-value="step.description ?? ''" @update:model-value="step.description = $event as string" placeholder="Optional description" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-500 dark:text-gray-400" />
                 </div>
                 <div class="w-40 shrink-0 border-l border-gray-100 dark:border-gray-800 px-4 flex items-center gap-1">
                     <button

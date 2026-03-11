@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type BreadcrumbItem } from '@/types';
+import { duplicate as duplicateProjectType } from '@/routes/project-types/index';
 
 const props = defineProps<{
     projectTypes: any[];
@@ -23,7 +24,7 @@ const props = defineProps<{
 }>();
 
 const page = usePage<AppPageProps>();
-const isSuperAdmin = computed(() => page.props.auth.user.roles.includes('super-admin'));
+const isSuperAdmin = computed(() => page.props.auth.user?.roles?.includes('super-admin') ?? false);
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Project Protocols', href: '/project-types' }];
 
@@ -62,7 +63,7 @@ const duplicateType = (typeId: string) => {
     const orgId = duplicateTargetOrgId.value[typeId];
     if (!orgId) return;
 
-    router.post(`/project-types/${typeId}/duplicate`, { organization_id: orgId });
+    router.post(duplicateProjectType.url(typeId), { organization_id: orgId });
 };
 </script>
 

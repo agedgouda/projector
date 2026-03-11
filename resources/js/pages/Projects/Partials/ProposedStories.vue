@@ -8,11 +8,10 @@ const props = defineProps<{
     projectId: string | number;
 }>();
 
-const page = usePage();
+const page = usePage<AppPageProps>();
 const isGenerating = ref(false);
 
-// Casting to any to solve the TypeScript '{}' error
-const aiResults = computed(() => (page.props as any).flash?.aiResults || null);
+const aiResults = computed(() => page.props.flash?.aiResults || null);
 const stories = computed(() => aiResults.value?.mock_response || []);
 
 const generate = () => {
@@ -30,8 +29,6 @@ const generate = () => {
 </script>
 
 <template>
-
-    freene
     <section class="mt-8">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-bold text-gray-900">AI Discovery</h3>

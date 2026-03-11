@@ -5,20 +5,19 @@ import { Head, router } from '@inertiajs/vue3';
 import organizationRoutes from '@/routes/organizations/index';
 import type { BreadcrumbItem } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     organization: Organization;
 }>();
 
-
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Organizations', href: organizationRoutes.index.url() },
-    { title: 'New Organization', href: '' }
+    { title: props.organization.name, href: '' },
 ];
 
 </script>
 
 <template>
-    <Head title="Create Organization" />
+    <Head title="Edit Organization" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-8 max-w-5xl mx-auto w-full space-y-8">
@@ -29,7 +28,7 @@ const breadcrumbs: BreadcrumbItem[] = [
             </div>
 
             <OrganizationForm
-                :organization="organization"
+                :organization="props.organization"
                 @cancel="router.visit(organizationRoutes.index.url())"
                 @success="router.visit(organizationRoutes.index.url())"
             />

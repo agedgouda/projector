@@ -38,9 +38,10 @@ const collapsedGroups = ref<Record<number | string, boolean>>(
 );
 const isProjectModalOpen = ref(false);
 
-const handleSuccess = () => {
+const handleSuccess = (clientId: string) => {
     toast.success('Project Added', { description: 'New project succesfully created.' });
     isProjectModalOpen.value = false;
+    collapsedGroups.value[clientId] = false;
 };
 
 // --- The Master List Logic (Preserved) ---

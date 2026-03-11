@@ -29,15 +29,15 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
 
 const props = defineProps<{
-    clients: any[];
-    projectTypes: any[];
+    clients: Client[];
+    projectTypes: ProjectType[];
     activeOrg: Organization;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Clients', href: clientRoutes.index.url() }];
 
 // --- STATE ---
-const filteredClients = ref([...props.clients]);
+const filteredClients = ref<Client[]>([...props.clients]);
 const isFormOpen = ref(false);
 const clientToEdit = ref<any | null>(null);
 
@@ -74,6 +74,9 @@ const openAddProjectModal = (client: any) => {
 };
 
 const handleProjectSuccess = () => {
+    if (targetClientForProject.value) {
+        collapsedClients.value[targetClientForProject.value.id] = false;
+    }
     isProjectFormOpen.value = false;
     targetClientForProject.value = null;
 };

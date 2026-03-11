@@ -78,7 +78,7 @@ const unassignUser = (roleId: number, userId: number) => {
     isDeleteModalOpen.value = true;
 };
 
-const breadcrumbs = [{ title: 'Roles', href: '#' }];
+const breadcrumbs = [{ title: 'Roles', href: roleRoutes.index().url }];
 </script>
 
 <template>
