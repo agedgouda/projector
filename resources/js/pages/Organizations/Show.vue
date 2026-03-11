@@ -111,13 +111,26 @@ const isAddUserListOpen = ref(false);
 
             <div>
                 <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">AI Drivers</h3>
-
-                {{
-                    currentOrg.llm_driver?.length
-                        ? currentOrg.llm_driver
-                        : 'System Default'
-                }}
-
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">LLM Driver</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
+                            {{ currentOrg.llm_driver || 'System Default' }}
+                        </p>
+                    </div>
+                    <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Vector Driver</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
+                            {{ currentOrg.vector_driver || 'System Default' }}
+                        </p>
+                    </div>
+                    <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Meeting Provider</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
+                            {{ currentOrg.meeting_provider || 'None' }}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <Button

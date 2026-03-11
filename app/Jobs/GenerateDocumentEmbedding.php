@@ -2,17 +2,17 @@
 
 namespace App\Jobs;
 
-use App\Models\Document;
-use App\Services\VectorService;
 use App\Events\DocumentProcessingUpdate;
 use App\Events\DocumentVectorized;
+use App\Models\Document;
+use App\Services\VectorService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GenerateDocumentEmbedding implements ShouldQueue
 {
@@ -25,16 +25,22 @@ class GenerateDocumentEmbedding implements ShouldQueue
         $this->document = $document; // ASSIGN THIS
     }
 
-    public function handle(VectorService $vectorService)
+    public function handle(): void
     {
+        $this->document->loadMissing('project.client.organization');
+        $this->document->project->client->organization?->applyDriverConfig();
+
+        /** @var VectorService $vectorService */
+        $vectorService = app(VectorService::class);
+
         broadcast(new DocumentProcessingUpdate($this->document, 'Synthesizing Document Heuristics...'));
 
         try {
             // The service now handles content extraction and error cleanup internally
             $embedding = $vectorService->getEmbeddingForDocument($this->document);
 
-            if (!$embedding) {
-                throw new \Exception("Vector Service returned empty embedding.");
+            if (! $embedding) {
+                throw new \Exception('Vector Service returned empty embedding.');
             }
 
             broadcast(new DocumentProcessingUpdate($this->document, 'Finalizing Vector Integration...'));
@@ -64,7 +70,7 @@ class GenerateDocumentEmbedding implements ShouldQueue
 
         Log::error('JOB_CRASHED', [
             'id' => $this->document->id,
-            'message' => $exception->getMessage()
+            'message' => $exception->getMessage(),
         ]);
     }
 }

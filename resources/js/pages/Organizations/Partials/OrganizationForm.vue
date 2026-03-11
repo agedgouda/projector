@@ -16,13 +16,6 @@ interface AiConfigForm {
     has_key: boolean;
 }
 
-interface Props {
-    organization?: Organization & {
-        llm_config_form?: AiConfigForm;
-        vector_config_form?: AiConfigForm;
-    };
-}
-
 interface MeetingConfigForm {
     account_id: string;
     tenant_id: string;
@@ -31,8 +24,17 @@ interface MeetingConfigForm {
     service_account_email: string;
     impersonate_email: string;
     private_key: string;
+    has_client_secret?: boolean;
+    has_private_key?: boolean;
 }
 
+interface Props {
+    organization?: Organization & {
+        llm_config_form?: AiConfigForm;
+        vector_config_form?: AiConfigForm;
+        meeting_config_form?: MeetingConfigForm;
+    };
+}
 
 const props = defineProps<Props>();
 const emit = defineEmits(['success', 'cancel']);

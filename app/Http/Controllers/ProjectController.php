@@ -36,7 +36,7 @@ class ProjectController extends Controller
         return inertia('Projects/Index', [
             'projects' => $projects,
             'clients' => $user->newCollection([$user])->availableClients($orgId),
-            'projectTypes' => ProjectType::all(['id', 'name'])
+            'projectTypes' => ProjectType::all(['id', 'name']),
         ]);
     }
 
@@ -80,6 +80,15 @@ class ProjectController extends Controller
                 ->mapWithKeys(fn ($p) => [(string) $p->id => $p->getKanbanDocuments()])
                 ->all()
             : [(string) $project->id => $project->getKanbanDocuments()];
+
+        // For super-admins, the kanban branch above uses a separate query and never
+        // touches $project, so documents and type are not lazy-loaded on it.
+        // For all other roles, getKanbanDocuments() already lazy-loads both as a
+        // side effect. loadMissing() is a no-op for already-loaded relations.
+        $project->loadMissing([
+            'type',
+            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee'])->latest(),
+        ]);
 
         return Inertia::render('Projects/Show', [
             'projects' => $projects,

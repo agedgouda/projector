@@ -2,21 +2,21 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Contracts\LlmDriver;
+use App\Contracts\VectorDriver;
 use App\Models\Document;
 use App\Observers\DocumentObserver;
-use App\Services\Ai\ProjectAiService;
-use App\Services\VectorService;
-use App\Contracts\VectorDriver;
-use App\Contracts\LlmDriver;
-use App\Services\Ai\Drivers\OpenAiLlmDriver;
 use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
+use App\Services\Ai\Drivers\OpenAiLlmDriver;
+use App\Services\Ai\ProjectAiService;
 use App\Services\Vectors\GeminiDriver;
 use App\Services\Vectors\OllamaDriver;
+use App\Services\VectorService;
 use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,11 +29,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(VectorDriver::class, function (Application $app) {
             $name = config('services.vector_driver', 'openai');
 
+            // 'same' means use the same provider as the LLM driver
+            if ($name === 'same') {
+                $name = config('services.llm_driver', 'openai');
+            }
+
             return match ($name) {
                 'openai' => $app->make(OpenAiLlmDriver::class),
                 'gemini' => $app->make(GeminiDriver::class),
                 'ollama' => $app->make(OllamaDriver::class),
-                default  => throw new \InvalidArgumentException("Vector Driver [{$name}] not supported."),
+                default => throw new \InvalidArgumentException("Vector Driver [{$name}] not supported."),
             };
         });
 
@@ -51,7 +56,7 @@ class AppServiceProvider extends ServiceProvider
                 'openai' => $app->make(OpenAiLlmDriver::class),
                 'gemini' => $app->make(GeminiLlmDriver::class),
                 'ollama' => $app->make(OllamaLlmDriver::class),
-                default  => throw new \RuntimeException("Unsupported LLM Driver: [{$driverName}]"),
+                default => throw new \RuntimeException("Unsupported LLM Driver: [{$driverName}]"),
             };
         });
 

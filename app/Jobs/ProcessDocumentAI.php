@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Document;
 use App\Events\DocumentProcessingUpdate;
+use App\Models\Document;
 use App\Services\Ai\ProjectAiService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,12 +19,19 @@ class ProcessDocumentAI implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $backoff = 5;
 
     public function __construct(public Document $document) {}
 
-    public function handle(ProjectAiService $aiService)
+    public function handle(): void
     {
+        $this->document->loadMissing('project.client.organization');
+        $this->document->project->client->organization?->applyDriverConfig();
+
+        /** @var ProjectAiService $aiService */
+        $aiService = app(ProjectAiService::class);
+
         event(new DocumentProcessingUpdate($this->document, 'Analyzing document...', 15));
 
         $result = $aiService->process($this->document);
@@ -33,6 +40,7 @@ class ProcessDocumentAI implements ShouldQueue
         if ($result === null) {
             $this->document->update(['processed_at' => now()]);
             event(new DocumentProcessingUpdate($this->document, 'Skipped: No template', 100));
+
             return;
         }
 
@@ -62,11 +70,11 @@ class ProcessDocumentAI implements ShouldQueue
                 }
 
                 $this->document->project->documents()->create([
-                    'parent_id'    => $this->document->id,
-                    'type'         => $outputType,
-                    'name'         => $data['title'] ?? 'Untitled Deliverable',
-                    'content'      => $content,
-                    'metadata'     => [
+                    'parent_id' => $this->document->id,
+                    'type' => $outputType,
+                    'name' => $data['title'] ?? 'Untitled Deliverable',
+                    'content' => $content,
+                    'metadata' => [
                         'criteria' => $data['criteria'] ?? [],
                         'category' => $data['category'] ?? 'general',
                     ],
@@ -84,15 +92,15 @@ class ProcessDocumentAI implements ShouldQueue
      */
     public function failed(Throwable $exception)
     {
-        Log::error("AI Job Exhausted Retries: " . $exception->getMessage());
+        Log::error('AI Job Exhausted Retries: '.$exception->getMessage());
 
-        if (!$this->document->processed_at) {
+        if (! $this->document->processed_at) {
             $this->document->update(['processed_at' => now()]);
         }
 
         event(new DocumentProcessingUpdate(
             $this->document,
-            'AI Service Failed after multiple attempts: ' . $exception->getMessage(),
+            'AI Service Failed after multiple attempts: '.$exception->getMessage(),
             0
         ));
     }

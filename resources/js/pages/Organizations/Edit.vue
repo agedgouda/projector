@@ -6,7 +6,19 @@ import organizationRoutes from '@/routes/organizations/index';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
-    organization: Organization;
+    organization: Organization & {
+        llm_config_form?: { model: string; host: string; has_key: boolean };
+        vector_config_form?: { model: string; host: string; has_key: boolean };
+        meeting_config_form?: {
+            account_id: string;
+            tenant_id: string;
+            client_id: string;
+            service_account_email: string;
+            impersonate_email: string;
+            has_client_secret: boolean;
+            has_private_key: boolean;
+        };
+    };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [

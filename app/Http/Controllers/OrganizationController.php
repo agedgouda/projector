@@ -118,8 +118,12 @@ class OrganizationController extends Controller
 
         return inertia('Organizations/Edit', [
             'organization' => array_merge(
-                $organization->load('users')->makeHidden(['meeting_config'])->toArray(),
-                ['meeting_config_form' => $organization->meetingConfigForForm()]
+                $organization->load('users')->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(),
+                [
+                    'llm_config_form' => $organization->llmConfigForForm(),
+                    'vector_config_form' => $organization->vectorConfigForForm(),
+                    'meeting_config_form' => $organization->meetingConfigForForm(),
+                ]
             ),
         ]);
     }

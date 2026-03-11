@@ -4,13 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Organization extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'name', 'slug', 'normalized_name', 'website',
@@ -90,6 +91,49 @@ class Organization extends Model
         $clean = str_replace($suffixes, '', $name);
 
         return Str::slug(trim($clean));
+    }
+
+    /**
+     * Override the global AI driver config with this organization's stored settings.
+     * Call this before resolving LlmDriver or VectorDriver from the container.
+     */
+    public function applyDriverConfig(): void
+    {
+        if ($this->llm_driver) {
+            $driver = $this->llm_driver;
+            $config = $this->llm_config ?? [];
+
+            config(['services.llm_driver' => $driver]);
+
+            if (! empty($config['key'])) {
+                config(["services.{$driver}.key" => $config['key']]);
+            }
+            if (! empty($config['model'])) {
+                config(["services.{$driver}.model" => $config['model']]);
+            }
+            if (! empty($config['host'])) {
+                config(["services.{$driver}.host" => $config['host']]);
+            }
+        }
+
+        if ($this->vector_driver) {
+            config(['services.vector_driver' => $this->vector_driver]);
+
+            // 'same' reuses the LLM driver's config — no extra overrides needed
+            if ($this->vector_driver !== 'same') {
+                $config = $this->vector_config ?? [];
+
+                if (! empty($config['key'])) {
+                    config(["services.{$this->vector_driver}.key" => $config['key']]);
+                }
+                if (! empty($config['model'])) {
+                    config(["services.{$this->vector_driver}.model" => $config['model']]);
+                }
+                if (! empty($config['host'])) {
+                    config(["services.{$this->vector_driver}.host" => $config['host']]);
+                }
+            }
+        }
     }
 
     /* --- UI Helpers --- */

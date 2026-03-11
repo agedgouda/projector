@@ -23,9 +23,18 @@ declare global {
     export interface Organization {
         id: string;
         name: string;
-        meeting_provider?: string | null;
+        slug?: string;
+        website?: string | null;
+        email?: string | null;
         llm_driver?: string | null;
         vector_driver?: string | null;
+        meeting_provider?: string | null;
+        users?: User[];
+        can?: {
+            update: boolean;
+            manage_users: boolean;
+            delete: boolean;
+        };
         created_at?: string;
         updated_at?: string;
     }
