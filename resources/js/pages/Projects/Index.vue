@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
-import ProjectForm from '@/components/ProjectForm.vue';
+import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceList from '@/components/ResourceList.vue';
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from '@/components/ui/button';
 import { PlusIcon } from 'lucide-vue-next';
+import { toast } from 'vue-sonner';
 
 const props = defineProps<{
     projects: Project[];
@@ -38,6 +39,7 @@ const collapsedGroups = ref<Record<number | string, boolean>>(
 const isProjectModalOpen = ref(false);
 
 const handleSuccess = () => {
+    toast.success('Project Added', { description: 'New project succesfully created.' });
     isProjectModalOpen.value = false;
 };
 
@@ -129,7 +131,7 @@ watch(searchQuery, (newVal) => {
                                 Enter project details to initialize the workspace.
                             </DialogDescription>
                         </DialogHeader>
-                        <ProjectForm
+                        <ProjectEntryForm
                             :clients="clients"
                             :projectTypes="projectTypes"
                             @success="handleSuccess"

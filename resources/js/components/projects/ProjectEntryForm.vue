@@ -48,7 +48,7 @@ const submit = () => {
     form[method](url, {
         preserveScroll: true,
         onSuccess: () => {
-            toast.success(isEditing ? 'Project updated' : 'Project initialized');
+            toast.success(isEditing ? 'Project Updated' : 'Project Created');
             emit('success');
         },
         onError: () => {

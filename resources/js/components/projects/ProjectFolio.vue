@@ -13,7 +13,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import projectRoutes from '@/routes/projects/index';
-//import { dashboard } from '@/routes/';
+
 
 const props = defineProps<{
     project: Project
@@ -39,11 +39,6 @@ const executeDelete = () => {
     });
 };
 
-// const projectLink = computed(() => {
-//     const isClient = page.url.startsWith('/clients');
-//     const origin = isClient ? 'client' : 'index';
-//     return `${dashboard().url}?project=${props.project.id}&from=${origin}`;
-// });
 </script>
 
 <template>

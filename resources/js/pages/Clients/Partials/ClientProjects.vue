@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import ProjectFolio from '@/components/projects/ProjectFolio.vue';
-import ProjectForm from '@/components/ProjectForm.vue';
+import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import { Search, X, Plus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,8 +15,8 @@ import {
 
 const props = defineProps<{
     client: { id: string | number, company_name: string };
-    projects: any[];
-    projectTypes: any[];
+    projects: Project[];
+    projectTypes: ProjectType[];
 }>();
 
 // --- State ---
@@ -77,7 +77,7 @@ const filteredProjects = computed(() => {
                                 Create a new project record for {{ client.company_name }}.
                             </DialogDescription>
                         </DialogHeader>
-                        <ProjectForm
+                        <ProjectEntryForm
                             :initialClientId="client.id"
                             :projectTypes="projectTypes"
                             @success="handleSuccess"
