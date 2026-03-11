@@ -31,7 +31,7 @@ export function useDocumentActions(
     });
 
     const patchField = (docId: string, data: Record<string, any>) => {
-        const url = projectDocumentsRoutes.update({ project: props.project.id, document: docId }).url;
+        const url = projectDocumentsRoutes.updateAttributes({ project: props.project.id, document: docId }).url;
         router.patch(url, data, {
             preserveScroll: true,
             onSuccess: () => {

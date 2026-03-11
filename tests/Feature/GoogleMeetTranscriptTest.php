@@ -1,7 +1,7 @@
 <?php
 
-use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\ImportMeetingTranscript;
+use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
@@ -287,7 +287,7 @@ it('validates required fields on store', function () {
 // ── Job: ImportMeetingTranscript ──────────────────────────────────────────────
 
 it('job fetches transcript and updates the placeholder document', function () {
-    Queue::fake([GenerateDocumentEmbedding::class]);
+    Queue::fake([ProcessDocumentAI::class]);
 
     fakeGoogleMeetApi(
         conferences: [['name' => 'conferenceRecords/abc123', 'startTime' => '2026-03-01T10:00:00Z']],
@@ -298,9 +298,10 @@ it('job fetches transcript and updates the placeholder document', function () {
     );
 
     $document = $this->project->documents()->create([
-        'type' => 'transcript',
+        'type' => 'intake',
         'name' => 'Weekly Sync',
         'content' => '',
+        'processed_at' => now(),
         'metadata' => [
             'recording_id' => 'conferenceRecords/abc123',
             'provider' => 'google_meet',
@@ -313,14 +314,15 @@ it('job fetches transcript and updates the placeholder document', function () {
 
     $document->refresh();
 
-    expect($document->type)->toBe('transcript')
+    expect($document->type)->toBe('intake')
         ->and($document->content)->toContain('Hello everyone.')
         ->and($document->content)->toContain('Thanks for joining.')
+        ->and($document->processed_at)->toBeNull()
         ->and($document->metadata['recording_id'])->toBe('conferenceRecords/abc123')
         ->and($document->metadata['provider'])->toBe('google_meet')
         ->and($document->metadata['meeting_date'])->toBe('2026-03-01T10:00:00Z');
 
-    Queue::assertPushed(GenerateDocumentEmbedding::class);
+    Queue::assertPushed(ProcessDocumentAI::class);
 });
 
 it('job marks placeholder as processed when transcript is empty', function () {

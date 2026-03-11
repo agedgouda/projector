@@ -29,6 +29,12 @@ class DashboardController extends Controller
             ]);
         }
 
+        // Super-admins have no org memberships, so fall back to the first organization
+        // when no org context has been established yet.
+        if ($isSuperAdmin && ! $orgId) {
+            $orgId = Organization::orderBy('name')->value('id');
+        }
+
         setPermissionsTeamId($orgId);
 
         $orgRole = $orgId ? $user->roleInOrganization($orgId) : null;
@@ -49,20 +55,21 @@ class DashboardController extends Controller
         }
 
         $clients = $user->newCollection([$user])->availableClients();
-        $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
 
         $response = Inertia::render('Dashboard/Index', [
             'projects' => $projects,
             'kanbanData' => $kanbanData,
-            'activeTab' => $tab,
             'clients' => $clients,
             'currentOrganization' => $orgId ? Organization::find($orgId, ['id', 'name']) : null,
+            'organizations' => $isSuperAdmin ? Organization::orderBy('name')->get(['id', 'name']) : [],
             'projectTypes' => $isSuperAdmin
                 ? ProjectType::all(['id', 'name'])
                 : ProjectType::where('organization_id', $orgId)->get(['id', 'name']),
         ])->toResponse($request);
 
-        $response = $response->withCookie(cookie()->forever('last_active_tab', $tab));
+        if ($orgId) {
+            $response = $response->withCookie(cookie()->forever('last_org_id', (string) $orgId));
+        }
 
         return $response;
     }

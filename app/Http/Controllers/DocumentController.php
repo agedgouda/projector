@@ -83,6 +83,30 @@ class DocumentController extends Controller
     }
 
     /**
+     * Update only task attributes (assignee, status, due date).
+     * Allowed by any org member, unlike the full update which requires project access.
+     */
+    public function updateAttributes(Request $request, Project $project, Document $document)
+    {
+        Gate::authorize('updateAttributes', $document);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'assignee_id' => ['nullable', 'exists:users,id'],
+            'task_status' => ['nullable', 'string'],
+            'priority' => ['nullable', 'string'],
+            'due_at' => ['nullable', 'date'],
+        ]);
+
+        $document->update(array_merge($validated, ['editor_id' => $request->user()->id]));
+
+        return back()->with('success', 'Task updated.');
+    }
+
+    /**
      * Search document context via Vector Service.
      */
     public function search(Request $request, Project $project, VectorService $vectorService)

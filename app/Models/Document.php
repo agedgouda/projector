@@ -29,6 +29,8 @@ class Document extends Model
         'assignee_id' => 'integer',
     ];
 
+    protected $hidden = ['embedding'];
+
     protected $fillable = [
         'project_id',
         'parent_id',

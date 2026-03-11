@@ -60,6 +60,18 @@ class DocumentPolicy
         return $this->canAccessProject($user, $document->project);
     }
 
+    /**
+     * Any org member can update task attributes (assignee, status, due date).
+     */
+    public function updateAttributes(User $user, Document $document): bool
+    {
+        if ($document->project->client->organization_id !== getPermissionsTeamId()) {
+            return false;
+        }
+
+        return $this->isOrgMember($user);
+    }
+
     public function delete(User $user, Document $document): bool
     {
         return $this->canAccessProject($user, $document->project);

@@ -103,6 +103,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
                 ->middleware('throttle:10,1')
                 ->name('documents.reprocess');
+            Route::patch('/documents/{document}/attributes', [DocumentController::class, 'updateAttributes'])
+                ->name('documents.updateAttributes');
 
             Route::resource('documents', DocumentController::class);
 

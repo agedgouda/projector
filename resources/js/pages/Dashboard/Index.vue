@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
 import { ShieldAlert } from 'lucide-vue-next';
 import axios from 'axios';
+import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
 import { STATUS_LABELS } from '@/lib/constants';
-import { setPersistentCookie } from '@/lib/utils';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useWorkflow } from '@/composables/useWorkflow';
@@ -23,11 +23,18 @@ import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 const props = defineProps<{
     projects: Project[];
     kanbanData: Record<string, ProjectDocument[]>;
-    activeTab: string;
     clients: Client[];
     projectTypes: ProjectType[];
     currentOrganization: { id: string; name: string } | null;
+    organizations: { id: string; name: string }[];
 }>();
+
+const page = usePage();
+const isSuperAdmin = computed(() => (page.props.auth as any).user?.is_super === true);
+
+const handleOrgSwitch = (orgId: string) => {
+    router.get(window.location.pathname, { org: orgId }, { preserveState: false });
+};
 
 const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
 
@@ -46,7 +53,6 @@ const {
     localKanbanData
 } = useKanbanBoard(props);
 
-const activeTab = ref(props.activeTab);
 const workflowRows = computed(() =>
     Object.keys(props.kanbanData).map(projectId => {
         const project = props.projects.find(p => p.id === projectId);
@@ -111,19 +117,6 @@ const selectedDocumentProject = computed(() =>
 );
 const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
 
-const updateTab = (tab: string) => {
-    activeTab.value = tab;
-    setPersistentCookie('last_active_tab', tab);
-
-    router.get(window.location.pathname,
-        { tab },
-        {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true
-        }
-    );
-};
 
 </script>
 
@@ -149,33 +142,28 @@ const updateTab = (tab: string) => {
             />
 
             <div class="w-full flex items-center gap-3">
-                <span v-if="currentOrganization" class="text-lg font-bold text-gray-900 dark:text-gray-100">
+                <OrgSwitcher
+                    v-if="isSuperAdmin"
+                    :organizations="organizations"
+                    :current-org="currentOrganization"
+                    @switch="handleOrgSwitch"
+                />
+                <span v-else-if="currentOrganization" class="text-lg font-bold text-gray-900 dark:text-gray-100">
                     {{ currentOrganization.name }}
                 </span>
             </div>
 
-            <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
-                <button v-for="tab in ['tasks']" :key="tab"
-                    @click="updateTab(tab)"
-                    :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
-                        activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
-                    Tasks
-                </button>
-            </div>
-
-            <div v-show="activeTab === 'tasks'">
-                <KanbanBoard
-                    v-model:searchQuery="searchQuery"
-                    :has-visible-tasks="hasVisibleTasks"
-                    :column-statuses="columnStatuses"
-                    :workflow-rows="workflowRows"
-                    :get-column-task-count="getColumnTaskCount"
-                    :get-tasks-by-row-and-status="getTasksByRowAndStatus"
-                    :on-drag-change="onDragChange"
-                    :open-detail="openDetail"
-                    :handle-create-new="handleCreateNew"
-                />
-            </div>
+            <KanbanBoard
+                v-model:searchQuery="searchQuery"
+                :has-visible-tasks="hasVisibleTasks"
+                :column-statuses="columnStatuses"
+                :workflow-rows="workflowRows"
+                :get-column-task-count="getColumnTaskCount"
+                :get-tasks-by-row-and-status="getTasksByRowAndStatus"
+                :on-drag-change="onDragChange"
+                :open-detail="openDetail"
+                :handle-create-new="handleCreateNew"
+            />
         </div>
 
         <DocumentDetailSheet

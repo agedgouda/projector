@@ -74,10 +74,19 @@ class ProjectController extends Controller
         $orgRole = $user->roleInOrganization($organization->id);
         $canManageTranscripts = $isSuperAdmin || in_array($orgRole, ['org-admin', 'project-lead']);
 
+        $kanbanData = $isSuperAdmin
+            ? Project::visibleTo($user, $organization->id)
+                ->with(['documents', 'type'])
+                ->latest()
+                ->get()
+                ->mapWithKeys(fn ($p) => [(string) $p->id => $p->getKanbanDocuments()])
+                ->all()
+            : [(string) $project->id => $project->getKanbanDocuments()];
+
         return Inertia::render('Projects/Show', [
             'projects' => $projects,
             'currentProject' => $project,
-            'kanbanData' => [(string) $project->id => $project->getKanbanDocuments()],
+            'kanbanData' => $kanbanData,
             'activeTab' => $tab,
             'clients' => $clients,
             'projectTypes' => $user->hasRole('super-admin')
@@ -129,7 +138,8 @@ class ProjectController extends Controller
         ])
             ->toResponse($request)
             ->withCookie(cookie()->forever('last_project_id', $project->id))
-            ->withCookie(cookie()->forever('last_active_tab', $tab));
+            ->withCookie(cookie()->forever('last_active_tab', $tab))
+            ->withCookie(cookie()->forever('last_org_id', (string) $organization->id));
     }
 
     /**

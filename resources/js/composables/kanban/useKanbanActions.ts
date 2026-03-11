@@ -31,7 +31,7 @@ export function useKanbanActions(
         if (!projectId) return;
 
         const docIdStr = String(documentId);
-        const route = projectRoutes.documents.update({
+        const route = projectRoutes.documents.updateAttributes({
             project: projectId,
             document: docIdStr
         });
