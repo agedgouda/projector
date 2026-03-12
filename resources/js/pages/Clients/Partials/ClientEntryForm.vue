@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import clientRoutes from '@/routes/clients/index';
 import PhoneInput from '@/components/PhoneInput.vue';
@@ -13,7 +13,12 @@ const props = defineProps<{
     editData: Client | null;
 }>();
 
-const emit = defineEmits(['clear-edit']);
+const emit = defineEmits<{
+    'clear-edit': [];
+    success: [clientId: string];
+}>();
+
+const page = usePage<AppPageProps>();
 
 const isEditing = ref(false);
 
@@ -51,8 +56,14 @@ const submit = () => {
     const method = isEditing.value ? 'patch' : 'post';
 
     form[method](url, {
-        onSuccess: () => resetForm(),
         preserveScroll: true,
+        onSuccess: () => {
+            const newClientId = page.props.flash?.newClientId;
+            if (newClientId) {
+                emit('success', String(newClientId));
+            }
+            resetForm();
+        },
     });
 };
 
@@ -69,6 +80,7 @@ const submit = () => {
                     class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
                     required
                 />
+                <p v-if="form.errors.company_name" class="text-destructive text-xs mt-1">{{ form.errors.company_name }}</p>
             </div>
 
             <div>

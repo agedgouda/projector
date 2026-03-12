@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,11 +9,13 @@ import {
     Select,
     SelectContent,
     SelectItem,
+    SelectSeparator,
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select';
 import { toast } from "vue-sonner";
 import projectRoutes from '@/routes/projects/index';
+import ClientEntryForm from '@/pages/Clients/Partials/ClientEntryForm.vue';
 
 interface Props {
     clients?: Client[];
@@ -40,6 +43,22 @@ const form = useForm({
     // Pull the project type from the project data when editing.
     project_type_id: props.editData?.project_type_id || '',
 });
+
+const CREATE_NEW_SENTINEL = '__create_new__';
+const showNewClientForm = ref(false);
+
+const handleClientSelect = (value: unknown) => {
+    if (!value || value === CREATE_NEW_SENTINEL) {
+        showNewClientForm.value = true;
+    } else {
+        form.client_id = value as string;
+    }
+};
+
+const handleClientCreated = (clientId: string) => {
+    form.client_id = clientId;
+    showNewClientForm.value = false;
+};
 
 const submit = () => {
     const url = isEditing
@@ -96,11 +115,25 @@ const submit = () => {
                     <div v-if="client" class="h-12 flex items-center px-4 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-800 font-bold text-sm text-indigo-600">
                         {{ client.company_name }}
                     </div>
-                    <Select v-else v-model="form.client_id">
+                    <template v-else-if="showNewClientForm">
+                        <div class="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 p-4">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-3">New Client</p>
+                            <ClientEntryForm
+                                :edit-data="null"
+                                @success="handleClientCreated"
+                                @clear-edit="showNewClientForm = false"
+                            />
+                        </div>
+                    </template>
+                    <Select v-else :model-value="form.client_id" @update:model-value="handleClientSelect">
                         <SelectTrigger class="h-12 rounded-xl border-gray-200 dark:border-gray-800 font-bold">
                             <SelectValue placeholder="Select a client..." />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem :value="CREATE_NEW_SENTINEL" class="text-indigo-600 font-bold">
+                                + Create New Client
+                            </SelectItem>
+                            <SelectSeparator v-if="clients?.length" />
                             <SelectItem v-for="c in clients" :key="c.id" :value="c.id.toString()">
                                 {{ c.company_name }}
                             </SelectItem>

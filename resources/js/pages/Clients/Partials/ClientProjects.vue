@@ -23,7 +23,7 @@ const props = defineProps<{
 const searchQuery = ref('');
 const isProjectModalOpen = ref(false);
 
-const handleSuccess = () => {
+const handleSuccess = (_clientId: string) => {
     isProjectModalOpen.value = false;
 };
 
@@ -78,7 +78,7 @@ const filteredProjects = computed(() => {
                             </DialogDescription>
                         </DialogHeader>
                         <ProjectEntryForm
-                            :initialClientId="client.id"
+                            :client="(client as Client)"
                             :projectTypes="projectTypes"
                             @success="handleSuccess"
                         />

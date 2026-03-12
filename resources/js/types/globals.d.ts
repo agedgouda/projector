@@ -148,6 +148,7 @@ declare global {
             error: string | null;
             message: string | null;
             aiResults?: any;
+            newClientId?: string | null;
         };
         [key: string]: unknown;
     };

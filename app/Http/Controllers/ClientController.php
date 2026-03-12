@@ -64,12 +64,12 @@ class ClientController extends Controller
 
         Gate::authorize('create', Client::class);
 
-        Client::create(array_merge(
+        $client = Client::create(array_merge(
             $request->validated(),
             ['organization_id' => $orgId]
         ));
 
-        return back()->with('success', 'Client created successfully.');
+        return back()->with('success', 'Client created successfully.')->with('newClientId', $client->id);
     }
 
     /**

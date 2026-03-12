@@ -20,6 +20,13 @@ class ClientRequest extends FormRequest
         return Gate::check('create', Client::class);
     }
 
+    public function messages(): array
+    {
+        return [
+            'company_name.unique' => 'That company is already in the system.',
+        ];
+    }
+
     public function rules(): array
     {
         $teamId = getPermissionsTeamId();
