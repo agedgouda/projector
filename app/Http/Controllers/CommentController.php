@@ -27,7 +27,7 @@ class CommentController extends Controller
         $modelClass = $modelMap[$validated['type']];
         $commentable = $modelClass::findOrFail($validated['id']);
 
-        Gate::authorize('view', $commentable);
+        Gate::authorize('comment', $commentable);
 
         $commentable->comments()->create([
             'body' => $validated['body'],

@@ -72,6 +72,15 @@ class DocumentPolicy
         return $this->isOrgMember($user);
     }
 
+    public function comment(User $user, Document $document): bool
+    {
+        if ($document->project->client->organization_id !== getPermissionsTeamId()) {
+            return false;
+        }
+
+        return $this->isOrgMember($user);
+    }
+
     public function delete(User $user, Document $document): bool
     {
         return $this->canAccessProject($user, $document->project);

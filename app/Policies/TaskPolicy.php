@@ -23,4 +23,9 @@ class TaskPolicy
 
         return $user->clients()->where('clients.id', $project->client_id)->exists();
     }
+
+    public function comment(User $user, Task $task): bool
+    {
+        return $this->view($user, $task);
+    }
 }

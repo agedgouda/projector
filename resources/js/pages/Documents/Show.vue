@@ -13,6 +13,7 @@ import DocumentSidebar from './Partials/DocumentSidebar.vue';
 import DocumentContent from './Partials/DocumentContent.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
+import CommentSection from '@/components/comments/CommentSection.vue';
 
 // Composables
 import { useDocumentActions } from '@/composables/useDocumentActions';
@@ -92,6 +93,17 @@ watch(() => page.props.flash, (flash) => {
                     @submit="() => handleFormSubmit()"
                     @cancel="toggleEdit"
                 />
+
+                <div class="mt-12 pt-10 border-t border-slate-100">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2">
+                        <div class="w-4 h-px bg-slate-200"></div> Discussion
+                    </h3>
+                    <CommentSection
+                        :comments="item.comments ?? []"
+                        commentable-type="document"
+                        :commentable-id="item.id"
+                    />
+                </div>
             </template>
 
             <template #sidebar>

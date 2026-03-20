@@ -157,6 +157,7 @@ declare global {
         priority: TaskPriority;
         due_at: string | null;
         user?: User;
+        comments?: Comment[];
     }
 
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
-import { Send, MessageSquare, Clock, Loader2, MoreVertical, Trash2 } from 'lucide-vue-next';
+import { Send, MessageSquare, Clock, Loader2, MoreVertical, Trash2, Bold, Italic, List, ListOrdered } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { ref, watch, nextTick, onMounted } from 'vue';
 import CommentRoutes from '@/routes/comments/index';
@@ -11,6 +11,9 @@ import {
     DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'vue-sonner';
+import { EditorContent } from '@tiptap/vue-3';
+import DOMPurify from 'dompurify';
+import { useDocumentEditor } from '@/composables/useDocumentEditor';
 
 const props = defineProps<{
     comments: Comment[];
@@ -18,7 +21,6 @@ const props = defineProps<{
     commentableId: string | number;
 }>();
 
-// Typing the page props solves the 'unknown' error
 const page = usePage<AppPageProps>();
 const currentUserId = page.props.auth.user.id;
 
@@ -29,6 +31,11 @@ const form = useForm({
     type: props.commentableType,
     id: props.commentableId,
 });
+
+const { editor } = useDocumentEditor(
+    '',
+    (html) => { form.body = html; }
+);
 
 const scrollToBottom = () => {
     if (scrollContainer.value) {
@@ -50,7 +57,10 @@ const submitComment = () => {
     if (!form.body.trim() || form.processing) return;
     form.post(CommentRoutes.store().url, {
         preserveScroll: true,
-        onSuccess: () => form.reset('body'),
+        onSuccess: () => {
+            form.reset('body');
+            editor.value?.commands.setContent('', { emitUpdate: false });
+        },
     });
 };
 
@@ -72,6 +82,8 @@ const timeAgo = (date: string) => {
     if (hours < 24) return `${hours}h ago`;
     return new Date(date).toLocaleDateString();
 };
+
+const sanitize = (html: string) => DOMPurify.sanitize(html);
 </script>
 
 <template>
@@ -116,36 +128,49 @@ const timeAgo = (date: string) => {
                             </DropdownMenu>
                         </div>
                     </div>
-                    <div class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed shadow-sm">
-                        {{ comment.body }}
-                    </div>
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed shadow-sm"
+                        v-html="sanitize(comment.body)"
+                    ></div>
                 </div>
             </div>
         </div>
 
-        <div class="shrink-0 bg-white dark:bg-slate-900 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <div class="relative group">
-                <textarea
-                    v-model="form.body"
-                    rows="3"
-                    placeholder="Write a comment..."
-                    class="w-full rounded-2xl border-slate-200 dark:border-slate-800 p-4 pr-14 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-slate-50/50 dark:bg-slate-950/50"
-                    @keydown.enter.meta="submitComment"
-                ></textarea>
-
+        <div
+            class="shrink-0 bg-white dark:bg-slate-900 pt-4 px-0.5 pb-0.5 border-t border-slate-100 dark:border-slate-800"
+            @keydown.meta.enter="submitComment"
+            @keydown.ctrl.enter="submitComment"
+        >
+            <div class="border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
+                <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
+                        <Bold class="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200': editor.isActive('italic') }">
+                        <Italic class="h-4 w-4" />
+                    </Button>
+                    <div class="w-px h-4 bg-slate-200 mx-1"></div>
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200': editor.isActive('bulletList') }">
+                        <List class="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200': editor.isActive('orderedList') }">
+                        <ListOrdered class="h-4 w-4" />
+                    </Button>
+                </div>
+                <editor-content :editor="editor" />
+            </div>
+            <div class="flex justify-between items-center mt-2 px-1 pb-2">
+                <span class="text-[10px] text-slate-400">Cmd + Enter to post</span>
                 <Button
                     @click="submitComment"
                     :disabled="!form.body.trim() || form.processing"
-                    size="icon"
-                    class="absolute bottom-3 right-3 h-9 w-9 bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg"
+                    size="sm"
+                    class="h-8 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-widest px-4"
                 >
-                    <Loader2 v-if="form.processing" class="w-4 h-4 animate-spin text-white" />
-                    <Send v-else class="w-4 h-4 text-white" />
+                    <Loader2 v-if="form.processing" class="w-3 h-3 mr-1 animate-spin" />
+                    <Send v-else class="w-3 h-3 mr-1" />
+                    Post
                 </Button>
-            </div>
-            <div class="flex justify-between items-center mt-2 px-1 pb-2">
-                <span class="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Markdown supported</span>
-                <span class="text-[10px] text-slate-400">Cmd + Enter to post</span>
             </div>
         </div>
     </div>

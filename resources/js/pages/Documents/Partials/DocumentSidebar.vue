@@ -59,7 +59,7 @@ const shouldShowTask = computed(() => isTask(props.item.type));
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[160px]">
                                         <SelectItem value="unassigned" class="text-[10px] uppercase font-bold text-slate-400">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in project.client.organization.users" :key="user.id" :value="user.id.toString()" class="text-[10px] uppercase font-bold">{{ user.name }}</SelectItem>
+                                        <SelectItem v-for="user in project.client.organization?.users" :key="user.id" :value="user.id.toString()" class="text-[10px] uppercase font-bold">{{ user.name }}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
