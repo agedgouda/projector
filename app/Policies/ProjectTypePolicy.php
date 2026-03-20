@@ -27,7 +27,6 @@ class ProjectTypePolicy
     public function delete(User $user, ProjectType $type): bool
     {
         return $this->isOrgAdmin($user, $type)
-            && $type->projects_count === 0
-            && ! $type->projects()->exists();
+            && $type->projects_count === 0;
     }
 }

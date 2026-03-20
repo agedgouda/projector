@@ -42,10 +42,10 @@ class ClientRequest extends FormRequest
                     ->where(fn ($query) => $query->where('organization_id', $teamId))
                     ->ignore($client?->id),
             ],
-            'contact_name' => 'required', 'string', 'max:255',
-            'contact_phone' => 'required', 'string', 'max:20',
-            'email' => 'nullable', 'email', 'max:255',
-            'website' => 'nullable', 'url', 'max:255',
+            'contact_name' => ['required', 'string', 'max:255'],
+            'contact_phone' => ['required', 'string', 'max:20'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'website' => ['nullable', 'url', 'max:255'],
         ];
     }
 }

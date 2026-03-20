@@ -5,47 +5,66 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
-
-    public function index()
+    public function index(): \Inertia\Response
     {
+        $orgId = getPermissionsTeamId();
+
         return Inertia::render('Roles/Index', [
-            'roles' => Role::with(['permissions', 'users']) // Added users for the reveal
+            'roles' => Role::with(['permissions', 'users'])
                 ->withCount('users')
+                ->where('team_id', $orgId)
                 ->get(),
-            'permissions' => Permission::all(),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
+        $orgId = getPermissionsTeamId();
+
         $validated = $request->validate([
-            'name' => 'required|string|unique:roles,name|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('roles')->where('team_id', $orgId),
+            ],
         ]);
 
-        Role::create(['name' => $validated['name']]);
+        Role::create([
+            'name' => $validated['name'],
+            'team_id' => $orgId,
+        ]);
 
         return back()->with('success', 'Role created successfully.');
     }
 
-   public function edit(Role $role)
+    public function edit(Role $role): \Inertia\Response
     {
+        abort_if($role->team_id !== getPermissionsTeamId(), 403);
+
         return Inertia::render('Roles/Edit', [
             'role' => $role->load('permissions'),
-            'allPermissions' => \Spatie\Permission\Models\Permission::all(),
         ]);
     }
 
-    // Update the role name or permissions
-    public function update(Request $request, Role $role)
+    public function update(Request $request, Role $role): RedirectResponse
     {
+        $orgId = getPermissionsTeamId();
+        abort_if($role->team_id !== $orgId, 403);
+
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:roles,name,' . $role->id,
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('roles')->where('team_id', $orgId)->ignore($role->id),
+            ],
         ]);
 
         $role->update(['name' => $validated['name']]);
@@ -55,26 +74,19 @@ class RoleController extends Controller
 
     public function unassignUser(Role $role, User $user): RedirectResponse
     {
-        // 1. Security: Prevent current user from removing their own admin role
-        if ($role->name === 'super-admin' && $user->id === auth()->id()) {
-            return back()->with('error', 'You cannot remove the admin role from yourself.');
-        }
+        abort_if($role->team_id !== getPermissionsTeamId(), 403);
 
-        // 2. Detach the role from the user
-        // Spatie handles the pivot table logic automatically
         $user->removeRole($role);
 
         return back()->with('success', "User {$user->name} unassigned from {$role->name}.");
     }
 
-    public function destroy(Role $role)
+    public function destroy(Role $role): RedirectResponse
     {
-        // Prevent deleting the core admin role
-        if ($role->name === 'super-admin') {
-            return back()->with('error', 'The super-admin role cannot be deleted.');
-        }
+        abort_if($role->team_id !== getPermissionsTeamId(), 403);
 
         $role->delete();
+
         return back();
     }
 }

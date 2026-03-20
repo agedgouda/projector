@@ -197,7 +197,7 @@ const canAddClient = computed(() => isSuperAdmin.value || isOrgAdmin.value);
                                 No active projects for this client
                             </div>
                             <div v-else v-for="project in client.projects" :key="`proj-${project.id}`" class="px-4">
-                                <ProjectFolio :project="project" class="w-full" />
+                                <ProjectFolio :project="project" redirect-to="/clients" class="w-full" />
                             </div>
                         </div>
                     </div>

@@ -42,4 +42,9 @@ class OrganizationPolicy
     {
         return $this->isOrgAdmin($user, $organization);
     }
+
+    public function delete(User $user, Organization $organization): bool
+    {
+        return $this->isOrgAdmin($user, $organization);
+    }
 }

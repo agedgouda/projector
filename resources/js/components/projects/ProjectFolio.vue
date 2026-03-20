@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, useForm } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { Search, FolderOpen, Trash2, Pencil } from 'lucide-vue-next';
 import { ref } from 'vue';
 import ProjectIcon from '@/components/ProjectIcon.vue';
@@ -18,6 +18,7 @@ import projectRoutes from '@/routes/projects/index';
 const props = defineProps<{
     project: Project
     showClient?: boolean;
+    redirectTo?: string;
 }>();
 
 //const page = usePage();
@@ -31,12 +32,18 @@ const handleEditSuccess = () => {
 
 // --- DELETE STATE ---
 const isDeleteModalOpen = ref(false);
-const deleteForm = useForm({});
+const isDeleting = ref(false);
 
 const executeDelete = () => {
-    deleteForm.delete(projectRoutes.destroy.url(String(props.project.id)), {
-        onSuccess: () => (isDeleteModalOpen.value = false),
-    });
+    isDeleting.value = true;
+    router.delete(
+        projectRoutes.destroy.url(String(props.project.id)) + '?redirect_to=' + encodeURIComponent(props.redirectTo ?? '/projects'),
+        {
+            preserveState: true,
+            onSuccess: () => (isDeleteModalOpen.value = false),
+            onFinish: () => (isDeleting.value = false),
+        }
+    );
 };
 
 </script>
@@ -118,7 +125,7 @@ const executeDelete = () => {
             :open="isDeleteModalOpen"
             :title="`Delete ${project.name}`"
             description="Are you sure you want to delete this project? This action cannot be undone."
-            :loading="deleteForm.processing"
+            :loading="isDeleting"
             @close="isDeleteModalOpen = false"
             @confirm="executeDelete"
         />
