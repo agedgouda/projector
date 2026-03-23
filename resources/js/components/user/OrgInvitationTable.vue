@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { resend } from '@/actions/App/Http/Controllers/InvitationController';
 import { Link2 } from 'lucide-vue-next';
+import { toast } from 'vue-sonner';
 
 const props = defineProps<{
     invitations: OrganizationInvitation[];
@@ -20,6 +21,7 @@ const copyLink = (token: string) => {
         document.execCommand('copy');
         document.body.removeChild(el);
     }
+    toast.success('Invitation Link Copied');
 };
 </script>
 
