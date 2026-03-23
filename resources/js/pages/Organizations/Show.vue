@@ -117,21 +117,21 @@ const submitInvite = (orgId: string) => {
 
             <div v-if="isSuperAdmin || isOrgAdmin" class="space-y-4">
                 <div class="flex items-center gap-3">
-                    <Link
+                    <button
                         type="button"
                         @click="isAddUserListOpen = true"
                         class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
                     >
                         Add User
-                    </Link>
-                    <Link
+                    </button>
+                    <button
                         type="button"
                         @click="isInviteModalOpen = true"
                         class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
                     >
                         <UserPlus class="w-4 h-4 mr-2 text-indigo-500" />
                         <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
-                    </Link>
+                    </button>
                 </div>
 
                 <div v-if="invitations.length > 0">
