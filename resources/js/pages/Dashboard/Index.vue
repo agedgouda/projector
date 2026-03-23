@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
-import { ShieldAlert } from 'lucide-vue-next';
+import { Coffee } from 'lucide-vue-next';
 import axios from 'axios';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 
@@ -135,11 +135,11 @@ const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
     <AppLayout :breadcrumbs="breadcrumbs">
         <div v-if="!projects.length" class="p-8 flex flex-col items-center justify-center min-h-[60vh]">
             <div class="p-4 bg-gray-100 rounded-full mb-4">
-                <ShieldAlert class="w-12 h-12 text-gray-400" />
+                <Coffee class="w-12 h-12 text-gray-400" />
             </div>
-            <h2 class="text-xl font-bold text-gray-900">No Projects Found</h2>
+            <h2 class="text-xl font-bold text-gray-900">Coming Soon</h2>
             <p class="text-gray-500 max-w-xs text-center">
-                There are no projects in this organization yet.
+                You have not yet been assigned and projects or tasks.
             </p>
         </div>
 

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import UserInfo from '@/components/UserInfo.vue';
 import { ShieldAlert } from 'lucide-vue-next';
-import { router, usePage } from '@inertiajs/vue3';
+import { router, usePage, Link } from '@inertiajs/vue3';
 import userRoutes from '@/routes/users/index';
 import { promote } from '@/actions/App/Http/Controllers/UserController';
-import { Button } from '@/components/ui/button';
+
 import {
     Select,
     SelectContent,
@@ -40,11 +40,6 @@ const updateUserRole = (user: User, role: string) => {
     });
 };
 
-const promoteToSuperAdmin = (user: User) => {
-    router.post(promote(user.id).url, {}, {
-        preserveScroll: true,
-    });
-};
 </script>
 
 <template>
@@ -76,15 +71,16 @@ const promoteToSuperAdmin = (user: User) => {
                 </div>
 
                 <div v-if="viewerIsSuperAdmin" class="px-4 flex justify-center">
-                    <Button
+                    <Link
                         v-if="!user.is_super"
-                        size="sm"
-                        variant="outline"
-                        class="text-[10px] font-black uppercase tracking-widest whitespace-nowrap border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/10"
-                        @click="promoteToSuperAdmin(user)"
+                        :href="promote(user.id).url"
+                        method="post"
+                        as="button"
+                        :preserve-scroll="true"
+                        class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/10 transition-colors"
                     >
                         Make Super Admin
-                    </Button>
+                    </Link>
                 </div>
 
                 <div class="p-4 pr-6 flex justify-center">

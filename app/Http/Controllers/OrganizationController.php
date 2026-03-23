@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\OrganizationRequest;
 use App\Models\Organization;
+use App\Models\OrganizationInvitation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -62,6 +63,11 @@ class OrganizationController extends Controller
             ],
         ]);
 
+        $invitations = OrganizationInvitation::where('organization_id', $currentOrg->id)
+            ->where('expires_at', '>', now())
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'email', 'token', 'expires_at']);
+
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
             'currentOrg' => array_merge($currentOrg->toArray(), [
@@ -74,6 +80,7 @@ class OrganizationController extends Controller
             ]),
             'users' => $addableUsers,
             'allRoles' => ['org-admin', 'project-lead', 'team-member'],
+            'invitations' => $invitations,
         ])
             ->toResponse($request)
             ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));

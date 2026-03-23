@@ -27,7 +27,7 @@ it('sends a registration link for a new email', function () {
 
     Mail::assertSent(OrganizationInvitationMail::class, function ($mail) {
         return $mail->hasTo('newuser@example.com')
-            && str_contains($mail->link, 'register');
+            && str_contains($mail->link, '/invite/');
     });
 
     expect(OrganizationInvitation::where('email', 'newuser@example.com')->exists())->toBeTrue();
@@ -44,7 +44,7 @@ it('sends a login link for an existing user not in the org', function () {
 
     Mail::assertSent(OrganizationInvitationMail::class, function ($mail) {
         return $mail->hasTo('existing@example.com')
-            && str_contains($mail->link, 'login');
+            && str_contains($mail->link, '/invite/');
     });
 });
 

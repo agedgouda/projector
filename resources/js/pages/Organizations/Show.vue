@@ -2,10 +2,10 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { ref } from 'vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
+import OrgInvitationTable from '@/components/user/OrgInvitationTable.vue';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
-import { Head, router, Link, usePage, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
 import { Building2, Globe, Mail, Plus, UserPlus } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
 import type { BreadcrumbItem } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
 import {
@@ -23,6 +23,7 @@ defineProps<{
     users: User[];
     currentOrg: Organization;
     allRoles: string[];
+    invitations: OrganizationInvitation[];
 }>();
 
 const page = usePage<AppPageProps>();
@@ -73,17 +74,14 @@ const submitInvite = (orgId: string) => {
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <Button
+                    <Link
                         v-if="isSuperAdmin"
-                        variant="outline"
-                        as-child
-                        class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                        :href="organizationRoutes.create.url()"
+                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
                     >
-                        <Link :href="organizationRoutes.create.url()">
-                            <Plus class="w-4 h-4 mr-2 text-indigo-500" />
-                            <span class="text-[10px] font-black uppercase tracking-widest">New Org</span>
-                        </Link>
-                    </Button>
+                        <Plus class="w-4 h-4 mr-2 text-indigo-500" />
+                        <span class="text-[10px] font-black uppercase tracking-widest">New Org</span>
+                    </Link>
 
                     <OrgSwitcher
                         :organizations="organizations"
@@ -117,22 +115,29 @@ const submitInvite = (orgId: string) => {
                 />
             </div>
 
-            <div v-if="isSuperAdmin || isOrgAdmin" class="flex items-center gap-3">
-                <Button
-                    variant="outline"
-                    @click="isAddUserListOpen = true"
-                    class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
-                >
-                    Add User
-                </Button>
-                <Button
-                    variant="outline"
-                    @click="isInviteModalOpen = true"
-                    class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
-                >
-                    <UserPlus class="w-4 h-4 mr-2 text-indigo-500" />
-                    <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
-                </Button>
+            <div v-if="isSuperAdmin || isOrgAdmin" class="space-y-4">
+                <div class="flex items-center gap-3">
+                    <Link
+                        type="button"
+                        @click="isAddUserListOpen = true"
+                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                    >
+                        Add User
+                    </Link>
+                    <Link
+                        type="button"
+                        @click="isInviteModalOpen = true"
+                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                    >
+                        <UserPlus class="w-4 h-4 mr-2 text-indigo-500" />
+                        <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
+                    </Link>
+                </div>
+
+                <div v-if="invitations.length > 0">
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Pending Invitations</h3>
+                    <OrgInvitationTable :invitations="invitations" :organization-id="currentOrg.id" />
+                </div>
             </div>
 
             <div>
@@ -159,13 +164,13 @@ const submitInvite = (orgId: string) => {
                 </div>
             </div>
 
-            <Button
+            <Link
                 v-if="isSuperAdmin || isOrgAdmin"
-                @click="router.visit(organizationRoutes.edit.url(currentOrg.id))"
-                class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                :href="organizationRoutes.edit.url(currentOrg.id)"
+                class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
             >
-            Edit Organization Information
-            </Button>
+                Edit Organization Information
+            </Link>
 
             <Dialog v-model:open="isInviteModalOpen">
             <DialogContent class="sm:max-w-[400px]">
@@ -186,9 +191,13 @@ const submitInvite = (orgId: string) => {
                         />
                         <InputError :message="inviteForm.errors.email" />
                     </div>
-                    <Button type="submit" :disabled="inviteForm.processing" class="w-full">
+                    <button
+                        type="submit"
+                        :disabled="inviteForm.processing"
+                        class="inline-flex items-center justify-center w-full h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow hover:bg-primary/90 transition-colors disabled:pointer-events-none disabled:opacity-50"
+                    >
                         Send Invitation
-                    </Button>
+                    </button>
                 </form>
             </DialogContent>
         </Dialog>

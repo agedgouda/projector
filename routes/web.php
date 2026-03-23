@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
+Route::get('/invite/{token}', [InvitationController::class, 'accept'])
+    ->name('invite');
+
 Route::get('/login/{organization}', [OrganizationLoginController::class, 'create'])
     ->name('organization.login');
 Route::post('/login/{organization}', [OrganizationLoginController::class, 'store'])
@@ -94,6 +97,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('organizations', OrganizationController::class);
     Route::post('/organizations/{organization}/invite', [InvitationController::class, 'store'])
         ->name('organizations.invite');
+    Route::post('/organizations/{organization}/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
+        ->name('organizations.invitations.resend');
 
     /**
      * 2. Client & Project Management

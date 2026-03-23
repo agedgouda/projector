@@ -270,6 +270,13 @@ export interface AiDriverOption {
         };
     }
 
+    export interface OrganizationInvitation {
+        id: number;
+        email: string;
+        token: string;
+        expires_at: string;
+    }
+
     // --- MEETING TRANSCRIPTS ---
     export interface Recording {
         id: string;
