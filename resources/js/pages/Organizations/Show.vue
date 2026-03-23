@@ -3,8 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { ref } from 'vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
-import { Head, router, Link, usePage } from '@inertiajs/vue3';
-import { Building2, Globe, Mail, Plus } from 'lucide-vue-next';
+import { Head, router, Link, usePage, useForm } from '@inertiajs/vue3';
+import { Building2, Globe, Mail, Plus, UserPlus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import type { BreadcrumbItem } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
@@ -12,6 +12,10 @@ import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
 import UserList from '@/components/users/UserList.vue';
+import { store as inviteUser } from '@/actions/App/Http/Controllers/InvitationController';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import InputError from '@/components/InputError.vue';
 
 
 defineProps<{
@@ -39,6 +43,19 @@ const handleOrgSwitch = (id: string) => {
 };
 
 const isAddUserListOpen = ref(false);
+const isInviteModalOpen = ref(false);
+
+const inviteForm = useForm({ email: '' });
+
+const submitInvite = (orgId: string) => {
+    inviteForm.post(inviteUser(orgId).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            inviteForm.reset();
+            isInviteModalOpen.value = false;
+        },
+    });
+};
 </script>
 
 <template>
@@ -100,14 +117,23 @@ const isAddUserListOpen = ref(false);
                 />
             </div>
 
-            <Button
-                v-if="isSuperAdmin || isOrgAdmin"
-                variant="outline"
-                @click="isAddUserListOpen = true"
-                class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
-            >
-            Add User
-            </Button>
+            <div v-if="isSuperAdmin || isOrgAdmin" class="flex items-center gap-3">
+                <Button
+                    variant="outline"
+                    @click="isAddUserListOpen = true"
+                    class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                >
+                    Add User
+                </Button>
+                <Button
+                    variant="outline"
+                    @click="isInviteModalOpen = true"
+                    class="h-12 px-4 rounded-xl border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                >
+                    <UserPlus class="w-4 h-4 mr-2 text-indigo-500" />
+                    <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
+                </Button>
+            </div>
 
             <div>
                 <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">AI Drivers</h3>
@@ -141,7 +167,33 @@ const isAddUserListOpen = ref(false);
             Edit Organization Information
             </Button>
 
-            <Dialog v-model:open="isAddUserListOpen">
+            <Dialog v-model:open="isInviteModalOpen">
+            <DialogContent class="sm:max-w-[400px]">
+                <DialogHeader>
+                    <DialogTitle>Invite User to {{ currentOrg.name }}</DialogTitle>
+                    <DialogDescription>Enter an email address to send an invitation link.</DialogDescription>
+                </DialogHeader>
+                <form @submit.prevent="submitInvite(currentOrg.id)" class="grid gap-4 pt-2">
+                    <div class="grid gap-2">
+                        <Label for="invite-email">Email address</Label>
+                        <Input
+                            id="invite-email"
+                            v-model="inviteForm.email"
+                            type="email"
+                            placeholder="email@example.com"
+                            required
+                            autofocus
+                        />
+                        <InputError :message="inviteForm.errors.email" />
+                    </div>
+                    <Button type="submit" :disabled="inviteForm.processing" class="w-full">
+                        Send Invitation
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="isAddUserListOpen">
             <DialogContent class="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>New User for {{ currentOrg.name }}</DialogTitle>

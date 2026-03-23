@@ -5,8 +5,11 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MeetingTranscriptController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\OrganizationLoginController;
+use App\Http\Controllers\OrganizationRegistrationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\RoleController;
@@ -16,6 +19,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
+
+Route::get('/login/{organization}', [OrganizationLoginController::class, 'create'])
+    ->name('organization.login');
+Route::post('/login/{organization}', [OrganizationLoginController::class, 'store'])
+    ->name('organization.login.store');
+
+Route::get('/register/{organization}', [OrganizationRegistrationController::class, 'create'])
+    ->name('organization.register');
+Route::post('/register/{organization}', [OrganizationRegistrationController::class, 'store'])
+    ->name('organization.register.store');
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -79,6 +92,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Organizations are accessible to any org member; policy handles per-action authorization.
     Route::resource('organizations', OrganizationController::class);
+    Route::post('/organizations/{organization}/invite', [InvitationController::class, 'store'])
+        ->name('organizations.invite');
 
     /**
      * 2. Client & Project Management

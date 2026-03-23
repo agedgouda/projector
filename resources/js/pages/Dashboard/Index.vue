@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
@@ -29,8 +29,19 @@ const props = defineProps<{
     organizations: { id: string; name: string }[];
 }>();
 
-const page = usePage();
+const page = usePage<{ flash?: { success?: string; error?: string } }>();
 const isSuperAdmin = computed(() => (page.props.auth as any).user?.is_super === true);
+
+onMounted(() => {
+    const flash = page.props.flash;
+    if (flash?.success) toast.success(flash.success);
+    if (flash?.error) toast.error(flash.error);
+});
+
+watch(() => page.props.flash, (flash) => {
+    if (flash?.success) toast.success(flash.success);
+    if (flash?.error) toast.error(flash.error);
+}, { deep: true });
 
 const handleOrgSwitch = (orgId: string) => {
     router.get(window.location.pathname, { org: orgId }, { preserveState: false });
