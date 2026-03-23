@@ -17,6 +17,7 @@ class Client extends Model
         'company_name',
         'contact_name',
         'contact_phone',
+        'email',
     ];
 
     protected $keyType = 'string';

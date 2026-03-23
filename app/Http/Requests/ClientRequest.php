@@ -24,6 +24,8 @@ class ClientRequest extends FormRequest
     {
         return [
             'company_name.unique' => 'That company is already in the system.',
+            'contact_phone.required_without' => 'A phone number or email address is required.',
+            'email.required_without' => 'A phone number or email address is required.',
         ];
     }
 
@@ -43,8 +45,8 @@ class ClientRequest extends FormRequest
                     ->ignore($client?->id),
             ],
             'contact_name' => ['required', 'string', 'max:255'],
-            'contact_phone' => ['required', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'contact_phone' => ['nullable', 'string', 'max:20', 'required_without:email'],
+            'email' => ['nullable', 'email', 'max:255', 'required_without:contact_phone'],
             'website' => ['nullable', 'url', 'max:255'],
         ];
     }

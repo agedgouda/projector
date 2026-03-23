@@ -27,6 +27,7 @@ const form = useForm({
     company_name: '',
     contact_name: '',
     contact_phone: '',
+    email: '',
 });
 
 // Watch for the parent changing the 'editData' prop
@@ -35,7 +36,8 @@ watch(() => props.editData, (newVal) => {
         isEditing.value = true;
         form.company_name = newVal.company_name;
         form.contact_name = newVal.contact_name;
-        form.contact_phone = newVal.contact_phone;
+        form.contact_phone = newVal.contact_phone ?? '';
+        form.email = newVal.email ?? '';
     } else {
         isEditing.value = false;
         form.reset();
@@ -99,6 +101,18 @@ const submit = () => {
                     v-model="form.contact_phone"
                     :class="{ 'border-destructive': form.errors.contact_phone }"
                 />
+                <p v-if="form.errors.contact_phone" class="text-destructive text-xs mt-1">{{ form.errors.contact_phone }}</p>
+            </div>
+
+            <div>
+                <Label :class="{ 'text-destructive': form.errors.email }">Email</Label>
+                <Input
+                    v-model="form.email"
+                    type="email"
+                    placeholder="contact@example.com"
+                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
+                />
+                <p v-if="form.errors.email" class="text-destructive text-xs mt-1">{{ form.errors.email }}</p>
             </div>
 
             <div class="flex gap-2 pt-2 items-center">
