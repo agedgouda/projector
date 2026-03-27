@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { Search, FolderOpen, Trash2, Pencil } from 'lucide-vue-next';
+import { Search, FolderOpen, Trash2, Pencil, Sparkles, AlertTriangle } from 'lucide-vue-next';
 import { ref } from 'vue';
 import ProjectIcon from '@/components/ProjectIcon.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
@@ -71,6 +71,16 @@ const executeDelete = () => {
                     </span>:
                     {{ project.description || 'No description provided.' }}
                 </p>
+                <div v-if="project.description && project.description_quality" class="flex items-center gap-1 mt-0.5">
+                    <template v-if="project.description_quality === 'good'">
+                        <Sparkles class="w-2.5 h-2.5 text-emerald-500" />
+                        <span class="text-[9px] font-black uppercase tracking-widest text-emerald-500">AI-Enhanced</span>
+                    </template>
+                    <template v-else-if="project.description_quality === 'vague'">
+                        <AlertTriangle class="w-2.5 h-2.5 text-amber-400" />
+                        <span class="text-[9px] font-black uppercase tracking-widest text-amber-400">Description too vague for AI context</span>
+                    </template>
+                </div>
             </div>
         </div>
 

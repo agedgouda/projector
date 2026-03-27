@@ -74,7 +74,7 @@ const filteredProjects = computed(() => {
                         <DialogHeader>
                             <DialogTitle>Add Project</DialogTitle>
                             <DialogDescription>
-                                Create a new project record for {{ client.company_name }}.
+                                Create a new project for {{ client.company_name }}.
                             </DialogDescription>
                         </DialogHeader>
                         <ProjectEntryForm

@@ -242,11 +242,12 @@ it('dispatches import job for a recording', function () {
         ])
         ->assertRedirect();
 
-    // A placeholder document should be created immediately
-    $document = $this->project->documents()->where('type', 'transcript')->first();
+    // A placeholder document should be created immediately as type 'intake' with
+    // processed_at set to prevent premature ProcessDocumentAI dispatch.
+    $document = $this->project->documents()->where('type', 'intake')->first();
     expect($document)->not->toBeNull()
         ->and($document->name)->toBe('Weekly Sync — 2026-03-01')
-        ->and($document->processed_at)->toBeNull()
+        ->and($document->processed_at)->not->toBeNull()
         ->and($document->metadata['recording_id'])->toBe('conferenceRecords/abc123');
 
     Queue::assertPushed(ImportMeetingTranscript::class, function ($job) use ($document) {

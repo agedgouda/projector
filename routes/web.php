@@ -100,6 +100,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/organizations/{organization}/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
         ->name('organizations.invitations.resend');
 
+    Route::post('/projects/evaluate-description', [ProjectController::class, 'evaluateDescription'])
+        ->middleware('throttle:20,1')
+        ->name('projects.evaluate-description');
+
     /**
      * 2. Client & Project Management
      * This uses your updated 'EnsureUserCanAccessClient' middleware (aliased as client.access)

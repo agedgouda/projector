@@ -77,6 +77,7 @@ declare global {
         id: string; // UUID
         name: string;
         description: string | null;
+        description_quality: 'good' | 'vague' | null;
         client_id: string;
         project_type_id: string | null;
         current_lifecycle_step_id?: number | null;
