@@ -68,6 +68,9 @@ class OrganizationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(['id', 'email', 'token', 'expires_at']);
 
+        $clients = $currentOrg->clients()->with('projects')->get();
+        $projectTypes = $currentOrg->projectTypes()->get();
+
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
             'currentOrg' => array_merge($currentOrg->toArray(), [
@@ -81,6 +84,8 @@ class OrganizationController extends Controller
             'users' => $addableUsers,
             'allRoles' => ['org-admin', 'project-lead', 'team-member'],
             'invitations' => $invitations,
+            'clients' => $clients,
+            'projectTypes' => $projectTypes,
         ])
             ->toResponse($request)
             ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));

@@ -14,7 +14,6 @@ import {
 
 // 1. Import your Wayfinder routes
 import { dashboard } from '@/routes';
-import clientRoutes from '@/routes/clients/index';
 import userRoutes from '@/routes/users/index';
 import projectRoutes from '@/routes/projects/index';
 import projectTypeRoutes from '@/routes/project-types/index';
@@ -41,11 +40,6 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
-    },
-    {
-        title: 'Clients',
-        href: clientRoutes.index(),
-        icon: Users,
     },
     {
         title: 'Projects',

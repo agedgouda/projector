@@ -13,8 +13,10 @@ const props = defineProps<{
             account_id: string;
             tenant_id: string;
             client_id: string;
+            client_secret: string;
             service_account_email: string;
             impersonate_email: string;
+            private_key: string;
             has_client_secret: boolean;
             has_private_key: boolean;
         };

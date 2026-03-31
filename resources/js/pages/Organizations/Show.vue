@@ -4,8 +4,9 @@ import { ref } from 'vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import OrgInvitationTable from '@/components/user/OrgInvitationTable.vue';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
+import ClientList from '@/components/clients/ClientList.vue';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
-import { Building2, Globe, Mail, Plus, UserPlus } from 'lucide-vue-next';
+import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase } from 'lucide-vue-next';
 import type { BreadcrumbItem } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
 import {
@@ -24,6 +25,8 @@ defineProps<{
     currentOrg: Organization;
     allRoles: string[];
     invitations: OrganizationInvitation[];
+    clients: Client[];
+    projectTypes: ProjectType[];
 }>();
 
 const page = usePage<AppPageProps>();
@@ -42,6 +45,8 @@ const handleOrgSwitch = (id: string) => {
         preserveScroll: true
     });
 };
+
+const activeTab = ref<'team' | 'clients' | 'configuration'>('team');
 
 const isAddUserListOpen = ref(false);
 const isInviteModalOpen = ref(false);
@@ -106,71 +111,115 @@ const submitInvite = (orgId: string) => {
                 <Building2 class="absolute -right-12 -bottom-12 w-64 h-64 text-white/10 rotate-12" />
             </div>
 
+            <!-- Tabs -->
             <div>
-                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Team Directory</h3>
-                <OrgUserTable
-                    :users="currentOrg.users || []"
-                    :show-admin-toggle="currentOrg.can?.manage_users ?? false"
-                    :all-roles="allRoles"
-                />
-            </div>
-
-            <div v-if="isSuperAdmin || isOrgAdmin" class="space-y-4">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1 border-b border-gray-200 dark:border-zinc-800">
                     <button
                         type="button"
-                        @click="isAddUserListOpen = true"
-                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                        @click="activeTab = 'team'"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        :class="activeTab === 'team'
+                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
                     >
-                        Add User
+                        <Users class="w-3.5 h-3.5" />
+                        Team
                     </button>
                     <button
                         type="button"
-                        @click="isInviteModalOpen = true"
-                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                        @click="activeTab = 'clients'"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        :class="activeTab === 'clients'
+                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
                     >
-                        <UserPlus class="w-4 h-4 mr-2 text-indigo-500" />
-                        <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
+                        <Briefcase class="w-3.5 h-3.5" />
+                        Clients
+                    </button>
+                    <button
+                        type="button"
+                        @click="activeTab = 'configuration'"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        :class="activeTab === 'configuration'
+                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
+                    >
+                        <SlidersHorizontal class="w-3.5 h-3.5" />
+                        Configuration
                     </button>
                 </div>
 
-                <div v-if="invitations.length > 0">
-                    <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Pending Invitations</h3>
-                    <OrgInvitationTable :invitations="invitations" :organization-id="currentOrg.id" />
+                <!-- Team Tab -->
+                <div v-if="activeTab === 'team'" class="pt-6 space-y-4">
+                    <OrgUserTable
+                        :users="currentOrg.users || []"
+                        :show-admin-toggle="currentOrg.can?.manage_users ?? false"
+                        :all-roles="allRoles"
+                    />
+
+                    <div v-if="isSuperAdmin || isOrgAdmin" class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <button
+                                type="button"
+                                @click="isAddUserListOpen = true"
+                                class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                            >
+                                Add User
+                            </button>
+                            <button
+                                type="button"
+                                @click="isInviteModalOpen = true"
+                                class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                            >
+                                <UserPlus class="w-4 h-4 mr-2 text-indigo-500" />
+                                <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
+                            </button>
+                        </div>
+
+                        <div v-if="invitations.length > 0">
+                            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Pending Invitations</h3>
+                            <OrgInvitationTable :invitations="invitations" :organization-id="currentOrg.id" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clients Tab -->
+                <div v-if="activeTab === 'clients'" class="pt-6">
+                    <ClientList :clients="clients" :project-types="projectTypes" redirect-to="/organizations" />
+                </div>
+
+                <!-- Configuration Tab -->
+                <div v-if="activeTab === 'configuration'" class="pt-6 space-y-6">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
+                            <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">LLM Driver</p>
+                            <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
+                                {{ currentOrg.llm_driver || 'System Default' }}
+                            </p>
+                        </div>
+                        <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
+                            <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Vector Driver</p>
+                            <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
+                                {{ currentOrg.vector_driver || 'System Default' }}
+                            </p>
+                        </div>
+                        <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
+                            <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Meeting Provider</p>
+                            <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
+                                {{ currentOrg.meeting_provider || 'None' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <Link
+                        v-if="isSuperAdmin || isOrgAdmin"
+                        :href="organizationRoutes.edit.url(currentOrg.id)"
+                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                    >
+                        Edit Organization Information
+                    </Link>
                 </div>
             </div>
-
-            <div>
-                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">AI Drivers</h3>
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
-                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">LLM Driver</p>
-                        <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
-                            {{ currentOrg.llm_driver || 'System Default' }}
-                        </p>
-                    </div>
-                    <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
-                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Vector Driver</p>
-                        <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
-                            {{ currentOrg.vector_driver || 'System Default' }}
-                        </p>
-                    </div>
-                    <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
-                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Meeting Provider</p>
-                        <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
-                            {{ currentOrg.meeting_provider || 'None' }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <Link
-                v-if="isSuperAdmin || isOrgAdmin"
-                :href="organizationRoutes.edit.url(currentOrg.id)"
-                class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
-            >
-                Edit Organization Information
-            </Link>
 
             <Dialog v-model:open="isInviteModalOpen">
             <DialogContent class="sm:max-w-[400px]">

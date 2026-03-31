@@ -1,4 +1,3 @@
-<!-- Deprecated: use @/components/clients/ClientEntryForm.vue -->
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
@@ -8,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-// We define 'editData' as the prop. When this is null, we are in "Create" mode.
-// When this has a client object, we are in "Edit" mode.
 const props = defineProps<{
     editData: Client | null;
 }>();
@@ -23,7 +20,6 @@ const page = usePage<AppPageProps>();
 
 const isEditing = ref(false);
 
-// The form now lives INSIDE the partial
 const form = useForm({
     company_name: '',
     contact_name: '',
@@ -31,7 +27,6 @@ const form = useForm({
     email: '',
 });
 
-// Watch for the parent changing the 'editData' prop
 watch(() => props.editData, (newVal) => {
     if (newVal) {
         isEditing.value = true;
@@ -48,7 +43,7 @@ watch(() => props.editData, (newVal) => {
 const resetForm = () => {
     form.reset();
     isEditing.value = false;
-    emit('clear-edit'); // Tell parent we are no longer editing
+    emit('clear-edit');
 };
 
 const submit = () => {
@@ -69,7 +64,6 @@ const submit = () => {
         },
     });
 };
-
 </script>
 
 <template>
