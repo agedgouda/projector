@@ -73,8 +73,11 @@ class OrganizationController extends Controller
 
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
-            'currentOrg' => array_merge($currentOrg->toArray(), [
+            'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
                 'users' => $members,
+                'llm_config_form' => $currentOrg->llmConfigForForm(),
+                'vector_config_form' => $currentOrg->vectorConfigForForm(),
+                'meeting_config_form' => $currentOrg->meetingConfigForForm(),
                 'can' => [
                     'update' => $user->can('update', $currentOrg),
                     'manage_users' => $user->can('manageUsers', $currentOrg),

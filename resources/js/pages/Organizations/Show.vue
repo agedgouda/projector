@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { ref } from 'vue';
+import ResourceSearch from '@/components/ResourceSearch.vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import OrgInvitationTable from '@/components/user/OrgInvitationTable.vue';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 import ClientList from '@/components/clients/ClientList.vue';
+import OrganizationForm from './Partials/OrganizationForm.vue';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
 import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase } from 'lucide-vue-next';
 import type { BreadcrumbItem } from '@/types';
@@ -19,10 +21,24 @@ import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 
 
-defineProps<{
+const props = defineProps<{
     organizations: Organization[];
     users: User[];
-    currentOrg: Organization;
+    currentOrg: Organization & {
+        llm_config_form?: { model: string; host: string; has_key: boolean };
+        vector_config_form?: { model: string; host: string; has_key: boolean };
+        meeting_config_form?: {
+            account_id: string;
+            tenant_id: string;
+            client_id: string;
+            client_secret: string;
+            service_account_email: string;
+            impersonate_email: string;
+            private_key: string;
+            has_client_secret?: boolean;
+            has_private_key?: boolean;
+        };
+    };
     allRoles: string[];
     invitations: OrganizationInvitation[];
     clients: Client[];
@@ -47,6 +63,7 @@ const handleOrgSwitch = (id: string) => {
 };
 
 const activeTab = ref<'team' | 'clients' | 'configuration'>('team');
+const filteredUsers = ref<User[]>(props.currentOrg.users ?? []);
 
 const isAddUserListOpen = ref(false);
 const isInviteModalOpen = ref(false);
@@ -82,9 +99,9 @@ const submitInvite = (orgId: string) => {
                     <Link
                         v-if="isSuperAdmin"
                         :href="organizationRoutes.create.url()"
-                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
+                        class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
                     >
-                        <Plus class="w-4 h-4 mr-2 text-indigo-500" />
+                        <Plus class="w-4 h-4 mr-2" />
                         <span class="text-[10px] font-black uppercase tracking-widest">New Org</span>
                     </Link>
 
@@ -151,35 +168,40 @@ const submitInvite = (orgId: string) => {
 
                 <!-- Team Tab -->
                 <div v-if="activeTab === 'team'" class="pt-6 space-y-4">
+                    <div v-if="isSuperAdmin || isOrgAdmin" class="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            @click="isAddUserListOpen = true"
+                            class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                        >
+                            <Plus class="w-4 h-4 mr-2" />
+                            <span class="text-[10px] font-black uppercase tracking-widest">Add User</span>
+                        </button>
+                        <button
+                            type="button"
+                            @click="isInviteModalOpen = true"
+                            class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                        >
+                            <UserPlus class="w-4 h-4 mr-2" />
+                            <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
+                        </button>
+                    </div>
+
+                    <ResourceSearch
+                        :items="currentOrg.users ?? []"
+                        :search-keys="['name', 'email']"
+                        @update:filtered="filteredUsers = $event"
+                    />
+
                     <OrgUserTable
-                        :users="currentOrg.users || []"
+                        :users="filteredUsers"
                         :show-admin-toggle="currentOrg.can?.manage_users ?? false"
                         :all-roles="allRoles"
                     />
 
-                    <div v-if="isSuperAdmin || isOrgAdmin" class="space-y-4">
-                        <div class="flex items-center gap-3">
-                            <button
-                                type="button"
-                                @click="isAddUserListOpen = true"
-                                class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
-                            >
-                                Add User
-                            </button>
-                            <button
-                                type="button"
-                                @click="isInviteModalOpen = true"
-                                class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
-                            >
-                                <UserPlus class="w-4 h-4 mr-2 text-indigo-500" />
-                                <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
-                            </button>
-                        </div>
-
-                        <div v-if="invitations.length > 0">
-                            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Pending Invitations</h3>
-                            <OrgInvitationTable :invitations="invitations" :organization-id="currentOrg.id" />
-                        </div>
+                    <div v-if="(isSuperAdmin || isOrgAdmin) && invitations.length > 0">
+                        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Pending Invitations</h3>
+                        <OrgInvitationTable :invitations="invitations" :organization-id="currentOrg.id" />
                     </div>
                 </div>
 
@@ -189,35 +211,12 @@ const submitInvite = (orgId: string) => {
                 </div>
 
                 <!-- Configuration Tab -->
-                <div v-if="activeTab === 'configuration'" class="pt-6 space-y-6">
-                    <div class="grid grid-cols-3 gap-4">
-                        <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
-                            <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">LLM Driver</p>
-                            <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
-                                {{ currentOrg.llm_driver || 'System Default' }}
-                            </p>
-                        </div>
-                        <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
-                            <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Vector Driver</p>
-                            <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
-                                {{ currentOrg.vector_driver || 'System Default' }}
-                            </p>
-                        </div>
-                        <div class="rounded-xl border border-gray-100 dark:border-zinc-800 p-4">
-                            <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Meeting Provider</p>
-                            <p class="text-sm font-bold text-gray-800 dark:text-zinc-100">
-                                {{ currentOrg.meeting_provider || 'None' }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <Link
-                        v-if="isSuperAdmin || isOrgAdmin"
-                        :href="organizationRoutes.edit.url(currentOrg.id)"
-                        class="inline-flex items-center h-12 px-4 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 hover:border-indigo-500 transition-colors"
-                    >
-                        Edit Organization Information
-                    </Link>
+                <div v-if="activeTab === 'configuration'" class="pt-6">
+                    <OrganizationForm
+                        :organization="currentOrg"
+                        @success="() => {}"
+                        @cancel="() => {}"
+                    />
                 </div>
             </div>
 

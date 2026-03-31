@@ -93,7 +93,8 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                         @click="openCreateModal"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
                     >
-                        <Plus class="w-4 h-4 mr-2" /> Add Client
+                        <Plus class="w-4 h-4 mr-2" />
+                        <span class="text-[10px] font-black uppercase tracking-widest">Add Client</span>
                     </Button>
                 </DialogTrigger>
                 <DialogContent class="sm:max-w-[500px]">
