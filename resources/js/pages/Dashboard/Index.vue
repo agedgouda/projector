@@ -139,7 +139,7 @@ const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
             </div>
             <h2 class="text-xl font-bold text-gray-900">Coming Soon</h2>
             <p class="text-gray-500 max-w-xs text-center">
-                You have not yet been assigned and projects or tasks.
+                You have not yet been assigned any projects or tasks.
             </p>
         </div>
 
