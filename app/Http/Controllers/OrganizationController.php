@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\OrganizationRequest;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
+use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -69,7 +70,7 @@ class OrganizationController extends Controller
             ->get(['id', 'email', 'token', 'expires_at']);
 
         $clients = $currentOrg->clients()->with('projects')->get();
-        $projectTypes = $currentOrg->projectTypes()->get();
+        $projectTypes = ProjectType::all();
 
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
