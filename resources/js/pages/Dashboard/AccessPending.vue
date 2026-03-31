@@ -12,7 +12,7 @@ const refresh = () => router.get('/dashboard');
 
 <template>
     <AppLayout title="Access Pending">
-        <div class="flex flex-col items-center justify-center min-h-[70vh] p-8">
+        <div class="flex flex-col items-center justify-center min-h-[70vh] p-6">
             <div class="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6">
                 <ShieldAlert class="w-10 h-10 text-amber-600" />
             </div>

@@ -63,7 +63,7 @@ const submitInvite = (orgId: string) => {
     <Head title="Organization Profile" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-8 max-w-5xl mx-auto w-full space-y-8">
+        <div class="p-6 w-full space-y-8">
 
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>

@@ -30,7 +30,7 @@ const providerLabel = computed(() => meetingProviderLabel(props.provider));
     <Head :title="`Meeting Transcripts — ${project.name}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-8 max-w-5xl mx-auto w-full space-y-10">
+        <div class="p-6 w-full space-y-10">
 
             <!-- Page header -->
             <div class="flex items-start justify-between gap-4">

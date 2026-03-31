@@ -46,7 +46,7 @@ const goBack = () => {
     <Head :title="aiTemplate.name" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="max-w-5xl p-8 mx-auto w-full">
+        <div class="p-6 w-full">
 
             <div class="flex items-center justify-between mb-10">
                 <button

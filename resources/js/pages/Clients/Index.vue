@@ -114,7 +114,7 @@ const canAddClient = computed(() => isSuperAdmin.value || isOrgAdmin.value);
     <Head title="Clients" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-8 max-w-5xl mx-auto w-full">
+        <div class="p-6 w-full">
 
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>

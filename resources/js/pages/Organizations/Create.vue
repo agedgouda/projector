@@ -16,7 +16,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     <Head title="Create Organization" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-8 max-w-5xl mx-auto w-full space-y-8">
+        <div class="p-6 w-full space-y-8">
             <div class="mb-10">
                 <h1 class="text-3xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">
                     New Organization

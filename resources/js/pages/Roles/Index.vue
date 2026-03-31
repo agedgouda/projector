@@ -85,7 +85,7 @@ const breadcrumbs = [{ title: 'Roles', href: roleRoutes.index().url }];
     <Head title="Manage Roles" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 max-w-4xl">
+        <div class="p-6 w-full">
             <h2 class="text-2xl font-bold mb-6">Organization Roles</h2>
 
             <form @submit.prevent="submit" class="flex gap-4 mb-12 items-end">

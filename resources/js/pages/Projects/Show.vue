@@ -209,7 +209,7 @@ watch(() => props.currentProject, (newProject) => {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div v-if="!currentProject" class="p-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div v-if="!currentProject" class="p-6 flex flex-col items-center justify-center min-h-[60vh]">
             <div class="p-4 bg-gray-100 rounded-full mb-4">
                 <ShieldAlert class="w-12 h-12 text-gray-400" />
             </div>
@@ -219,7 +219,7 @@ watch(() => props.currentProject, (newProject) => {
             </p>
         </div>
 
-        <div v-else class="p-8 space-y-8 w-full">
+        <div v-else class="p-6 space-y-8 w-full">
             <AiProgressBar :is-processing="isAiProcessing" :progress="aiProgress" />
 
             <AiProcessingHeader

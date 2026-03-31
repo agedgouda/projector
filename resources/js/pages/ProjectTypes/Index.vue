@@ -71,7 +71,7 @@ const duplicateType = (typeId: string) => {
     <Head title="Project Protocols" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 max-w-7xl mx-auto w-full">
+        <div class="p-6 w-full">
 
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
                 <div>

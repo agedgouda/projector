@@ -48,7 +48,7 @@ const {
     <Head title="User Management" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-8 max-w-5xl mx-auto w-full">
+        <div class="p-6 w-full">
             <div class="mb-8">
                 <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase flex items-center gap-3">
                     <CircleUserRound class="w-8 h-8 text-indigo-500" />
