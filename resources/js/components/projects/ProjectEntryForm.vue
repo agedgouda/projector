@@ -148,9 +148,12 @@ const submit = async () => {
                 <Input
                     id="name"
                     v-model="form.name"
-                    class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-bold"
-                    :class="{ 'border-red-500': form.errors.name }"
+                    class="h-12 rounded-xl bg-white dark:bg-gray-950 font-bold"
+                    :class="form.errors.name ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'"
                 />
+                <p v-if="form.errors.name" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+                    {{ form.errors.name }}
+                </p>
             </div>
 
             <div class="grid gap-2">
@@ -207,7 +210,7 @@ const submit = async () => {
                         </div>
                     </template>
                     <Select v-else :model-value="form.client_id" @update:model-value="handleClientSelect">
-                        <SelectTrigger class="h-12 rounded-xl border-gray-200 dark:border-gray-800 font-bold">
+                        <SelectTrigger class="h-12 rounded-xl font-bold" :class="form.errors.client_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'">
                             <SelectValue placeholder="Select a client..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -220,6 +223,9 @@ const submit = async () => {
                             </SelectItem>
                         </SelectContent>
                     </Select>
+                    <p v-if="form.errors.client_id" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+                        {{ form.errors.client_id }}
+                    </p>
                 </div>
 
                 <div class="grid gap-2">
@@ -227,7 +233,7 @@ const submit = async () => {
                         Protocol Type
                     </Label>
                     <Select v-model="form.project_type_id">
-                        <SelectTrigger class="h-12 rounded-xl border-gray-200 dark:border-gray-800 font-bold">
+                        <SelectTrigger class="h-12 rounded-xl font-bold" :class="form.errors.project_type_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'">
                             <SelectValue placeholder="Choose a protocol..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -236,6 +242,9 @@ const submit = async () => {
                             </SelectItem>
                         </SelectContent>
                     </Select>
+                    <p v-if="form.errors.project_type_id" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+                        {{ form.errors.project_type_id }}
+                    </p>
                 </div>
             </template>
         </div>
