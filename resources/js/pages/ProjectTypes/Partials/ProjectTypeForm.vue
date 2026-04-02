@@ -9,6 +9,7 @@ import { useProjectTypeForm } from '@/composables/useProjectTypeForm';
 
 const props = defineProps<{
     editData: any | null;
+    template?: any;
     iconLibrary: { name: string; component: any }[];
     aiTemplates: { id: string, name: string }[];
     organizations: { id: string; name: string }[];
@@ -29,7 +30,8 @@ const {
     addLifecycleStep,
 } = useProjectTypeForm(
     props.editData,
-    () => emit('success')
+    () => emit('success'),
+    props.template
 );
 
 const colorPalette = [

@@ -3,7 +3,7 @@ import { useForm } from '@inertiajs/vue3'
 import { toast } from 'vue-sonner'
 import projectTypeRoutes from '@/routes/project-types'
 
-export function useProjectTypeForm(editData: any | null, onSuccess: () => void) {
+export function useProjectTypeForm(editData: any | null, onSuccess: () => void, template: any | null = null) {
     const form = useForm({
         name: '',
         icon: 'Briefcase',
@@ -25,7 +25,17 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void) 
         form.organization_id = data.organization_id ?? ''
     }
 
-    watch(() => editData, (val) => (val ? hydrate(val) : form.reset()), { immediate: true })
+    watch(() => editData, (val) => {
+        if (val) {
+            hydrate(val)
+        } else if (template) {
+            hydrate(template)
+            form.name = ''
+            form.organization_id = ''
+        } else {
+            form.reset()
+        }
+    }, { immediate: true })
 
     // Keep the logic inside the composable
     const addSchemaItem = () => {

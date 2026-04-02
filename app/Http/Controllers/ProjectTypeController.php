@@ -39,7 +39,12 @@ class ProjectTypeController extends Controller
 
         $user = auth()->user();
 
+        $template = ProjectType::where('name', 'To Do List')
+            ->with('lifecycleSteps')
+            ->first();
+
         return inertia('ProjectTypes/Show', [
+            'template' => $template,
             'aiTemplates' => AiTemplate::select('id', 'name')->orderBy('name')->get(),
             'organizations' => $user->hasRole('super-admin')
                 ? Organization::orderBy('name')->get(['id', 'name'])

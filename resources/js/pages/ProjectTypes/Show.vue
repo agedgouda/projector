@@ -36,6 +36,7 @@ const iconLibrary = [
 
 const props = defineProps<{
     projectType?: ProjectType;
+    template?: ProjectType;
     aiTemplates: { id: string, name: string }[];
     organizations?: { id: string; name: string }[];
 }>();
@@ -71,6 +72,7 @@ const handleSuccess = () => {
 
             <ProjectTypeForm
                 :edit-data="projectType"
+                :template="template"
                 :icon-library="iconLibrary"
                 :ai-templates="aiTemplates"
                 :organizations="organizations ?? []"
