@@ -9,7 +9,7 @@ export const KANBAN_UI = {
 
     // Card Styles
     // Added focus-visible and ring-offset for Keyboard Nav support
-    card: "bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
+    card: "rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
     cardTitle: "text-xs font-bold text-gray-900 leading-tight line-clamp-2",
 
     // Ghost/Placeholder Card (for when dragging)
@@ -41,6 +41,12 @@ export const KANBAN_UI = {
     })
 
 
+};
+
+export const statusCardBg: Record<string, string> = {
+    todo: 'bg-slate-500/10',
+    in_progress: 'bg-indigo-500/10',
+    done: 'bg-emerald-500/10',
 };
 
 /**

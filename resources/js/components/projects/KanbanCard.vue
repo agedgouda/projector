@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Calendar, Plus } from 'lucide-vue-next';
-import { KANBAN_UI, getPriorityStyles, getAvatarAppearance } from '@/lib/kanban-theme';
+import { KANBAN_UI, getPriorityStyles, getAvatarAppearance, statusCardBg } from '@/lib/kanban-theme';
 
-defineProps<{ doc: ProjectDocument }>();
+defineProps<{ doc: ProjectDocument; status: TaskStatus }>();
 
 // Define emits to handle the keyboard and click actions consistently
 const emit = defineEmits(['open']);
@@ -14,7 +14,7 @@ const getInitials = (user: any) =>
 
 <template>
     <div
-        :class="[KANBAN_UI.card, 'p-5 group hover:border-indigo-200']"
+        :class="[KANBAN_UI.card, statusCardBg[status], 'p-5 group hover:border-indigo-200']"
         tabindex="0"
         role="button"
         :aria-label="`Open task: ${doc.name}`"
@@ -55,7 +55,7 @@ const getInitials = (user: any) =>
                     </span>
                 </div>
 
-                <div v-if="doc.priority" :class="[KANBAN_UI.badge, getPriorityStyles(doc.priority)]">
+                <div v-if="doc.priority && status !== 'done'" :class="[KANBAN_UI.badge, getPriorityStyles(doc.priority)]">
                     {{ doc.priority }}
                 </div>
             </div>
