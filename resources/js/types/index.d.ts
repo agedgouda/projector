@@ -122,6 +122,7 @@ declare global {
         creator_id: number | null;
         editor_id: number | null;
         assignee_id: number | null;
+        pending_assignee_invitation_id: number | null;
         task_status: TaskStatus;
         priority: TaskPriority;
         due_at: string | null;
@@ -130,6 +131,7 @@ declare global {
         creator?: User;
         editor?: User;
         assignee?: User;
+        pending_assignee?: OrganizationInvitation;
         project?: Partial<Project>;
         children?: ProjectDocument[];
         tasks?: Task[];
@@ -265,6 +267,7 @@ export interface AiDriverOption {
 
         // Optional relations and permissions included globally
         users?: User[];
+        invitations?: OrganizationInvitation[];
         can?: {
             update: boolean;
             manage_users: boolean;
@@ -275,6 +278,7 @@ export interface AiDriverOption {
     export interface OrganizationInvitation {
         id: number;
         email: string;
+        role: string;
         token: string;
         expires_at: string;
     }

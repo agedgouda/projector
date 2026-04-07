@@ -68,7 +68,7 @@ const filteredUsers = ref<User[]>(props.currentOrg.users ?? []);
 const isAddUserListOpen = ref(false);
 const isInviteModalOpen = ref(false);
 
-const inviteForm = useForm({ email: '' });
+const inviteForm = useForm({ email: '', role: 'team-member' });
 
 const submitInvite = (orgId: string) => {
     inviteForm.post(inviteUser(orgId).url, {
@@ -238,6 +238,19 @@ const submitInvite = (orgId: string) => {
                             autofocus
                         />
                         <InputError :message="inviteForm.errors.email" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="invite-role">Role</Label>
+                        <select
+                            id="invite-role"
+                            v-model="inviteForm.role"
+                            class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-3 text-sm text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                        >
+                            <option value="team-member">Team Member</option>
+                            <option value="project-lead">Project Lead</option>
+                            <option value="org-admin">Org Admin</option>
+                        </select>
+                        <InputError :message="inviteForm.errors.role" />
                     </div>
                     <button
                         type="submit"

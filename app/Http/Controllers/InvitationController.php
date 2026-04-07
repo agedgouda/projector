@@ -17,6 +17,7 @@ class InvitationController extends Controller
     {
         $validated = $request->validate([
             'email' => ['required', 'string', 'email', 'max:255'],
+            'role' => ['required', 'string', 'in:team-member,project-lead,org-admin'],
         ]);
 
         $email = $validated['email'];
@@ -35,6 +36,7 @@ class InvitationController extends Controller
         $invitation = OrganizationInvitation::create([
             'organization_id' => $organization->id,
             'email' => $email,
+            'role' => $validated['role'],
             'token' => Str::random(16),
             'expires_at' => now()->addDays(7),
         ]);
@@ -63,7 +65,10 @@ class InvitationController extends Controller
     public function accept(string $token): RedirectResponse
     {
         $invitation = OrganizationInvitation::where('token', $token)
-            ->where('expires_at', '>', now())
+            ->where(function ($query) {
+                $query->where('expires_at', '>', now())
+                    ->orWhereHas('documentAssignments');
+            })
             ->first();
 
         if (! $invitation) {

@@ -31,6 +31,15 @@ const { getDocLabel } = useDocumentPresenter(props.project);
 const { isTask } = useDocumentPresenter(props.project);
 const shouldShowTask = computed(() => isTask(props.item.type));
 
+const assigneeValue = computed(() => {
+    if (props.item.pending_assignee_invitation_id) {
+        return `inv:${props.item.pending_assignee_invitation_id}`;
+    }
+    return props.item.assignee_id?.toString() ?? 'unassigned';
+});
+
+const invitations = computed(() => props.project.client.organization?.invitations ?? []);
+
 </script>
 
 <template>
@@ -51,15 +60,21 @@ const shouldShowTask = computed(() => isTask(props.item.type));
                         <div class="flex flex-col" v-if="shouldShowTask">
                             <div class="flex justify-between items-center h-[24px]">
                                 <span class="text-slate-500 text-xs">Assignee</span>
-                                <Select :model-value="item.assignee_id?.toString() ?? 'unassigned'" @update:model-value="(val) => $emit('change', 'assignee_id', val)">
+                                <Select :model-value="assigneeValue" @update:model-value="(val) => $emit('change', 'assignee_id', val)">
                                     <SelectTrigger class="h-auto p-0 border-none bg-transparent hover:bg-slate-100 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-700 text-[10px]"><SelectValue /></span>
                                         </div>
                                     </SelectTrigger>
-                                    <SelectContent align="end" class="min-w-[160px]">
+                                    <SelectContent align="end" class="min-w-[200px]">
                                         <SelectItem value="unassigned" class="text-[10px] uppercase font-bold text-slate-400">Unassigned</SelectItem>
                                         <SelectItem v-for="user in project.client.organization?.users" :key="user.id" :value="user.id.toString()" class="text-[10px] uppercase font-bold">{{ user.name }}</SelectItem>
+                                        <template v-if="invitations.length > 0">
+                                            <div class="px-2 pt-2 pb-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Invited</div>
+                                            <SelectItem v-for="inv in invitations" :key="inv.id" :value="`inv:${inv.id}`" class="text-[10px] font-bold">
+                                                {{ inv.email }} <span class="text-slate-400 font-normal">(Invited)</span>
+                                            </SelectItem>
+                                        </template>
                                     </SelectContent>
                                 </Select>
                             </div>

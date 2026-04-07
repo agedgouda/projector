@@ -27,6 +27,7 @@ class Document extends Model
         'creator_id' => 'integer',
         'editor_id' => 'integer',
         'assignee_id' => 'integer',
+        'pending_assignee_invitation_id' => 'integer',
     ];
 
     protected $hidden = ['embedding'];
@@ -43,6 +44,7 @@ class Document extends Model
         'creator_id',
         'editor_id',
         'assignee_id',
+        'pending_assignee_invitation_id',
         'task_status',
         'priority',
         'due_at',
@@ -89,6 +91,11 @@ class Document extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assignee_id');
+    }
+
+    public function pendingAssignee(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationInvitation::class, 'pending_assignee_invitation_id');
     }
 
     public function scopeNearestNeighbors(Builder $query, array|Vector $vector, int $limit = 5): void

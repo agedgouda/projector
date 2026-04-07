@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\User;
@@ -68,10 +69,13 @@ class OrganizationRegistrationController extends Controller
         $wasAdded = ! $organization->users()->where('user_id', $user->id)->exists();
 
         if ($wasAdded) {
-            $organization->users()->attach($user->id, ['role' => 'team-member']);
+            $organization->users()->attach($user->id, ['role' => $invitation?->role ?? 'team-member']);
         }
 
         if ($invitation) {
+            Document::where('pending_assignee_invitation_id', $invitation->id)
+                ->update(['assignee_id' => $user->id, 'pending_assignee_invitation_id' => null]);
+
             $invitation->delete();
         }
 
@@ -90,7 +94,10 @@ class OrganizationRegistrationController extends Controller
 
         return OrganizationInvitation::where('token', $token)
             ->where('organization_id', $organization->id)
-            ->where('expires_at', '>', now())
+            ->where(function ($query) {
+                $query->where('expires_at', '>', now())
+                    ->orWhereHas('documentAssignments');
+            })
             ->first();
     }
 

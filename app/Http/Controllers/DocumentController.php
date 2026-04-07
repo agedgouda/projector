@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
+use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Services\VectorService;
 use Illuminate\Http\Request;
@@ -57,8 +58,8 @@ class DocumentController extends Controller
         }
 
         return inertia('Documents/Show', [
-            'project' => $project->load(['type', 'client.organization.users']),
-            'item' => $document->load(['assignee', 'creator', 'editor', 'comments.user']),
+            'project' => $project->load(['type', 'client.organization.users', 'client.organization.invitations']),
+            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user']),
         ]);
     }
 
@@ -94,16 +95,49 @@ class DocumentController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
-            'assignee_id' => ['nullable', 'exists:users,id'],
+        $otherValidated = $request->validate([
             'task_status' => ['nullable', 'string'],
             'priority' => ['nullable', 'string'],
             'due_at' => ['nullable', 'date'],
         ]);
 
-        $document->update(array_merge($validated, ['editor_id' => $request->user()->id]));
+        $rawAssignee = $request->input('assignee_id');
+        $assigneeData = $this->resolveAssignee($rawAssignee, $request, $project);
+
+        $document->update(array_merge($assigneeData, $otherValidated, ['editor_id' => $request->user()->id]));
 
         return back()->with('success', 'Task updated.');
+    }
+
+    /**
+     * Resolve an assignee_id input value (user ID or "inv:{id}" prefix) into DB column data.
+     *
+     * @return array{assignee_id: int|null, pending_assignee_invitation_id: int|null}
+     */
+    private function resolveAssignee(mixed $rawAssignee, Request $request, Project $project): array
+    {
+        if ($rawAssignee === null) {
+            return ['assignee_id' => null, 'pending_assignee_invitation_id' => null];
+        }
+
+        if (is_string($rawAssignee) && str_starts_with($rawAssignee, 'inv:')) {
+            $invitationId = (int) substr($rawAssignee, 4);
+            $orgId = $project->client->organization_id;
+
+            abort_unless(
+                OrganizationInvitation::where('id', $invitationId)
+                    ->where('organization_id', $orgId)
+                    ->exists(),
+                422,
+                'Invalid invitation.'
+            );
+
+            return ['assignee_id' => null, 'pending_assignee_invitation_id' => $invitationId];
+        }
+
+        $request->validate(['assignee_id' => ['required', 'exists:users,id']]);
+
+        return ['assignee_id' => (int) $rawAssignee, 'pending_assignee_invitation_id' => null];
     }
 
     /**

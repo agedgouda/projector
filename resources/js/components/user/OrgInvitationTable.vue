@@ -27,8 +27,9 @@ const copyLink = (token: string) => {
 
 <template>
     <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
-        <div class="grid grid-cols-[1fr_110px_140px] bg-gray-50/50 dark:bg-zinc-800/50 border-b border-gray-200 dark:border-zinc-800">
+        <div class="grid grid-cols-[1fr_140px_110px_140px] bg-gray-50/50 dark:bg-zinc-800/50 border-b border-gray-200 dark:border-zinc-800">
             <div class="p-4 pl-8 text-[10px] font-black uppercase tracking-widest text-gray-400">Invited Email</div>
+            <div class="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Role</div>
             <div class="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Resend</div>
             <div class="p-4 pr-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Copy Link</div>
         </div>
@@ -37,10 +38,13 @@ const copyLink = (token: string) => {
             <div
                 v-for="invitation in invitations"
                 :key="invitation.id"
-                class="grid grid-cols-[1fr_110px_140px] items-center hover:bg-gray-50/30 dark:hover:bg-zinc-800/10 transition-colors"
+                class="grid grid-cols-[1fr_140px_110px_140px] items-center hover:bg-gray-50/30 dark:hover:bg-zinc-800/10 transition-colors"
             >
                 <div class="p-4 pl-8 min-w-0">
                     <span class="text-sm font-medium text-gray-800 dark:text-zinc-100 truncate block">{{ invitation.email }}</span>
+                </div>
+                <div class="p-4 min-w-0">
+                    <span class="text-xs font-medium text-gray-500 dark:text-zinc-400 capitalize">{{ invitation.role?.replace('-', ' ') ?? 'Team Member' }}</span>
                 </div>
 
                 <div class="px-4 flex justify-center">
