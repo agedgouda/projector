@@ -31,7 +31,7 @@ export const KANBAN_UI = {
     badge: "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border",
 
     // Column Styles
-    columnWrapper: "flex flex-col gap-4 min-h-[160px] bg-gray-50/40 rounded-[2rem] border border-dashed border-gray-200/60 p-4 relative",
+    columnWrapper: "flex flex-col gap-4 min-h-[160px] bg-transparent rounded-[2rem] border border-dashed border-gray-200/60 p-4 relative",
 
     gridContainer: (columnCount: number): CSSProperties => ({
         display: 'grid',
