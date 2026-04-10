@@ -101,8 +101,9 @@ class DocumentController extends Controller
             'due_at' => ['nullable', 'date'],
         ]);
 
-        $rawAssignee = $request->input('assignee_id');
-        $assigneeData = $this->resolveAssignee($rawAssignee, $request, $project);
+        $assigneeData = $request->has('assignee_id')
+            ? $this->resolveAssignee($request->input('assignee_id'), $request, $project)
+            : [];
 
         $document->update(array_merge($assigneeData, $otherValidated, ['editor_id' => $request->user()->id]));
 

@@ -82,7 +82,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.docume
 
 <template>
     <Sheet :open="open" @update:open="val => emit('update:open', val)">
-        <SheetContent class="sm:max-w-[720px] overflow-y-auto border-l border-gray-100 shadow-2xl pl-12 pr-12 bg-white">
+        <SheetContent class="sm:max-w-[720px] overflow-y-auto border-l border-gray-100 shadow-2xl pl-12 pr-12 bg-white dark:bg-[hsl(222_47%_6%)] dark:border-gray-800 dark:text-white">
             <template v-if="document">
                 <div class="mt-8 space-y-10">
                     <SheetHeader class="space-y-0.5 text-left p-0">
@@ -103,7 +103,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.docume
                                 <span class="text-[9px] font-black uppercase tracking-wider">Reprocess</span>
                             </Button>
                         </div>
-                        <SheetTitle class="text-3xl font-bold text-gray-900 leading-tight">
+                        <SheetTitle class="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
                             {{ document.name }}
                         </SheetTitle>
                         <div class="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">
@@ -199,7 +199,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.docume
                         </div>
 
                         <h4 class="text-[11px] font-black uppercase tracking-widest text-gray-400 mt-10">Content</h4>
-                        <div class="bg-white rounded-2xl p-0 text-base text-gray-600 leading-relaxed min-h-[300px] whitespace-pre-wrap mt-4">
+                        <div class="bg-white dark:bg-transparent rounded-2xl p-0 text-base text-gray-600 dark:text-gray-300 leading-relaxed min-h-[300px] whitespace-pre-wrap mt-4">
                             <span v-html="document.content || 'No content provided.'"></span>
                         </div>
                     </section>

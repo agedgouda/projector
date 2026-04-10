@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen bg-white">
+    <div class="min-h-screen bg-light-background">
         <slot name="header" />
 
         <main class="max-w-7xl mx-auto px-8 py-10">

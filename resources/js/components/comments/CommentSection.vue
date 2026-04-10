@@ -141,19 +141,19 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
             @keydown.meta.enter="submitComment"
             @keydown.ctrl.enter="submitComment"
         >
-            <div class="border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
-                <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
+            <div class="border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all dark:bg-white/5">
+                <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-white/5">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bold') }">
                         <Bold class="h-4 w-4" />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200': editor.isActive('italic') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('italic') }">
                         <Italic class="h-4 w-4" />
                     </Button>
-                    <div class="w-px h-4 bg-slate-200 mx-1"></div>
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200': editor.isActive('bulletList') }">
+                    <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bulletList') }">
                         <List class="h-4 w-4" />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200': editor.isActive('orderedList') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('orderedList') }">
                         <ListOrdered class="h-4 w-4" />
                     </Button>
                 </div>

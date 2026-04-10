@@ -167,6 +167,28 @@
 }
 
 @layer base {
+    .dark [data-slot="select-content"] {
+        background-color: hsl(222 47% 8%);
+        color: hsl(0 0% 90%);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .dark [data-slot="select-trigger"] {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .dark input[type="date"] {
+        color-scheme: dark;
+    }
+
+    .dark .tiptap,
+    .dark .tiptap .ProseMirror,
+    .dark .ProseMirror {
+        background-color: hsl(222 47% 8%) !important;
+        color: hsl(0 0% 85%) !important;
+    }
+
     * {
         @apply border-border outline-ring/50;
     }

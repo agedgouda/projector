@@ -10,7 +10,7 @@ export const KANBAN_UI = {
     // Card Styles
     // Added focus-visible and ring-offset for Keyboard Nav support
     card: "rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
-    cardTitle: "text-xs font-bold text-gray-900 leading-tight line-clamp-2",
+    cardTitle: "text-xs font-bold text-gray-900 dark:text-gray-300 leading-tight line-clamp-2",
 
     // Ghost/Placeholder Card (for when dragging)
     ghostCard: [
@@ -31,7 +31,7 @@ export const KANBAN_UI = {
     badge: "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border",
 
     // Column Styles
-    columnWrapper: "flex flex-col gap-4 min-h-[160px] bg-transparent rounded-[2rem] border border-dashed border-gray-200/60 p-4 relative",
+    columnWrapper: "flex flex-col gap-4 min-h-[160px] bg-transparent rounded-[2rem] p-4 relative",
 
     gridContainer: (columnCount: number): CSSProperties => ({
         display: 'grid',

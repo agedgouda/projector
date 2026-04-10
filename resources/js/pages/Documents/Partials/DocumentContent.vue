@@ -45,18 +45,18 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
         <div v-else class="space-y-12">
             <section>
                 <div class="flex items-center gap-3 mb-6">
-                    <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-800">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200">
                         {{ getDocLabel(item.type) }}
                     </h3>
                 </div>
                 <div
-                    class="text-[15px] text-slate-600 leading-relaxed prose prose-slate max-w-none"
+                    class="text-[15px] text-slate-600 dark:text-slate-400 leading-relaxed prose prose-slate dark:prose-invert max-w-none"
                     v-html="sanitize(item.content) || 'No description provided.'"
                 ></div>
             </section>
 
             <section v-if="metadata?.criteria?.length">
-                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2">
+                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 mb-6 flex items-center gap-2">
                     <div class="w-4 h-px bg-slate-200"></div> Success Criteria
                 </h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
