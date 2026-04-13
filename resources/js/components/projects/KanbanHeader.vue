@@ -10,7 +10,7 @@ defineProps<{
 
 <template>
     <div
-        class="sticky top-0 bg-light-background/90 backdrop-blur-md z-20 border-b border-gray-100/50 px-4 w-full block"
+        class="sticky top-0 bg-light-background/90 backdrop-blur-md z-20 px-4 w-full block"
         :style="KANBAN_UI.gridContainer(columnStatuses.length)"
     >
         <div
