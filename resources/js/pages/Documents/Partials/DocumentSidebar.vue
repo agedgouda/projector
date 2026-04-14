@@ -61,7 +61,7 @@ const invitations = computed(() => props.project.client.organization?.invitation
                             <div class="flex justify-between items-center h-[24px]">
                                 <span class="text-slate-500 dark:text-slate-400 text-xs">Assignee</span>
                                 <Select :model-value="assigneeValue" @update:model-value="(val) => $emit('change', 'assignee_id', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
+                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 text-[10px]"><SelectValue /></span>
                                         </div>
@@ -97,7 +97,7 @@ const invitations = computed(() => props.project.client.organization?.invitation
                             <div class="flex justify-between items-center h-[24px]">
                                 <span class="text-slate-500 dark:text-slate-400 text-xs">Priority</span>
                                 <Select :model-value="item.priority" @update:model-value="(val) => $emit('change', 'priority', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
+                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 text-[10px] flex items-center">
                                                 <SelectValue />
@@ -119,7 +119,7 @@ const invitations = computed(() => props.project.client.organization?.invitation
                             <div class="flex justify-between items-center h-[24px]">
                                 <span class="text-slate-500 dark:text-slate-400 text-xs">Status</span>
                                 <Select :model-value="item.task_status ?? 'todo'" @update:model-value="(val) => $emit('change', 'task_status', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
+                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 text-[10px] flex items-center">
                                                 <SelectValue />

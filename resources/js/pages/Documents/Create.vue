@@ -96,7 +96,7 @@ const updateFormValue = (field: string, val: any) => {
             </template>
 
             <template #content>
-                <div class="bg-slate-50 rounded-2xl p-8 border border-slate-200">
+                <div class="bg-slate-50 dark:bg-white/5 rounded-2xl p-8 border border-slate-200 dark:border-white/10">
                     <InlineDocumentForm
                         mode="create"
                         :form="form"

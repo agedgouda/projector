@@ -91,15 +91,15 @@ const updateCriterion = (index: number, value: string) =>
                 <Input
                     :model-value="form.name ?? ''"
                     @update:model-value="(v) => updateField('name', v)"
-                    class="bg-white h-11 border-slate-200"
+                    class="bg-white dark:bg-white/5 dark:border-white/10 dark:text-slate-200 h-11 border-slate-200"
                 />
                 <p v-if="form.errors.name" class="text-[10px] text-red-500 font-bold uppercase">{{ form.errors.name }}</p>
             </div>
 
-            <div v-if="mode === 'create'" class="flex-1 min-w-[180px] grid gap-2">
+            <div v-if="mode === 'create'" class="flex-1 grid gap-2">
                 <Label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</Label>
                 <Select :model-value="form.type" @update:model-value="(v) => updateField('type', v)">
-                    <SelectTrigger class="bg-white h-11 border-slate-200">
+                    <SelectTrigger class="w-full bg-white dark:!bg-white/10 !border-slate-200 dark:!border-white/10 dark:text-slate-200 !h-11">
                         <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -114,19 +114,19 @@ const updateCriterion = (index: number, value: string) =>
 
         <div class="grid gap-2">
             <Label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Content</Label>
-            <div class="border border-slate-200 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
-                <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
+            <div class="border border-slate-200 dark:border-white/10 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all dark:bg-white/5">
+                <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bold') }">
                         <Bold class="h-4 w-4" />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200': editor.isActive('italic') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('italic') }">
                         <Italic class="h-4 w-4" />
                     </Button>
-                    <div class="w-px h-4 bg-slate-200 mx-1"></div>
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200': editor.isActive('bulletList') }">
+                    <div class="w-px h-4 bg-slate-200 dark:bg-white/20 mx-1"></div>
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bulletList') }">
                         <List class="h-4 w-4" />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200': editor.isActive('orderedList') }">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('orderedList') }">
                         <ListOrdered class="h-4 w-4" />
                     </Button>
                 </div>
@@ -135,7 +135,7 @@ const updateCriterion = (index: number, value: string) =>
             <p v-if="form.errors.content" class="text-[10px] text-red-500 font-bold uppercase pt-1">{{ form.errors.content }}</p>
         </div>
 
-        <div class="grid gap-4 pt-4 border-t border-slate-100">
+        <div class="grid gap-4 pt-4 border-t border-slate-100 dark:border-white/10">
             <div class="flex items-center justify-between">
                 <div class="space-y-1">
                     <Label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Success Criteria</Label>
@@ -166,7 +166,7 @@ const updateCriterion = (index: number, value: string) =>
                         :model-value="criterion"
                         @update:model-value="(v) => updateCriterion(Number(index), String(v))"
                         placeholder="Requirement..."
-                        class="bg-white h-10 border-slate-200 flex-1 text-[13px] focus-visible:ring-indigo-500"
+                        class="bg-white dark:bg-white/5 dark:border-white/10 dark:text-slate-200 h-10 border-slate-200 flex-1 text-[13px] focus-visible:ring-indigo-500"
                     />
 
                     <Button
@@ -183,7 +183,7 @@ const updateCriterion = (index: number, value: string) =>
                 <div
                     v-if="!form.metadata?.criteria?.length"
                     @click="addCriterion"
-                    class="border border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group"
+                    class="border border-dashed border-slate-200 dark:border-white/10 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/30 dark:hover:bg-white/5 transition-all group"
                 >
                     <Plus class="h-5 w-5 text-slate-300 group-hover:text-indigo-400 mb-1" />
                     <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No criteria defined</span>
@@ -192,7 +192,7 @@ const updateCriterion = (index: number, value: string) =>
         </div>
     </div>
 
-    <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/50 border-t border-slate-100 mt-6 rounded-b-2xl">
+    <div class="flex justify-end gap-3 px-6 py-4 mt-6">
         <Button variant="outline" @click="emit('cancel')" class="px-6 font-bold uppercase text-[10px] tracking-widest">
             Cancel
         </Button>

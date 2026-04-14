@@ -247,7 +247,7 @@ const submitInvite = (orgId: string) => {
                         <select
                             id="invite-role"
                             v-model="inviteForm.role"
-                            class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-3 text-sm text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                            class="w-full h-10 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[hsl(222_47%_8%)] px-3 text-sm text-gray-900 dark:text-slate-200 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
                         >
                             <option value="team-member">Team Member</option>
                             <option value="project-lead">Project Lead</option>

@@ -138,7 +138,7 @@
     --popover: hsl(0 0% 3.9%);
     --popover-foreground: hsl(0 0% 98%);
     --primary: hsl(0 0% 98%);
-    --primary-foreground: hsl(0 0% 9%);
+    --primary-foreground: hsl(0 0% 98%);
     --secondary: hsl(0 0% 14.9%);
     --secondary-foreground: hsl(0 0% 98%);
     --muted: hsl(222 47% 12%);
@@ -173,10 +173,6 @@
         border-color: rgba(255, 255, 255, 0.1);
     }
 
-    .dark [data-slot="select-trigger"] {
-        background-color: transparent !important;
-        box-shadow: none !important;
-    }
 
     .dark input[type="date"] {
         color-scheme: dark;
