@@ -18,12 +18,18 @@ const emit = defineEmits<{
 
 const query = ref('');
 
+const eligible = computed(() =>
+    [...props.users]
+        .filter((user) => !user.roles?.includes('super-admin'))
+        .sort((a, b) => a.name.localeCompare(b.name))
+);
+
 const filtered = computed(() => {
     const q = query.value.toLowerCase().trim();
     if (!q) {
-        return props.users;
+        return eligible.value;
     }
-    return props.users.filter(
+    return eligible.value.filter(
         (user) =>
             user.name.toLowerCase().includes(q) ||
             user.email.toLowerCase().includes(q),

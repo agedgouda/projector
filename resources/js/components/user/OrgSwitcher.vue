@@ -21,17 +21,21 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { Link } from "@inertiajs/vue3";
 import organizationRoutes from '@/routes/organizations/index';
 
-defineProps<{
+const props = defineProps<{
     organizations: any[];
     currentOrg: any;
 }>();
 
 const emit = defineEmits(['switch']);
 const open = ref(false);
+
+const sortedOrganizations = computed(() =>
+    [...props.organizations].sort((a, b) => a.name.localeCompare(b.name))
+);
 
 const handleSelect = (orgId: string | number) => {
     open.value = false;
@@ -82,7 +86,7 @@ const handleSelect = (orgId: string | number) => {
 
                     <CommandGroup heading="Organizations">
                         <CommandItem
-                            v-for="org in organizations"
+                            v-for="org in sortedOrganizations"
                             :key="org.id"
                             :value="org.name"
                             @select="handleSelect(org.id)"

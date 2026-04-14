@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import OrgInvitationTable from '@/components/user/OrgInvitationTable.vue';
@@ -63,7 +63,10 @@ const handleOrgSwitch = (id: string) => {
 };
 
 const activeTab = ref<'team' | 'clients' | 'configuration'>('team');
-const filteredUsers = ref<User[]>(props.currentOrg.users ?? []);
+const sortedOrgUsers = computed(() =>
+    [...(props.currentOrg.users ?? [])].sort((a, b) => a.name.localeCompare(b.name))
+);
+const filteredUsers = ref<User[]>(sortedOrgUsers.value);
 
 const isAddUserListOpen = ref(false);
 const isInviteModalOpen = ref(false);
@@ -188,7 +191,7 @@ const submitInvite = (orgId: string) => {
                     </div>
 
                     <ResourceSearch
-                        :items="currentOrg.users ?? []"
+                        :items="sortedOrgUsers"
                         :search-keys="['name', 'email']"
                         @update:filtered="filteredUsers = $event"
                     />
