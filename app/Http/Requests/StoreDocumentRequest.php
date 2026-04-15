@@ -18,6 +18,16 @@ class StoreDocumentRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('assignee_id') === 'unassigned') {
+            $this->merge(['assignee_id' => null]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array

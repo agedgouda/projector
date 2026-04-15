@@ -1,14 +1,29 @@
 import { ref, onMounted } from 'vue';
 import { echo } from '@laravel/echo-vue';
 import axios from 'axios';
+import { toast } from 'vue-sonner';
 
 const BAD_STATES = ['disconnected', 'failed', 'unavailable'];
+const TOAST_DELAY_MS = 5000;
 
 export function useEchoWatchdog(getProjectId: () => string | number | undefined) {
     const connectionStatus = ref('initializing');
+    let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleStatusChange = async (newStatus: string) => {
-        if (!BAD_STATES.includes(newStatus)) return;
+        if (!BAD_STATES.includes(newStatus)) {
+            if (toastTimer) {
+                clearTimeout(toastTimer);
+                toastTimer = null;
+            }
+            return;
+        }
+
+        toastTimer = setTimeout(() => {
+            toast.warning('Live updates temporarily unavailable. Reconnecting…', {
+                duration: 8000,
+            });
+        }, TOAST_DELAY_MS);
 
         try {
             await axios.post('/log-connection-issue', {
