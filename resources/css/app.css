@@ -178,6 +178,14 @@
         color-scheme: dark;
     }
 
+    .dark input:-webkit-autofill,
+    .dark input:-webkit-autofill:hover,
+    .dark input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0px 1000px hsl(222 47% 8%) inset !important;
+        -webkit-text-fill-color: hsl(0 0% 85%) !important;
+        caret-color: hsl(0 0% 85%);
+    }
+
     .dark .tiptap,
     .dark .tiptap .ProseMirror,
     .dark .ProseMirror {
