@@ -133,25 +133,7 @@ const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div v-if="!projects.length" class="p-6 flex flex-col items-center justify-center min-h-[60vh]">
-            <div class="p-4 bg-gray-100 rounded-full mb-4">
-                <Coffee class="w-12 h-12 text-gray-400" />
-            </div>
-            <h2 class="text-xl font-bold text-gray-900">Coming Soon</h2>
-            <p class="text-gray-500 max-w-xs text-center">
-                You have not yet been assigned any projects or tasks.
-            </p>
-        </div>
-
-        <div v-else class="p-6 space-y-8 w-full">
-            <AiProgressBar :is-processing="isAiProcessing" :progress="aiProgress" />
-
-            <AiProcessingHeader
-                :is-processing="isAiProcessing"
-                :progress="aiProgress"
-                :message="aiStatusMessage"
-            />
-
+        <div class="p-6 space-y-8 w-full">
             <div class="w-full flex items-center gap-3">
                 <OrgSwitcher
                     v-if="isSuperAdmin"
@@ -164,6 +146,25 @@ const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
                 </span>
             </div>
 
+            <div v-if="!projects.length" class="flex flex-col items-center justify-center min-h-[40vh]">
+                <div class="p-4 bg-gray-100 rounded-full mb-4">
+                    <Coffee class="w-12 h-12 text-gray-400" />
+                </div>
+                <h2 class="text-xl font-bold text-gray-900">Coming Soon</h2>
+                <p class="text-gray-500 max-w-xs text-center">
+                    You have not yet been assigned any projects or tasks.
+                </p>
+            </div>
+
+            <template v-else>
+            <AiProgressBar :is-processing="isAiProcessing" :progress="aiProgress" />
+
+            <AiProcessingHeader
+                :is-processing="isAiProcessing"
+                :progress="aiProgress"
+                :message="aiStatusMessage"
+            />
+
             <KanbanBoard
                 v-model:searchQuery="searchQuery"
                 :has-visible-tasks="hasVisibleTasks"
@@ -175,6 +176,7 @@ const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
                 :open-detail="openDetail"
                 :handle-create-new="handleCreateNew"
             />
+            </template>
         </div>
 
         <DocumentDetailSheet
