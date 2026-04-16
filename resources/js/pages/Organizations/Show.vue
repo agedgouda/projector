@@ -8,7 +8,7 @@ import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 import ClientList from '@/components/clients/ClientList.vue';
 import OrganizationForm from './Partials/OrganizationForm.vue';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
-import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase } from 'lucide-vue-next';
+import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase, Cpu } from 'lucide-vue-next';
 import type { BreadcrumbItem } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
 import {
@@ -43,6 +43,12 @@ const props = defineProps<{
     invitations: OrganizationInvitation[];
     clients: Client[];
     projectTypes: ProjectType[];
+    usageTotals: { documents_processed: number; cost_usd: number };
+    usageByClient: Record<string, {
+        documents_processed: number;
+        cost_usd: number;
+        projects: { project_id: string; documents_processed: number; cost_usd: number }[];
+    }>;
 }>();
 
 const page = usePage<AppPageProps>();
@@ -62,7 +68,30 @@ const handleOrgSwitch = (id: string) => {
     });
 };
 
-const activeTab = ref<'team' | 'clients' | 'configuration'>('team');
+const activeTab = ref<'team' | 'clients' | 'configuration' | 'usage'>('team');
+
+const formatCost = (cost: number) =>
+    cost < 0.01 ? '<$0.01' : `$${cost.toFixed(2)}`;
+
+const formatDocs = (n: number) =>
+    `${n.toLocaleString()} ${n === 1 ? 'document' : 'documents'}`;
+
+const clientUsageRows = computed(() => {
+    return Object.entries(props.usageByClient).map(([clientId, data]) => {
+        const client = props.clients.find(c => c.id === clientId);
+        return {
+            clientId,
+            clientName: client?.company_name ?? 'Unknown Client',
+            ...data,
+            projects: data.projects.map(p => {
+                const project = props.clients
+                    .flatMap(c => c.projects ?? [])
+                    .find((pr: any) => pr.id === p.project_id);
+                return { ...p, projectName: project?.name ?? 'Unknown Project' };
+            }),
+        };
+    }).sort((a, b) => b.cost_usd - a.cost_usd);
+});
 const sortedOrgUsers = computed(() =>
     [...(props.currentOrg.users ?? [])].sort((a, b) => a.name.localeCompare(b.name))
 );
@@ -167,6 +196,17 @@ const submitInvite = (orgId: string) => {
                         <SlidersHorizontal class="w-3.5 h-3.5" />
                         Configuration
                     </button>
+                    <button
+                        type="button"
+                        @click="activeTab = 'usage'"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        :class="activeTab === 'usage'
+                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
+                    >
+                        <Cpu class="w-3.5 h-3.5" />
+                        AI Usage
+                    </button>
                 </div>
 
                 <!-- Team Tab -->
@@ -220,6 +260,51 @@ const submitInvite = (orgId: string) => {
                         @success="() => {}"
                         @cancel="() => {}"
                     />
+                </div>
+
+                <!-- AI Usage Tab -->
+                <div v-if="activeTab === 'usage'" class="pt-6 space-y-6">
+                    <!-- Empty state -->
+                    <div v-if="clientUsageRows.length === 0" class="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <Cpu class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
+                        <p class="text-sm font-bold text-slate-500">No AI usage recorded yet</p>
+                        <p class="text-xs text-slate-400 mt-1">Usage will appear here once AI processing runs for this organization.</p>
+                    </div>
+
+                    <!-- Breakdown by client / project -->
+                    <div v-else class="space-y-4">
+                        <div
+                            v-for="row in clientUsageRows"
+                            :key="row.clientId"
+                            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden"
+                        >
+                            <!-- Client header -->
+                            <div class="flex items-center px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                                <span class="text-sm font-black text-slate-800 dark:text-slate-100 flex-1">{{ row.clientName }}</span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400 text-right">{{ formatDocs(row.documents_processed) }}</span>
+                            </div>
+
+                            <!-- Project rows -->
+                            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <div
+                                    v-for="project in row.projects"
+                                    :key="project.project_id"
+                                    class="flex items-center px-5 py-3"
+                                >
+                                    <span class="text-xs text-slate-600 dark:text-slate-300 pl-3 border-l-2 border-indigo-200 dark:border-indigo-800 flex-1">
+                                        {{ project.projectName }}
+                                    </span>
+                                    <span class="text-xs text-slate-400 text-right">{{ formatDocs(project.documents_processed) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total row -->
+                    <div v-if="clientUsageRows.length > 0" class="flex items-center px-5 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+                        <span class="text-sm font-black text-slate-800 dark:text-slate-100 flex-1">Total</span>
+                        <span class="text-sm font-black text-slate-800 dark:text-slate-100">{{ formatDocs(usageTotals.documents_processed) }}</span>
+                    </div>
                 </div>
             </div>
 

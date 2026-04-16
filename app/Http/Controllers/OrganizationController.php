@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\OrganizationRequest;
+use App\Models\AiUsageLog;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\ProjectType;
@@ -72,6 +73,28 @@ class OrganizationController extends Controller
         $clients = $currentOrg->clients()->with('projects')->get();
         $projectTypes = ProjectType::all();
 
+        $usageByProject = AiUsageLog::query()
+            ->where('organization_id', $currentOrg->id)
+            ->where('type', 'llm')
+            ->selectRaw('project_id, client_id, COUNT(*) as documents_processed, SUM(cost_usd) as cost_usd')
+            ->groupBy('project_id', 'client_id')
+            ->get();
+
+        $usageTotals = [
+            'documents_processed' => (int) $usageByProject->sum('documents_processed'),
+            'cost_usd' => (float) $usageByProject->sum('cost_usd'),
+        ];
+
+        $usageByClient = $usageByProject->groupBy('client_id')->map(fn ($rows) => [
+            'documents_processed' => (int) $rows->sum('documents_processed'),
+            'cost_usd' => (float) $rows->sum('cost_usd'),
+            'projects' => $rows->map(fn ($row) => [
+                'project_id' => $row->project_id,
+                'documents_processed' => (int) $row->documents_processed,
+                'cost_usd' => (float) $row->cost_usd,
+            ])->values(),
+        ]);
+
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
             'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
@@ -90,6 +113,8 @@ class OrganizationController extends Controller
             'invitations' => $invitations,
             'clients' => $clients,
             'projectTypes' => $projectTypes,
+            'usageTotals' => $usageTotals,
+            'usageByClient' => $usageByClient,
         ])
             ->toResponse($request)
             ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));

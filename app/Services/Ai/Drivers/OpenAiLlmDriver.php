@@ -2,7 +2,8 @@
 
 namespace App\Services\Ai\Drivers;
 
-use App\Contracts\{LlmDriver, VectorDriver};
+use App\Contracts\LlmDriver;
+use App\Contracts\VectorDriver;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -36,26 +37,26 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
                                         'properties' => [
                                             'title' => [
                                                 'type' => 'string',
-                                                'description' => 'A short, descriptive name for this item.'
+                                                'description' => 'A short, descriptive name for this item.',
                                             ],
                                             $dynamicKey => [
                                                 'type' => 'string',
-                                                'description' => 'The main content or body of the item.'
+                                                'description' => 'The main content or body of the item.',
                                             ],
                                             'criteria' => [
                                                 'type' => 'array',
-                                                'items' => ['type' => 'string']
+                                                'items' => ['type' => 'string'],
                                             ],
                                         ],
                                         'required' => ['title', $dynamicKey, 'criteria'],
                                         'additionalProperties' => false,
-                                    ]
-                                ]
+                                    ],
+                                ],
                             ],
                             'required' => ['items'],
                             'additionalProperties' => false,
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'temperature' => 0.7, // Increased slightly to allow for more creative titles
             ]);
@@ -65,11 +66,16 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
         }
 
         $decoded = json_decode($response->json('choices.0.message.content'), true);
+        $usage = $response->json('usage') ?? [];
 
         // With 'strict' mode, the array is guaranteed to be under the 'items' key
         return [
-            'status'  => 'success',
-            'content' => $decoded['items'] ?? []
+            'status' => 'success',
+            'content' => $decoded['items'] ?? [],
+            'input_tokens' => $usage['prompt_tokens'] ?? 0,
+            'output_tokens' => $usage['completion_tokens'] ?? 0,
+            'driver' => 'openai',
+            'model' => config('services.openai.model', 'gpt-4o-mini'),
         ];
     }
 
@@ -82,7 +88,8 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
             ]);
 
         if ($response->failed()) {
-            Log::error("OpenAI Embedding Failed", ['body' => $response->body()]);
+            Log::error('OpenAI Embedding Failed', ['body' => $response->body()]);
+
             return [];
         }
 

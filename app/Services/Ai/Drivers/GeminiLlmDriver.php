@@ -2,9 +2,9 @@
 
 namespace App\Services\Ai\Drivers;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class GeminiLlmDriver extends AbstractLlmDriver
 {
@@ -18,26 +18,28 @@ class GeminiLlmDriver extends AbstractLlmDriver
         try {
             $response = Http::timeout(60)->post($url, [
                 'system_instruction' => [
-                    'parts' => [['text' => $systemPrompt]]
+                    'parts' => [['text' => $systemPrompt]],
                 ],
                 'contents' => [
-                    ['parts' => [['text' => $userPrompt]]]
+                    ['parts' => [['text' => $userPrompt]]],
                 ],
                 'generationConfig' => [
                     'temperature' => 0,
                     'responseMimeType' => 'application/json',
                     // This is the magic: Gemini's version of Structured Outputs
                     'responseSchema' => $this->getOutputSchema(),
-                ]
+                ],
             ]);
 
             if ($response->failed()) {
-                Log::error("Gemini API Failure", ['body' => $response->body()]);
-                return ['status' => 'error', 'message' => "Gemini Error: " . $response->status(), 'content' => []];
+                Log::error('Gemini API Failure', ['body' => $response->body()]);
+
+                return ['status' => 'error', 'message' => 'Gemini Error: '.$response->status(), 'content' => []];
             }
 
             $data = $response->json();
             $textResponse = $data['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
+            $usage = $data['usageMetadata'] ?? [];
 
             // No regex cleanup needed; responseSchema guarantees valid JSON
             $decoded = json_decode($textResponse, true);
@@ -45,11 +47,16 @@ class GeminiLlmDriver extends AbstractLlmDriver
             return [
                 'status' => 'success',
                 // Always return the flat 'items' array to match OpenAI/Ollama drivers
-                'content' => $decoded['items'] ?? []
+                'content' => $decoded['items'] ?? [],
+                'input_tokens' => $usage['promptTokenCount'] ?? 0,
+                'output_tokens' => $usage['candidatesTokenCount'] ?? 0,
+                'driver' => 'gemini',
+                'model' => $model,
             ];
 
         } catch (Exception $e) {
-            Log::error("Gemini Driver Exception: " . $e->getMessage());
+            Log::error('Gemini Driver Exception: '.$e->getMessage());
+
             return ['status' => 'error', 'message' => $e->getMessage(), 'content' => []];
         }
     }
@@ -71,7 +78,8 @@ class GeminiLlmDriver extends AbstractLlmDriver
             return $response->json('embedding.values') ?? [];
 
         } catch (Exception $e) {
-            Log::error("Gemini Embedding Exception: " . $e->getMessage());
+            Log::error('Gemini Embedding Exception: '.$e->getMessage());
+
             return [];
         }
     }

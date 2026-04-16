@@ -6,6 +6,7 @@ use App\Contracts\LlmDriver;
 use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
+use App\Services\Ai\AiUsageLogger;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use App\Services\VectorService;
 use Illuminate\Support\Facades\Log;
@@ -14,7 +15,8 @@ class ProjectAiService
 {
     public function __construct(
         protected VectorService $vectorService,
-        protected LlmDriver $llmDriver
+        protected LlmDriver $llmDriver,
+        protected AiUsageLogger $usageLogger,
     ) {}
 
     public function process(Document $document)
@@ -81,6 +83,17 @@ class ProjectAiService
         if (($result['status'] ?? '') === 'error') {
             Log::error('LLM Driver Failure', ['error' => $result['message'] ?? 'Unknown error']);
             throw new \Exception($result['message'] ?? 'AI transformation failed');
+        }
+
+        if (isset($result['driver'], $result['model'])) {
+            $this->usageLogger->log(
+                driver: $result['driver'],
+                model: $result['model'],
+                type: 'llm',
+                inputTokens: $result['input_tokens'] ?? 0,
+                outputTokens: $result['output_tokens'] ?? 0,
+                project: $project,
+            );
         }
 
         return [
