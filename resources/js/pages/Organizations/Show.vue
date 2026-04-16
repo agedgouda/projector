@@ -70,9 +70,6 @@ const handleOrgSwitch = (id: string) => {
 
 const activeTab = ref<'team' | 'clients' | 'configuration' | 'usage'>('team');
 
-const formatCost = (cost: number) =>
-    cost < 0.01 ? '<$0.01' : `$${cost.toFixed(2)}`;
-
 const formatDocs = (n: number) =>
     `${n.toLocaleString()} ${n === 1 ? 'document' : 'documents'}`;
 
