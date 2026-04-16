@@ -67,18 +67,18 @@ watch(query, performSearch);
 </script>
 
 <template>
-    <div class="relative w-full">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search class="h-4 w-4 text-gray-400" />
+    <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="relative w-full md:w-80 lg:w-96">
+            <Search class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+                v-model="query"
+                type="text"
+                :placeholder="placeholder || 'Search...'"
+                class="pl-11 pr-10 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300"
+            />
+            <button v-if="query" @click="clear" class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                <X class="w-3 h-3 text-slate-500" />
+            </button>
         </div>
-        <Input
-            v-model="query"
-            type="text"
-            :placeholder="placeholder || 'Search...'"
-            class="pl-10 pr-10 h-10 w-full bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 rounded-xl focus:ring-indigo-500 shadow-sm transition-all"
-        />
-        <button v-if="query" @click="clear" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
-            <X class="h-4 w-4" />
-        </button>
     </div>
 </template>

@@ -76,14 +76,7 @@ class ProjectController extends Controller
         $orgRole = $user->roleInOrganization($organization->id);
         $canManageTranscripts = $isSuperAdmin || in_array($orgRole, ['org-admin', 'project-lead']);
 
-        $kanbanData = $isSuperAdmin
-            ? Project::visibleTo($user, $organization->id)
-                ->with(['documents', 'type'])
-                ->latest()
-                ->get()
-                ->mapWithKeys(fn ($p) => [(string) $p->id => $p->getKanbanDocuments()])
-                ->all()
-            : [(string) $project->id => $project->getKanbanDocuments()];
+        $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
 
         // For super-admins, the kanban branch above uses a separate query and never
         // touches $project, so documents and type are not lazy-loaded on it.

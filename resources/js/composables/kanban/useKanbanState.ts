@@ -85,9 +85,14 @@ export function useKanbanState(props: KanbanProps) {
         const projectId = doc.project_id ?? props.currentProject?.id;
         if (!projectId) return;
 
+        const fromUrl = new URL(window.location.href);
+        if (props.currentProject && !fromUrl.searchParams.has('tab')) {
+            fromUrl.searchParams.set('tab', 'tasks');
+        }
+
         const url = show.url(
             { project: String(projectId), document: String(doc.id) },
-            { query: { from: window.location.href } }
+            { query: { from: fromUrl.toString() } }
         );
         router.visit(url);
     };

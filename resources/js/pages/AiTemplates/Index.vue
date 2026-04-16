@@ -7,6 +7,7 @@ import ResourceList from '@/components/ResourceList.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Search, X, PlusIcon, Edit2, Trash2} from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import aiTemplateRoutes from '@/routes/ai-templates';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { useConfirmDelete } from '@/composables/useConfirmDelete';
@@ -98,17 +99,18 @@ const displayItems = computed(() => {
             </div>
 
             <div class="flex flex-col lg:flex-row gap-4 mb-8">
-                <div class="relative flex-1 group">
-                    <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-                    <input
-                        v-model="searchQuery"
-                        type="text"
-                        placeholder="Search templates..."
-                        class="block w-full pl-11 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
-                    />
-                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <X class="w-4 h-4" />
-                    </button>
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1">
+                    <div class="relative w-full md:w-80 lg:w-96">
+                        <Search class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            v-model="searchQuery"
+                            placeholder="Search templates..."
+                            class="pl-11 pr-10 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300"
+                        />
+                        <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                            <X class="w-3 h-3 text-slate-500" />
+                        </button>
+                    </div>
                 </div>
             </div>
 

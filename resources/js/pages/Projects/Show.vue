@@ -71,8 +71,7 @@ const aiStatusMessageRef = ref('');
 const activeTab = ref(props.activeTab);
 const workflowRows = computed(() =>
     Object.keys(props.kanbanData).map(projectId => {
-        const project = props.projects.find(p => p.id === projectId);
-        return { key: projectId, label: project?.name ?? projectId, is_task: true };
+        return { key: projectId, label: '', is_task: true };
     })
 );
 const currentProjectDocumentSchema = computed(() =>
@@ -131,6 +130,7 @@ const hasVisibleTasks = computed(() => {
 });
 
 const { reprocessableTypes } = useWorkflow(props.currentProject);
+
 
 const onImportQueued = () => {
     targetBeingCreated.value = 'transcript';

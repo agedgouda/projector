@@ -30,9 +30,12 @@ class DashboardController extends Controller
         }
 
         // Super-admins have no org memberships, so fall back to the first organization
-        // when no org context has been established yet.
+        // that has projects, or just the first organization if none have projects.
         if ($isSuperAdmin && ! $orgId) {
-            $orgId = Organization::orderBy('name')->value('id');
+            $orgId = Organization::whereHas('clients.projects')
+                ->orderBy('name')
+                ->value('id')
+                ?? Organization::orderBy('name')->value('id');
         }
 
         setPermissionsTeamId($orgId);

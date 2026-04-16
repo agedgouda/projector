@@ -15,7 +15,7 @@ defineProps<{
 
 <template>
     <div class="space-y-4">
-        <div class="flex items-center gap-4 px-2">
+        <div v-if="row.label" class="flex items-center gap-4 px-2">
             <h3 :class="[KANBAN_UI.label, 'text-indigo-900 bg-indigo-50/80 px-2 py-1 rounded-md border border-indigo-100/50']">
                 {{ row.label }}
             </h3>

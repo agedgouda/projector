@@ -56,17 +56,17 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
             </section>
 
             <section v-if="metadata?.criteria?.length">
-                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 mb-6 flex items-center gap-2">
-                    <div class="w-4 h-px bg-slate-200"></div> Success Criteria
+                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400 mb-6 flex items-center gap-2">
+                    <div class="w-4 h-px bg-slate-200 dark:bg-slate-600"></div> Success Criteria
                 </h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div
                         v-for="(criterion, index) in metadata.criteria"
                         :key="index"
-                        class="flex items-start gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/30 group hover:border-emerald-100 transition-colors"
+                        class="flex items-start gap-3 p-4 rounded-xl border border-slate-100 dark:border-white/10 bg-slate-50/30 dark:bg-white/5 group hover:border-emerald-100 dark:hover:border-emerald-900 transition-colors"
                     >
                         <CheckCircle2 class="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                        <span class="text-[13px] text-slate-600 leading-snug">{{ criterion }}</span>
+                        <span class="text-[13px] text-slate-600 dark:text-slate-300 leading-snug">{{ criterion }}</span>
                     </div>
                 </div>
             </section>
