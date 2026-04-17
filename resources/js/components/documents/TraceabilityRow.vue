@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { ChevronRight, FileText, CheckSquare, Eye, Sparkles, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { useDocumentActions } from '@/composables/useDocumentActions';
+import { statusDotClasses, priorityDotClasses, STATUS_LABELS, PRIORITY_LABELS } from '@/lib/constants';
+import { getAvatarAppearance } from '@/lib/kanban-theme';
 
 const props = defineProps<{
     item: any;
@@ -11,6 +13,7 @@ const props = defineProps<{
     activeEditingId: string | number | null;
     expandedRootIds: Set<string | number>;
     getDocLabel: (type: string) => string;
+    isTaskType: (type: string) => boolean;
     selectedSheetId: string | number | null;
     getLeadUser: (doc: any) => any;
     users: any[];
@@ -27,6 +30,7 @@ const emit = defineEmits<{
 
 const isTreeExpanded = computed(() => props.expandedRootIds instanceof Set && props.expandedRootIds.has(props.item.id));
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
+const isTask = computed(() => props.isTaskType(props.item.type));
 
 // Use the helper to get the lead user for this row
 const leadUser = computed(() => props.getLeadUser(props.item));
@@ -92,10 +96,15 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
                         </div>
                     </div>
 
-                    <div class="hidden md:flex items-center justify-end w-[120px] shrink-0 mr-4">
-                        <div v-if="leadUser" class="flex items-center gap-2 group/user">
-                            <div class="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-sm">
-                                <span class="text-[10px] font-black text-slate-500 uppercase">
+                    <div class="hidden md:flex items-center gap-3 shrink-0 mr-4">
+                        <div v-if="leadUser">
+                            <div
+                                :class="[
+                                    'h-7 w-7 rounded-full border-2 flex items-center justify-center shadow-sm',
+                                    isTask ? getAvatarAppearance(leadUser.id) : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                                ]"
+                            >
+                                <span :class="['text-[10px] font-black uppercase', isTask ? '' : 'text-slate-500']">
                                     {{ leadUser.initials }}
                                 </span>
                             </div>
@@ -103,6 +112,21 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
                         <div v-else class="h-7 w-7 rounded-full border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center">
                             <span class="text-[9px] font-bold text-slate-300">--</span>
                         </div>
+
+                        <template v-if="isTask">
+                            <div v-if="item.priority" class="flex items-center gap-1">
+                                <div :class="['w-2 h-2 rounded-full shrink-0', priorityDotClasses[item.priority] ?? priorityDotClasses.low]"></div>
+                                <span class="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                                    {{ PRIORITY_LABELS[item.priority] ?? item.priority }}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div :class="['w-2 h-2 rounded-full shrink-0', statusDotClasses[item.task_status ?? 'todo']]"></div>
+                                <span class="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                                    {{ STATUS_LABELS[item.task_status ?? 'todo'] }}
+                                </span>
+                            </div>
+                        </template>
                     </div>
 
                     <div class="flex items-center gap-2 text-right shrink-0">
@@ -137,6 +161,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
                 :active-editing-id="activeEditingId"
                 :expanded-root-ids="expandedRootIds"
                 :get-doc-label="getDocLabel"
+                :is-task-type="isTaskType"
                 :selected-sheet-id="selectedSheetId"
                 :get-lead-user="getLeadUser"
                 :users="users"

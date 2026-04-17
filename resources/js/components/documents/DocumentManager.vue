@@ -45,6 +45,10 @@ const getDocLabel = (typeKey: string) => {
     return schema.value.find((item: any) => item.key === typeKey)?.label || typeKey.replace(/_/g, ' ');
 };
 
+const isTaskType = (typeKey: string): boolean => {
+    return schema.value.find((item: any) => item.key === typeKey)?.is_task ?? false;
+};
+
 // --- 2. ACTION LOGIC ---
 const aiStatusMessageRef = ref('');
 
@@ -216,6 +220,7 @@ onMounted(() => {
                 :selected-sheet-id="selectedSheetItem?.id ?? null"
                 :expanded-root-ids="expandedRootIds"
                 :get-doc-label="getDocLabel"
+                :is-task-type="isTaskType"
                 :get-lead-user="getLeadUser"
                 :users="project.client?.users || []"
                 :form="form"

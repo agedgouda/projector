@@ -76,16 +76,15 @@ class ProjectController extends Controller
         $orgRole = $user->roleInOrganization($organization->id);
         $canManageTranscripts = $isSuperAdmin || in_array($orgRole, ['org-admin', 'project-lead']);
 
-        $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
-
-        // For super-admins, the kanban branch above uses a separate query and never
-        // touches $project, so documents and type are not lazy-loaded on it.
-        // For all other roles, getKanbanDocuments() already lazy-loads both as a
-        // side effect. loadMissing() is a no-op for already-loaded relations.
-        $project->loadMissing([
-            'type',
+        // Load type and documents (with all needed relationships) before calling
+        // getKanbanDocuments(), so it uses the already-loaded collection instead
+        // of lazy-loading documents without eager-loaded relationships.
+        $project->loadMissing('type');
+        $project->load([
             'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee'])->latest(),
         ]);
+
+        $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
 
         return Inertia::render('Projects/Show', [
             'projects' => $projects,
