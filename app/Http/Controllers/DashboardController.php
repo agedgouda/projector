@@ -23,10 +23,7 @@ class DashboardController extends Controller
         $isSuperAdmin = $user->hasRole('super-admin');
 
         if ($user->organizations->isEmpty() && ! $isSuperAdmin) {
-            return Inertia::render('Dashboard/AccessPending', [
-                'user' => $user,
-                'message' => 'You have not yet been added to an organization.',
-            ]);
+            return redirect()->route('organization.setup');
         }
 
         // Super-admins have no org memberships, so fall back to the first organization

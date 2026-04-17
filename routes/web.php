@@ -10,6 +10,7 @@ use App\Http\Controllers\MeetingTranscriptController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationLoginController;
 use App\Http\Controllers\OrganizationRegistrationController;
+use App\Http\Controllers\OrganizationSetupController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\RoleController;
@@ -60,6 +61,8 @@ Route::get('access-pending', function () {
 })->middleware(['auth', 'verified'])->name('dashboard.pending');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/organization/setup', [OrganizationSetupController::class, 'create'])->name('organization.setup');
+    Route::post('/organization/setup', [OrganizationSetupController::class, 'store'])->name('organization.setup.store');
 
     /**
      * 1. Management & Admin Area
