@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, nextTick } from 'vue';
 import { toast } from 'vue-sonner';
 import { Search } from 'lucide-vue-next';
 import { useDocumentActions } from '@/composables/useDocumentActions';
@@ -162,6 +162,36 @@ const onDeleteRequested = (doc: any) => {
 
 // --- 5. WORKFLOW LOGIC ---
 const { reprocessableTypes } = useWorkflow(props.project);
+
+// --- 6. EXPANDED STATE + SCROLL PERSISTENCE ---
+const expandedKey = `doc_expanded_${props.project.id}`;
+const scrollKey = `doc_scroll_${props.project.id}`;
+
+// Save expanded IDs to sessionStorage on every change.
+watch(expandedRootIds, (newSet) => {
+    sessionStorage.setItem(expandedKey, JSON.stringify(Array.from(newSet)));
+}, { deep: true });
+
+onMounted(() => {
+    // Restore expanded IDs.
+    const savedExpanded = sessionStorage.getItem(expandedKey);
+    if (savedExpanded) {
+        try {
+            const ids: string[] = JSON.parse(savedExpanded);
+            ids.forEach(id => expandedRootIds.value.add(id));
+        } catch {}
+    }
+
+    // Restore scroll position (saved by navigateToDetails before leaving).
+    const savedScroll = sessionStorage.getItem(scrollKey);
+    if (savedScroll !== null) {
+        sessionStorage.removeItem(scrollKey);
+        const y = parseInt(savedScroll, 10);
+        if (y > 0) {
+            nextTick(() => window.scrollTo({ top: y, behavior: 'instant' }));
+        }
+    }
+});
 
 </script>
 

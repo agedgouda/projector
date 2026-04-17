@@ -142,15 +142,19 @@ export function useDocumentActions(
     const navigateToDetails = (projectId: any, documentId: any, fromTab?: string) => {
         if (!projectId || !documentId) return;
 
-        let url = projectDocumentsRoutes.show({
+        const baseUrl = projectDocumentsRoutes.show({
             project: String(projectId),
             document: String(documentId)
         }).url;
 
-        // Append the tab directly to the URL string
-        if (fromTab) {
-            url += `?tab=${fromTab}`;
-        }
+        // Capture the current URL (which already has ?tab=... and ?expanded=... via replaceState)
+        // and pass it as the `from` param so the back button returns here exactly.
+        const from = window.location.href;
+
+        // Save scroll position so it can be restored on return.
+        sessionStorage.setItem(`doc_scroll_${projectId}`, String(Math.round(window.scrollY)));
+
+        const url = `${baseUrl}?from=${encodeURIComponent(from)}`;
 
         router.get(url);
     };
