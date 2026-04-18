@@ -59,7 +59,7 @@ class DocumentController extends Controller
 
         return inertia('Documents/Show', [
             'project' => $project->load(['type', 'client.organization.users', 'client.organization.invitations']),
-            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user']),
+            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent']),
         ]);
     }
 

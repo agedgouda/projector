@@ -44,6 +44,9 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
 
         <div v-else class="space-y-12">
             <section>
+                <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                    {{ item.name }}
+                </h1>
                 <div class="flex items-center gap-3 mb-6">
                     <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200">
                         {{ getDocLabel(item.type) }}

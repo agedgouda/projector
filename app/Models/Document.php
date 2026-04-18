@@ -98,6 +98,11 @@ class Document extends Model
         return $this->belongsTo(OrganizationInvitation::class, 'pending_assignee_invitation_id');
     }
 
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Document::class, 'parent_id');
+    }
+
     public function scopeNearestNeighbors(Builder $query, array|Vector $vector, int $limit = 5): void
     {
         // The trait 'HasNeighbors' already gives you 'nearestNeighbors'

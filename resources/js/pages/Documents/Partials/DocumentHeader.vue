@@ -1,15 +1,42 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
-defineProps<{
+type AncestorDoc = { id: string | number; name: string; parent?: AncestorDoc | null };
+
+const props = defineProps<{
     project: Project;
     item: {
         id?: string | number;
         name: string;
+        parent?: AncestorDoc | null;
     };
     isEditing: boolean;
 }>();
+
+const ancestors = computed(() => {
+    const chain: { id: string | number; name: string }[] = [];
+    let current = props.item.parent;
+    while (current) {
+        chain.unshift({ id: current.id, name: current.name });
+        current = current.parent ?? null;
+    }
+    return chain;
+});
+
+const getFrom = () => new URLSearchParams(window.location.search).get('from') ?? '';
+
+const navigateToAncestor = (ancestorId: string | number) => {
+    const baseUrl = projectDocumentsRoutes.show({
+        project: String(props.project.id),
+        document: String(ancestorId),
+    }).url;
+    const from = getFrom();
+    router.get(from ? `${baseUrl}?from=${encodeURIComponent(from)}` : baseUrl);
+};
 
 const emit = defineEmits(['back', 'toggle-edit', 'delete']);
 </script>
@@ -25,8 +52,15 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete']);
                     <ArrowLeft class="w-3 h-3" />
                     {{ project.name }}
                 </button>
-                <span class="text-slate-300">/</span>
-                <span class="font-medium text-slate-900 dark:text-white truncate max-w-[300px]">{{ item.name }}</span>
+                <template v-for="ancestor in ancestors" :key="ancestor.id">
+                    <span class="text-slate-300">/</span>
+                    <button
+                        @click="navigateToAncestor(ancestor.id)"
+                        class="hover:text-indigo-600 transition-colors cursor-pointer bg-transparent border-0 p-0 truncate max-w-[200px]"
+                    >
+                        {{ ancestor.name }}
+                    </button>
+                </template>
             </div>
 
             <div class="flex items-center gap-2">
