@@ -14,6 +14,7 @@ defineProps<{
     onDragChange: (event: any, status: TaskStatus, rowKey: string) => void;
     openDetail: (doc: ProjectDocument) => void;
     handleCreateNew: (rowKey: string) => void;
+    canViewProjectDetails?: boolean;
 }>();
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' });
@@ -63,6 +64,7 @@ const searchQuery = defineModel<string>('searchQuery', { default: '' });
                     :on-drag="(evt, status) => onDragChange(evt, status, row.key)"
                     :on-open="openDetail"
                     :on-create="(key) => handleCreateNew(key)"
+                    :can-view-project-details="canViewProjectDetails"
                     :grid-style="{
                         gridTemplateColumns: `repeat(${columnStatuses.length}, minmax(0, 1fr))`
                     }"

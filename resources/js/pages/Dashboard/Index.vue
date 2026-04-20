@@ -27,6 +27,7 @@ const props = defineProps<{
     projectTypes: ProjectType[];
     currentOrganization: { id: string; name: string } | null;
     organizations: { id: string; name: string }[];
+    canViewProjectDetails: boolean;
 }>();
 
 const page = usePage<{ flash?: { success?: string; error?: string } }>();
@@ -175,6 +176,7 @@ const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
                 :on-drag-change="onDragChange"
                 :open-detail="openDetail"
                 :handle-create-new="handleCreateNew"
+                :can-view-project-details="canViewProjectDetails"
             />
             </template>
         </div>

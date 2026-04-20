@@ -54,11 +54,17 @@ class DashboardController extends Controller
             );
         }
 
+        // Remove projects that have no tasks visible to this user.
+        $kanbanData = array_filter($kanbanData, fn ($docs) => count($docs) > 0);
+        $projectIdsWithTasks = array_keys($kanbanData);
+        $projects = $projects->filter(fn ($project) => in_array((string) $project->id, $projectIdsWithTasks))->values();
+
         $clients = $user->newCollection([$user])->availableClients();
 
         $response = Inertia::render('Dashboard/Index', [
             'projects' => $projects,
             'kanbanData' => $kanbanData,
+            'canViewProjectDetails' => ! $isTeamMemberOnly,
             'clients' => $clients,
             'currentOrganization' => $orgId ? Organization::find($orgId, ['id', 'name']) : null,
             'organizations' => $isSuperAdmin ? Organization::orderBy('name')->get(['id', 'name']) : [],
