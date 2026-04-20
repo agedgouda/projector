@@ -1,18 +1,21 @@
 export const STATUS_LABELS: Record<string, string> = {
     todo: 'To Do',
     in_progress: 'In Progress',
+    review: 'In Review',
     done: 'Done'
 };
 
 export const statusClasses: Record<string, string> = {
     todo: 'bg-slate-100 text-slate-500',
-    in_progress: 'bg-indigo-50 text-indigo-600',
+    in_progress: 'bg-red-50 text-red-600',
+    review: 'bg-amber-50 text-amber-600',
     done: 'bg-emerald-50 text-emerald-600'
 };
 
 export const statusDotClasses: Record<string, string> = {
     todo: 'bg-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.4)]',
-    in_progress: 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]',
+    in_progress: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]',
+    review: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]',
     done: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
 };
 

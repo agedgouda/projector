@@ -94,7 +94,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
         >
             <div v-if="comments.length === 0" class="py-12 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl mt-4">
                 <MessageSquare class="w-8 h-8 mx-auto mb-3 text-slate-300" />
-                <p class="text-xs font-medium text-slate-400 uppercase tracking-widest">No discussion yet</p>
+                <p class="text-xs font-medium text-slate-700 uppercase tracking-widest">No discussion yet</p>
             </div>
 
             <div v-for="comment in comments" :key="comment.id" class="group flex gap-3 pr-2">
@@ -129,7 +129,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                         </div>
                     </div>
                     <div
-                        class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed shadow-sm"
+                        class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-[15px] text-slate-900 dark:text-slate-300 leading-relaxed shadow-sm"
                         v-html="sanitize(comment.body)"
                     ></div>
                 </div>

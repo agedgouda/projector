@@ -47,31 +47,31 @@ const invitations = computed(() => props.project.client.organization?.invitation
         <div class="sticky top-10 space-y-6">
             <div class="bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-200 dark:border-white/10 p-8 space-y-8">
                 <div>
-                    <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">Properties</h4>
+                    <h4 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-500 mb-4">Properties</h4>
 
-                    <div class="space-y-5">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-slate-500">Category</span>
-                            <span class="font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded text-[9px] border border-indigo-100 dark:border-indigo-800">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between text-[13px]">
+                            <span class="text-slate-900">Category</span>
+                            <span class="font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded text-[11px] border border-indigo-100 dark:border-indigo-800">
                                 {{ getDocLabel(item.type) || 'New Document' }}
                             </span>
                         </div>
 
                         <div class="flex flex-col" v-if="shouldShowTask">
-                            <div class="flex justify-between items-center h-[24px]">
-                                <span class="text-slate-500 dark:text-slate-400 text-xs">Assignee</span>
+                            <div class="flex justify-between items-center min-h-[24px]">
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Assignee</span>
                                 <Select :model-value="assigneeValue" @update:model-value="(val) => $emit('change', 'assignee_id', val)">
                                     <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="px-2 py-1">
-                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 text-[10px]"><SelectValue /></span>
+                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px]"><SelectValue /></span>
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[200px]">
-                                        <SelectItem value="unassigned" class="text-[10px] uppercase font-bold text-slate-400">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in project.client.organization?.users" :key="user.id" :value="user.id.toString()" class="text-[10px] uppercase font-bold">{{ user.name }}</SelectItem>
+                                        <SelectItem value="unassigned" class="text-[13px] uppercase font-bold text-slate-400">Unassigned</SelectItem>
+                                        <SelectItem v-for="user in project.client.organization?.users" :key="user.id" :value="user.id.toString()" class="text-[13px] uppercase font-bold">{{ user.name }}</SelectItem>
                                         <template v-if="invitations.length > 0">
-                                            <div class="px-2 pt-2 pb-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Invited</div>
-                                            <SelectItem v-for="inv in invitations" :key="inv.id" :value="`inv:${inv.id}`" class="text-[10px] font-bold">
+                                            <div class="px-2 pt-2 pb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Invited</div>
+                                            <SelectItem v-for="inv in invitations" :key="inv.id" :value="`inv:${inv.id}`" class="text-[13px] font-bold">
                                                 {{ inv.email }} <span class="text-slate-400 font-normal">(Invited)</span>
                                             </SelectItem>
                                         </template>
@@ -79,34 +79,34 @@ const invitations = computed(() => props.project.client.organization?.invitation
                                 </Select>
                             </div>
 
-                            <div class="flex justify-between items-center h-[24px]">
-                                <span class="text-slate-500 dark:text-slate-400 text-xs">Due Date</span>
+                            <div class="flex justify-between items-center min-h-[24px]">
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Due Date</span>
                                 <div class="flex items-center hover:bg-slate-100 dark:hover:bg-white/10 pl-2 pr-1 rounded transition-colors cursor-pointer mr-[-3px]">
-                                        <input
-                                            type="date"
-                                            :value="dueAtProxy"
-                                            @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
-                                            :class="[
-                                                'custom-date-input bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 focus:ring-0 cursor-pointer text-right',
-                                                !dueAtProxy ? 'w-[109px] is-empty' : 'w-[93px]'
-                                            ]"
-                                        />
+                                    <input
+                                        type="date"
+                                        :value="dueAtProxy"
+                                        @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
+                                        :class="[
+                                            'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0 cursor-pointer text-right',
+                                            !dueAtProxy ? 'w-[105px] is-empty' : 'w-[105px]'
+                                        ]"
+                                    />
                                 </div>
                             </div>
 
-                            <div class="flex justify-between items-center h-[24px]">
-                                <span class="text-slate-500 dark:text-slate-400 text-xs">Priority</span>
+                            <div class="flex justify-between items-center min-h-[24px]">
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Priority</span>
                                 <Select :model-value="item.priority" @update:model-value="(val) => $emit('change', 'priority', val)">
                                     <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="px-2 py-1">
-                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 text-[10px] flex items-center">
+                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
                                                 <SelectValue />
                                                 <div :class="[priorityDotClasses[item.priority ?? 'low'], 'w-2 h-2 rounded-full ml-2 flex-shrink-0']"></div>
                                             </span>
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[160px]">
-                                        <SelectItem v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key" class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 cursor-pointer focus:bg-slate-100 dark:focus:bg-white/10">
+                                        <SelectItem v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer focus:bg-slate-100 dark:focus:bg-white/10">
                                             <div class="flex items-center justify-between w-full">
                                                 <span>{{ label }}</span>
                                                 <div :class="[priorityDotClasses[key], 'w-2 h-2 rounded-full ml-4 flex-shrink-0']"></div>
@@ -116,19 +116,19 @@ const invitations = computed(() => props.project.client.organization?.invitation
                                 </Select>
                             </div>
 
-                            <div class="flex justify-between items-center h-[24px]">
-                                <span class="text-slate-500 dark:text-slate-400 text-xs">Status</span>
+                            <div class="flex justify-between items-center min-h-[24px]">
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Status</span>
                                 <Select :model-value="item.task_status ?? 'todo'" @update:model-value="(val) => $emit('change', 'task_status', val)">
                                     <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="px-2 py-1">
-                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 text-[10px] flex items-center">
+                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
                                                 <SelectValue />
                                                 <div :class="[statusDotClasses[item.task_status ?? 'todo'], 'w-2 h-2 rounded-full ml-2 flex-shrink-0']"></div>
                                             </span>
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[160px]">
-                                        <SelectItem v-for="(label, key) in STATUS_LABELS" :key="key" :value="key" class="text-[10px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200 cursor-pointer">
+                                        <SelectItem v-for="(label, key) in STATUS_LABELS" :key="key" :value="key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer">
                                             <div class="flex items-center justify-between w-full min-w-[120px]">
                                                 <span>{{ label }}</span>
                                                 <div :class="[statusDotClasses[key], 'w-2 h-2 rounded-full ml-4 flex-shrink-0']"></div>
@@ -142,20 +142,20 @@ const invitations = computed(() => props.project.client.organization?.invitation
                 </div>
 
                 <div v-if="item.id" class="pt-6 border-t border-slate-200 dark:border-white/10">
-                    <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">Dates</h4>
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between text-[10px] uppercase tracking-wider">
-                            <span class="text-slate-500">Created</span>
+                    <h4 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-500 mb-4">Dates</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-[13px]">
+                            <span class="text-slate-900">Created</span>
                             <div class="flex items-center gap-1.5 font-bold">
-                                <span class="text-slate-700 dark:text-slate-200">{{ formatDate(item.created_at) }}</span>
+                                <span class="text-slate-900 dark:text-slate-200">{{ formatDate(item.created_at) }}</span>
                                 <span v-if="item.creator?.name" class="text-slate-400 font-medium lowercase italic">by</span>
                                 <span v-if="item.creator?.name" class="text-indigo-600">{{ item.creator?.name }}</span>
                             </div>
                         </div>
-                        <div class="flex items-center justify-between text-[10px] uppercase tracking-wider">
-                            <span class="text-slate-500">Last Updated</span>
+                        <div class="flex items-center justify-between text-[13px]">
+                            <span class="text-slate-900">Last Updated</span>
                             <div class="flex items-center gap-1.5 font-bold">
-                                <span class="text-slate-700 dark:text-slate-200">{{ formatDate(item.updated_at) }}</span>
+                                <span class="text-slate-900 dark:text-slate-200">{{ formatDate(item.updated_at) }}</span>
                                 <span class="text-slate-400 font-medium lowercase italic">by</span>
                                 <span v-if="item.editor?.name" class="text-indigo-600">{{ item.editor?.name }}</span>
                             </div>

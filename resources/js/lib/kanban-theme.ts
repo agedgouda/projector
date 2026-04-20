@@ -45,7 +45,8 @@ export const KANBAN_UI = {
 
 export const statusCardBg: Record<string, string> = {
     todo: 'bg-slate-500/10',
-    in_progress: 'bg-indigo-500/10',
+    in_progress: 'bg-red-500/10',
+    review: 'bg-amber-400/10',
     done: 'bg-emerald-500/10',
 };
 

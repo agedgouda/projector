@@ -44,7 +44,7 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete']);
 <template>
     <nav class="border-b bg-light-background dark:border-gray-800 px-8 py-4">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+            <div class="flex items-center gap-4 text-sm text-slate-900 dark:text-slate-400">
                 <button
                     @click="emit('back')"
                     class="hover:text-indigo-600 transition-colors flex items-center gap-2 cursor-pointer bg-transparent border-0 p-0"
