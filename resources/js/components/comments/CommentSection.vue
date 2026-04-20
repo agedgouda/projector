@@ -19,6 +19,7 @@ const props = defineProps<{
     comments: Comment[];
     commentableType: 'task' | 'document';
     commentableId: string | number;
+    mentionableUsers?: { id: number; name: string; first_name: string; last_name: string }[];
 }>();
 
 const page = usePage<AppPageProps>();
@@ -34,7 +35,8 @@ const form = useForm({
 
 const { editor } = useDocumentEditor(
     '',
-    (html) => { form.body = html; }
+    (html) => { form.body = html; },
+    props.mentionableUsers ?? [],
 );
 
 const scrollToBottom = () => {

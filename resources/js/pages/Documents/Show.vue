@@ -102,6 +102,7 @@ watch(() => page.props.flash, (flash) => {
                         :comments="item.comments ?? []"
                         commentable-type="document"
                         :commentable-id="item.id"
+                        :mentionable-users="project.client?.organization?.users ?? []"
                     />
                 </div>
             </template>
