@@ -2,7 +2,7 @@
     <div class="min-h-screen bg-light-background">
         <slot name="header" />
 
-        <main class="max-w-7xl mx-auto px-8 py-10">
+        <main class="w-full px-6 py-6">
             <div class="grid grid-cols-12 gap-12">
                 <div class="col-span-12 lg:col-span-8">
                     <slot name="content" />
