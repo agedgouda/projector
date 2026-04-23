@@ -88,7 +88,7 @@ const invitations = computed(() => props.project.client.organization?.invitation
                                         @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
                                         :class="[
                                             'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0 cursor-pointer',
-                                            !dueAtProxy ? 'w-[105px] is-empty text-left' : 'w-[105px] text-right'
+                                            !dueAtProxy ? 'w-[112px] is-empty text-left' : 'w-[112px] text-right'
                                         ]"
                                     />
                                 </div>

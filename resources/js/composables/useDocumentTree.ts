@@ -49,9 +49,7 @@ export function useDocumentTree(
                 if (parentId !== null) {
                     return d.parent_id === parentId;
                 }
-                const schemaItem = schema.value.find(s => s.key === d.type);
-                const isTask = schemaItem?.is_task ?? false;
-                return d.parent_id === null && !isTask;
+                return d.parent_id === null;
             })
             .map(d => ({
                 ...d,

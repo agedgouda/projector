@@ -20,7 +20,7 @@ class DocumentController extends Controller
         Gate::authorize('create', [Document::class, $project]);
 
         return inertia('Documents/Create', [
-            'project' => $project->load(['type', 'client.users']),
+            'project' => $project->load(['type', 'client.organization.users', 'client.organization.invitations']),
             'redirectUrl' => $request->query('redirect'),
         ]);
     }
@@ -38,9 +38,12 @@ class DocumentController extends Controller
             ['creator_id' => $request->user()->id]
         ));
 
-        $target = $request->query('redirect')
-                ?? redirect()->intended()->getTargetUrl()
-                ?? route('dashboard', ['project' => $project->id]);
+        $project->loadMissing('type');
+        $isTask = in_array($document->type, $project->type->getTaskKeys());
+
+        $target = $isTask
+            ? ($request->query('redirect') ?? route('projects.show', $project).'?tab=tasks')
+            : route('projects.show', $project).'?tab=hierarchy';
 
         return redirect()->to($target)
             ->with('success', 'Document created successfully.');
