@@ -103,6 +103,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/organizations/{organization}/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
         ->name('organizations.invitations.resend');
 
+    // Status Meetings (org-level, org resolved from cookie/query like Organizations)
+    Route::get('/status-meetings', [\App\Http\Controllers\OrgDocumentController::class, 'index'])
+        ->name('status-meetings.index');
+
+    // Org Documents (status meetings CRUD, nested under org for authorization)
+    Route::post('/organizations/{organization}/import-recording', [\App\Http\Controllers\OrgDocumentController::class, 'importFromRecording'])
+        ->name('organizations.import-recording');
+
+    Route::prefix('organizations/{organization}/documents')->name('organizations.documents.')->group(function () {
+        Route::get('/create', [\App\Http\Controllers\OrgDocumentController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\OrgDocumentController::class, 'store'])->name('store');
+        Route::get('/{orgDocument}', [\App\Http\Controllers\OrgDocumentController::class, 'show'])->name('show');
+        Route::patch('/{orgDocument}', [\App\Http\Controllers\OrgDocumentController::class, 'update'])->name('update');
+        Route::delete('/{orgDocument}', [\App\Http\Controllers\OrgDocumentController::class, 'destroy'])->name('destroy');
+        Route::post('/{orgDocument}/import-recording', [\App\Http\Controllers\OrgDocumentController::class, 'importRecording'])->name('import-recording');
+        Route::post('/{orgDocument}/process-draft', [\App\Http\Controllers\OrgDocumentController::class, 'processDraft'])->name('process-draft');
+        Route::patch('/{orgDocument}/save-draft', [\App\Http\Controllers\OrgDocumentController::class, 'saveDraft'])->name('save-draft');
+        Route::post('/{orgDocument}/commit-draft', [\App\Http\Controllers\OrgDocumentController::class, 'commitDraft'])->name('commit-draft');
+    });
+
     Route::post('/projects/evaluate-description', [ProjectController::class, 'evaluateDescription'])
         ->middleware('throttle:20,1')
         ->name('projects.evaluate-description');

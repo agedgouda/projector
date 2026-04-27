@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
-
 class AiTemplateController extends Controller
 {
     public function index()
@@ -15,21 +14,21 @@ class AiTemplateController extends Controller
         Gate::authorize('viewAny', AiTemplate::class);
 
         return inertia('AiTemplates/Index', [
-            'templates' => AiTemplate::orderBy('name')->get()
+            'templates' => AiTemplate::orderBy('type')->orderBy('name')->get(),
         ]);
     }
 
     public function show(AiTemplate $aiTemplate)
-{
-    return Inertia::render('AiTemplates/Show', [
-        'aiTemplate' => [
-            'id' => $aiTemplate->id,
-            'name' => $aiTemplate->name,
-            'system_prompt' => $aiTemplate->system_prompt,
-            'user_prompt' => $aiTemplate->user_prompt,
-        ]
-    ]);
-}
+    {
+        return Inertia::render('AiTemplates/Show', [
+            'aiTemplate' => [
+                'id' => $aiTemplate->id,
+                'name' => $aiTemplate->name,
+                'system_prompt' => $aiTemplate->system_prompt,
+                'user_prompt' => $aiTemplate->user_prompt,
+            ],
+        ]);
+    }
 
     public function create()
     {

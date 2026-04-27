@@ -283,6 +283,26 @@ export interface AiDriverOption {
         expires_at: string;
     }
 
+    // --- STATUS MEETINGS ---
+    export interface StatusMeeting {
+        id: string;
+        name: string;
+        type: string;
+        created_at: string;
+        creator?: { name: string } | null;
+    }
+
+    export interface OrgOption {
+        id: string;
+        name: string;
+    }
+
+    export interface RecordingsData {
+        recordings: Recording[];
+        importedIds: string[];
+        providerError: string | null;
+    }
+
     // --- MEETING TRANSCRIPTS ---
     export interface Recording {
         id: string;
@@ -342,6 +362,7 @@ export interface AiDriverOption {
      export interface AiTemplate {
         id: number;
         name: string;
+        type: 'workflow' | 'org_extraction';
         system_prompt: string;
         user_prompt: string;
         created_at: string;

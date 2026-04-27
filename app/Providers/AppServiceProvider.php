@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Contracts\LlmDriver;
 use App\Contracts\VectorDriver;
 use App\Models\Document;
+use App\Models\OrgDocument;
 use App\Observers\DocumentObserver;
+use App\Observers\OrgDocumentObserver;
 use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
 use App\Services\Ai\Drivers\OpenAiLlmDriver;
@@ -77,5 +79,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Register Model Observers
         Document::observe(DocumentObserver::class);
+        OrgDocument::observe(OrgDocumentObserver::class);
     }
 }

@@ -18,6 +18,7 @@ import userRoutes from '@/routes/users/index';
 import projectRoutes from '@/routes/projects/index';
 import projectTypeRoutes from '@/routes/project-types/index';
 import organizationRoutes from '@/routes/organizations/index';
+import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import roleRoutes from '@/routes/roles/index';
 import aiRoutes from '@/routes/ai-templates/index';
 
@@ -26,7 +27,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
 
-import { BookOpen, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2 } from 'lucide-vue-next';
+import { BookOpen, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();
@@ -35,11 +36,21 @@ const isSuperAdmin = computed(() => hasRole('super-admin'));
 const hasOrganizations = computed(() => (page.props.auth.user.organizations?.length ?? 0) > 0);
 
 
+const canSeeStatusMeetings = computed(() =>
+    isSuperAdmin.value || hasRole('org-admin') || hasRole('project-lead')
+);
+
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Status Meetings',
+        href: statusMeetingsRoutes.index(),
+        icon: CalendarDays,
+        hidden: !canSeeStatusMeetings.value,
     },
     {
         title: 'Projects',

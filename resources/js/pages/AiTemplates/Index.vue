@@ -64,12 +64,16 @@ const displayItems = computed(() => {
         list = list.filter(t => t.name.toLowerCase().includes(query));
     }
 
-    const flattened: any[] = [];
-    flattened.push({ isHeader: true, name: 'Active Intelligence Protocols', count: list.length });
+    const workflows = list.filter(t => t.type === 'workflow');
+    const orgExtraction = list.filter(t => t.type === 'org_extraction');
 
-    list.forEach((t) => {
-        flattened.push({ ...t, isHeader: false });
-    });
+    const flattened: any[] = [];
+
+    flattened.push({ isHeader: true, name: 'Workflow Templates', count: workflows.length });
+    workflows.forEach(t => flattened.push({ ...t, isHeader: false }));
+
+    flattened.push({ isHeader: true, name: 'Org Document Extraction', count: orgExtraction.length });
+    orgExtraction.forEach(t => flattened.push({ ...t, isHeader: false }));
 
     return flattened;
 });

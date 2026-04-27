@@ -8,6 +8,7 @@ class AiTemplate extends Model
 {
     protected $fillable = [
         'name',
+        'type',
         'system_prompt',
         'user_prompt',
     ];
