@@ -3,8 +3,16 @@ import { ref, computed, watch } from 'vue';
 import { router, Deferred } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
-import { PlusIcon, ShieldAlert } from 'lucide-vue-next';
+import { PlusIcon, ShieldAlert, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -199,6 +207,22 @@ const handleCreateNavigation = (projectId: string) => {
     });
 };
 
+const isReactivateModalOpen = ref(false);
+const isReactivating = ref(false);
+
+const reactivateProject = () => {
+    if (!props.currentProject) return;
+    isReactivating.value = true;
+    router.patch(projectRoutes.reactivate.url(String(props.currentProject.id)), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isReactivateModalOpen.value = false;
+            toast.success('Project reactivated');
+        },
+        onFinish: () => { isReactivating.value = false; },
+    });
+};
+
 watch(() => props.currentProject, (newProject) => {
     if (newProject?.id) {
         localStorage.setItem('last_project_id', newProject.id.toString());
@@ -242,12 +266,40 @@ watch(() => props.currentProject, (newProject) => {
 
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <Button
+                        v-if="!currentProject.inactive"
                         @click="handleCreateNavigation(currentProject.id)"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
                     >
                         <PlusIcon class="h-4 w-4 mr-2" /> New Intake
                     </Button>
+                    <Button
+                        v-else
+                        @click="isReactivateModalOpen = true"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
+                    >
+                        <RefreshCw class="h-4 w-4 mr-2" /> Reactivate Project
+                    </Button>
                 </div>
+
+                <Dialog :open="isReactivateModalOpen" @update:open="isReactivateModalOpen = false">
+                    <DialogContent class="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Reactivate Project</DialogTitle>
+                            <DialogDescription>
+                                Are you sure you would like to reactivate this project?
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter class="gap-2 sm:gap-4">
+                            <Button variant="outline" @click="isReactivateModalOpen = false" :disabled="isReactivating">
+                                Cancel
+                            </Button>
+                            <Button @click="reactivateProject" :disabled="isReactivating" class="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                <RefreshCw v-if="isReactivating" class="h-4 w-4 mr-2 animate-spin" />
+                                Reactivate
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">

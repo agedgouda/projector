@@ -16,11 +16,19 @@ class Project extends Model
         'name',
         'description',
         'description_quality',
+        'inactive',
         'project_type_id',
         'client_id',
         'document_id',
         'current_lifecycle_step_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'inactive' => 'boolean',
+        ];
+    }
 
     // Explicitly define the primary key type for UUIDs
     protected $keyType = 'string';

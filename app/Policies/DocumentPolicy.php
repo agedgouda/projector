@@ -52,12 +52,12 @@ class DocumentPolicy
 
     public function create(User $user, Project $project): bool
     {
-        return $this->canAccessProject($user, $project);
+        return ! $project->inactive && $this->canAccessProject($user, $project);
     }
 
     public function update(User $user, Document $document): bool
     {
-        return $this->canAccessProject($user, $document->project);
+        return ! $document->project->inactive && $this->canAccessProject($user, $document->project);
     }
 
     /**
@@ -65,6 +65,10 @@ class DocumentPolicy
      */
     public function updateAttributes(User $user, Document $document): bool
     {
+        if ($document->project->inactive) {
+            return false;
+        }
+
         if ($document->project->client->organization_id !== getPermissionsTeamId()) {
             return false;
         }
@@ -74,6 +78,10 @@ class DocumentPolicy
 
     public function comment(User $user, Document $document): bool
     {
+        if ($document->project->inactive) {
+            return false;
+        }
+
         if ($document->project->client->organization_id !== getPermissionsTeamId()) {
             return false;
         }
@@ -83,6 +91,6 @@ class DocumentPolicy
 
     public function delete(User $user, Document $document): bool
     {
-        return $this->canAccessProject($user, $document->project);
+        return ! $document->project->inactive && $this->canAccessProject($user, $document->project);
     }
 }

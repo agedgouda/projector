@@ -103,6 +103,7 @@ watch(() => page.props.flash, (flash) => {
                         commentable-type="document"
                         :commentable-id="item.id"
                         :mentionable-users="project.client?.organization?.users ?? []"
+                        :read-only="project.inactive"
                     />
                 </div>
             </template>

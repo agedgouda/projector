@@ -224,6 +224,7 @@ onMounted(() => {
                 :get-lead-user="getLeadUser"
                 :users="project.client?.users || []"
                 :form="form"
+                :is-read-only="project.inactive"
                 @toggle-root="toggleRoot"
                 @prepare-edit="handlePrepareEdit"
                 @handle-reprocess="handleReprocess"

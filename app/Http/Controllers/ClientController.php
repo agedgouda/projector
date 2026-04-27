@@ -80,7 +80,13 @@ class ClientController extends Controller
         setPermissionsTeamId($client->organization_id);
         Gate::authorize('update', $client);
 
-        $client->update($request->validated());
+        $validated = $request->validated();
+
+        $client->update($validated);
+
+        if (($validated['inactive'] ?? false) === true) {
+            $client->projects()->update(['inactive' => true]);
+        }
 
         return back()->with('success', 'Client updated.');
     }

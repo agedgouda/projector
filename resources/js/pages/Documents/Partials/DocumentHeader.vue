@@ -63,7 +63,7 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete']);
                 </template>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div v-if="!project.inactive" class="flex items-center gap-2">
                 <Button
                     variant="outline"
                     size="sm"

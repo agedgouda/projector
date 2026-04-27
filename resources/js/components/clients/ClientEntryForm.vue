@@ -25,6 +25,7 @@ const form = useForm({
     contact_name: '',
     contact_phone: '',
     email: '',
+    inactive: false,
 });
 
 watch(() => props.editData, (newVal) => {
@@ -34,6 +35,7 @@ watch(() => props.editData, (newVal) => {
         form.contact_name = newVal.contact_name;
         form.contact_phone = newVal.contact_phone ?? '';
         form.email = newVal.email ?? '';
+        form.inactive = newVal.inactive ?? false;
     } else {
         isEditing.value = false;
         form.reset();
@@ -108,6 +110,16 @@ const submit = () => {
                     class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
                 />
                 <p v-if="form.errors.email" class="text-destructive text-xs mt-1">{{ form.errors.email }}</p>
+            </div>
+
+            <div v-if="isEditing" class="flex items-center gap-2">
+                <input
+                    id="client-inactive"
+                    v-model="form.inactive"
+                    type="checkbox"
+                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <Label for="client-inactive" class="cursor-pointer">Inactive</Label>
             </div>
 
             <div class="flex gap-2 pt-2 items-center">

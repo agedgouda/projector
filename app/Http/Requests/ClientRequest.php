@@ -48,6 +48,7 @@ class ClientRequest extends FormRequest
             'contact_phone' => ['nullable', 'string', 'max:20', 'required_without:email'],
             'email' => ['nullable', 'email', 'max:255', 'required_without:contact_phone'],
             'website' => ['nullable', 'url', 'max:255'],
+            'inactive' => ['boolean'],
         ];
     }
 }

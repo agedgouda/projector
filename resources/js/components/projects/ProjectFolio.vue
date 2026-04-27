@@ -64,6 +64,9 @@ const executeDelete = () => {
                     <span class="font-bold text-sm text-slate-900 dark:text-zinc-100 truncate">
                         {{ project.name }}
                     </span>
+                    <span v-if="project.inactive" class="shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
+                        Inactive
+                    </span>
                 </div>
                 <p class="text-[11px] text-slate-500 dark:text-zinc-500 truncate max-w-md">
                     <span class="font-black uppercase tracking-tighter text-[9px] opacity-70">

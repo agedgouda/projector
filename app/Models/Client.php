@@ -18,7 +18,15 @@ class Client extends Model
         'contact_name',
         'contact_phone',
         'email',
+        'inactive',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'inactive' => 'boolean',
+        ];
+    }
 
     protected $keyType = 'string';
 

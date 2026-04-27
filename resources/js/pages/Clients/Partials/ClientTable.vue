@@ -62,8 +62,11 @@ const handleDelete = () => {
                             </div>
 
                             <div class="space-y-1">
-                                <h3 class="font-black text-gray-900 dark:text-white tracking-tight text-lg">
+                                <h3 class="font-black text-gray-900 dark:text-white tracking-tight text-lg flex items-center gap-2">
                                     {{ client.company_name }}
+                                    <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
+                                        Inactive
+                                    </span>
                                 </h3>
                                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
                                     <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-medium">

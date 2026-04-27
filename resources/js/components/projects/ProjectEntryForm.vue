@@ -38,6 +38,7 @@ const originalDescription = props.editData?.description ?? '';
 const form = useForm({
     name: props.editData?.name || '',
     description: props.editData?.description || '',
+    inactive: props.editData?.inactive ?? false,
     client_id: props.editData?.client_id || props.client?.id || '',
     project_type_id: props.editData?.project_type_id || '',
 });
@@ -189,6 +190,18 @@ const submit = async () => {
                         Consider adding more detail about the project's purpose, audience, or goals.
                     </p>
                 </div>
+            </div>
+
+            <div v-if="isEditing" class="flex items-center gap-2 pt-2">
+                <input
+                    id="project-inactive"
+                    v-model="form.inactive"
+                    type="checkbox"
+                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <Label for="project-inactive" class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    Inactive
+                </Label>
             </div>
 
             <template v-if="!isEditing">

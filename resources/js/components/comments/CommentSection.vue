@@ -20,6 +20,7 @@ const props = defineProps<{
     commentableType: 'task' | 'document';
     commentableId: string | number;
     mentionableUsers?: { id: number; name: string; first_name: string; last_name: string }[];
+    readOnly?: boolean;
 }>();
 
 const page = usePage<AppPageProps>();
@@ -139,6 +140,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
         </div>
 
         <div
+            v-if="!readOnly"
             class="shrink-0 bg-white dark:bg-slate-900 pt-4 px-0.5 pb-0.5 border-t border-slate-100 dark:border-slate-800"
             @keydown.meta.enter="submitComment"
             @keydown.ctrl.enter="submitComment"

@@ -122,6 +122,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/projects/{project}/lifecycle-step', [ProjectController::class, 'updateLifecycleStep'])
             ->name('projects.lifecycle-step');
 
+        Route::patch('/projects/{project}/reactivate', [ProjectController::class, 'reactivate'])
+            ->name('projects.reactivate');
+
         // 3. Project Documents & Transcripts
         Route::prefix('projects/{project}')->name('projects.')->group(function () {
             Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])

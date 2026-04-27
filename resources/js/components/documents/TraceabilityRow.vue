@@ -18,6 +18,7 @@ const props = defineProps<{
     getLeadUser: (doc: any) => any;
     users: any[];
     form: any;
+    isReadOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -131,7 +132,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
 
                     <div class="flex items-center gap-2 text-right shrink-0">
                         <Button
-                            v-if="isReprocessable"
+                            v-if="isReprocessable && !isReadOnly"
                             variant="ghost" size="sm" @click.stop="emit('handleReprocess', item.id)"
                             :disabled="item.currentStatus || item.processed_at === null"
                             class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl group/ai"
@@ -166,6 +167,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
                 :get-lead-user="getLeadUser"
                 :users="users"
                 :form="form"
+                :is-read-only="isReadOnly"
                 @toggle-root="id => emit('toggleRoot', id)"
                 @handle-reprocess="id => emit('handleReprocess', id)"
                 @on-delete-requested="i => emit('onDeleteRequested', i)"

@@ -33,6 +33,7 @@ class ProjectController extends Controller
         }
 
         $projects = Project::visibleTo($user, $orgId)
+            ->whereHas('client', fn ($q) => $q->where('inactive', false))
             ->latest()
             ->get()
             ->withSummary();
@@ -51,7 +52,7 @@ class ProjectController extends Controller
         $user = auth()->user();
 
         // 1. Get projects using your custom collection
-        $projects = Project::visibleTo($user)->latest()->get()->withDashboardContext();
+        $projects = Project::visibleTo($user)->where('inactive', false)->latest()->get()->withDashboardContext();
 
         if ($projects->isEmpty()) {
             return Inertia::render('Dashboard/AccessPending', [
@@ -220,6 +221,18 @@ class ProjectController extends Controller
         }
 
         return redirect()->route('dashboard')->with('success', $message);
+    }
+
+    public function reactivate(Project $project): RedirectResponse
+    {
+        setPermissionsTeamId($project->organization_id);
+        Gate::authorize('update', $project);
+
+        $project->update(['inactive' => false]);
+
+        $project->client->update(['inactive' => false]);
+
+        return back()->with('success', 'Project reactivated.');
     }
 
     public function updateLifecycleStep(Request $request, Project $project): RedirectResponse

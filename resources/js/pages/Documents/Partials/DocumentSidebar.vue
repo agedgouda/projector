@@ -60,8 +60,8 @@ const invitations = computed(() => props.project.client.organization?.invitation
                         <div class="flex flex-col" v-if="shouldShowTask">
                             <div class="flex justify-between items-center min-h-[24px]">
                                 <span class="text-slate-900 dark:text-slate-400 text-[13px]">Assignee</span>
-                                <Select :model-value="assigneeValue" @update:model-value="(val) => $emit('change', 'assignee_id', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
+                                <Select :model-value="assigneeValue" :disabled="project.inactive" @update:model-value="(val) => $emit('change', 'assignee_id', val)">
+                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none disabled:opacity-50 disabled:pointer-events-none">
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px]"><SelectValue /></span>
                                         </div>
@@ -85,9 +85,11 @@ const invitations = computed(() => props.project.client.organization?.invitation
                                     <input
                                         type="date"
                                         :value="dueAtProxy"
+                                        :disabled="project.inactive"
                                         @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
                                         :class="[
-                                            'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0 cursor-pointer',
+                                            'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0',
+                                            project.inactive ? 'opacity-50 cursor-default' : 'cursor-pointer',
                                             !dueAtProxy ? 'w-[112px] is-empty text-left' : 'w-[112px] text-right'
                                         ]"
                                     />
@@ -96,8 +98,8 @@ const invitations = computed(() => props.project.client.organization?.invitation
 
                             <div class="flex justify-between items-center min-h-[24px]">
                                 <span class="text-slate-900 dark:text-slate-400 text-[13px]">Priority</span>
-                                <Select :model-value="item.priority" @update:model-value="(val) => $emit('change', 'priority', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
+                                <Select :model-value="item.priority" :disabled="project.inactive" @update:model-value="(val) => $emit('change', 'priority', val)">
+                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none disabled:opacity-50 disabled:pointer-events-none">
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
                                                 <SelectValue />
@@ -118,8 +120,8 @@ const invitations = computed(() => props.project.client.organization?.invitation
 
                             <div class="flex justify-between items-center min-h-[24px]">
                                 <span class="text-slate-900 dark:text-slate-400 text-[13px]">Status</span>
-                                <Select :model-value="item.task_status ?? 'todo'" @update:model-value="(val) => $emit('change', 'task_status', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none">
+                                <Select :model-value="item.task_status ?? 'todo'" :disabled="project.inactive" @update:model-value="(val) => $emit('change', 'task_status', val)">
+                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none disabled:opacity-50 disabled:pointer-events-none">
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
                                                 <SelectValue />

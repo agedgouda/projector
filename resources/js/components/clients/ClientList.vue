@@ -132,6 +132,9 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                         <div class="flex flex-col">
                             <h2 class="font-black uppercase tracking-tight text-sm text-gray-700 dark:text-zinc-200 flex items-center gap-2">
                                 {{ client.company_name }}
+                                <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
+                                    Inactive
+                                </span>
                                 <span class="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-2 py-0.5 rounded-full font-black">
                                     {{ client.projects?.length || 0 }} {{ (client.projects?.length === 1) ? 'Project' : 'Projects' }}
                                 </span>
