@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreOrgDocumentRequest;
 use App\Jobs\ImportOrgMeetingTranscript;
 use App\Jobs\ProcessOrgDocumentAI;
+use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrgDocument;
 use App\Models\Project;
 use App\Services\MeetingTranscriptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -28,10 +30,50 @@ class OrgDocumentController extends Controller
         setPermissionsTeamId($organization->id);
         Gate::authorize('viewAny', [OrgDocument::class, $organization]);
 
-        $statusMeetings = $organization->orgDocuments()
+        $orgDocuments = $organization->orgDocuments()
             ->with('creator')
             ->latest()
             ->get();
+
+        $orgDocumentIds = $orgDocuments->pluck('id')->filter()->values();
+
+        $linkedDocumentsByOrgId = $orgDocumentIds->isNotEmpty()
+            ? Document::whereIn(DB::raw("metadata->>'source_org_document_id'"), $orgDocumentIds->toArray())
+                ->with('project.client')
+                ->get()
+                ->groupBy(fn ($d) => $d->metadata['source_org_document_id'] ?? null)
+            : collect();
+
+        $statusMeetings = $orgDocuments->map(function (OrgDocument $meeting) use ($linkedDocumentsByOrgId) {
+            $draft = $meeting->metadata['ai_draft'] ?? null;
+
+            return [
+                'id' => $meeting->id,
+                'name' => $meeting->name,
+                'type' => $meeting->type,
+                'content' => $meeting->content,
+                'processed_at' => $meeting->processed_at,
+                'created_at' => $meeting->created_at,
+                'creator' => $meeting->creator ? ['name' => $meeting->creator->name] : null,
+                'ai_draft_status' => $draft['status'] ?? null,
+                'ai_draft_error' => $draft['error'] ?? null,
+                'ai_draft_groups' => collect($draft['groups'] ?? [])->map(fn ($g) => [
+                    'group_id' => $g['group_id'] ?? null,
+                    'project_id' => $g['project_id'] ?? null,
+                    'project_name' => $g['project_name'] ?? '',
+                    'client_name' => $g['client_name'] ?? '',
+                    'document_title' => $g['document_title'] ?? '',
+                ])->values()->all(),
+                'linked_documents' => $linkedDocumentsByOrgId->get($meeting->id, collect())->map(fn ($d) => [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'type' => $d->type,
+                    'project_id' => $d->project_id,
+                    'project_name' => $d->project?->name ?? '',
+                    'client_name' => $d->project?->client?->company_name ?? '',
+                ])->values()->all(),
+            ];
+        })->values()->all();
 
         $userOrganizations = $user->hasRole('super-admin')
             ? Organization::all(['id', 'name'])
@@ -119,8 +161,18 @@ class OrgDocumentController extends Controller
 
         $orgDocument = $organization->orgDocuments()->create($request->validated());
 
+        if (! empty($orgDocument->content)) {
+            $orgDocument->updateQuietly([
+                'metadata' => array_merge($orgDocument->metadata ?? [], [
+                    'ai_draft' => ['status' => 'processing'],
+                ]),
+            ]);
+
+            ProcessOrgDocumentAI::dispatch($orgDocument);
+        }
+
         return redirect()
-            ->route('organizations.documents.show', ['organization' => $organization->id, 'orgDocument' => $orgDocument->id])
+            ->route('status-meetings.index')
             ->with('success', 'Status meeting created successfully.');
     }
 
@@ -137,9 +189,9 @@ class OrgDocumentController extends Controller
 
         $activeProjects = Project::whereHas('client', fn ($q) => $q->where('organization_id', $organization->id))
             ->where('inactive', false)
-            ->with('client:id,name')
+            ->with('client:id,company_name')
             ->get(['id', 'name', 'client_id'])
-            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'client_name' => $p->client->name ?? '']);
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'client_name' => $p->client->company_name ?? '']);
 
         return inertia('Organizations/Documents/Show', [
             'organization' => $organization->only('id', 'name'),
@@ -262,21 +314,19 @@ class OrgDocumentController extends Controller
         $validated = $request->validate([
             'groups' => 'required|array',
             'groups.*.project_id' => 'required|uuid|exists:projects,id',
-            'groups.*.action_items' => 'required|array|min:1',
-            'groups.*.action_items.*.content' => 'required|string|max:2000',
+            'groups.*.document_title' => 'required|string|max:500',
+            'groups.*.document_content' => 'required|string',
         ]);
 
         foreach ($validated['groups'] as $group) {
             $project = Project::findOrFail($group['project_id']);
 
-            foreach ($group['action_items'] as $item) {
-                $project->documents()->create([
-                    'type' => 'action_item',
-                    'name' => mb_strimwidth($item['content'], 0, 100, '…'),
-                    'content' => $item['content'],
-                    'metadata' => ['source_org_document_id' => $orgDocument->id],
-                ]);
-            }
+            $project->documents()->create([
+                'type' => 'action_items',
+                'name' => $group['document_title'],
+                'content' => $group['document_content'],
+                'metadata' => ['source_org_document_id' => $orgDocument->id],
+            ]);
         }
 
         $orgDocument->updateQuietly([

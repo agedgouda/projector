@@ -274,6 +274,16 @@
     }
 }
 
+/* --- Rendered HTML content (v-html prose areas) --- */
+
+.prose-content h1 { @apply text-xl font-black text-slate-900 dark:text-white mb-3; }
+.prose-content h2 { @apply text-base font-black text-slate-800 dark:text-slate-100 mb-2; }
+.prose-content p  { @apply text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-3; }
+.prose-content ol { @apply list-decimal pl-6 space-y-2 mb-3; }
+.prose-content ul { @apply list-disc pl-6 space-y-2 mb-3; }
+.prose-content li { @apply text-sm text-slate-700 dark:text-slate-300 leading-relaxed; }
+.prose-content strong { @apply font-bold text-slate-900 dark:text-white; }
+
 /* --- AI Logo Animation (Global) --- */
 
 /* Target elements when the parent has the .ai-active class */

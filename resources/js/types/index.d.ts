@@ -284,12 +284,35 @@ export interface AiDriverOption {
     }
 
     // --- STATUS MEETINGS ---
+    export interface StatusMeetingLinkedDocument {
+        id: string;
+        name: string;
+        type: string;
+        project_id: string;
+        project_name: string;
+        client_name: string;
+    }
+
+    export interface StatusMeetingDraftGroup {
+        group_id: string;
+        project_id: string | null;
+        project_name: string;
+        client_name: string;
+        document_title: string;
+    }
+
     export interface StatusMeeting {
         id: string;
         name: string;
         type: string;
+        content: string;
+        processed_at: string | null;
         created_at: string;
         creator?: { name: string } | null;
+        ai_draft_status: 'processing' | 'pending_review' | 'committed' | 'failed' | null;
+        ai_draft_error?: string | null;
+        ai_draft_groups: StatusMeetingDraftGroup[];
+        linked_documents: StatusMeetingLinkedDocument[];
     }
 
     export interface OrgOption {

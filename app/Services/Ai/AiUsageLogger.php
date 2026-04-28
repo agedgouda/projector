@@ -15,12 +15,13 @@ class AiUsageLogger
         int $inputTokens,
         int $outputTokens,
         ?Project $project = null,
+        ?string $organizationId = null,
     ): void {
         try {
             $costUsd = $this->calculateCost($driver, $model, $inputTokens, $outputTokens);
 
             AiUsageLog::create([
-                'organization_id' => $project?->client?->organization_id,
+                'organization_id' => $project?->client?->organization_id ?? $organizationId,
                 'client_id' => $project?->client_id,
                 'project_id' => $project?->id,
                 'driver' => $driver,

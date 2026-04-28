@@ -30,7 +30,7 @@ class ProcessOrgDocumentAI implements ShouldQueue
 
         $activeProjects = Project::whereHas('client', fn ($q) => $q->where('organization_id', $organization->id))
             ->where('inactive', false)
-            ->with('client:id,name')
+            ->with('client:id,company_name')
             ->get(['id', 'name', 'client_id']);
 
         $draft = $aiService->extractActionItems($this->orgDocument, $activeProjects);

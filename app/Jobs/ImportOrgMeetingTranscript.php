@@ -47,11 +47,16 @@ class ImportOrgMeetingTranscript implements ShouldQueue
 
         // Save transcript content without triggering the observer so it doesn't
         // prematurely dispatch GenerateOrgDocumentEmbedding before content is set.
-        $this->orgDocument->content = $transcriptText;
-        $this->orgDocument->processed_at = null;
-        $this->orgDocument->saveQuietly();
+        $this->orgDocument->updateQuietly([
+            'content' => $transcriptText,
+            'processed_at' => null,
+            'metadata' => array_merge($this->orgDocument->metadata ?? [], [
+                'ai_draft' => ['status' => 'processing'],
+            ]),
+        ]);
 
         GenerateOrgDocumentEmbedding::dispatch($this->orgDocument);
+        ProcessOrgDocumentAI::dispatch($this->orgDocument);
     }
 
     public function failed(Throwable $exception): void

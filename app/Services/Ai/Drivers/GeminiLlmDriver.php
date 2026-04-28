@@ -8,8 +8,9 @@ use Illuminate\Support\Facades\Log;
 
 class GeminiLlmDriver extends AbstractLlmDriver
 {
-    public function call(string $systemPrompt, string $userPrompt): array
+    public function call(string $systemPrompt, string $userPrompt, ?array $responseSchema = null): array
     {
+        $useCustomSchema = $responseSchema !== null;
         $apiKey = config('services.gemini.key');
         // Using Gemini 2.0 or 1.5 Flash for speed and schema support
         $model = config('services.gemini.model', 'gemini-2.0-flash');
@@ -26,8 +27,7 @@ class GeminiLlmDriver extends AbstractLlmDriver
                 'generationConfig' => [
                     'temperature' => 0,
                     'responseMimeType' => 'application/json',
-                    // This is the magic: Gemini's version of Structured Outputs
-                    'responseSchema' => $this->getOutputSchema(),
+                    'responseSchema' => $useCustomSchema ? $responseSchema : $this->getOutputSchema(),
                 ],
             ]);
 
@@ -46,8 +46,7 @@ class GeminiLlmDriver extends AbstractLlmDriver
 
             return [
                 'status' => 'success',
-                // Always return the flat 'items' array to match OpenAI/Ollama drivers
-                'content' => $decoded['items'] ?? [],
+                'content' => $useCustomSchema ? ($decoded ?? []) : ($decoded['items'] ?? []),
                 'input_tokens' => $usage['promptTokenCount'] ?? 0,
                 'output_tokens' => $usage['candidatesTokenCount'] ?? 0,
                 'driver' => 'gemini',

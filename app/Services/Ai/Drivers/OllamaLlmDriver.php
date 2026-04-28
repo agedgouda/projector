@@ -3,31 +3,31 @@
 namespace App\Services\Ai\Drivers;
 
 use App\Contracts\LlmDriver;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Exception;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class OllamaLlmDriver implements LlmDriver
 {
-    public function call(string $systemPrompt, string $userPrompt): array
+    public function call(string $systemPrompt, string $userPrompt, ?array $responseSchema = null): array
     {
         // Using config instead of hardcoded strings
         $host = config('services.ollama.host', 'http://localhost:11434');
         $model = config('services.ollama.model', 'deepseek-r1:8b');
 
-        Log::info("Ollama Driver: Starting request", ['model' => $model]);
+        Log::info('Ollama Driver: Starting request', ['model' => $model]);
 
         try {
             $response = Http::timeout(300)->post("{$host}/api/generate", [
-                'model'  => $model,
+                'model' => $model,
                 'system' => $systemPrompt,
                 'prompt' => $userPrompt,
                 'stream' => false,
                 'format' => 'json',
                 'options' => [
                     'temperature' => 0.2,
-                    'top_p'       => 0.1,
+                    'top_p' => 0.1,
                     'num_predict' => 2048,
                 ],
             ]);
@@ -36,8 +36,8 @@ class OllamaLlmDriver implements LlmDriver
                 return [
                     'status' => 'error',
                     'error_type' => 'http_failure',
-                    'message' => "Ollama API returned status " . $response->status(),
-                    'content' => []
+                    'message' => 'Ollama API returned status '.$response->status(),
+                    'content' => [],
                 ];
             }
 
@@ -47,8 +47,8 @@ class OllamaLlmDriver implements LlmDriver
                 return [
                     'status' => 'error',
                     'error_type' => 'empty_response',
-                    'message' => "Ollama returned an empty response string.",
-                    'content' => []
+                    'message' => 'Ollama returned an empty response string.',
+                    'content' => [],
                 ];
             }
 
@@ -58,40 +58,40 @@ class OllamaLlmDriver implements LlmDriver
             $decoded = json_decode($cleanJson, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                Log::error("Ollama JSON Parse Error", [
+                Log::error('Ollama JSON Parse Error', [
                     'error' => json_last_error_msg(),
-                    'raw_after_cleanup' => $cleanJson
+                    'raw_after_cleanup' => $cleanJson,
                 ]);
 
                 return [
                     'status' => 'error',
                     'error_type' => 'json_parse',
-                    'message' => "Failed to parse AI response as JSON: " . json_last_error_msg(),
-                    'content' => []
+                    'message' => 'Failed to parse AI response as JSON: '.json_last_error_msg(),
+                    'content' => [],
                 ];
             }
 
-            if (is_array($decoded) && !array_is_list($decoded)) {
+            if (is_array($decoded) && ! array_is_list($decoded)) {
                 $decoded = [$decoded];
             }
 
             return [
-                'status'  => 'success',
-                'content' => is_array($decoded) ? $decoded : []
+                'status' => 'success',
+                'content' => is_array($decoded) ? $decoded : [],
             ];
         } catch (ConnectionException $e) {
             return [
                 'status' => 'error',
                 'error_type' => 'connection',
                 'message' => "Could not reach Ollama at {$host}. Is the service running?",
-                'content' => []
+                'content' => [],
             ];
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'error_type' => 'exception',
                 'message' => $e->getMessage(),
-                'content' => []
+                'content' => [],
             ];
         }
     }
@@ -109,14 +109,15 @@ class OllamaLlmDriver implements LlmDriver
         try {
             $response = Http::timeout(30)->post("{$host}/api/embed", [
                 'model' => $model,
-                'input' => $text
+                'input' => $text,
             ]);
 
             if ($response->failed()) {
-                Log::error("Ollama Embedding Failure", [
+                Log::error('Ollama Embedding Failure', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return [];
             }
 
@@ -125,7 +126,8 @@ class OllamaLlmDriver implements LlmDriver
             return $data['embeddings'][0] ?? [];
 
         } catch (Exception $e) {
-            Log::error("Ollama Embedding Exception: " . $e->getMessage());
+            Log::error('Ollama Embedding Exception: '.$e->getMessage());
+
             return [];
         }
     }

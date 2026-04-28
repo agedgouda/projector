@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { Head, router, Deferred } from '@inertiajs/vue3';
-import { Plus, FileText, CalendarDays } from 'lucide-vue-next';
+import { toast } from 'vue-sonner';
+import { Plus, FileText, CalendarDays, ChevronRight, Sparkles, RefreshCw, Eye } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import AvailableOrgRecordings from '@/components/AvailableOrgRecordings.vue';
+import AiProgressBar from '@/components/AiProgressBar.vue';
+import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import { type BreadcrumbItem } from '@/types';
+import { globalAiState } from '@/state';
 import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 const props = defineProps<{
     currentOrg: { id: string; name: string };
@@ -23,6 +28,102 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const activeTab = ref<'documentation' | 'recordings'>('documentation');
+const expandedIds = ref<Set<string>>(new Set());
+const processingIds = ref<Set<string>>(new Set());
+
+const toggle = (id: string) => {
+    if (expandedIds.value.has(id)) {
+        expandedIds.value.delete(id);
+    } else {
+        expandedIds.value.add(id);
+    }
+};
+
+const isExpanded = (id: string) => expandedIds.value.has(id);
+
+const hasChildren = (meeting: StatusMeeting) =>
+    meeting.ai_draft_groups.length > 0 || meeting.linked_documents.length > 0;
+
+// ── AI processing state ───────────────────────────────────────────────────────
+
+const isAnyProcessing = computed(() =>
+    props.statusMeetings.some(m => m.ai_draft_status === 'processing')
+);
+
+const aiProgress = ref(0);
+let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+watch(isAnyProcessing, (val) => {
+    globalAiState.value.isProcessing = val;
+
+    if (val) {
+        aiProgress.value = 5;
+        progressTimer = setInterval(() => {
+            if (aiProgress.value < 80) aiProgress.value += 2;
+        }, 800);
+    } else {
+        if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+        if (aiProgress.value > 0) {
+            aiProgress.value = 100;
+            setTimeout(() => { aiProgress.value = 0; }, 600);
+        }
+    }
+}, { immediate: true });
+
+onUnmounted(() => {
+    if (progressTimer) clearInterval(progressTimer);
+    globalAiState.value.isProcessing = false;
+});
+
+const aiStatusMessage = computed(() => {
+    const names = props.statusMeetings
+        .filter(m => m.ai_draft_status === 'processing')
+        .map(m => m.name);
+    return names.length ? `Extracting action items from "${names[0]}"…` : '';
+});
+
+// Poll while any meeting is processing
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+const startPolling = () => {
+    pollTimer = setTimeout(() => {
+        router.reload({
+            only: ['statusMeetings'],
+            onSuccess: () => { if (isAnyProcessing.value) startPolling(); },
+        });
+    }, 4000);
+};
+
+watch(isAnyProcessing, (val) => {
+    if (val) {
+        startPolling();
+    } else if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+    }
+}, { immediate: true });
+
+onUnmounted(() => { if (pollTimer) clearTimeout(pollTimer); });
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+const triggerProcess = (meeting: StatusMeeting) => {
+    processingIds.value.add(meeting.id);
+    router.post(
+        orgDocumentsRoutes.processDraft({ organization: props.currentOrg.id, orgDocument: meeting.id }).url,
+        {},
+        {
+            preserveScroll: true,
+            onError: () => toast.error('Failed to start extraction.'),
+            onFinish: () => processingIds.value.delete(meeting.id),
+        }
+    );
+};
+
+const canProcess = (meeting: StatusMeeting) =>
+    !!meeting.content &&
+    meeting.ai_draft_status !== 'processing' &&
+    !processingIds.value.has(meeting.id);
 
 const switchOrg = (id: string) => {
     router.get(statusMeetingsRoutes.index.url({ query: { org: id } }));
@@ -30,6 +131,12 @@ const switchOrg = (id: string) => {
 
 const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+const showUrl = (meeting: StatusMeeting) =>
+    orgDocumentsRoutes.show({ organization: props.currentOrg.id, orgDocument: meeting.id }).url;
+
+const docUrl = (doc: StatusMeetingLinkedDocument) =>
+    projectDocumentsRoutes.show({ project: doc.project_id, document: doc.id }).url;
 </script>
 
 <template>
@@ -37,6 +144,13 @@ const formatDate = (dateStr: string) =>
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 space-y-8 w-full">
+            <AiProgressBar :is-processing="isAnyProcessing" :progress="aiProgress" />
+            <AiProcessingHeader
+                :is-processing="isAnyProcessing"
+                :progress="aiProgress"
+                :message="aiStatusMessage"
+            />
+
             <!-- Header -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -87,28 +201,168 @@ const formatDate = (dateStr: string) =>
                     <p class="text-sm text-gray-400">Create a status meeting to capture notes across multiple projects.</p>
                 </div>
 
-                <div v-else class="space-y-2">
-                    <a
-                        v-for="meeting in statusMeetings"
-                        :key="meeting.id"
-                        :href="orgDocumentsRoutes.show({ organization: currentOrg.id, orgDocument: meeting.id }).url"
-                        class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors group shadow-sm"
-                    >
-                        <div class="flex items-center gap-4 min-w-0">
-                            <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 shrink-0">
-                                <FileText class="w-4 h-4 text-indigo-500" />
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-sm font-black text-slate-800 dark:text-zinc-100 truncate">{{ meeting.name }}</p>
-                                <div class="flex items-center gap-2 mt-0.5">
-                                    <span v-if="meeting.creator" class="text-[11px] text-slate-400">{{ meeting.creator.name }}</span>
-                                    <span v-if="meeting.creator" class="text-slate-300 dark:text-zinc-600">·</span>
-                                    <span class="text-[11px] text-slate-400">{{ formatDate(meeting.created_at) }}</span>
+                <div v-else class="grid gap-3">
+                    <div v-for="meeting in statusMeetings" :key="meeting.id" class="flex flex-col">
+
+                        <!-- Meeting row -->
+                        <div class="flex items-center mb-1">
+                            <div
+                                class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-indigo-300 min-w-0 cursor-pointer"
+                                @click="router.visit(showUrl(meeting))"
+                            >
+                                <!-- Expand toggle -->
+                                <div
+                                    v-if="hasChildren(meeting)"
+                                    class="w-6 h-6 flex items-center justify-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md mr-2 shrink-0"
+                                    @click.stop="toggle(meeting.id)"
+                                >
+                                    <ChevronRight
+                                        class="h-4 w-4 text-slate-400 transition-transform duration-300"
+                                        :class="{ 'rotate-90': isExpanded(meeting.id) }"
+                                    />
+                                </div>
+                                <div v-else class="w-6 mr-2 shrink-0" />
+
+                                <!-- Icon -->
+                                <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mr-4 bg-slate-50 dark:bg-slate-800 text-slate-500">
+                                    <FileText class="h-4 w-4" />
+                                </div>
+
+                                <!-- Name + meta -->
+                                <div class="flex-1 flex items-center gap-3 overflow-hidden mr-4 min-w-0">
+                                    <span class="font-bold truncate text-sm tracking-tight text-slate-900 dark:text-slate-100">
+                                        {{ meeting.name }}
+                                    </span>
+
+                                    <!-- Processing indicator -->
+                                    <div v-if="meeting.ai_draft_status === 'processing'" class="flex items-center gap-1.5 shrink-0">
+                                        <RefreshCw class="h-3 w-3 animate-spin text-indigo-500" />
+                                        <span class="text-[10px] text-indigo-500 font-black uppercase tracking-widest animate-pulse">Processing…</span>
+                                    </div>
+
+                                    <!-- Pending review badge -->
+                                    <span
+                                        v-else-if="meeting.ai_draft_status === 'pending_review'"
+                                        class="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full shrink-0"
+                                    >
+                                        Pending Review
+                                    </span>
+
+                                    <span class="text-[9px] font-black tracking-widest uppercase text-slate-400 shrink-0">
+                                        Status Meeting
+                                    </span>
+                                </div>
+
+                                <!-- Date + creator -->
+                                <div class="hidden md:flex items-center gap-2 text-[11px] text-slate-400 shrink-0 mr-4">
+                                    <span v-if="meeting.creator">{{ meeting.creator.name }}</span>
+                                    <span v-if="meeting.creator" class="text-slate-300">·</span>
+                                    <span>{{ formatDate(meeting.created_at) }}</span>
+                                </div>
+
+                                <!-- Action buttons -->
+                                <div class="flex items-center gap-2 shrink-0" @click.stop>
+                                    <!-- Process / Reprocess -->
+                                    <Button
+                                        v-if="canManage && meeting.ai_draft_status !== 'processing' && meeting.ai_draft_status !== 'pending_review'"
+                                        variant="ghost"
+                                        size="sm"
+                                        :disabled="!canProcess(meeting)"
+                                        @click="triggerProcess(meeting)"
+                                        class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl"
+                                    >
+                                        <Sparkles class="h-3.5 w-3.5 mr-1.5" />
+                                        <span class="text-[10px] font-black uppercase tracking-wider">
+                                            {{ meeting.ai_draft_status === 'committed' ? 'Reprocess' : 'Process' }}
+                                        </span>
+                                    </Button>
+
+                                    <!-- Review (pending_review) -->
+                                    <Button
+                                        v-if="meeting.ai_draft_status === 'pending_review'"
+                                        variant="ghost"
+                                        size="sm"
+                                        @click="router.visit(showUrl(meeting) + '#action-items')"
+                                        class="h-8 px-3 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 rounded-xl"
+                                    >
+                                        <Sparkles class="h-3.5 w-3.5 mr-1.5" />
+                                        <span class="text-[10px] font-black uppercase tracking-wider">Review</span>
+                                    </Button>
+
+                                    <!-- View -->
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        @click="router.visit(showUrl(meeting))"
+                                        class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 rounded-xl"
+                                    >
+                                        <Eye class="h-3.5 w-3.5 mr-1.5" />
+                                        <span class="text-[10px] font-black uppercase tracking-wider">View</span>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
-                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-indigo-500 transition-colors shrink-0 ml-4">View</span>
-                    </a>
+
+                        <!-- Children (expanded) -->
+                        <div v-if="isExpanded(meeting.id)" class="w-full">
+
+                            <!-- Draft groups (pending_review) -->
+                            <template v-if="meeting.ai_draft_status === 'pending_review'">
+                                <div
+                                    v-for="group in meeting.ai_draft_groups"
+                                    :key="group.group_id"
+                                    class="flex items-center mb-1"
+                                >
+                                    <div class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-amber-100 dark:border-amber-900/40 py-2 px-4 rounded-xl shadow-sm ml-8 min-w-0 cursor-pointer hover:border-amber-300 transition-colors"
+                                        @click="router.visit(showUrl(meeting) + '?tab=action-items')"
+                                    >
+                                        <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mr-3 bg-amber-50 dark:bg-amber-950/30 text-amber-500">
+                                            <FileText class="h-3.5 w-3.5" />
+                                        </div>
+                                        <div class="flex-1 flex items-center gap-3 overflow-hidden min-w-0">
+                                            <span class="text-sm font-semibold truncate text-slate-700 dark:text-slate-300">
+                                                {{ group.document_title || group.project_name }}
+                                            </span>
+                                            <span class="text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full shrink-0">
+                                                Draft
+                                            </span>
+                                            <span v-if="group.client_name" class="text-[10px] text-slate-400 shrink-0">
+                                                {{ group.client_name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Committed linked documents -->
+                            <div
+                                v-for="doc in meeting.linked_documents"
+                                :key="doc.id"
+                                class="flex items-center mb-1"
+                            >
+                                <div
+                                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2 px-4 rounded-xl shadow-sm ml-8 min-w-0 cursor-pointer hover:border-indigo-300 transition-colors"
+                                    @click="router.visit(docUrl(doc))"
+                                >
+                                    <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mr-3 bg-slate-50 dark:bg-slate-800 text-slate-400">
+                                        <FileText class="h-3.5 w-3.5" />
+                                    </div>
+                                    <div class="flex-1 flex items-center gap-3 overflow-hidden min-w-0">
+                                        <span class="text-sm font-semibold truncate text-slate-700 dark:text-slate-300">
+                                            {{ doc.name }}
+                                        </span>
+                                        <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                                            Action Items
+                                        </span>
+                                        <span v-if="doc.project_name" class="text-[10px] text-slate-400 shrink-0">
+                                            {{ doc.project_name }}<template v-if="doc.client_name"> · {{ doc.client_name }}</template>
+                                        </span>
+                                    </div>
+                                    <Eye class="h-3.5 w-3.5 text-slate-300 shrink-0 ml-2" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
