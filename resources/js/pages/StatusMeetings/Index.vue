@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router, Deferred } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import { Plus, FileText, CalendarDays, ChevronRight, Sparkles, RefreshCw, Eye } from 'lucide-vue-next';
@@ -12,6 +12,7 @@ import { type BreadcrumbItem } from '@/types';
 import { globalAiState } from '@/state';
 import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';
+import orgDocumentsDraftRoutes from '@/routes/organizations/documents/draft/index';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 const props = defineProps<{
@@ -20,7 +21,7 @@ const props = defineProps<{
     statusMeetings: StatusMeeting[];
     canManage: boolean;
     meetingProvider: string | null;
-    recordingsData: RecordingsData;
+    recordingsData?: RecordingsData;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -30,6 +31,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 const activeTab = ref<'documentation' | 'recordings'>('documentation');
 const expandedIds = ref<Set<string>>(new Set());
 const processingIds = ref<Set<string>>(new Set());
+
+onMounted(() => {
+    const expandId = new URLSearchParams(window.location.search).get('expand');
+    if (expandId) { expandedIds.value.add(expandId); }
+});
 
 const toggle = (id: string) => {
     if (expandedIds.value.has(id)) {
@@ -282,7 +288,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                                         v-if="meeting.ai_draft_status === 'pending_review'"
                                         variant="ghost"
                                         size="sm"
-                                        @click="router.visit(showUrl(meeting) + '#action-items')"
+                                        @click="meeting.ai_draft_groups.length ? router.visit(orgDocumentsDraftRoutes.show({ organization: currentOrg.id, orgDocument: meeting.id, groupId: meeting.ai_draft_groups[0].group_id }).url) : router.visit(showUrl(meeting))"
                                         class="h-8 px-3 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 rounded-xl"
                                     >
                                         <Sparkles class="h-3.5 w-3.5 mr-1.5" />
@@ -314,7 +320,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                                     class="flex items-center mb-1"
                                 >
                                     <div class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-amber-100 dark:border-amber-900/40 py-2 px-4 rounded-xl shadow-sm ml-8 min-w-0 cursor-pointer hover:border-amber-300 transition-colors"
-                                        @click="router.visit(showUrl(meeting) + '?tab=action-items')"
+                                        @click="router.visit(orgDocumentsDraftRoutes.show({ organization: currentOrg.id, orgDocument: meeting.id, groupId: group.group_id }).url)"
                                     >
                                         <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mr-3 bg-amber-50 dark:bg-amber-950/30 text-amber-500">
                                             <FileText class="h-3.5 w-3.5" />

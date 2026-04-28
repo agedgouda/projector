@@ -1,32 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, watch } from 'vue';
 import { Head, useForm, usePage, router, Deferred } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import AvailableOrgRecordings from '@/components/AvailableOrgRecordings.vue';
-import { ArrowLeft, Edit2, Trash2, X, Sparkles, Loader2, Plus, Check } from 'lucide-vue-next';
+import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
 import DOMPurify from 'dompurify';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';
 import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import { type BreadcrumbItem, type Recording } from '@/types';
-
-interface DraftGroup {
-    group_id: string;
-    project_id: string | null;
-    project_name: string;
-    client_name: string;
-    is_new: boolean;
-    document_title: string;
-    document_content: string;
-}
-
-interface AiDraft {
-    status: 'processing' | 'pending_review' | 'committed' | 'failed';
-    groups?: DraftGroup[];
-    error?: string;
-}
 
 interface OrgDocument {
     id: string;
@@ -40,12 +24,6 @@ interface OrgDocument {
     editor?: { name: string } | null;
 }
 
-interface ActiveProject {
-    id: string;
-    name: string;
-    client_name: string;
-}
-
 interface RecordingsData {
     recordings: Recording[];
     importedIds: string[];
@@ -56,7 +34,6 @@ const props = defineProps<{
     organization: { id: string; name: string };
     item: OrgDocument;
     canManage: boolean;
-    activeProjects: ActiveProject[];
     meetingProvider: string | null;
     recordingsData: RecordingsData;
 }>();
@@ -66,21 +43,10 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.item.name ?? 'Status Meeting', href: '' },
 ];
 
-const activeTab = ref<'documentation' | 'action-items' | 'recordings'>('documentation');
-
-onMounted(() => {
-    const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab === 'action-items' || tab === 'recordings') {
-        activeTab.value = tab;
-    }
-});
+const activeTab = ref<'documentation' | 'recordings'>('documentation');
 const isEditing = ref(false);
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
-const isCommitting = ref(false);
-const isProcessing = ref(false);
-
-// ── Documentation form ────────────────────────────────────────────────────────
 
 const form = useForm({
     name: props.item.name ?? '',
@@ -90,7 +56,7 @@ const form = useForm({
 });
 
 const toggleEdit = () => {
-    if (isEditing.value) form.reset();
+    if (isEditing.value) { form.reset(); }
     isEditing.value = !isEditing.value;
 };
 
@@ -109,91 +75,10 @@ const handleDelete = () => {
     });
 };
 
-// ── Draft / Action Items ──────────────────────────────────────────────────────
-
-const aiDraft = computed<AiDraft | null>(() => props.item.metadata?.ai_draft ?? null);
-
-// Local mutable copy of groups for the review UI
-const draftGroups = ref<DraftGroup[]>([]);
-
-watch(() => props.item.metadata?.ai_draft, (draft) => {
-    if (draft?.status === 'pending_review' && draft.groups) {
-        draftGroups.value = JSON.parse(JSON.stringify(draft.groups));
-    }
-}, { immediate: true });
-
-// Poll when processing
-let pollTimer: ReturnType<typeof setTimeout> | null = null;
-
-const startPolling = () => {
-    pollTimer = setTimeout(() => {
-        router.reload({
-            only: ['item'],
-            onSuccess: () => { if (aiDraft.value?.status === 'processing') startPolling(); },
-        });
-    }, 4000);
-};
-
-watch(aiDraft, (draft) => {
-    if (draft?.status === 'processing') {
-        startPolling();
-    } else if (pollTimer) {
-        clearTimeout(pollTimer);
-        pollTimer = null;
-    }
-}, { immediate: true });
-
-const canCommit = computed(() =>
-    draftGroups.value.length > 0 &&
-    draftGroups.value.every(g => g.project_id !== null && g.document_content.trim() !== '')
-);
-
-const triggerProcessing = () => {
-    isProcessing.value = true;
-    router.post(orgDocumentsRoutes.processDraft({ organization: props.organization.id, orgDocument: props.item.id }).url, {}, {
-        preserveScroll: true,
-        onFinish: () => { isProcessing.value = false; },
-    });
-};
-
-const deleteGroup = (groupId: string) => {
-    draftGroups.value = draftGroups.value.filter(g => g.group_id !== groupId);
-};
-
-const editingGroupId = ref<string | null>(null);
-
-const toggleGroupEdit = (groupId: string) => {
-    editingGroupId.value = editingGroupId.value === groupId ? null : groupId;
-};
-
-const saveDraftAndNavigate = (url: string) => {
-    router.patch(orgDocumentsRoutes.saveDraft({ organization: props.organization.id, orgDocument: props.item.id }).url, {
-        groups: draftGroups.value,
-    }, {
-        preserveScroll: true,
-        onSuccess: () => router.visit(url),
-    });
-};
-
-const commitDraft = () => {
-    const committableGroups = draftGroups.value.filter(g => g.project_id !== null && g.document_content.trim() !== '');
-    isCommitting.value = true;
-    router.post(orgDocumentsRoutes.commitDraft({ organization: props.organization.id, orgDocument: props.item.id }).url, {
-        groups: committableGroups,
-    }, {
-        preserveScroll: true,
-        onSuccess: () => toast.success('Action items committed to projects.'),
-        onError: (errors) => toast.error(Object.values(errors)[0] as string),
-        onFinish: () => { isCommitting.value = false; },
-    });
-};
-
-// ── Flash ─────────────────────────────────────────────────────────────────────
-
 const page = usePage<{ flash?: { success?: string; error?: string } }>();
 watch(() => page.props.flash, (flash) => {
-    if (flash?.success) toast.success(flash.success);
-    if (flash?.error) toast.error(flash.error);
+    if (flash?.success) { toast.success(flash.success); }
+    if (flash?.error) { toast.error(flash.error); }
 }, { deep: true, immediate: true });
 
 const sanitize = (html: string) => DOMPurify.sanitize(html);
@@ -240,11 +125,11 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
 
             <!-- Tabs -->
             <div class="flex items-center border-b border-gray-200 dark:border-gray-700">
-                <button v-for="tab in ['documentation', 'action-items', 'recordings']" :key="tab"
-                    @click="activeTab = tab as 'documentation' | 'action-items' | 'recordings'"
+                <button v-for="tab in ['documentation', 'recordings']" :key="tab"
+                    @click="activeTab = tab as 'documentation' | 'recordings'"
                     :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
                         activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
-                    {{ tab === 'documentation' ? 'Documentation' : tab === 'action-items' ? 'Action Items' : 'Recordings' }}
+                    {{ tab === 'documentation' ? 'Documentation' : 'Recordings' }}
                 </button>
             </div>
 
@@ -291,183 +176,6 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                         class="text-[15px] text-slate-900 dark:text-slate-400 leading-relaxed prose prose-slate dark:prose-invert max-w-none whitespace-pre-wrap"
                         v-html="sanitize(item.content)"
                     />
-                </div>
-            </div>
-
-            <!-- Action Items Tab -->
-            <div v-show="activeTab === 'action-items'">
-
-                <!-- Not yet processed / failed / extracted but empty -->
-                <div v-if="!aiDraft || aiDraft.status === 'failed' || (aiDraft.status === 'pending_review' && draftGroups.length === 0)" class="max-w-3xl">
-                    <div class="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl border-gray-100 dark:border-gray-800/50 space-y-4">
-                        <div class="p-4 bg-indigo-50 dark:bg-indigo-950 rounded-full">
-                            <Sparkles class="w-8 h-8 text-indigo-400" />
-                        </div>
-                        <div class="text-center space-y-1">
-                            <p class="font-bold text-gray-700 dark:text-gray-300">Extract Action Items</p>
-                            <p class="text-sm text-gray-400 max-w-xs">AI will identify action items from this meeting and group them by project for your review.</p>
-                            <template v-if="aiDraft?.status === 'failed'">
-                                <p class="text-xs text-red-500 mt-2">Extraction failed. Try again.</p>
-                                <p v-if="aiDraft.error" class="text-xs text-red-400 mt-1 font-mono max-w-sm break-words">{{ aiDraft.error }}</p>
-                            </template>
-                            <p v-else-if="aiDraft?.status === 'pending_review' && draftGroups.length === 0" class="text-xs text-amber-500 mt-2">No action items were extracted. Try again.</p>
-                        </div>
-                        <Button
-                            v-if="canManage"
-                            :disabled="isProcessing || !item.content"
-                            @click="triggerProcessing"
-                            class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-10 text-[10px] font-black uppercase tracking-widest"
-                        >
-                            <Loader2 v-if="isProcessing" class="w-3 h-3 mr-2 animate-spin" />
-                            <Sparkles v-else class="w-3 h-3 mr-2" />
-                            {{ isProcessing ? 'Starting…' : 'Extract Action Items' }}
-                        </Button>
-                    </div>
-                </div>
-
-                <!-- Processing -->
-                <div v-else-if="aiDraft.status === 'processing'" class="max-w-3xl space-y-3">
-                    <div class="flex items-center gap-3 px-1 mb-6">
-                        <Loader2 class="w-4 h-4 animate-spin text-indigo-500 shrink-0" />
-                        <p class="text-sm font-bold text-gray-600 dark:text-gray-400">Analyzing transcript and extracting action items…</p>
-                    </div>
-                    <div v-for="i in 3" :key="i" class="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-6 animate-pulse space-y-3">
-                        <div class="h-3 bg-gray-100 dark:bg-zinc-800 rounded w-1/3" />
-                        <div class="space-y-2 pt-1">
-                            <div class="h-2.5 bg-gray-100 dark:bg-zinc-800 rounded w-3/4" />
-                            <div class="h-2.5 bg-gray-100 dark:bg-zinc-800 rounded w-1/2" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Committed -->
-                <div v-else-if="aiDraft.status === 'committed'" class="max-w-3xl">
-                    <div class="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl border-green-100 dark:border-green-900/30 space-y-3">
-                        <div class="p-4 bg-green-50 dark:bg-green-950 rounded-full">
-                            <Check class="w-8 h-8 text-green-500" />
-                        </div>
-                        <p class="font-bold text-gray-700 dark:text-gray-300">Action items committed to projects</p>
-                        <Button
-                            v-if="canManage"
-                            variant="outline"
-                            @click="triggerProcessing"
-                            class="text-[10px] font-black uppercase tracking-widest rounded-xl"
-                        >
-                            <Sparkles class="w-3 h-3 mr-2" />
-                            Re-extract
-                        </Button>
-                    </div>
-                </div>
-
-                <!-- Pending Review -->
-                <div v-else-if="aiDraft.status === 'pending_review'" class="max-w-3xl space-y-6">
-                    <div class="flex items-center justify-between">
-                        <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Review & Edit Before Committing</p>
-                        <Button
-                            :disabled="!canCommit || isCommitting"
-                            @click="commitDraft"
-                            class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 h-9 text-[10px] font-black uppercase tracking-widest"
-                        >
-                            <Loader2 v-if="isCommitting" class="w-3 h-3 mr-2 animate-spin" />
-                            <Check v-else class="w-3 h-3 mr-2" />
-                            {{ isCommitting ? 'Committing…' : 'Commit to Projects' }}
-                        </Button>
-                    </div>
-
-                    <!-- Document per project -->
-                    <div
-                        v-for="group in draftGroups"
-                        :key="group.group_id"
-                        class="bg-white dark:bg-zinc-900 border rounded-2xl overflow-hidden shadow-sm"
-                        :class="group.project_id ? 'border-gray-200 dark:border-zinc-800' : 'border-amber-200 dark:border-amber-900/50'"
-                    >
-                        <!-- Group header -->
-                        <div class="px-6 py-4 border-b flex items-center justify-between gap-4"
-                            :class="group.project_id ? 'border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-800/30' : 'border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-950/20'">
-                            <div class="min-w-0 flex-1">
-                                <p class="text-xs font-black uppercase tracking-widest"
-                                    :class="group.project_id ? 'text-indigo-500' : 'text-amber-500'">
-                                    {{ group.client_name || 'Unknown Client' }}
-                                </p>
-                                <p class="font-bold text-sm text-gray-900 dark:text-white mt-0.5 flex items-center gap-2">
-                                    {{ group.project_name }}
-                                    <span v-if="!group.project_id" class="text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">Unmatched</span>
-                                </p>
-                            </div>
-
-                            <div class="flex items-center gap-2 shrink-0">
-                                <!-- Assign to existing project (for unmatched groups) -->
-                                <template v-if="!group.project_id">
-                                    <select
-                                        class="h-8 rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-zinc-900 px-2 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                        @change="(e) => { group.project_id = (e.target as HTMLSelectElement).value || null; group.is_new = false; }"
-                                    >
-                                        <option value="">Assign to project…</option>
-                                        <option v-for="p in activeProjects" :key="p.id" :value="p.id">{{ p.name }} ({{ p.client_name }})</option>
-                                    </select>
-                                    <Button
-                                        v-if="canManage"
-                                        size="sm"
-                                        variant="ghost"
-                                        class="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg h-8 px-3"
-                                        @click="saveDraftAndNavigate(`/projects/create?name=${encodeURIComponent(group.project_name)}&client=${encodeURIComponent(group.client_name)}`)"
-                                    >
-                                        <Plus class="w-3 h-3 mr-1" /> Create Project
-                                    </Button>
-                                </template>
-
-                                <button
-                                    @click="toggleGroupEdit(group.group_id)"
-                                    class="p-1.5 rounded-lg text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
-                                    :title="editingGroupId === group.group_id ? 'Done editing' : 'Edit document'"
-                                >
-                                    <Check v-if="editingGroupId === group.group_id" class="w-4 h-4 text-green-500" />
-                                    <Edit2 v-else class="w-4 h-4" />
-                                </button>
-
-                                <button
-                                    @click="deleteGroup(group.group_id)"
-                                    class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                                    title="Remove this document"
-                                >
-                                    <Trash2 class="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Edit mode -->
-                        <div v-if="editingGroupId === group.group_id" class="p-6 space-y-3">
-                            <input
-                                v-model="group.document_title"
-                                class="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                placeholder="Document title"
-                            />
-                            <textarea
-                                v-model="group.document_content"
-                                rows="16"
-                                class="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-300 font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-                            />
-                        </div>
-
-                        <!-- Preview mode -->
-                        <div
-                            v-else
-                            class="px-8 py-6 prose-content"
-                            v-html="sanitize(group.document_content)"
-                        />
-                    </div>
-
-                    <div class="flex justify-end pt-2">
-                        <Button
-                            :disabled="!canCommit || isCommitting"
-                            @click="commitDraft"
-                            class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-10 text-[10px] font-black uppercase tracking-widest"
-                        >
-                            <Loader2 v-if="isCommitting" class="w-3 h-3 mr-2 animate-spin" />
-                            <Check v-else class="w-3 h-3 mr-2" />
-                            {{ isCommitting ? 'Committing…' : 'Commit to Projects' }}
-                        </Button>
-                    </div>
                 </div>
             </div>
 

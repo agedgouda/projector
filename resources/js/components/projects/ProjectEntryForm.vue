@@ -24,6 +24,7 @@ interface Props {
     client?: Client;
     projectTypes?: ProjectType[];
     editData?: Project;
+    initialName?: string;
 }
 
 const props = defineProps<Props>();
@@ -36,7 +37,7 @@ const isEditing = !!props.editData;
 const originalDescription = props.editData?.description ?? '';
 
 const form = useForm({
-    name: props.editData?.name || '',
+    name: props.editData?.name || props.initialName || '',
     description: props.editData?.description || '',
     inactive: props.editData?.inactive ?? false,
     client_id: props.editData?.client_id || props.client?.id || '',

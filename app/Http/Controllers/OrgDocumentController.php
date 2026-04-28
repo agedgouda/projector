@@ -187,17 +187,10 @@ class OrgDocumentController extends Controller
 
         $user = request()->user();
 
-        $activeProjects = Project::whereHas('client', fn ($q) => $q->where('organization_id', $organization->id))
-            ->where('inactive', false)
-            ->with('client:id,company_name')
-            ->get(['id', 'name', 'client_id'])
-            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'client_name' => $p->client->company_name ?? '']);
-
         return inertia('Organizations/Documents/Show', [
             'organization' => $organization->only('id', 'name'),
             'item' => $orgDocument->load(['creator', 'editor']),
             'canManage' => $user->can('update', $orgDocument),
-            'activeProjects' => $activeProjects,
             'meetingProvider' => $organization->meeting_provider,
             'recordingsData' => Inertia::defer(function () use ($organization, $service) {
                 $importedIds = OrgDocument::where('organization_id', $organization->id)
@@ -337,6 +330,93 @@ class OrgDocumentController extends Controller
         ]);
 
         return back()->with('success', 'Action items committed to projects.');
+    }
+
+    public function showDraftGroup(Organization $organization, OrgDocument $orgDocument, string $groupId)
+    {
+        setPermissionsTeamId($organization->id);
+        Gate::authorize('view', $orgDocument);
+
+        if ($orgDocument->organization_id !== $organization->id) {
+            abort(404);
+        }
+
+        $draft = $orgDocument->metadata['ai_draft'] ?? null;
+        $groups = $draft['groups'] ?? [];
+        $group = collect($groups)->firstWhere('group_id', $groupId);
+
+        if (! $group) {
+            abort(404);
+        }
+
+        $user = request()->user();
+
+        $activeProjects = Project::whereHas('client', fn ($q) => $q->where('organization_id', $organization->id))
+            ->where('inactive', false)
+            ->with('client:id,company_name')
+            ->get(['id', 'name', 'client_id'])
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'client_name' => $p->client->company_name ?? '']);
+
+        $clients = \App\Models\Client::where('organization_id', $organization->id)
+            ->where('inactive', false)
+            ->get(['id', 'company_name']);
+
+        $projectTypes = \App\Models\ProjectType::where(function ($q) use ($organization) {
+            $q->whereNull('organization_id')->orWhere('organization_id', $organization->id);
+        })->get(['id', 'name']);
+
+        return inertia('Organizations/Documents/DraftGroup', [
+            'organization' => $organization->only('id', 'name'),
+            'orgDocument' => $orgDocument->only('id', 'name'),
+            'group' => $group,
+            'canManage' => $user->can('update', $orgDocument),
+            'activeProjects' => $activeProjects,
+            'clients' => $clients,
+            'projectTypes' => $projectTypes,
+        ]);
+    }
+
+    public function commitDraftGroup(Request $request, Organization $organization, OrgDocument $orgDocument, string $groupId): RedirectResponse
+    {
+        setPermissionsTeamId($organization->id);
+        Gate::authorize('update', $orgDocument);
+
+        if ($orgDocument->organization_id !== $organization->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'project_id' => 'required|uuid|exists:projects,id',
+            'document_title' => 'required|string|max:500',
+            'document_content' => 'required|string',
+        ]);
+
+        $project = Project::findOrFail($validated['project_id']);
+
+        $project->documents()->create([
+            'type' => 'action_items',
+            'name' => $validated['document_title'],
+            'content' => $validated['document_content'],
+            'metadata' => ['source_org_document_id' => $orgDocument->id],
+        ]);
+
+        $draft = $orgDocument->metadata['ai_draft'] ?? [];
+        $remainingGroups = collect($draft['groups'] ?? [])->reject(fn ($g) => ($g['group_id'] ?? null) === $groupId)->values()->all();
+
+        $newStatus = count($remainingGroups) === 0 ? 'committed' : 'pending_review';
+
+        $orgDocument->updateQuietly([
+            'metadata' => array_merge($orgDocument->metadata ?? [], [
+                'ai_draft' => [
+                    'status' => $newStatus,
+                    'groups' => $remainingGroups,
+                ],
+            ]),
+        ]);
+
+        return redirect()
+            ->route('status-meetings.index', ['expand' => $orgDocument->id])
+            ->with('success', 'Action items committed to '.$project->name.'.');
     }
 
     public function update(StoreOrgDocumentRequest $request, Organization $organization, OrgDocument $orgDocument): RedirectResponse

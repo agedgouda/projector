@@ -121,6 +121,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{orgDocument}/process-draft', [\App\Http\Controllers\OrgDocumentController::class, 'processDraft'])->name('process-draft');
         Route::patch('/{orgDocument}/save-draft', [\App\Http\Controllers\OrgDocumentController::class, 'saveDraft'])->name('save-draft');
         Route::post('/{orgDocument}/commit-draft', [\App\Http\Controllers\OrgDocumentController::class, 'commitDraft'])->name('commit-draft');
+        Route::get('/{orgDocument}/draft/{groupId}', [\App\Http\Controllers\OrgDocumentController::class, 'showDraftGroup'])->name('draft.show');
+        Route::post('/{orgDocument}/draft/{groupId}/commit', [\App\Http\Controllers\OrgDocumentController::class, 'commitDraftGroup'])->name('draft.commit');
     });
 
     Route::post('/projects/evaluate-description', [ProjectController::class, 'evaluateDescription'])
@@ -134,6 +136,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['client.access'])->group(function () {
         Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);
+        Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
         Route::resource('projects', ProjectController::class);
 
         Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])

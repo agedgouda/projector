@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
-import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
+import NewProjectModal from '@/components/projects/NewProjectModal.vue';
 import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceList from '@/components/ResourceList.vue';
@@ -10,17 +10,6 @@ import projectRoutes from '@/routes/projects/index';
 import { type BreadcrumbItem } from '@/types';
 import { Search, X } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import { Button } from '@/components/ui/button';
-import { PlusIcon } from 'lucide-vue-next';
-import { toast } from 'vue-sonner';
 
 const props = defineProps<{
     projects: Project[];
@@ -37,11 +26,7 @@ const searchQuery = ref('');
 const collapsedGroups = ref<Record<number | string, boolean>>(
     Object.fromEntries(props.clients.map(client => [client.id, true]))
 );
-const isProjectModalOpen = ref(false);
-
 const handleSuccess = (clientId: string) => {
-    toast.success('Project Added', { description: 'New project succesfully created.' });
-    isProjectModalOpen.value = false;
     collapsedGroups.value[clientId] = false;
 };
 
@@ -119,27 +104,11 @@ watch(searchQuery, (newVal) => {
                     <p class="text-sm text-gray-500">Global overview of all active client engagements.</p>
                 </div>
 
-                <Dialog v-model:open="isProjectModalOpen">
-                    <DialogTrigger asChild>
-                        <Button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
-                            <PlusIcon class="w-5 h-5 mr-2" />
-                            New Project
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent class="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle>Create Project</DialogTitle>
-                            <DialogDescription>
-                                Enter project details to initialize the workspace.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <ProjectEntryForm
-                            :clients="clients"
-                            :projectTypes="projectTypes"
-                            @success="handleSuccess"
-                        />
-                    </DialogContent>
-                </Dialog>
+                <NewProjectModal
+                    :clients="clients"
+                    :project-types="projectTypes"
+                    @success="handleSuccess"
+                />
             </div>
 
             <div class="flex flex-col lg:flex-row gap-4 mb-8">

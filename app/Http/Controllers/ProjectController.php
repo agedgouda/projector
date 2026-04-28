@@ -19,6 +19,30 @@ use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
+    public function create(Request $request)
+    {
+        Gate::authorize('create', Project::class);
+
+        $user = $request->user();
+        $orgId = $request->cookie('last_org_id') ?? getPermissionsTeamId();
+
+        $clients = $user->newCollection([$user])->availableClients($orgId);
+        $projectTypes = ProjectType::all(['id', 'name']);
+
+        $clientName = $request->query('client', '');
+        $preselectedClient = $clientName
+            ? $clients->first(fn ($c) => strcasecmp($c->company_name, $clientName) === 0)
+            : null;
+
+        return inertia('Projects/Create', [
+            'clients' => $clients,
+            'projectTypes' => $projectTypes,
+            'initialName' => $request->query('name', ''),
+            'preselectedClient' => $preselectedClient?->only('id', 'company_name'),
+            'backUrl' => $request->query('back', ''),
+        ]);
+    }
+
     public function index(Request $request)
     {
         Gate::authorize('viewAny', Project::class);
