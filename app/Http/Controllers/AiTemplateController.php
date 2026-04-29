@@ -73,7 +73,8 @@ class AiTemplateController extends Controller
 
         $aiTemplate->update($validated);
 
-        return back()->with('success', 'AI Template updated.');
+        return redirect()->route('ai-templates.show', $aiTemplate)
+            ->with('success', 'AI Template updated.');
     }
 
     public function destroy(AiTemplate $aiTemplate)

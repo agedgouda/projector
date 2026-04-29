@@ -284,6 +284,10 @@
 .prose-content li { @apply text-sm text-slate-700 dark:text-slate-300 leading-relaxed; }
 .prose-content strong { @apply font-bold text-slate-900 dark:text-white; }
 
+.ProseMirror ol { @apply list-decimal pl-6 mb-3; }
+.ProseMirror ul { @apply list-disc pl-6 mb-3; }
+.ProseMirror li { @apply leading-relaxed; }
+
 /* --- AI Logo Animation (Global) --- */
 
 /* Target elements when the parent has the .ai-active class */

@@ -2,13 +2,11 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Bold, Italic, List, ListOrdered, Code } from 'lucide-vue-next';
+import { EditorContent } from '@tiptap/vue-3';
+import { useDocumentEditor } from '@/composables/useDocumentEditor';
 
-/* ---------------------------
-   1. Props & Emits
-   Instead of a single 'form' prop, we define the individual
-   model values to allow clean parent-child synchronization.
----------------------------- */
-defineProps<{
+const props = defineProps<{
     name: string;
     systemPrompt: string;
     userPrompt: string;
@@ -25,7 +23,10 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
-
+const { editor } = useDocumentEditor(
+    props.systemPrompt,
+    (html) => emit('update:systemPrompt', html),
+);
 </script>
 
 <template>
@@ -47,12 +48,28 @@ const emit = defineEmits<{
             <div class="flex items-center gap-2 mb-1">
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">System Instructions (The Persona)</Label>
             </div>
-            <textarea
-                :value="systemPrompt"
-                @input="e => emit('update:systemPrompt', (e.target as HTMLTextAreaElement).value)"
-                placeholder="Describe the AI's expertise and constraints..."
-                class="w-full min-h-[100px] rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/30 p-4 text-sm leading-relaxed outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all font-medium text-gray-700 dark:text-gray-300"
-            />
+            <div class="border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/5 focus-within:border-indigo-500 transition-all">
+                <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30">
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bold') }">
+                        <Bold class="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('italic') }">
+                        <Italic class="h-4 w-4" />
+                    </Button>
+                    <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bulletList') }">
+                        <List class="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('orderedList') }">
+                        <ListOrdered class="h-4 w-4" />
+                    </Button>
+                    <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+                    <Button type="button" variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleCode().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('code') }" title="Inline code — use for HTML tag examples">
+                        <Code class="h-4 w-4" />
+                    </Button>
+                </div>
+                <EditorContent :editor="editor" />
+            </div>
             <div v-if="errors.system_prompt" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ errors.system_prompt }}</div>
         </div>
 
@@ -60,7 +77,6 @@ const emit = defineEmits<{
             <div class="flex items-center gap-2 mb-1">
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">User Prompt (The Transformation)</Label>
             </div>
-
             <div class="relative group">
                 <textarea
                     :value="userPrompt"

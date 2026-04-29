@@ -8,6 +8,7 @@ import {
     ArrowLeft,
     Copy
 } from 'lucide-vue-next';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { toast } from 'vue-sonner';
 
@@ -27,6 +28,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'AI Templates', href: aiTemplateRoutes.index().url },
     { title: props.aiTemplate.name, href: '' },
 ];
+
+const renderPrompt = (text: string) => DOMPurify.sanitize(text);
 
 const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -92,9 +95,10 @@ const goBack = () => {
                         </button>
                     </div>
                     <div class="bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-[2rem] p-8 shadow-sm">
-                        <p class="text-lg leading-relaxed text-gray-700 dark:text-gray-300 font-medium">
-                            {{ aiTemplate.system_prompt }}
-                        </p>
+                        <div
+                            class="prose-content"
+                            v-html="renderPrompt(aiTemplate.system_prompt)"
+                        />
                     </div>
                 </section>
 

@@ -16,7 +16,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const handleShow = () => {
-    router.visit(aiTemplateRoutes.index().url);
+    if (props.aiTemplate) {
+        router.visit(aiTemplateRoutes.show({ ai_template: props.aiTemplate.id }).url);
+    } else {
+        router.visit(aiTemplateRoutes.index().url);
+    }
 };
 
 
@@ -69,7 +73,7 @@ const submit = () => {
                 :processing="form.processing"
                 :errors="form.errors"
                 :is-editing="!!aiTemplate"
-                @cancel="router.visit(aiTemplateRoutes.index.url())"
+                @cancel="handleShow"
                 @submit="submit"
             />
         </div>
