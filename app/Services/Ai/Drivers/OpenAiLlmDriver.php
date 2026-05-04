@@ -46,8 +46,12 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
                                         'type' => 'array',
                                         'items' => ['type' => 'string'],
                                     ],
+                                    'due_date' => [
+                                        'type' => ['string', 'null'],
+                                        'description' => 'ISO 8601 date (YYYY-MM-DD) extracted from deadline or delivery language, or null.',
+                                    ],
                                 ],
-                                'required' => ['title', $dynamicKey, 'criteria'],
+                                'required' => ['title', $dynamicKey, 'criteria', 'due_date'],
                                 'additionalProperties' => false,
                             ],
                         ],
