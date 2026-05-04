@@ -129,6 +129,13 @@ const selectedDocumentProject = computed(() =>
 );
 const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
 
+const aiProcessedParentIds = computed(() => {
+    const ids = new Set<string>();
+    const docs = selectedDocumentProject.value?.documents ?? [];
+    docs.forEach((d: ProjectDocument) => { if (d.parent_id) ids.add(d.parent_id); });
+    return ids;
+});
+
 
 </script>
 
@@ -184,6 +191,7 @@ const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
         <DocumentDetailSheet
             v-if="selectedDocument"
             :reprocessable-types="reprocessableTypes"
+            :ai-processed-parent-ids="aiProcessedParentIds"
             v-model:open="isSheetOpen"
             :document="selectedDocument as ProjectDocument"
             @handle-reprocess="handleReprocess"

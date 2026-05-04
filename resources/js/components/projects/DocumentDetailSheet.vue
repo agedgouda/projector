@@ -27,6 +27,7 @@ const props = defineProps<{
     open: boolean;
     document: UIProjectDocument;
     reprocessableTypes: Set<string>;
+    aiProcessedParentIds: Set<string>;
 }>();
 
 const emit = defineEmits<{
@@ -78,6 +79,7 @@ const handleUpdate = (field: string, value: any) => {
 };
 
 const isReprocessable = computed(() => props.reprocessableTypes.has(props.document.type));
+const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.document.id as string) ? 'Reprocess' : 'Process');
 </script>
 
 <template>
@@ -100,7 +102,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.docume
                                 class="h-7 px-3 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg hover:bg-violet-100 transition-colors group/ai shrink-0"
                             >
                                 <Sparkles class="h-3 w-3 mr-2" />
-                                <span class="text-[9px] font-black uppercase tracking-wider">Reprocess</span>
+                                <span class="text-[9px] font-black uppercase tracking-wider">{{ processButtonLabel }}</span>
                             </Button>
                         </div>
                         <SheetTitle class="text-3xl font-bold text-gray-900 dark:text-white leading-tight">

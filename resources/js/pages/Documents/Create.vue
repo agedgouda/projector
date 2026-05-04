@@ -90,8 +90,11 @@ const updateFormValue = (field: string, val: any) => {
                     :project="project"
                     :item="draftItem"
                     :is-editing="true"
+                    save-label="Create Document"
+                    :is-saving="form.processing"
                     @back="handleCancel"
                     @toggle-edit="handleCancel"
+                    @save="handleFormSubmit"
                 />
             </template>
 

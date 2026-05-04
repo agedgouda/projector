@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
+import { ArrowLeft, Edit2, Trash2, X, Save } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
@@ -15,6 +15,8 @@ const props = defineProps<{
         parent?: AncestorDoc | null;
     };
     isEditing: boolean;
+    saveLabel?: string;
+    isSaving?: boolean;
 }>();
 
 const ancestors = computed(() => {
@@ -38,7 +40,7 @@ const navigateToAncestor = (ancestorId: string | number) => {
     router.get(from ? `${baseUrl}?from=${encodeURIComponent(from)}` : baseUrl);
 };
 
-const emit = defineEmits(['back', 'toggle-edit', 'delete']);
+const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
 </script>
 
 <template>
@@ -65,6 +67,17 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete']);
 
             <div v-if="!project.inactive" class="flex items-center gap-2">
                 <Button
+                    v-if="isEditing"
+                    size="sm"
+                    :disabled="isSaving"
+                    @click="emit('save')"
+                    class="h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                    <Save class="h-3 w-3 mr-1.5" />
+                    {{ saveLabel ?? 'Save' }}
+                </Button>
+
+                <Button
                     variant="outline"
                     size="sm"
                     @click="emit('toggle-edit')"
@@ -81,6 +94,7 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete']);
                 </Button>
 
                 <Button
+                    v-if="!isEditing"
                     variant="ghost"
                     size="icon"
                     @click="emit('delete')"

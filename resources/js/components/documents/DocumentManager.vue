@@ -154,6 +154,14 @@ const getLeadUser = (doc: ExtendedDocument) => {
 const handleReprocess = (id: string) => {
     const doc = allDocs.value.find(d => d.id === id) as UIProjectDocument | undefined;
     if (!doc) return;
+
+    if (!aiProcessedParentIds.value.has(id)) {
+        aiProgress.value = 5;
+        aiStatusMessage.value = 'Initializing...';
+        void setDocToProcessing(doc);
+        return;
+    }
+
     reprocessConfirmDoc.value = doc;
 };
 
@@ -174,6 +182,12 @@ const onDeleteRequested = (doc: any) => {
 
 // --- 5. WORKFLOW LOGIC ---
 const { reprocessableTypes } = useWorkflow(props.project);
+
+const aiProcessedParentIds = computed(() => {
+    const ids = new Set<string>();
+    allDocs.value.forEach(d => { if (d.parent_id) ids.add(d.parent_id); });
+    return ids;
+});
 
 // --- 6. EXPANDED STATE + SCROLL PERSISTENCE ---
 const expandedKey = `doc_expanded_${props.project.id}`;
@@ -223,6 +237,7 @@ onMounted(() => {
                 :key="intake.id"
                 :item="intake"
                 :reprocessable-types="reprocessableTypes"
+                :ai-processed-parent-ids="aiProcessedParentIds"
                 :level="0"
                 :active-editing-id="activeEditingId"
                 :selected-sheet-id="selectedSheetItem?.id ?? null"
@@ -244,7 +259,7 @@ onMounted(() => {
 
     <ConfirmDeleteModal
         :open="!!reprocessConfirmDoc"
-        title="Reprocess with AI?"
+        title="Reprocess Document?"
         :description="`This will re-run the AI on &quot;${reprocessConfirmDoc?.name}&quot; and overwrite the current content. This action cannot be undone.`"
         confirm-label="Reprocess"
         @close="reprocessConfirmDoc = null"

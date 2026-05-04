@@ -139,6 +139,14 @@ const hasVisibleTasks = computed(() => {
 
 const { reprocessableTypes } = useWorkflow(props.currentProject);
 
+const aiProcessedParentIds = computed(() => {
+    const ids = new Set<string>();
+    (props.currentProject?.documents ?? []).forEach((d: ProjectDocument) => {
+        if (d.parent_id) ids.add(d.parent_id);
+    });
+    return ids;
+});
+
 
 const onImportQueued = () => {
     targetBeingCreated.value = 'transcript';
@@ -270,7 +278,7 @@ watch(() => props.currentProject, (newProject) => {
                         @click="handleCreateNavigation(currentProject.id)"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
                     >
-                        <PlusIcon class="h-4 w-4 mr-2" /> New Intake
+                        <PlusIcon class="h-4 w-4 mr-2" /> New Document
                     </Button>
                     <Button
                         v-else
@@ -375,6 +383,7 @@ watch(() => props.currentProject, (newProject) => {
         <DocumentDetailSheet
             v-if="selectedDocument"
             :reprocessable-types="reprocessableTypes"
+            :ai-processed-parent-ids="aiProcessedParentIds"
             v-model:open="isSheetOpen"
             :document="selectedDocument as ProjectDocument"
              @handle-reprocess="handleReprocess"

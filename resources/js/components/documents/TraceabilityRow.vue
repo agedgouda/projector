@@ -10,6 +10,7 @@ const props = defineProps<{
     item: any;
     level: number;
     reprocessableTypes: Set<string>;
+    aiProcessedParentIds: Set<string>;
     activeEditingId: string | number | null;
     expandedRootIds: Set<string | number>;
     getDocLabel: (type: string) => string;
@@ -40,6 +41,7 @@ const { navigateToDetails } = useDocumentActions({
 });
 
 const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.type));
+const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.item.id) ? 'Reprocess' : 'Process');
 
 </script>
 
@@ -138,7 +140,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
                             class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl group/ai"
                         >
                             <Sparkles class="h-3.5 w-3.5 mr-2" />
-                            <span class="text-[10px] font-black uppercase tracking-wider">Reprocess</span>
+                            <span class="text-[10px] font-black uppercase tracking-wider">{{ processButtonLabel }}</span>
                         </Button>
                         <Button
                             variant="ghost" size="sm" @click="() => navigateToDetails(item.project_id, item.id, 'hierarchy')"
@@ -159,6 +161,7 @@ const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.t
                 :item="child"
                 :level="level + 1"
                 :reprocessable-types="reprocessableTypes"
+                :ai-processed-parent-ids="aiProcessedParentIds"
                 :active-editing-id="activeEditingId"
                 :expanded-root-ids="expandedRootIds"
                 :get-doc-label="getDocLabel"

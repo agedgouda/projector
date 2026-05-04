@@ -77,9 +77,12 @@ watch(() => page.props.flash, (flash) => {
                     :project="project"
                     :item="item"
                     :is-editing="isEditing"
+                    :is-saving="form.processing"
                     @back="handleBack"
                     @toggle-edit="toggleEdit"
                     @delete="isDeleteModalOpen = true"
+                    save-label="Update Document"
+                    @save="handleFormSubmit"
                 />
             </template>
 
