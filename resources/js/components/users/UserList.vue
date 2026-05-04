@@ -3,9 +3,11 @@ import { computed, ref } from 'vue';
 import { Search, X } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { addUser } from '@/actions/App/Http/Controllers/OrganizationController';
 import UserInfo from '@/components/UserInfo.vue';
+import UpgradeModal from '@/components/UpgradeModal.vue';
+import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
     users: User[];
@@ -36,7 +38,16 @@ const filtered = computed(() => {
     );
 });
 
+const page = usePage<AppPageProps>();
+const atLimit = computed(() => (page.props as any).orgMembership?.at_limit ?? {});
+
+const showUpgradeModal = ref(false);
+
 const add = (user: User) => {
+    if (atLimit.value.users) {
+        showUpgradeModal.value = true;
+        return;
+    }
     router.post(addUser(props.organizationId).url, { user_id: user.id }, {
         preserveScroll: true,
         onSuccess: () => emit('userAdded'),
@@ -84,4 +95,10 @@ const add = (user: User) => {
             </div>
         </div>
     </div>
+
+    <UpgradeModal
+        :open="showUpgradeModal"
+        limit-key="users"
+        @close="showUpgradeModal = false"
+    />
 </template>

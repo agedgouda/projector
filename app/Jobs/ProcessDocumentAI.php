@@ -69,11 +69,14 @@ class ProcessDocumentAI implements ShouldQueue
                     throw new \Exception("AI Validation Error: Required key '{$outputType}' was missing from the response.");
                 }
 
+                $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;
+
                 $this->document->project->documents()->create([
                     'parent_id' => $this->document->id,
                     'type' => $outputType,
                     'name' => $data['title'] ?? 'Untitled Deliverable',
                     'content' => $content,
+                    'due_at' => $dueAt,
                     'metadata' => [
                         'criteria' => $data['criteria'] ?? [],
                         'category' => $data['category'] ?? 'general',

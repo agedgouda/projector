@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
@@ -25,9 +26,11 @@ import aiRoutes from '@/routes/ai-templates/index';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import bugReportsRoutes from '@/routes/bug-reports/index';
+import adminOrgRoutes from '@/routes/admin/organizations/index';
 import { usePermissions } from '@/composables/usePermissions';
 
-import { BookOpen, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays } from 'lucide-vue-next';
+import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays, TriangleAlert } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();
@@ -87,17 +90,22 @@ const mainNavItems: NavItem[] = [
         icon: Sparkles,
         hidden: !isSuperAdmin.value,
     },
+    {
+        title: 'Bug Reports',
+        href: bugReportsRoutes.index(),
+        icon: Bug,
+        hidden: !isSuperAdmin.value,
+    },
+    {
+        title: 'Org Admin',
+        href: adminOrgRoutes.index(),
+        icon: Building2,
+        hidden: !isSuperAdmin.value,
+    },
 ];
 
 const filteredNavItems = computed(() => mainNavItems.filter(item => !item.hidden));
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
-];
 </script>
 
 <template>
@@ -119,7 +127,23 @@ const footerNavItems: NavItem[] = [
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+            <SidebarGroup class="group-data-[collapsible=icon]:p-0">
+                <SidebarGroupContent>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+                                as-child
+                            >
+                                <Link :href="bugReportsRoutes.create().url">
+                                    <TriangleAlert class="h-4 w-4" />
+                                    <span>Report a Bug</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
             <NavUser />
         </SidebarFooter>
     </Sidebar>

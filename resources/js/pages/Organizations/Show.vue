@@ -9,7 +9,7 @@ import ClientList from '@/components/clients/ClientList.vue';
 import OrganizationForm from './Partials/OrganizationForm.vue';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
 import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase, Cpu } from 'lucide-vue-next';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, AppPageProps } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
@@ -19,6 +19,7 @@ import { store as inviteUser } from '@/actions/App/Http/Controllers/InvitationCo
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
+import UpgradeModal from '@/components/UpgradeModal.vue';
 
 
 const props = defineProps<{
@@ -96,6 +97,25 @@ const filteredUsers = ref<User[]>(sortedOrgUsers.value);
 
 const isAddUserListOpen = ref(false);
 const isInviteModalOpen = ref(false);
+const showUpgradeModal = ref(false);
+
+const atLimit = computed(() => (page.props as any).orgMembership?.at_limit ?? {});
+
+const openAddUser = () => {
+    if (atLimit.value.users) {
+        showUpgradeModal.value = true;
+        return;
+    }
+    isAddUserListOpen.value = true;
+};
+
+const openInviteUser = () => {
+    if (atLimit.value.users) {
+        showUpgradeModal.value = true;
+        return;
+    }
+    isInviteModalOpen.value = true;
+};
 
 const inviteForm = useForm({ email: '', role: 'team-member' });
 
@@ -211,7 +231,7 @@ const submitInvite = (orgId: string) => {
                     <div v-if="isSuperAdmin || isOrgAdmin" class="flex justify-end gap-3">
                         <button
                             type="button"
-                            @click="isAddUserListOpen = true"
+                            @click="openAddUser"
                             class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
                         >
                             <Plus class="w-4 h-4 mr-2" />
@@ -219,7 +239,7 @@ const submitInvite = (orgId: string) => {
                         </button>
                         <button
                             type="button"
-                            @click="isInviteModalOpen = true"
+                            @click="openInviteUser"
                             class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
                         >
                             <UserPlus class="w-4 h-4 mr-2" />
@@ -365,5 +385,11 @@ const submitInvite = (orgId: string) => {
 
 
         </div>
+
+        <UpgradeModal
+            :open="showUpgradeModal"
+            limit-key="users"
+            @close="showUpgradeModal = false"
+        />
     </AppLayout>
 </template>

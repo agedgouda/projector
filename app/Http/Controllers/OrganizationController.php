@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\OrganizationRequest;
+use App\Http\Requests\UpdateOrganizationTierRequest;
 use App\Models\AiUsageLog;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
+use App\Models\Project;
 use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -215,6 +218,10 @@ class OrganizationController extends Controller
             return back()->withErrors(['user_id' => 'User is already a member of this organization.']);
         }
 
+        if ($block = \App\Services\MembershipGuard::check($organization, 'users')) {
+            return $block;
+        }
+
         $organization->users()->attach($user->id);
 
         return back()->with('success', 'User added to organization.');
@@ -234,5 +241,45 @@ class OrganizationController extends Controller
         $organization->delete();
 
         return redirect()->route('organizations.index')->with('success', 'Organization removed.');
+    }
+
+    public function adminIndex(): \Inertia\Response
+    {
+        $orgs = Organization::withCount(['users', 'clients'])
+            ->get()
+            ->map(function (Organization $org) {
+                $projectCount = Project::whereHas('client', fn ($q) => $q->where('organization_id', $org->id))->count();
+                $aiUsageThisMonth = AiUsageLog::where('organization_id', $org->id)
+                    ->where('type', 'llm')
+                    ->whereYear('created_at', Carbon::now()->year)
+                    ->whereMonth('created_at', Carbon::now()->month)
+                    ->count();
+
+                $limits = $org->tierLimits();
+
+                return [
+                    'id' => $org->id,
+                    'name' => $org->name,
+                    'membership_tier' => $org->membership_tier,
+                    'tier_label' => $org->tierLabel(),
+                    'users_count' => $org->users_count,
+                    'clients_count' => $org->clients_count,
+                    'projects_count' => $projectCount,
+                    'ai_docs_this_month' => $aiUsageThisMonth,
+                    'ai_docs_limit' => $limits['ai_docs_per_month'],
+                    'created_at' => $org->created_at->format('m/d/Y'),
+                ];
+            });
+
+        return Inertia::render('Admin/Organizations', [
+            'organizations' => $orgs,
+        ]);
+    }
+
+    public function updateTier(UpdateOrganizationTierRequest $request, Organization $organization): \Illuminate\Http\RedirectResponse
+    {
+        $organization->update(['membership_tier' => $request->membership_tier]);
+
+        return back()->with('success', 'Tier updated.');
     }
 }

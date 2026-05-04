@@ -10,6 +10,7 @@ import { useWorkflow } from '@/composables/useWorkflow';
 // UI Components
 import { Input } from '@/components/ui/input';
 import TraceabilityRow from './TraceabilityRow.vue';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 
 const props = withDefaults(defineProps<{
     project: Project;
@@ -90,6 +91,7 @@ watch(aiStatusMessage, (val) => aiStatusMessageRef.value = val);
 const activeEditingId = ref<string | null>(null);
 const selectedSheetId = ref<string | null>(null);
 const isDetailsSheetOpen = ref(false);
+const reprocessConfirmDoc = ref<UIProjectDocument | null>(null);
 
 const selectedSheetItem = computed(() => {
     if (!selectedSheetId.value) return null;
@@ -152,9 +154,15 @@ const getLeadUser = (doc: ExtendedDocument) => {
 const handleReprocess = (id: string) => {
     const doc = allDocs.value.find(d => d.id === id) as UIProjectDocument | undefined;
     if (!doc) return;
+    reprocessConfirmDoc.value = doc;
+};
 
+const executeReprocess = () => {
+    const doc = reprocessConfirmDoc.value;
+    reprocessConfirmDoc.value = null;
+    if (!doc) return;
     aiProgress.value = 5;
-    aiStatusMessage.value = "Initializing...";
+    aiStatusMessage.value = 'Initializing...';
     void setDocToProcessing(doc);
 };
 
@@ -234,5 +242,13 @@ onMounted(() => {
         </div>
     </div>
 
+    <ConfirmDeleteModal
+        :open="!!reprocessConfirmDoc"
+        title="Reprocess with AI?"
+        :description="`This will re-run the AI on &quot;${reprocessConfirmDoc?.name}&quot; and overwrite the current content. This action cannot be undone.`"
+        confirm-label="Reprocess"
+        @close="reprocessConfirmDoc = null"
+        @confirm="executeReprocess"
+    />
 
 </template>

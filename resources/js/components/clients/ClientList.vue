@@ -4,16 +4,18 @@ import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import { useResourceExpansion } from '@/composables/useResourceExpansion';
 import { usePermissions } from '@/composables/usePermissions';
 import clientRoutes from '@/routes/clients/index';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import {
-    Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger
+    Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderPlus } from 'lucide-vue-next';
 import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
+import UpgradeModal from '@/components/UpgradeModal.vue';
+import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
     clients: Client[];
@@ -37,7 +39,18 @@ const {
 const isDeleteModalOpen = ref(false);
 const deleteConfig = ref({ id: '', name: '', loading: false });
 
+const showUpgradeModal = ref(false);
+const upgradeModalLimitKey = ref<'clients' | 'projects'>('clients');
+
+const page = usePage<AppPageProps>();
+const atLimit = computed(() => (page.props as any).orgMembership?.at_limit ?? {});
+
 const openCreateModal = () => {
+    if (atLimit.value.clients) {
+        upgradeModalLimitKey.value = 'clients';
+        showUpgradeModal.value = true;
+        return;
+    }
     clientToEdit.value = null;
     isFormOpen.value = true;
 };
@@ -48,6 +61,11 @@ const handleEditRequest = (client: Client) => {
 };
 
 const openAddProjectModal = (client: Client) => {
+    if (atLimit.value.projects) {
+        upgradeModalLimitKey.value = 'projects';
+        showUpgradeModal.value = true;
+        return;
+    }
     targetClientForProject.value = client;
     isProjectFormOpen.value = true;
 };
@@ -87,16 +105,15 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
 <template>
     <div class="space-y-4">
         <div v-if="canAddClient" class="flex justify-end">
+            <Button
+                @click="openCreateModal"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+            >
+                <Plus class="w-4 h-4 mr-2" />
+                <span class="text-[10px] font-black uppercase tracking-widest">Add Client</span>
+            </Button>
+
             <Dialog v-model:open="isFormOpen">
-                <DialogTrigger as-child>
-                    <Button
-                        @click="openCreateModal"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
-                    >
-                        <Plus class="w-4 h-4 mr-2" />
-                        <span class="text-[10px] font-black uppercase tracking-widest">Add Client</span>
-                    </Button>
-                </DialogTrigger>
                 <DialogContent class="sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle>{{ clientToEdit ? 'Edit Client' : 'New Client' }}</DialogTitle>
@@ -192,6 +209,12 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
             :loading="deleteConfig.loading"
             @close="isDeleteModalOpen = false"
             @confirm="executeDelete"
+        />
+
+        <UpgradeModal
+            :open="showUpgradeModal"
+            :limit-key="upgradeModalLimitKey"
+            @close="showUpgradeModal = false"
         />
     </div>
 </template>

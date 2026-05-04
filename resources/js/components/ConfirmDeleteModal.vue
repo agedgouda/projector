@@ -10,11 +10,12 @@ import {
 import { Button } from '@/components/ui/button';
 
 // Using our strict props definition style
-const { open, title, description, loading } = defineProps<{
+const { open, title, description, loading, confirmLabel } = defineProps<{
     open: boolean;
     title?: string;
     description?: string;
     loading?: boolean;
+    confirmLabel?: string;
 }>();
 
 const emit = defineEmits(['close', 'confirm']);
@@ -35,8 +36,7 @@ const emit = defineEmits(['close', 'confirm']);
                     Cancel
                 </Button>
                 <Button variant="destructive" @click="emit('confirm')" :disabled="loading">
-                    <span v-if="loading">Deleting...</span>
-                    <span v-else>Confirm Delete</span>
+                    {{ loading ? 'Please wait...' : (confirmLabel ?? 'Confirm Delete') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

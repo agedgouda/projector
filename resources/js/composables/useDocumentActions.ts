@@ -122,9 +122,6 @@ export function useDocumentActions(
     const setDocToProcessing = async (doc: UIProjectDocument) => {
         if (!doc) return;
 
-        const actionText = doc.type === 'intake' ? 'generate next workflow step' : 'generate next workflow step';
-        if (!confirm(`Are you sure you want to ${actionText}?`)) return;
-
         // UI-only state
         doc.processingError = null;
         doc.currentStatus = 'Re-initializing AI...';

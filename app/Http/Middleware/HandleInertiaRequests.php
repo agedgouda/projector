@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Organization;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -59,6 +60,38 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        $activeOrgId = getPermissionsTeamId();
+        $orgMembership = null;
+
+        if ($user && $activeOrgId) {
+            $org = Organization::find($activeOrgId);
+            if ($org) {
+                $limits = $org->tierLimits();
+                $aiUsage = $org->currentMonthAiUsage();
+                $userCount = $org->currentUserCount();
+                $clientCount = $org->currentClientCount();
+                $projectCount = $org->currentProjectCount();
+
+                $orgMembership = [
+                    'tier' => $org->membership_tier,
+                    'tier_label' => $org->tierLabel(),
+                    'limits' => $limits,
+                    'usage' => [
+                        'users' => $userCount,
+                        'clients' => $clientCount,
+                        'projects' => $projectCount,
+                        'ai_docs_this_month' => $aiUsage,
+                    ],
+                    'at_limit' => [
+                        'users' => $limits['users'] !== null && $userCount >= $limits['users'],
+                        'clients' => $limits['clients'] !== null && $clientCount >= $limits['clients'],
+                        'projects' => $limits['projects'] !== null && $projectCount >= $limits['projects'],
+                        'ai_docs' => $limits['ai_docs_per_month'] !== null && $aiUsage >= $limits['ai_docs_per_month'],
+                    ],
+                ];
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -75,8 +108,9 @@ class HandleInertiaRequests extends Middleware
                     'organizations' => $user->organizations->pluck('id')->map(fn ($id) => (string) $id),
                     'clients' => $user->clients->pluck('id')->map(fn ($id) => (string) $id),
                 ] : null,
-                'active_org_id' => getPermissionsTeamId(),
+                'active_org_id' => $activeOrgId,
             ],
+            'orgMembership' => $orgMembership,
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),

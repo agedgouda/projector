@@ -175,6 +175,12 @@ class DocumentController extends Controller
     {
         Gate::authorize('update', $document);
 
+        $orgId = $project->client?->organization_id;
+        $org = $orgId ? \App\Models\Organization::find($orgId) : null;
+        if ($org && ($block = \App\Services\MembershipGuard::check($org, 'ai_docs'))) {
+            return $block;
+        }
+
         $document->update(['processed_at' => null]);
         \App\Jobs\ProcessDocumentAI::dispatch($document);
 

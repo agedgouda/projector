@@ -41,12 +41,14 @@ class OrganizationSetupController extends Controller
                     }
                 },
             ],
+            'membership_tier' => ['required', 'in:free,pro'],
         ]);
 
         $org = Organization::create([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
             'normalized_name' => Organization::normalize($validated['name']),
+            'membership_tier' => $validated['membership_tier'],
         ]);
 
         $org->users()->attach($request->user()->id, ['role' => 'org-admin']);

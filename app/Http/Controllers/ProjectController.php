@@ -183,6 +183,12 @@ class ProjectController extends Controller
 
             Gate::authorize('create', Project::class);
 
+            $orgId = getPermissionsTeamId();
+            $org = \App\Models\Organization::find($orgId);
+            if ($org && ($block = \App\Services\MembershipGuard::check($org, 'projects'))) {
+                return $block;
+            }
+
             $project = Project::create($request->validated());
 
             if (! empty($project->description)) {

@@ -64,6 +64,11 @@ class ClientController extends Controller
 
         Gate::authorize('create', Client::class);
 
+        $org = \App\Models\Organization::find($orgId);
+        if ($org && ($block = \App\Services\MembershipGuard::check($org, 'clients'))) {
+            return $block;
+        }
+
         $client = Client::create(array_merge(
             $request->validated(),
             ['organization_id' => $orgId]

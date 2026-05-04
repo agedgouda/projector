@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { PlusIcon } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,10 +8,12 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
+import UpgradeModal from '@/components/UpgradeModal.vue';
 import { toast } from 'vue-sonner';
+import { usePage } from '@inertiajs/vue3';
+import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
     clients: Client[];
@@ -25,6 +27,20 @@ const emit = defineEmits<{
 }>();
 
 const isOpen = ref(false);
+const showUpgradeModal = ref(false);
+
+const page = usePage<AppPageProps>();
+const atLimit = computed(() => (page.props as any).orgMembership?.at_limit ?? {});
+
+const handleTriggerClick = (e: MouseEvent) => {
+    if (atLimit.value.projects) {
+        e.stopPropagation();
+        e.preventDefault();
+        showUpgradeModal.value = true;
+    } else {
+        isOpen.value = true;
+    }
+};
 
 const handleSuccess = (clientId: string) => {
     toast.success('Project created successfully.');
@@ -34,29 +50,38 @@ const handleSuccess = (clientId: string) => {
 </script>
 
 <template>
-    <Dialog v-model:open="isOpen">
-        <DialogTrigger asChild>
+    <div>
+        <div @click.capture="handleTriggerClick">
             <slot name="trigger">
                 <Button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
                     <PlusIcon class="w-5 h-5 mr-2" />
                     {{ triggerLabel ?? 'New Project' }}
                 </Button>
             </slot>
-        </DialogTrigger>
-        <DialogContent class="sm:max-w-[500px]">
-            <DialogHeader>
-                <DialogTitle>Create Project</DialogTitle>
-                <DialogDescription>
-                    Enter project details to initialize the workspace.
-                </DialogDescription>
-            </DialogHeader>
-            <ProjectEntryForm
-                :clients="clients"
-                :project-types="projectTypes"
-                :initial-name="initialName"
-                @success="handleSuccess"
-                @cancel="isOpen = false"
-            />
-        </DialogContent>
-    </Dialog>
+        </div>
+
+        <Dialog v-model:open="isOpen">
+            <DialogContent class="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>Create Project</DialogTitle>
+                    <DialogDescription>
+                        Enter project details to initialize the workspace.
+                    </DialogDescription>
+                </DialogHeader>
+                <ProjectEntryForm
+                    :clients="clients"
+                    :project-types="projectTypes"
+                    :initial-name="initialName"
+                    @success="handleSuccess"
+                    @cancel="isOpen = false"
+                />
+            </DialogContent>
+        </Dialog>
+
+        <UpgradeModal
+            :open="showUpgradeModal"
+            limit-key="projects"
+            @close="showUpgradeModal = false"
+        />
+    </div>
 </template>

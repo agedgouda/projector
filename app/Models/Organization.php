@@ -7,14 +7,44 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class Organization extends Model
 {
     use HasFactory, HasUuids;
 
+    const TIER_FREE = 'free';
+
+    const TIER_PRO = 'pro';
+
+    const TIER_FRIENDS_FAMILY = 'friends_family';
+
+    /** @var array<string, array{users: ?int, clients: ?int, projects: ?int, ai_docs_per_month: ?int}> */
+    const TIER_LIMITS = [
+        self::TIER_FREE => [
+            'users' => 1,
+            'clients' => 1,
+            'projects' => 1,
+            'ai_docs_per_month' => 25,
+        ],
+        self::TIER_PRO => [
+            'users' => null,
+            'clients' => null,
+            'projects' => null,
+            'ai_docs_per_month' => 100,
+        ],
+        self::TIER_FRIENDS_FAMILY => [
+            'users' => null,
+            'clients' => null,
+            'projects' => null,
+            'ai_docs_per_month' => null,
+        ],
+    ];
+
     protected $fillable = [
         'name', 'slug', 'normalized_name', 'website',
+        'membership_tier',
         'llm_driver', 'llm_config', 'vector_driver', 'vector_config',
         'meeting_provider', 'meeting_config',
     ];
@@ -202,6 +232,61 @@ class Organization extends Model
 
         $this->meeting_provider = $provider;
         $this->meeting_config = array_filter($newConfig, fn ($v) => ! is_null($v) && $v !== '');
+    }
+
+    /* --- Membership --- */
+
+    public function tierLimits(): array
+    {
+        return self::TIER_LIMITS[$this->membership_tier] ?? self::TIER_LIMITS[self::TIER_FREE];
+    }
+
+    public function tierLabel(): string
+    {
+        return match ($this->membership_tier) {
+            self::TIER_PRO => 'Pro',
+            self::TIER_FRIENDS_FAMILY => 'Friends & Family',
+            default => 'Free',
+        };
+    }
+
+    public function currentMonthAiUsage(): int
+    {
+        return AiUsageLog::where('organization_id', $this->id)
+            ->where('type', 'llm')
+            ->whereYear('created_at', Carbon::now()->year)
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->count();
+    }
+
+    public function currentUserCount(): int
+    {
+        return $this->users()->count();
+    }
+
+    public function currentClientCount(): int
+    {
+        return $this->clients()->count();
+    }
+
+    public function currentProjectCount(): int
+    {
+        return \App\Models\Project::whereHas('client', fn ($q) => $q->where('organization_id', $this->id))->count();
+    }
+
+    /**
+     * @return array{users: bool, clients: bool, projects: bool, ai_docs: bool}
+     */
+    public function atLimits(): array
+    {
+        $limits = $this->tierLimits();
+
+        return [
+            'users' => $limits['users'] !== null && $this->currentUserCount() >= $limits['users'],
+            'clients' => $limits['clients'] !== null && $this->currentClientCount() >= $limits['clients'],
+            'projects' => $limits['projects'] !== null && $this->currentProjectCount() >= $limits['projects'],
+            'ai_docs' => $limits['ai_docs_per_month'] !== null && $this->currentMonthAiUsage() >= $limits['ai_docs_per_month'],
+        ];
     }
 
     /* --- Relationships --- */

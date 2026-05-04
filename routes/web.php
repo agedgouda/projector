@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiTemplateController;
+use App\Http\Controllers\BugReportController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
@@ -76,7 +77,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('users.list');
         Route::post('/users/{user}/promote', [UserController::class, 'promote'])
             ->name('users.promote');
+        Route::get('/bug-reports', [BugReportController::class, 'index'])
+            ->name('bug-reports.index');
+        Route::patch('/bug-reports/{bugReport}', [BugReportController::class, 'update'])
+            ->name('bug-reports.update');
+        Route::get('/admin/organizations', [OrganizationController::class, 'adminIndex'])
+            ->name('admin.organizations.index');
+        Route::patch('/admin/organizations/{organization}/tier', [OrganizationController::class, 'updateTier'])
+            ->name('admin.organizations.update-tier');
     });
+
+    Route::get('/bug-reports/create', [BugReportController::class, 'create'])
+        ->name('bug-reports.create');
+    Route::post('/bug-reports', [BugReportController::class, 'store'])
+        ->name('bug-reports.store');
 
     Route::middleware(['org-role:org-admin'])->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');

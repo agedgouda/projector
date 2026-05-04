@@ -6,7 +6,6 @@ use App\Contracts\LlmDriver;
 use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
-use App\Services\Ai\AiUsageLogger;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use App\Services\VectorService;
 use Illuminate\Support\Facades\Log;
@@ -63,6 +62,7 @@ class ProjectAiService
             '{{project}}' => $project->name,
             '{{output_key}}' => $outputKey,
             '{{document_name}}' => $currentDoc?->name ?? 'Document',
+            '{{today}}' => \Illuminate\Support\Carbon::today()->toDateString(),
         ];
 
         $baseMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
@@ -71,7 +71,7 @@ class ProjectAiService
             $baseMessage .= "\n\nProject Context:\n{$project->description}";
         }
 
-        $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", and \"criteria\".";
+        $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", \"criteria\", and \"due_date\".";
 
         $userMessage = $baseMessage.$schemaInstruction;
 
