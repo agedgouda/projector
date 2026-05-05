@@ -91,7 +91,7 @@ const duplicateType = (typeId: string) => {
                     <Link href="/project-types/create">
                         <Button class="w-full sm:w-auto font-black h-12 px-8 rounded-2xl shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white uppercase text-[10px] tracking-widest shadow-indigo-500/20">
                             <Plus class="w-4 h-4 mr-2" />
-                            New Protocol
+                            New Project Type
                         </Button>
                     </Link>
                 </div>
