@@ -66,6 +66,18 @@ const removeLifecycleStep = (index: number) => {
                 </select>
             </div>
 
+            <div v-if="isSuperAdmin" class="flex items-center gap-3">
+                <input
+                    id="is_template"
+                    type="checkbox"
+                    v-model="form.is_template"
+                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
+                />
+                <Label for="is_template" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                    Use as default template for new protocols
+                </Label>
+            </div>
+
             <div class="space-y-4">
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Name</Label>
                 <Input v-model="form.name" placeholder="e.g. Enterprise SaaS Workflow" class="rounded-xl h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-lg font-bold focus:ring-4 focus:ring-indigo-500/5 transition-all" />

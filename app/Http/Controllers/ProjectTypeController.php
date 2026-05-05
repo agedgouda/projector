@@ -39,8 +39,8 @@ class ProjectTypeController extends Controller
 
         $user = auth()->user();
 
-        $template = ProjectType::where('name', 'To Do List')
-            ->with('lifecycleSteps')
+        $template = ProjectType::with('lifecycleSteps')
+            ->where('is_template', true)
             ->first();
 
         return inertia('ProjectTypes/Show', [
@@ -164,6 +164,7 @@ class ProjectTypeController extends Controller
                 $uniqueRule,
             ],
             'icon' => 'nullable|string|max:100',
+            'is_template' => 'boolean',
 
             // Document Schema
             'document_schema' => 'required|array|min:1',

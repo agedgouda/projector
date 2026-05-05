@@ -7,6 +7,7 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void, 
     const form = useForm({
         name: '',
         icon: 'Briefcase',
+        is_template: false,
         document_schema: [{ label: 'Notes', key: 'intake', is_task: false }] as DocumentSchemaItem[],
         workflow: [] as WorkflowStep[],
         lifecycle_steps: [] as LifecycleStep[],
@@ -16,6 +17,7 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void, 
     const hydrate = (data: any) => {
         form.name = data.name
         form.icon = data.icon ?? 'Briefcase'
+        form.is_template = data.is_template ?? false
         form.document_schema = (data.document_schema ?? []).map((doc: DocumentSchemaItem) => ({
             ...doc,
             is_task: !!doc.is_task,
@@ -32,6 +34,7 @@ export function useProjectTypeForm(editData: any | null, onSuccess: () => void, 
             hydrate(template)
             form.name = ''
             form.organization_id = ''
+            form.lifecycle_steps = form.lifecycle_steps.map(({ id: _id, ...rest }) => rest as LifecycleStep)
         } else {
             form.reset()
         }

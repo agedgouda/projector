@@ -17,6 +17,7 @@ class ProjectType extends Model
     protected $fillable = [
         'name',
         'icon',
+        'is_template',
         'document_schema',
         'workflow',
         'organization_id',
@@ -25,6 +26,7 @@ class ProjectType extends Model
     protected $casts = [
         'document_schema' => 'array',
         'workflow' => 'array',
+        'is_template' => 'boolean',
     ];
 
     protected function documentSchema(): Attribute
