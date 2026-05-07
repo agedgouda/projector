@@ -10,7 +10,7 @@ beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
 
-    $this->org = Organization::create(['name' => 'Test Org']);
+    $this->org = Organization::create(['name' => 'Test Org', 'membership_tier' => 'pro']);
 
     $this->superAdmin = User::factory()->create();
     $this->superAdmin->assignRole('super-admin');
@@ -51,10 +51,14 @@ it('requires user_id', function () {
         ->assertSessionHasErrors('user_id');
 });
 
-it('forbids an org-admin from adding users to an organization', function () {
+it('allows an org-admin to add users to their organization', function () {
+    setPermissionsTeamId($this->org->id);
+
     $this->actingAs($this->orgAdmin)
         ->post(route('organizations.users.store', $this->org), ['user_id' => $this->target->id])
-        ->assertNotFound();
+        ->assertRedirect();
+
+    expect($this->org->users()->where('user_id', $this->target->id)->exists())->toBeTrue();
 });
 
 it('forbids a regular user from adding users to an organization', function () {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,33 @@ import { Form, Head } from '@inertiajs/vue3';
 import { CheckCircle2 } from 'lucide-vue-next';
 
 const selectedTier = ref<'free' | 'pro'>('free');
+
+const userCountOptions = Array.from({ length: 17 }, (_, i) => i + 3); // 3–19
+const selectedUserCount = ref<number | '20+'>( 3);
+const customUserCount = ref(20);
+
+const isCustomCount = computed(() => selectedUserCount.value === '20+');
+const customUserCountError = ref('');
+const customUserCountInput = ref<InstanceType<typeof Input> | null>(null);
+
+const plannedUserCount = computed(() =>
+    isCustomCount.value ? customUserCount.value : Number(selectedUserCount.value)
+);
+
+const validateCustomUserCount = () => {
+    if (customUserCount.value < 20) {
+        customUserCountError.value = 'Please enter 20 or more users.';
+        customUserCountInput.value?.$el?.focus();
+    } else {
+        customUserCountError.value = '';
+    }
+};
+
+watch(selectedTier, (tier) => {
+    if (tier !== 'pro') {
+        selectedUserCount.value = 3;
+    }
+});
 
 const tiers = [
     {
@@ -86,6 +113,35 @@ const tiers = [
                     </div>
                     <input type="hidden" name="membership_tier" :value="selectedTier" />
                     <InputError :message="errors.membership_tier" />
+                </div>
+
+                <div v-if="selectedTier === 'pro'" class="grid gap-2">
+                    <Label for="user_count">How many users will you be inviting?</Label>
+                    <select
+                        id="user_count"
+                        :value="selectedUserCount"
+                        @change="selectedUserCount = ($event.target as HTMLSelectElement).value === '20+' ? '20+' : Number(($event.target as HTMLSelectElement).value)"
+                        class="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                    >
+                        <option v-for="n in userCountOptions" :key="n" :value="n">{{ n }}</option>
+                        <option value="20+">20+</option>
+                    </select>
+
+                    <div v-if="isCustomCount" class="mt-1">
+                        <Input
+                            ref="customUserCountInput"
+                            v-model.number="customUserCount"
+                            type="number"
+                            :min="20"
+                            placeholder="Enter number of users"
+                            class="h-11 rounded-xl"
+                            @blur="validateCustomUserCount"
+                        />
+                        <InputError :message="customUserCountError" class="mt-1" />
+                    </div>
+
+                    <input type="hidden" name="planned_user_count" :value="plannedUserCount" />
+                    <InputError :message="errors.planned_user_count" />
                 </div>
 
                 <Button

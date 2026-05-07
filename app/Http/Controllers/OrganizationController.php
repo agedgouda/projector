@@ -53,9 +53,19 @@ class OrganizationController extends Controller
         $members = $usersRecord[$currentOrg->name] ?? [];
 
         // 7. Get Addable Users using the new 'addableToOrganization' scope
-        $addableUsers = $user->hasRole('super-admin')
-            ? User::addableToOrganization($currentOrg)->get()
+        $pivotRole = $currentOrg->users()->where('users.id', $user->id)->first()?->pivot?->role;
+        $canManageUsers = $user->hasRole('super-admin') || $pivotRole === 'org-admin';
+
+        $addableUsers = $canManageUsers
+            ? User::addableToOrganization($currentOrg)->get()->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'avatar' => $u->avatar,
+                'roles' => [],
+            ])
             : collect();
+
 
         $currentOrgData = array_merge($currentOrg->makeHidden(['llm_config', 'vector_config'])->toArray(), [
             'llm_config_form' => $currentOrg->llmConfigForForm(),
@@ -210,6 +220,8 @@ class OrganizationController extends Controller
      */
     public function addUser(Request $request, Organization $organization): \Illuminate\Http\RedirectResponse
     {
+        Gate::authorize('manageUsers', $organization);
+
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
         $user = User::findOrFail($request->user_id);
@@ -222,7 +234,7 @@ class OrganizationController extends Controller
             return $block;
         }
 
-        $organization->users()->attach($user->id);
+        $organization->users()->attach($user->id, ['role' => 'team-member']);
 
         return back()->with('success', 'User added to organization.');
     }
@@ -245,7 +257,7 @@ class OrganizationController extends Controller
 
     public function adminIndex(): \Inertia\Response
     {
-        $orgs = Organization::withCount(['users', 'clients'])
+        $orgs = Organization::withCount(['users', 'clients', 'invitations'])
             ->get()
             ->map(function (Organization $org) {
                 $projectCount = Project::whereHas('client', fn ($q) => $q->where('organization_id', $org->id))->count();
@@ -262,7 +274,8 @@ class OrganizationController extends Controller
                     'name' => $org->name,
                     'membership_tier' => $org->membership_tier,
                     'tier_label' => $org->tierLabel(),
-                    'users_count' => $org->users_count,
+                    'users_count' => $org->users_count + $org->invitations_count,
+                    'users_denominator' => $org->planned_user_count ?? $limits['users'],
                     'clients_count' => $org->clients_count,
                     'projects_count' => $projectCount,
                     'ai_docs_this_month' => $aiUsageThisMonth,

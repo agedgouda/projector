@@ -42,6 +42,7 @@ class OrganizationSetupController extends Controller
                 },
             ],
             'membership_tier' => ['required', 'in:free,pro'],
+            'planned_user_count' => ['nullable', 'integer', 'min:3'],
         ]);
 
         $org = Organization::create([
@@ -49,6 +50,7 @@ class OrganizationSetupController extends Controller
             'slug' => Str::slug($validated['name']),
             'normalized_name' => Organization::normalize($validated['name']),
             'membership_tier' => $validated['membership_tier'],
+            'planned_user_count' => $validated['membership_tier'] === 'pro' ? ($validated['planned_user_count'] ?? null) : null,
         ]);
 
         $org->users()->attach($request->user()->id, ['role' => 'org-admin']);

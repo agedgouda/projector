@@ -44,7 +44,7 @@ class Organization extends Model
 
     protected $fillable = [
         'name', 'slug', 'normalized_name', 'website',
-        'membership_tier',
+        'membership_tier', 'planned_user_count',
         'llm_driver', 'llm_config', 'vector_driver', 'vector_config',
         'meeting_provider', 'meeting_config',
     ];

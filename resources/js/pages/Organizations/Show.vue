@@ -8,7 +8,7 @@ import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 import ClientList from '@/components/clients/ClientList.vue';
 import OrganizationForm from './Partials/OrganizationForm.vue';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
-import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase, Cpu } from 'lucide-vue-next';
+import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase, Cpu, AlertTriangle } from 'lucide-vue-next';
 import type { BreadcrumbItem, AppPageProps } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
 import {
@@ -98,12 +98,32 @@ const filteredUsers = ref<User[]>(sortedOrgUsers.value);
 const isAddUserListOpen = ref(false);
 const isInviteModalOpen = ref(false);
 const showUpgradeModal = ref(false);
+const showBillingWarningModal = ref(false);
+const pendingUserAction = ref<'add' | 'invite' | null>(null);
 
 const atLimit = computed(() => (page.props as any).orgMembership?.at_limit ?? {});
+const orgMembership = computed(() => (page.props as any).orgMembership ?? null);
+
+const currentUserCount = computed(() => orgMembership.value?.usage?.users ?? 0);
+const effectiveUserCount = computed(() => currentUserCount.value + props.invitations.length);
+const plannedUserCount = computed<number | null>(() => (props.currentOrg as any).planned_user_count ?? null);
+const remainingUsers = computed(() =>
+    plannedUserCount.value !== null ? Math.max(0, plannedUserCount.value - effectiveUserCount.value) : null
+);
+const isOverPlannedCount = computed(() =>
+    orgMembership.value?.tier !== 'friends_family' &&
+    plannedUserCount.value !== null &&
+    effectiveUserCount.value >= plannedUserCount.value
+);
 
 const openAddUser = () => {
     if (atLimit.value.users) {
         showUpgradeModal.value = true;
+        return;
+    }
+    if (isOverPlannedCount.value) {
+        pendingUserAction.value = 'add';
+        showBillingWarningModal.value = true;
         return;
     }
     isAddUserListOpen.value = true;
@@ -114,7 +134,27 @@ const openInviteUser = () => {
         showUpgradeModal.value = true;
         return;
     }
+    if (isOverPlannedCount.value) {
+        pendingUserAction.value = 'invite';
+        showBillingWarningModal.value = true;
+        return;
+    }
     isInviteModalOpen.value = true;
+};
+
+const confirmBillingWarning = () => {
+    showBillingWarningModal.value = false;
+    if (pendingUserAction.value === 'add') {
+        isAddUserListOpen.value = true;
+    } else if (pendingUserAction.value === 'invite') {
+        isInviteModalOpen.value = true;
+    }
+    pendingUserAction.value = null;
+};
+
+const cancelBillingWarning = () => {
+    showBillingWarningModal.value = false;
+    pendingUserAction.value = null;
 };
 
 const inviteForm = useForm({ email: '', role: 'team-member' });
@@ -228,23 +268,39 @@ const submitInvite = (orgId: string) => {
 
                 <!-- Team Tab -->
                 <div v-if="activeTab === 'team'" class="pt-6 space-y-4">
-                    <div v-if="isSuperAdmin || isOrgAdmin" class="flex justify-end gap-3">
-                        <button
-                            type="button"
-                            @click="openAddUser"
-                            class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
-                        >
-                            <Plus class="w-4 h-4 mr-2" />
-                            <span class="text-[10px] font-black uppercase tracking-widest">Add User</span>
-                        </button>
-                        <button
-                            type="button"
-                            @click="openInviteUser"
-                            class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
-                        >
-                            <UserPlus class="w-4 h-4 mr-2" />
-                            <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
-                        </button>
+                    <div v-if="isSuperAdmin || isOrgAdmin" class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <Users class="w-4 h-4" />
+                            <span class="font-semibold">
+                                {{ effectiveUserCount }}
+                                <template v-if="plannedUserCount !== null"> / {{ plannedUserCount }}</template>
+                                {{ effectiveUserCount === 1 ? 'user' : 'users' }}
+                            </span>
+                        </div>
+                        <div class="flex gap-3">
+                            <button
+                                type="button"
+                                @click="openAddUser"
+                                class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all gap-2"
+                            >
+                                <Plus class="w-4 h-4" />
+                                <span class="text-[10px] font-black uppercase tracking-widest">Add User</span>
+                                <span v-if="remainingUsers !== null" class="text-[9px] font-bold bg-white/20 rounded-md px-1.5 py-0.5">
+                                    {{ remainingUsers }} left
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                @click="openInviteUser"
+                                class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all gap-2"
+                            >
+                                <UserPlus class="w-4 h-4" />
+                                <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
+                                <span v-if="remainingUsers !== null" class="text-[9px] font-bold bg-white/20 rounded-md px-1.5 py-0.5">
+                                    {{ remainingUsers }} left
+                                </span>
+                            </button>
+                        </div>
                     </div>
 
                     <ResourceSearch
@@ -391,5 +447,37 @@ const submitInvite = (orgId: string) => {
             limit-key="users"
             @close="showUpgradeModal = false"
         />
+
+        <Dialog :open="showBillingWarningModal" @update:open="cancelBillingWarning">
+            <DialogContent class="sm:max-w-[420px]">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2">
+                        <AlertTriangle class="w-5 h-5 text-amber-500" />
+                        Additional User Charge
+                    </DialogTitle>
+                    <DialogDescription>
+                        You've reached your planned user count of {{ plannedUserCount }}.
+                        Adding another user will increase your monthly bill.
+                        Do you want to continue?
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button
+                        type="button"
+                        @click="cancelBillingWarning"
+                        class="inline-flex items-center h-9 px-4 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        @click="confirmBillingWarning"
+                        class="inline-flex items-center h-9 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-colors"
+                    >
+                        Yes, continue
+                    </button>
+                </div>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

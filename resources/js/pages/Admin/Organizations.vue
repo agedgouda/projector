@@ -15,6 +15,7 @@ interface OrgRow {
     membership_tier: 'free' | 'pro' | 'friends_family';
     tier_label: string;
     users_count: number;
+    users_denominator: number | null;
     clients_count: number;
     projects_count: number;
     ai_docs_this_month: number;
@@ -123,7 +124,10 @@ const goToOrg = (orgId: string) => {
                                 </select>
                             </td>
 
-                            <td class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300">{{ org.users_count }}</td>
+                            <td class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300">
+                                <span>{{ org.users_count }}</span>
+                                <span v-if="org.users_denominator !== null" class="text-slate-400 text-xs"> / {{ org.users_denominator }}</span>
+                            </td>
                             <td class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300">{{ org.clients_count }}</td>
                             <td class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300">{{ org.projects_count }}</td>
 
