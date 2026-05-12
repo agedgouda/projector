@@ -403,6 +403,7 @@ export interface NavItem {
     icon?: LucideIcon;
     isActive?: boolean;
     hidden?: boolean;
+    children?: NavItem[];
 }
 
 

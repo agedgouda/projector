@@ -6,6 +6,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\FaqController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MeetingTranscriptController;
 use App\Http\Controllers\OrganizationController;
@@ -73,7 +74,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/organizations/{organization}/users', [OrganizationController::class, 'addUser'])
         ->name('organizations.users.store');
 
+    Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');
+
     Route::middleware(['role:super-admin'])->group(function () {
+        Route::post('/faq', [FaqController::class, 'store'])->name('faq.store');
+        Route::put('/faq/{faq}', [FaqController::class, 'update'])->name('faq.update');
+        Route::delete('/faq/{faq}', [FaqController::class, 'destroy'])->name('faq.destroy');
         Route::get('/users/list', [UserController::class, 'list'])
             ->name('users.list');
         Route::post('/users/{user}/promote', [UserController::class, 'promote'])
@@ -105,6 +111,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/project-types/{projectType}/duplicate', [ProjectTypeController::class, 'duplicate'])
             ->name('project-types.duplicate');
         Route::resource('ai-templates', AiTemplateController::class);
+        Route::post('/ai-templates/{aiTemplate}/duplicate', [AiTemplateController::class, 'duplicate'])
+            ->name('ai-templates.duplicate');
         Route::resource('tasks', TaskController::class);
     });
 

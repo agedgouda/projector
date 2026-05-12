@@ -22,6 +22,7 @@ const props = defineProps<{
         system_prompt: string;
         user_prompt: string;
     };
+    canEdit: boolean;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -72,6 +73,7 @@ const goBack = () => {
                 </button>
 
                 <Button
+                    v-if="canEdit"
                     @click="handleEdit"
                     class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 font-black px-6 rounded-xl shadow-sm transition-all active:scale-95 text-[10px] uppercase tracking-widest"
                 >

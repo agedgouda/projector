@@ -2,40 +2,50 @@
 
 namespace App\Policies;
 
-use App\Models\{User, AiTemplate, ProjectType};
+use App\Models\AiTemplate;
+use App\Models\ProjectType;
+use App\Models\User;
 
 class AiTemplatePolicy
 {
-    public function before(User $user)
-    {
-        // Global admin check
-        if (!$user->hasRole('super-admin')) {
-            return false;
-        }
-    }
+    use HandlesOrgPermissions;
 
     public function viewAny(User $user): bool
     {
         return true;
     }
 
-    public function create(User $user): bool
+    public function view(User $user, AiTemplate $template): bool
     {
         return true;
+    }
+
+    public function create(User $user): bool
+    {
+        return $this->isOrgAdmin($user);
+    }
+
+    public function duplicate(User $user): bool
+    {
+        return $this->isOrgAdmin($user);
     }
 
     public function update(User $user, AiTemplate $template): bool
     {
-        return true;
+        return $this->isOrgAdmin($user)
+            && $template->organization_id === getPermissionsTeamId();
     }
 
     public function delete(User $user, AiTemplate $template): bool
     {
-        // Using the standard Laravel JSON helper for maximum safety
+        if (! $this->isOrgAdmin($user) || $template->organization_id !== getPermissionsTeamId()) {
+            return false;
+        }
+
         $isInUse = ProjectType::query()
             ->whereJsonContains('workflow', ['ai_template_id' => $template->id])
             ->exists();
 
-        return !$isInUse;
+        return ! $isInUse;
     }
 }

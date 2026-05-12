@@ -28,14 +28,16 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import bugReportsRoutes from '@/routes/bug-reports/index';
 import adminOrgRoutes from '@/routes/admin/organizations/index';
+import faqRoutes from '@/routes/faq/index';
 import { usePermissions } from '@/composables/usePermissions';
 
-import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays, TriangleAlert } from 'lucide-vue-next';
+import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays, TriangleAlert, HelpCircle } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();
 const { hasRole } = usePermissions();
 const isSuperAdmin = computed(() => hasRole('super-admin'));
+const isOrgAdmin = computed(() => hasRole('org-admin'));
 const hasOrganizations = computed(() => (page.props.auth.user.organizations?.length ?? 0) > 0);
 
 
@@ -61,10 +63,20 @@ const mainNavItems: NavItem[] = [
         icon: Users,
     },
     {
-        title: 'Project Types',
+        title: 'Workflows',
         href: projectTypeRoutes.index(),
         icon: Workflow,
-        hidden: !isSuperAdmin.value,
+        hidden: !isSuperAdmin.value && !isOrgAdmin.value,
+        children: [
+            {
+                title: 'Project Types',
+                href: projectTypeRoutes.index(),
+            },
+            {
+                title: 'AI Workflows',
+                href: aiRoutes.index(),
+            },
+        ],
     },
     {
         title: 'Users',
@@ -73,22 +85,16 @@ const mainNavItems: NavItem[] = [
         hidden: !isSuperAdmin.value,
     },
     {
-        title: 'Organizations',
-        href: organizationRoutes.index(),
-        icon: Building2,
-        hidden: !isSuperAdmin.value && !hasOrganizations.value,
-    },
-    {
         title: 'Roles',
         href: roleRoutes.index(),
         icon: Settings2,
         hidden: !isSuperAdmin.value,
     },
     {
-        title: 'AI Workflows',
-        href: aiRoutes.index(),
-        icon: Sparkles,
-        hidden: !isSuperAdmin.value,
+        title: 'Organizations',
+        href: organizationRoutes.index(),
+        icon: Building2,
+        hidden: !isSuperAdmin.value && !hasOrganizations.value,
     },
     {
         title: 'Bug Reports',
@@ -130,6 +136,17 @@ const filteredNavItems = computed(() => mainNavItems.filter(item => !item.hidden
             <SidebarGroup class="group-data-[collapsible=icon]:p-0">
                 <SidebarGroupContent>
                     <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+                                as-child
+                            >
+                                <Link :href="faqRoutes.index().url">
+                                    <HelpCircle class="h-4 w-4" />
+                                    <span>FAQ</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"

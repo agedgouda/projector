@@ -29,4 +29,15 @@ class ProjectTypePolicy
         return $this->isOrgAdmin($user, $type)
             && $type->projects_count === 0;
     }
+
+    public function duplicate(User $user, ProjectType $type): bool
+    {
+        if (! $this->isOrgAdmin($user)) {
+            return false;
+        }
+
+        // Org-admins can only copy global types or their own org's types
+        return $type->organization_id === null
+            || $type->organization_id === getPermissionsTeamId();
+    }
 }

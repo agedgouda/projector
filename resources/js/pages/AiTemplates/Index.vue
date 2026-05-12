@@ -1,21 +1,32 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Search, X, PlusIcon, Edit2, Trash2} from 'lucide-vue-next';
+import { Search, X, PlusIcon, Edit2, Trash2, Copy } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import aiTemplateRoutes from '@/routes/ai-templates';
+import { duplicate as duplicateRoute } from '@/routes/ai-templates/index';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import { toast } from 'vue-sonner';
 
+interface AiTemplateWithPerms extends AiTemplate {
+    organization_id: string | null;
+    can_edit: boolean;
+}
+
 const props = defineProps<{
-    templates: AiTemplate[];
+    templates: AiTemplateWithPerms[];
 }>();
+
+const page = usePage<AppPageProps>();
+const isSuperAdmin = computed(() => page.props.auth.user?.roles?.includes('super-admin') ?? false);
+const isOrgAdmin = computed(() => page.props.auth.user?.roles?.includes('org-admin') ?? false);
+const canCreate = computed(() => isSuperAdmin.value || isOrgAdmin.value);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'AI Templates', href: aiTemplateRoutes.index().url },
@@ -23,15 +34,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const searchQuery = ref('');
 
-
 const handleCreate = () => {
     router.visit(aiTemplateRoutes.create().url);
 };
 
-
 const handleShow = (id: string | number) => {
-    // Navigate to the Show page using Wayfinder
     router.visit(aiTemplateRoutes.show({ ai_template: id }).url);
+};
+
+const handleCopy = (id: string | number) => {
+    router.post(duplicateRoute.url(id));
 };
 
 const {
@@ -40,7 +52,7 @@ const {
     deleteForm,
     openModal,
     closeModal,
-    executeDelete
+    executeDelete,
 } = useConfirmDelete();
 
 const handleDelete = () => {
@@ -50,36 +62,38 @@ const handleDelete = () => {
         onSuccess: () => {
             itemToDelete.value = null;
             toast.success('AI Template purged from library');
-        }
+        },
     });
 };
 
-
 // --- Filter Logic ---
-const displayItems = computed(() => {
-    let list = [...props.templates];
-
-    if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase();
-        list = list.filter(t => t.name.toLowerCase().includes(query));
-    }
-
-    const workflows = list.filter(t => t.type === 'workflow');
-    const orgExtraction = list.filter(t => t.type === 'org_extraction');
-
-    const flattened: any[] = [];
-
-    flattened.push({ isHeader: true, name: 'Workflow Templates', count: workflows.length });
-    workflows.forEach(t => flattened.push({ ...t, isHeader: false }));
-
-    flattened.push({ isHeader: true, name: 'Org Document Extraction', count: orgExtraction.length });
-    orgExtraction.forEach(t => flattened.push({ ...t, isHeader: false }));
-
-    return flattened;
+const filtered = computed(() => {
+    if (!searchQuery.value.trim()) return props.templates;
+    const query = searchQuery.value.toLowerCase();
+    return props.templates.filter(t => t.name.toLowerCase().includes(query));
 });
 
+const orgTemplates = computed(() => filtered.value.filter(t => t.organization_id));
+const globalTemplates = computed(() => filtered.value.filter(t => !t.organization_id));
 
+const buildSection = (items: AiTemplateWithPerms[]) => {
+    const workflows = items.filter(t => t.type === 'workflow');
+    const orgExtraction = items.filter(t => t.type === 'org_extraction');
+    const result: any[] = [];
 
+    if (workflows.length) {
+        result.push({ isHeader: true, name: 'Workflow Templates', count: workflows.length });
+        workflows.forEach(t => result.push({ ...t, isHeader: false }));
+    }
+    if (orgExtraction.length) {
+        result.push({ isHeader: true, name: 'Org Document Extraction', count: orgExtraction.length });
+        orgExtraction.forEach(t => result.push({ ...t, isHeader: false }));
+    }
+    return result;
+};
+
+const orgItems = computed(() => buildSection(orgTemplates.value));
+const globalItems = computed(() => buildSection(globalTemplates.value));
 </script>
 
 <template>
@@ -94,6 +108,7 @@ const displayItems = computed(() => {
                 </div>
 
                 <Button
+                    v-if="canCreate"
                     @click="handleCreate"
                     class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
                 >
@@ -118,47 +133,114 @@ const displayItems = computed(() => {
                 </div>
             </div>
 
-            <div class="relative w-full">
-                <div v-if="displayItems.length <= 1" class="text-center py-20 border-2 border-dashed rounded-3xl border-gray-100 dark:border-gray-800/50">
-                    <p class="text-gray-400 font-medium">No AI templates found matching your criteria.</p>
+            <div v-if="orgTemplates.length === 0 && globalTemplates.length === 0" class="text-center py-20 border-2 border-dashed rounded-3xl border-gray-100 dark:border-gray-800/50">
+                <p class="text-gray-400 font-medium">No AI templates found matching your criteria.</p>
+            </div>
+
+            <div class="space-y-10">
+                <!-- My Organization section -->
+                <div v-if="orgItems.length > 0">
+                    <div class="flex items-center gap-3 mb-4">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                            My Organization
+                        </h2>
+                        <span class="text-[9px] font-black text-gray-400 dark:text-gray-600">{{ orgTemplates.length }}</span>
+                    </div>
+                    <ResourceList :items="orgItems">
+                        <template #default="{ item }">
+                            <ResourceHeader
+                                v-if="item.isHeader"
+                                :title="item.name"
+                                :count="item.count"
+                                :collapsed="false"
+                            />
+                            <div
+                                v-else
+                                class="mb-3 w-full group relative p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl flex items-center justify-between"
+                            >
+                                <div class="flex items-center gap-4">
+                                    <div>
+                                        <h3 class="font-black uppercase tracking-tight text-gray-900 dark:text-white text-sm">{{ item.name }}</h3>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        @click="handleShow(item.id)"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                    >
+                                        <Edit2 class="w-5 h-5" />
+                                    </div>
+                                    <div
+                                        v-if="canCreate"
+                                        @click="handleCopy(item.id)"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                    >
+                                        <Copy class="w-5 h-5" />
+                                    </div>
+                                    <div
+                                        v-if="item.can_edit"
+                                        @click="openModal({ id: item.id, name: item.name })"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 class="w-5 h-5" />
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </ResourceList>
                 </div>
 
-                <ResourceList :items="displayItems">
-                    <template #default="{ item }">
-                        <ResourceHeader
-                            v-if="item.isHeader"
-                            :title="item.name"
-                            :count="item.count"
-                            :collapsed="false"
-                        />
-
-                        <div
-                            v-else
-                            class="mb-3 w-full group relative p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl flex items-center justify-between"
-                        >
-                            <div class="flex items-center gap-4">
-                                <div>
-                                    <h3 class="font-black uppercase tracking-tight text-gray-900 dark:text-white text-sm">{{ item.name }}</h3>
+                <!-- Global Templates section -->
+                <div v-if="globalItems.length > 0">
+                    <div class="flex items-center gap-3 mb-4">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">
+                            Global Templates
+                        </h2>
+                        <span class="text-[9px] font-black text-gray-400 dark:text-gray-600">{{ globalTemplates.length }}</span>
+                    </div>
+                    <ResourceList :items="globalItems">
+                        <template #default="{ item }">
+                            <ResourceHeader
+                                v-if="item.isHeader"
+                                :title="item.name"
+                                :count="item.count"
+                                :collapsed="false"
+                            />
+                            <div
+                                v-else
+                                class="mb-3 w-full group relative p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl flex items-center justify-between"
+                            >
+                                <div class="flex items-center gap-4">
+                                    <div>
+                                        <h3 class="font-black uppercase tracking-tight text-gray-900 dark:text-white text-sm">{{ item.name }}</h3>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        @click="handleShow(item.id)"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                    >
+                                        <Edit2 class="w-5 h-5" />
+                                    </div>
+                                    <div
+                                        v-if="canCreate"
+                                        @click="handleCopy(item.id)"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                    >
+                                        <Copy class="w-5 h-5" />
+                                    </div>
+                                    <div
+                                        v-if="item.can_edit"
+                                        @click="openModal({ id: item.id, name: item.name })"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 class="w-5 h-5" />
+                                    </div>
                                 </div>
                             </div>
-
-                            <div class="flex items-center gap-4">
-                                <div
-                                    @click="handleShow(item.id)"
-                                    class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors mr-2"
-                                    >
-                                    <Edit2 class="w-5 h-5" />
-                                </div>
-                                <div
-                                    @click="openModal({ id: item.id, name: item.name })"
-                                    class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors mr-2"
-                                    >
-                                    <Trash2 class="w-5 h-5" />
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                </ResourceList>
+                        </template>
+                    </ResourceList>
+                </div>
             </div>
         </div>
 

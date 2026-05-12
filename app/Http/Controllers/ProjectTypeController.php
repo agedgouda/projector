@@ -18,10 +18,14 @@ class ProjectTypeController extends Controller
         $user = auth()->user();
         $query = ProjectType::withCount('projects')->orderBy('name');
 
-        if ($user->hasRole('super-admin')) {
-            $query->with('organization');
-        } else {
-            $query->where('organization_id', getPermissionsTeamId());
+        $query->with('organization');
+
+        if (! $user->hasRole('super-admin')) {
+            $orgId = getPermissionsTeamId();
+            $query->where(function ($q) use ($orgId) {
+                $q->whereNull('organization_id')
+                    ->orWhere('organization_id', $orgId);
+            });
         }
 
         return inertia('ProjectTypes/Index', [
@@ -110,11 +114,15 @@ class ProjectTypeController extends Controller
 
     public function duplicate(Request $request, ProjectType $projectType)
     {
-        Gate::authorize('update', $projectType);
+        Gate::authorize('duplicate', $projectType);
 
-        $validated = $request->validate([
-            'organization_id' => 'required|uuid|exists:organizations,id',
-        ]);
+        $user = auth()->user();
+
+        $orgId = $user->hasRole('super-admin')
+            ? $request->validate(['organization_id' => 'required|uuid|exists:organizations,id'])['organization_id']
+            : getPermissionsTeamId();
+
+        $validated = ['organization_id' => $orgId];
 
         $copy = $projectType->replicate(['id', 'created_at', 'updated_at', 'deleted_at']);
         $copy->organization_id = $validated['organization_id'];
