@@ -41,6 +41,22 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         due_at: item.due_at,
     });
 
+    const syncSidebarFields = (newItem: ExtendedDocument) => {
+        if (!isEditing.value) {
+            form.priority = newItem.priority;
+            form.task_status = newItem.task_status;
+            form.due_at = newItem.due_at;
+            form.assignee_id = newItem.assignee_id;
+            form.defaults({
+                ...form.data(),
+                priority: newItem.priority,
+                task_status: newItem.task_status,
+                due_at: newItem.due_at,
+                assignee_id: newItem.assignee_id,
+            });
+        }
+    };
+
     const toggleEdit = () => {
         isEditing.value = !isEditing.value;
         if (!isEditing.value) form.reset();
@@ -91,6 +107,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         toggleEdit,
         handleFormSubmit,
         confirmDeletion,
-        getCurrentTab
+        getCurrentTab,
+        syncSidebarFields,
     };
 }

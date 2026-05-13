@@ -2,7 +2,7 @@
 /* ---------------------------
    1. Imports & Types
 ---------------------------- */
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, toRef } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 
@@ -38,8 +38,12 @@ const {
     isDeleteModalOpen,
     toggleEdit,
     handleFormSubmit,
-    confirmDeletion
+    confirmDeletion,
+    syncSidebarFields,
 } = useDocumentForm(props.project, props.item);
+
+// props.item is replaced by Inertia after sidebar PATCH — sync form to avoid stale overwrites.
+watch(toRef(props, 'item'), (newItem) => syncSidebarFields(newItem), { deep: false });
 
 const { breadcrumbs, handleBack } = useDocumentNavigation(props.project, props.item);
 
