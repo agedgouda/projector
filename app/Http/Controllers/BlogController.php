@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BlogEntry;
 use Inertia\Inertia;
 use Inertia\Response;
+use League\CommonMark\CommonMarkConverter;
 
 class BlogController extends Controller
 {
@@ -25,6 +26,15 @@ class BlogController extends Controller
         ]);
     }
 
+    private function toHtml(?string $text): ?string
+    {
+        if (! $text) {
+            return null;
+        }
+
+        return (new CommonMarkConverter)->convert($text)->getContent();
+    }
+
     public function show(string $slug): Response
     {
         $post = BlogEntry::query()
@@ -37,7 +47,7 @@ class BlogController extends Controller
                 'id' => $post->id,
                 'slug' => $post->slug,
                 'title' => $post->title,
-                'content' => $post->content,
+                'content' => $this->toHtml($post->content),
                 'date' => $post->parsed_date?->toDateString(),
             ],
         ]);
