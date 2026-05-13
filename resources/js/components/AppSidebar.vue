@@ -31,7 +31,7 @@ import adminOrgRoutes from '@/routes/admin/organizations/index';
 import faqRoutes from '@/routes/faq/index';
 import { usePermissions } from '@/composables/usePermissions';
 
-import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays, TriangleAlert, HelpCircle } from 'lucide-vue-next';
+import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays, TriangleAlert, HelpCircle, Newspaper } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();
@@ -144,6 +144,17 @@ const filteredNavItems = computed(() => mainNavItems.filter(item => !item.hidden
                                 <Link :href="faqRoutes.index().url">
                                     <HelpCircle class="h-4 w-4" />
                                     <span>FAQ</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+                                as-child
+                            >
+                                <Link href="/blog">
+                                    <Newspaper class="h-4 w-4" />
+                                    <span>Blog</span>
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>

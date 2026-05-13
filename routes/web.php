@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiTemplateController;
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\BugReportController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommentController;
@@ -194,5 +195,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 });
+
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 
 require __DIR__.'/settings.php';
