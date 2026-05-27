@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use League\CommonMark\CommonMarkConverter;
 use Throwable;
 
 class ProcessDocumentAI implements ShouldQueue
@@ -21,6 +22,8 @@ class ProcessDocumentAI implements ShouldQueue
     public $tries = 3;
 
     public $backoff = 5;
+
+    public $timeout = 300;
 
     public function __construct(public Document $document) {}
 
@@ -51,37 +54,53 @@ class ProcessDocumentAI implements ShouldQueue
 
         event(new DocumentProcessingUpdate($this->document, 'Generating project deliverables...', 65));
 
-        $generatedItems = $result['mock_response'] ?? [];
         $outputType = $result['output_type'];
+        $singleOutput = $result['single_output'] ?? false;
 
-        DB::transaction(function () use ($generatedItems, $outputType) {
+        DB::transaction(function () use ($result, $outputType, $singleOutput) {
             $this->document->project->documents()
                 ->where('parent_id', $this->document->id)
                 ->where('type', $outputType)
                 ->delete();
 
-            foreach ($generatedItems as $data) {
-                // 1. Extract the specific content using the dynamic key
-                $content = $data[$outputType] ?? null;
+            if ($singleOutput) {
+                $doc = $result['mock_response'] ?? [];
+                $markdown = $doc['content'] ?? null;
 
-                // 2. Fail if the content is missing
-                if (empty($content)) {
-                    throw new \Exception("AI Validation Error: Required key '{$outputType}' was missing from the response.");
+                if (empty($markdown)) {
+                    throw new \Exception("AI Validation Error: Single-output response was missing 'content'.");
                 }
 
-                $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;
+                $html = (new CommonMarkConverter)->convert($markdown)->getContent();
 
                 $this->document->project->documents()->create([
                     'parent_id' => $this->document->id,
                     'type' => $outputType,
-                    'name' => $data['title'] ?? 'Untitled Deliverable',
-                    'content' => $content,
-                    'due_at' => $dueAt,
-                    'metadata' => [
-                        'criteria' => $data['criteria'] ?? [],
-                        'category' => $data['category'] ?? 'general',
-                    ],
+                    'name' => $doc['title'] ?? ($this->document->name.' — Requirements'),
+                    'content' => $html,
                 ]);
+            } else {
+                foreach ($result['mock_response'] ?? [] as $data) {
+                    $content = $data[$outputType] ?? null;
+
+                    if (empty($content)) {
+                        throw new \Exception("AI Validation Error: Required key '{$outputType}' was missing from the response.");
+                    }
+
+                    $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;
+
+                    $this->document->project->documents()->create([
+                        'parent_id' => $this->document->id,
+                        'type' => $outputType,
+                        'name' => $data['title'] ?? 'Untitled Deliverable',
+                        'content' => $content,
+                        'due_at' => $dueAt,
+                        'metadata' => [
+                            'criteria' => $data['criteria'] ?? [],
+                            'category' => $data['category'] ?? 'general',
+                        ],
+                    ]);
+                }
             }
 
             $this->document->update(['processed_at' => now()]);

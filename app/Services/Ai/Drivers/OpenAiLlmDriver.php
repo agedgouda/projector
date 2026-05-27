@@ -63,6 +63,7 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
         }
 
         $response = Http::withToken(config('services.openai.key'))
+            ->timeout(240)
             ->post('https://api.openai.com/v1/chat/completions', [
                 'model' => config('services.openai.model', 'gpt-4o-mini'),
                 'messages' => [

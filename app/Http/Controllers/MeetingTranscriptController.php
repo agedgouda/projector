@@ -101,6 +101,7 @@ class MeetingTranscriptController extends Controller
             'recording_id' => 'required|string',
             'title' => 'required|string|max:255',
             'started_at' => 'required|string',
+            'document_type' => 'sometimes|string|in:intake,requirements',
         ]);
 
         // Prevent duplicate imports — block if imported by this or any other project
@@ -114,7 +115,7 @@ class MeetingTranscriptController extends Controller
         // Use processed_at = now() temporarily to prevent the DocumentObserver from
         // dispatching ProcessDocumentAI before the transcript content has been fetched.
         $document = $project->documents()->create([
-            'type' => 'intake',
+            'type' => $validated['document_type'] ?? 'intake',
             'name' => $validated['title'],
             'content' => '',
             'processed_at' => now(),

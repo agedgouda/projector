@@ -2,9 +2,10 @@
 
 namespace App\Observers;
 
-use App\Models\Document;
-use App\Jobs\{ProcessDocumentAI, GenerateDocumentEmbedding};
 use App\Events\DocumentVectorized;
+use App\Jobs\GenerateDocumentEmbedding;
+use App\Jobs\ProcessDocumentAI;
+use App\Models\Document;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class DocumentObserver implements ShouldHandleEventsAfterCommit
@@ -12,16 +13,20 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
     public function created(Document $document): void
     {
         // 1. Priority: AI Transformation
-        // If it's an intake, the AI Job handles the logic.
+        // If this document type has a workflow step defined, dispatch AI processing.
         // It will dispatch the Embedding job itself after the AI "cleans up" the text.
-        if ($document->type === 'intake' && is_null($document->processed_at)) {
+        $hasWorkflowStep = collect($document->project->type->workflow ?? [])
+            ->contains('from_key', $document->type);
+
+        if ($hasWorkflowStep && is_null($document->processed_at)) {
             ProcessDocumentAI::dispatch($document);
+
             return;
         }
 
         // 2. Secondary: Standard Vectorization
         // For manually added context, jump straight to embedding.
-        if (!empty($document->content) && is_null($document->embedding)) {
+        if (! empty($document->content) && is_null($document->embedding)) {
             GenerateDocumentEmbedding::dispatch($document);
         }
     }

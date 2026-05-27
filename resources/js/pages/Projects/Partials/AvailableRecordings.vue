@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { AlertCircle, Download, Loader2, Trash2, Video } from 'lucide-vue-next';
+import { AlertCircle, Download, Loader2, Trash2, Video, FileText } from 'lucide-vue-next';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { Button } from '@/components/ui/button';
 import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
@@ -28,6 +28,7 @@ const emit = defineEmits<{
 
 const {
     importing,
+    importingAsRequirements,
     importRecording,
     isDismissRecordingOpen,
     recordingToDismiss,
@@ -85,13 +86,25 @@ const {
                 <template v-if="canManage">
                     <Button
                         size="sm"
-                        :disabled="importing === recording.id"
+                        :disabled="importing === recording.id || importingAsRequirements === recording.id"
                         class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 h-9 text-[10px] font-black uppercase tracking-widest"
                         @click="importRecording(recording)"
                     >
                         <Loader2 v-if="importing === recording.id" class="w-3 h-3 mr-1.5 animate-spin" />
                         <Download v-else class="w-3 h-3 mr-1.5" />
                         {{ importing === recording.id ? 'Importing...' : 'Import' }}
+                    </Button>
+
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        :disabled="importing === recording.id || importingAsRequirements === recording.id"
+                        class="shrink-0 rounded-xl px-3 h-9 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300"
+                        @click="importRecording(recording, 'requirements')"
+                    >
+                        <Loader2 v-if="importingAsRequirements === recording.id" class="w-3 h-3 mr-1.5 animate-spin" />
+                        <FileText v-else class="w-3 h-3 mr-1.5" />
+                        {{ importingAsRequirements === recording.id ? 'Importing...' : 'Requirements' }}
                     </Button>
 
                     <Button

@@ -18,6 +18,7 @@ class Client extends Model
         'contact_name',
         'contact_phone',
         'email',
+        'industry',
         'inactive',
     ];
 

@@ -20,7 +20,7 @@ class ProjectAiService
 
     public function process(Document $document)
     {
-        $document->loadMissing('project.type');
+        $document->loadMissing('project.type', 'project.client');
         $typeModel = $document->project->type;
         $project = $document->project;
 
@@ -43,26 +43,92 @@ class ProjectAiService
         }
 
         $strategy = new DynamicWorkflowStrategy($template, $step['from_key'], $outputKey);
+        $singleOutput = (bool) ($step['single_output'] ?? false);
 
-        $result = $this->callLlm($project, $strategy, $document->content, $document, $outputKey);
+        $result = $singleOutput
+            ? $this->callLlmSingleDocument($project, $strategy, $document->content, $document)
+            : $this->callLlm($project, $strategy, $document->content, $document, $outputKey);
 
         if (($result['status'] ?? '') === 'success') {
             $result['output_type'] = $strategy->getOutputDocumentType();
+            $result['single_output'] = $singleOutput;
         }
 
         return $result;
+    }
+
+    protected function callLlmSingleDocument(Project $project, $strategy, string $context, ?Document $currentDoc = null): array
+    {
+        $userTemplate = $strategy->getUserPromptTemplate();
+        $industry = $project->client?->industry;
+        $replacements = [
+            '{{input}}' => $context,
+            '{{project}}' => $project->name,
+            '{{document_name}}' => $currentDoc?->name ?? 'Document',
+            '{{today}}' => \Illuminate\Support\Carbon::today()->toDateString(),
+            '{{client_industry}}' => $industry ? "Client Industry: {$industry}" : '',
+        ];
+
+        $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
+
+        if (! empty($project->description) && $project->description_quality === 'good') {
+            $userMessage .= "\n\nProject Context:\n{$project->description}";
+        }
+
+        $userMessage .= "\n\nCRITICAL: Return a single JSON object (NOT an array) with exactly two keys: \"title\" (string) and \"content\" (a complete Markdown document).";
+
+        $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
+        $systemPrompt = $this->htmlToPlainText($rawSystemPrompt);
+
+        $singleDocSchema = [
+            'type' => 'object',
+            'properties' => [
+                'title' => ['type' => 'string'],
+                'content' => ['type' => 'string'],
+            ],
+            'required' => ['title', 'content'],
+            'additionalProperties' => false,
+        ];
+
+        $result = $this->llmDriver->call($systemPrompt, $userMessage, $singleDocSchema);
+
+        if (($result['status'] ?? '') === 'error') {
+            Log::error('LLM Driver Failure', ['error' => $result['message'] ?? 'Unknown error']);
+            throw new \Exception($result['message'] ?? 'AI transformation failed');
+        }
+
+        if (isset($result['driver'], $result['model'])) {
+            $this->usageLogger->log(
+                driver: $result['driver'],
+                model: $result['model'],
+                type: 'llm',
+                inputTokens: $result['input_tokens'] ?? 0,
+                outputTokens: $result['output_tokens'] ?? 0,
+                project: $project,
+            );
+        }
+
+        $doc = $result['content'] ?? [];
+
+        return [
+            'project_name' => $project->name,
+            'mock_response' => $doc,
+            'status' => 'success',
+        ];
     }
 
     protected function callLlm(Project $project, $strategy, string $context, ?Document $currentDoc = null, string $outputKey = 'content')
     {
         $userTemplate = $strategy->getUserPromptTemplate();
         // did this change?
+        $industry = $project->client?->industry;
         $replacements = [
             '{{input}}' => $context,
             '{{project}}' => $project->name,
             '{{output_key}}' => $outputKey,
             '{{document_name}}' => $currentDoc?->name ?? 'Document',
             '{{today}}' => \Illuminate\Support\Carbon::today()->toDateString(),
+            '{{client_industry}}' => $industry ? "Client Industry: {$industry}" : '',
         ];
 
         $baseMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);

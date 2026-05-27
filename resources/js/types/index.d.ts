@@ -36,6 +36,7 @@ declare global {
         contact_name: string;
         contact_phone: string | null;
         email: string | null;
+        industry: string | null;
         users?: User[];
         organization: Organization;
         projects?: Project[];

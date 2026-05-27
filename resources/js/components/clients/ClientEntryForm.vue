@@ -3,6 +3,7 @@ import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import clientRoutes from '@/routes/clients/index';
 import PhoneInput from '@/components/PhoneInput.vue';
+import IndustryCombobox from '@/components/clients/IndustryCombobox.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,7 @@ const form = useForm({
     contact_name: '',
     contact_phone: '',
     email: '',
+    industry: null as string | null,
     inactive: false,
 });
 
@@ -35,6 +37,7 @@ watch(() => props.editData, (newVal) => {
         form.contact_name = newVal.contact_name;
         form.contact_phone = newVal.contact_phone ?? '';
         form.email = newVal.email ?? '';
+        form.industry = newVal.industry ?? null;
         form.inactive = newVal.inactive ?? false;
     } else {
         isEditing.value = false;
@@ -110,6 +113,12 @@ const submit = () => {
                     class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
                 />
                 <p v-if="form.errors.email" class="text-destructive text-xs mt-1">{{ form.errors.email }}</p>
+            </div>
+
+            <div>
+                <Label :class="{ 'text-destructive': form.errors.industry }">Industry</Label>
+                <IndustryCombobox v-model="form.industry" />
+                <p v-if="form.errors.industry" class="text-destructive text-xs mt-1">{{ form.errors.industry }}</p>
             </div>
 
             <div v-if="isEditing" class="flex items-center gap-2">
