@@ -52,7 +52,7 @@ const invitations = computed(() => props.project.client.organization?.invitation
                     <div class="space-y-3">
                         <div class="flex items-center justify-between text-[13px]">
                             <span class="text-slate-900">Category</span>
-                            <span class="font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded text-[11px] border border-indigo-100 dark:border-indigo-800">
+                            <span class="font-black uppercase tracking-wider text-projector-primary-600 dark:text-projector-primary-400 bg-projector-primary-50 dark:bg-projector-primary-950 px-2 py-0.5 rounded text-[11px] border border-projector-primary-100 dark:border-projector-primary-800">
                                 {{ getDocLabel(item.type) || 'New Document' }}
                             </span>
                         </div>
@@ -151,7 +151,7 @@ const invitations = computed(() => props.project.client.organization?.invitation
                             <div class="flex items-center gap-1.5 font-bold">
                                 <span class="text-slate-900 dark:text-slate-200">{{ formatDate(item.created_at) }}</span>
                                 <span v-if="item.creator?.name" class="text-slate-400 font-medium lowercase italic">by</span>
-                                <span v-if="item.creator?.name" class="text-indigo-600">{{ item.creator?.name }}</span>
+                                <span v-if="item.creator?.name" class="text-projector-primary-600">{{ item.creator?.name }}</span>
                             </div>
                         </div>
                         <div class="flex items-center justify-between text-[13px]">
@@ -159,7 +159,7 @@ const invitations = computed(() => props.project.client.organization?.invitation
                             <div class="flex items-center gap-1.5 font-bold">
                                 <span class="text-slate-900 dark:text-slate-200">{{ formatDate(item.updated_at) }}</span>
                                 <span class="text-slate-400 font-medium lowercase italic">by</span>
-                                <span v-if="item.editor?.name" class="text-indigo-600">{{ item.editor?.name }}</span>
+                                <span v-if="item.editor?.name" class="text-projector-primary-600">{{ item.editor?.name }}</span>
                             </div>
                         </div>
                     </div>

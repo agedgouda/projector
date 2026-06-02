@@ -47,7 +47,7 @@ const handleSubmit = () => {
                                     v-model="form.title"
                                     type="text"
                                     placeholder="e.g. Clicking Save on the project page shows an error"
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
                                 />
                                 <p v-if="form.errors.title" class="text-xs text-red-500">{{ form.errors.title }}</p>
                             </div>
@@ -58,7 +58,7 @@ const handleSubmit = () => {
                                     v-model="form.description"
                                     rows="8"
                                     placeholder="Describe what you did, what you expected to happen, and what actually happened..."
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y leading-relaxed"
+                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500 resize-y leading-relaxed"
                                 />
                                 <p v-if="form.errors.description" class="text-xs text-red-500">{{ form.errors.description }}</p>
                             </div>
@@ -68,7 +68,7 @@ const handleSubmit = () => {
                                 <input
                                     v-model="form.page_url"
                                     type="text"
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
                                 />
                                 <p class="text-[11px] text-slate-400">Pre-filled with the page you came from. Update if different.</p>
                             </div>
@@ -77,7 +77,7 @@ const handleSubmit = () => {
                                 <Button
                                     type="submit"
                                     :disabled="form.processing"
-                                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-xl"
+                                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold px-6 rounded-xl"
                                 >
                                     {{ form.processing ? 'Submitting...' : 'Submit Bug Report' }}
                                 </Button>

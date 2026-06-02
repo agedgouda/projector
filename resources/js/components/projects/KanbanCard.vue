@@ -14,7 +14,7 @@ const getInitials = (user: any) =>
 
 <template>
     <div
-        :class="[KANBAN_UI.card, statusCardBg[status], 'p-5 group hover:border-indigo-200']"
+        :class="[KANBAN_UI.card, statusCardBg[status], 'p-5 group hover:border-projector-primary-200']"
         tabindex="0"
         role="button"
         :aria-label="`Open task: ${doc.name}`"
@@ -22,7 +22,7 @@ const getInitials = (user: any) =>
         @keydown.enter.prevent="emit('open', doc)"
         @keydown.space.prevent="emit('open', doc)"
     >
-        <h4 :class="[KANBAN_UI.cardTitle, 'mb-1 group-hover:text-indigo-600 transition-colors']">
+        <h4 :class="[KANBAN_UI.cardTitle, 'mb-1 group-hover:text-projector-primary-600 transition-colors']">
             {{ doc.name }}
         </h4>
         <div class="mb-5 text-xs  ">

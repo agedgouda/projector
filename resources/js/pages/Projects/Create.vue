@@ -51,7 +51,7 @@ const handleSuccess = () => {
             <div class="mb-6">
                 <button
                     @click="goBack"
-                    class="flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 transition-colors mb-6"
+                    class="flex items-center gap-2 text-sm text-slate-500 hover:text-projector-primary-600 transition-colors mb-6"
                 >
                     <ArrowLeft class="w-3 h-3" />
                     {{ backUrl ? 'Back' : 'Projects' }}

@@ -136,7 +136,7 @@ export function useDocumentActions(
         }
     };
 
-    const navigateToDetails = (projectId: any, documentId: any, fromTab?: string) => {
+    const navigateToDetails = (projectId: any, documentId: any) => {
         if (!projectId || !documentId) return;
 
         const baseUrl = projectDocumentsRoutes.show({

@@ -110,7 +110,7 @@ const addCustom = () => {
                         <CommandItem
                             v-if="showAddCustom"
                             :value="search"
-                            class="text-indigo-600 dark:text-indigo-400 font-medium"
+                            class="text-projector-primary-600 dark:text-projector-primary-400 font-medium"
                             @select="addCustom"
                         >
                             <span class="mr-2 text-sm">+</span>

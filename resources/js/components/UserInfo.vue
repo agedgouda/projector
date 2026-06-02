@@ -30,13 +30,13 @@ const userInitials = computed(() => {
     <div class="flex items-center gap-3 overflow-hidden">
         <Avatar class="h-9 w-9 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
             <AvatarImage v-if="showAvatar" :src="user.avatar!" :alt="user.name" />
-            <AvatarFallback class="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black">
+            <AvatarFallback class="rounded-xl bg-projector-primary-50 dark:bg-projector-primary-500/10 text-projector-primary-600 dark:text-projector-primary-400 text-xs font-black">
                 {{ userInitials }}
             </AvatarFallback>
         </Avatar>
 
         <div class="flex flex-col min-w-0 leading-tight">
-            <span class="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 group-hover/header:text-indigo-600 transition-colors">
+            <span class="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 group-hover/header:text-projector-primary-600 transition-colors">
                 {{ user.name }}
             </span>
             <span v-if="showEmail" class="truncate text-[11px] font-medium text-gray-500 dark:text-gray-400">

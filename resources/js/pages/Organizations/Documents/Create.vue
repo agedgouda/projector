@@ -52,7 +52,7 @@ const handleSubmit = () => {
                                     v-model="form.name"
                                     type="text"
                                     placeholder="e.g. Q2 Strategy Review"
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
                                 />
                                 <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
                             </div>
@@ -63,7 +63,7 @@ const handleSubmit = () => {
                                     v-model="form.content"
                                     rows="16"
                                     placeholder="Paste your meeting notes or transcript here..."
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y font-mono leading-relaxed"
+                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500 resize-y font-mono leading-relaxed"
                                 />
                                 <p v-if="form.errors.content" class="text-xs text-red-500">{{ form.errors.content }}</p>
                             </div>
@@ -79,7 +79,7 @@ const handleSubmit = () => {
                                 <Button
                                     type="submit"
                                     :disabled="form.processing"
-                                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-xl"
+                                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold px-6 rounded-xl"
                                 >
                                     {{ form.processing ? 'Saving...' : 'Save' }}
                                 </Button>

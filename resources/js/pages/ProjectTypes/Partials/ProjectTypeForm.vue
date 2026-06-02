@@ -35,7 +35,7 @@ const {
 );
 
 const colorPalette = [
-    { key: 'indigo', class: 'bg-indigo-500' },
+    { key: 'indigo', class: 'bg-projector-primary-500' },
     { key: 'blue', class: 'bg-blue-500' },
     { key: 'green', class: 'bg-green-500' },
     { key: 'amber', class: 'bg-amber-500' },
@@ -59,7 +59,7 @@ const removeLifecycleStep = (index: number) => {
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Organization</Label>
                 <select
                     v-model="form.organization_id"
-                    class="w-full h-12 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                    class="w-full h-12 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-projector-primary-500/5 transition-all outline-none"
                 >
                     <option value="">— No Organization (super-admin only) —</option>
                     <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
@@ -71,7 +71,7 @@ const removeLifecycleStep = (index: number) => {
                     id="is_template"
                     type="checkbox"
                     v-model="form.is_template"
-                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
+                    class="w-4 h-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
                 />
                 <Label for="is_template" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                     Use as default template for new protocols
@@ -80,7 +80,7 @@ const removeLifecycleStep = (index: number) => {
 
             <div class="space-y-4">
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Name</Label>
-                <Input v-model="form.name" placeholder="e.g. Enterprise SaaS Workflow" class="rounded-xl h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-lg font-bold focus:ring-4 focus:ring-indigo-500/5 transition-all" />
+                <Input v-model="form.name" placeholder="e.g. Enterprise SaaS Workflow" class="rounded-xl h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-lg font-bold focus:ring-4 focus:ring-projector-primary-500/5 transition-all" />
             </div>
 
             <div class="space-y-4">
@@ -88,7 +88,7 @@ const removeLifecycleStep = (index: number) => {
                 <div class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-2 p-3 border border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-950 w-full">
                     <button v-for="icon in iconLibrary" :key="icon.name" type="button"
                         @click="form.icon = icon.name"
-                        :class="['p-3 rounded-lg transition-all flex items-center justify-center', form.icon === icon.name ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800']"
+                        :class="['p-3 rounded-lg transition-all flex items-center justify-center', form.icon === icon.name ? 'bg-projector-primary-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800']"
                     >
                         <component :is="icon.component" class="w-4 h-4" />
                     </button>
@@ -103,7 +103,7 @@ const removeLifecycleStep = (index: number) => {
                 variant="ghost"
                 size="sm"
                 @click="addSchemaItem"
-                class="h-6 px-2 text-[9px] font-black rounded uppercase text-indigo-600 hover:bg-indigo-50"
+                class="h-6 px-2 text-[9px] font-black rounded uppercase text-projector-primary-600 hover:bg-projector-primary-50"
             >
                 <Plus class="w-3 h-3 mr-1" /> Add Definition
             </Button>
@@ -119,7 +119,7 @@ const removeLifecycleStep = (index: number) => {
 
             <div v-for="(doc, index) in form.document_schema" :key="index" class="flex items-center px-4 py-1 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
                 <div class="w-12 shrink-0 flex justify-center">
-                    <input type="checkbox" v-model="doc.is_task" class="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer" />
+                    <input type="checkbox" v-model="doc.is_task" class="w-3.5 h-3.5 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer" />
                 </div>
                 <div class="w-72 shrink-0 border-l border-gray-100 dark:border-gray-800 px-4">
                     <Input v-model="doc.label" @input="suggestKey(index)" placeholder="e.g. Technical Specification" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-900 dark:text-gray-100" />
@@ -138,7 +138,7 @@ const removeLifecycleStep = (index: number) => {
 
         <div class="flex items-center justify-between px-1 max-w-2xl">
             <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">AI Pipelines</h3>
-            <Button type="button" variant="ghost" size="sm" @click="addWorkflowStep" class="h-6 px-2 text-[9px] font-black rounded uppercase text-indigo-600 hover:bg-indigo-50">
+            <Button type="button" variant="ghost" size="sm" @click="addWorkflowStep" class="h-6 px-2 text-[9px] font-black rounded uppercase text-projector-primary-600 hover:bg-projector-primary-50">
                 <Plus class="w-3 h-3 mr-1" /> Add Step
             </Button>
         </div>
@@ -152,7 +152,7 @@ const removeLifecycleStep = (index: number) => {
                         <option v-for="s in form.document_schema" :key="s.key" :value="s.key">{{ s.label }}</option>
                     </select>
                 </div>
-                <ArrowRight class="w-3 h-3 text-indigo-400 shrink-0" />
+                <ArrowRight class="w-3 h-3 text-projector-primary-400 shrink-0" />
                 <div class="w-48 shrink-0 flex items-center gap-2">
                     <Label class="text-[9px] font-black uppercase text-gray-400 w-6 shrink-0">To</Label>
                     <select v-model="step.to_key" class="h-8 w-full bg-transparent border-none shadow-none text-[11px] outline-none text-gray-900 dark:text-gray-100 appearance-none cursor-pointer">
@@ -174,7 +174,7 @@ const removeLifecycleStep = (index: number) => {
 
         <div class="flex items-center justify-between px-1 max-w-2xl">
             <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Lifecycle Steps</h3>
-            <Button type="button" variant="ghost" size="sm" @click="addLifecycleStep" class="h-6 px-2 text-[9px] font-black rounded uppercase text-indigo-600 hover:bg-indigo-50">
+            <Button type="button" variant="ghost" size="sm" @click="addLifecycleStep" class="h-6 px-2 text-[9px] font-black rounded uppercase text-projector-primary-600 hover:bg-projector-primary-50">
                 <Plus class="w-3 h-3 mr-1" /> Add Step
             </Button>
         </div>
@@ -227,7 +227,7 @@ const removeLifecycleStep = (index: number) => {
                 <Button
                     type="submit"
                     :disabled="form.processing"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black px-6 h-9 uppercase text-[9px] tracking-widest shadow-sm transition-all active:scale-95"
+                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-lg font-black px-6 h-9 uppercase text-[9px] tracking-widest shadow-sm transition-all active:scale-95"
                 >
                     {{ form.processing ? 'Saving...' : (editData ? 'Save Changes' : 'Create Protocol') }}
                 </Button>

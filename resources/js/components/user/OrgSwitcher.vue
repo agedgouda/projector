@@ -53,8 +53,8 @@ const handleSelect = (orgId: string | number) => {
                 class="w-full md:w-[300px] justify-between h-12 rounded-xl bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 shadow-sm"
             >
                 <div class="flex items-center gap-3 truncate">
-                    <div class="bg-indigo-500/10 p-1.5 rounded-lg">
-                        <Building2 class="h-4 w-4 text-indigo-500" />
+                    <div class="bg-projector-primary-500/10 p-1.5 rounded-lg">
+                        <Building2 class="h-4 w-4 text-projector-primary-500" />
                     </div>
                     <span class="font-bold truncate text-gray-900 dark:text-white">
                         {{ currentOrg?.name }}
@@ -73,7 +73,7 @@ const handleSelect = (orgId: string | number) => {
                         <CommandItem
                             value="create-new-organization"
                             as-child
-                            class="flex items-center gap-2 py-3 cursor-pointer text-indigo-600 dark:text-indigo-400 font-black uppercase text-[10px] tracking-widest"
+                            class="flex items-center gap-2 py-3 cursor-pointer text-projector-primary-600 dark:text-projector-primary-400 font-black uppercase text-[10px] tracking-widest"
                         >
                             <Link :href="organizationRoutes.create.url()" @click="open = false">
                                 <Plus class="h-4 w-4" />
@@ -92,18 +92,18 @@ const handleSelect = (orgId: string | number) => {
                             @select="handleSelect(org.id)"
                             :class="cn(
                                 'flex items-center justify-between py-3 cursor-pointer transition-colors',
-                                org.id === currentOrg?.id ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
+                                org.id === currentOrg?.id ? 'bg-projector-primary-50/50 dark:bg-projector-primary-500/5' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
                             )"
                         >
                             <span :class="cn(
                                 'font-medium transition-colors',
-                                org.id === currentOrg?.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-zinc-300'
+                                org.id === currentOrg?.id ? 'text-projector-primary-600 dark:text-projector-primary-400' : 'text-gray-700 dark:text-zinc-300'
                             )">
                                 {{ org.name }}
                             </span>
                             <Check
                                 v-if="org.id === currentOrg?.id"
-                                class="h-4 w-4 text-indigo-600 dark:text-indigo-400"
+                                class="h-4 w-4 text-projector-primary-600 dark:text-projector-primary-400"
                             />
                         </CommandItem>
                     </CommandGroup>

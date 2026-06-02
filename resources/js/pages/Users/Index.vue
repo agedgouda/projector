@@ -51,7 +51,7 @@ const {
         <div class="p-6 w-full">
             <div class="mb-8">
                 <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase flex items-center gap-3">
-                    <CircleUserRound class="w-8 h-8 text-indigo-500" />
+                    <CircleUserRound class="w-8 h-8 text-projector-primary-500" />
                     User Management
                 </h1>
                 <p class="text-sm text-gray-500 mt-1">
@@ -83,11 +83,11 @@ const {
                     >
                         <div class="flex items-center gap-3">
                             <component :is="collapsedOrgs[org.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-gray-400" />
-                            <Building2 class="w-5 h-5 text-indigo-500" />
+                            <Building2 class="w-5 h-5 text-projector-primary-500" />
                             <h2 class="font-black uppercase tracking-tight text-sm text-gray-700 dark:text-zinc-200">
                                 {{ org.name }}
                             </h2>
-                            <span class="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-2 py-0.5 rounded-full font-black">
+                            <span class="text-[10px] bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-500/20 dark:text-projector-primary-400 px-2 py-0.5 rounded-full font-black">
                                 {{ org.members.length }} {{ org.members.length === 1 ? 'User' : 'Users' }}
                             </span>
                         </div>

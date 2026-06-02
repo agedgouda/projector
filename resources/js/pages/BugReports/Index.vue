@@ -84,7 +84,7 @@ const toggleStatus = (report: BugReport) => {
                     <a
                         v-if="report.page_url"
                         :href="report.page_url"
-                        class="inline-block text-[11px] text-indigo-500 hover:underline truncate max-w-full"
+                        class="inline-block text-[11px] text-projector-primary-500 hover:underline truncate max-w-full"
                     >
                         {{ report.page_url }}
                     </a>

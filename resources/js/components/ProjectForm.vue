@@ -97,7 +97,7 @@ const submit = () => {
         <Button
             type="submit"
             :disabled="form.processing"
-            class="w-full bg-indigo-600 hover:bg-indigo-700 font-bold transition-all active:scale-[0.98]"
+            class="w-full bg-projector-primary-600 hover:bg-projector-primary-700 font-bold transition-all active:scale-[0.98]"
         >
             <Loader2 v-if="form.processing" class="mr-2 h-4 w-4 animate-spin" />
             {{ project ? 'Update Project' : 'Save Project' }}

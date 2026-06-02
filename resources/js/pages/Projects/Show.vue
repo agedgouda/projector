@@ -276,7 +276,7 @@ watch(() => props.currentProject, (newProject) => {
                     <Button
                         v-if="!currentProject.inactive"
                         @click="handleCreateNavigation(currentProject.id)"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
+                        class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
                     >
                         <PlusIcon class="h-4 w-4 mr-2" /> New Document
                     </Button>
@@ -314,7 +314,7 @@ watch(() => props.currentProject, (newProject) => {
                 <button v-for="tab in ['tasks', 'hierarchy', 'recordings']" :key="tab"
                     @click="updateTab(tab)"
                     :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
-                        activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
+                        activeTab === tab ? 'border-projector-primary-500 text-projector-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
                     {{ tab === 'hierarchy' ? 'Documentation' : tab === 'recordings' ? 'Recordings' : 'Tasks' }}
                 </button>
             </div>

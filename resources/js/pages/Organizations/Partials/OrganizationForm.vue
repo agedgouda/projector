@@ -191,7 +191,7 @@ const submit = () => {
                     <select
                         id="llm_driver"
                         v-model="form.llm_driver"
-                        class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                        class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500"
                     >
                         <option v-for="d in LLM_DRIVERS" :key="d.value" :value="d.value">
                             {{ d.label }}
@@ -263,7 +263,7 @@ const submit = () => {
                     <select
                         id="vector_driver"
                         v-model="form.vector_driver"
-                        class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                        class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500"
                     >
                         <option
                             v-for="d in VECTOR_DRIVERS"
@@ -337,7 +337,7 @@ const submit = () => {
                     v-if="form.meeting_provider"
                     type="button"
                     @click="isSetupGuideOpen = true"
-                    class="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                    class="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-projector-primary-500 hover:text-projector-primary-700 dark:hover:text-projector-primary-300 transition-colors"
                 >
                     <HelpCircle class="w-3.5 h-3.5" />
                     Setup Guide
@@ -351,7 +351,7 @@ const submit = () => {
                 <select
                     id="meeting_provider"
                     v-model="form.meeting_provider"
-                    class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500"
                 >
                     <option v-for="p in MEETING_PROVIDERS" :key="p.value" :value="p.value">
                         {{ p.label }}
@@ -442,7 +442,7 @@ const submit = () => {
                             v-model="form.meeting_config.private_key"
                             rows="6"
                             :placeholder="privateKeyPlaceholder"
-                            class="w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 resize-y"
+                            class="w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500 resize-y"
                         />
                         <p class="text-[10px] text-gray-400 px-1">
                             Paste the full PEM private key from your Google service account JSON file.
@@ -481,7 +481,7 @@ const submit = () => {
             <Button
                 type="submit"
                 :disabled="form.processing"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl shadow-lg"
+                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl shadow-lg"
             >
                 {{ isEditing ? 'Save Changes' : 'Create Organization' }}
             </Button>

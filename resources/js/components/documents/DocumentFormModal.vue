@@ -111,7 +111,7 @@ watch(() => props.open, (isOpen) => {
 
                 <div class="grid gap-2">
                     <Label :class="{ 'text-destructive': form.errors.content }">Content</Label>
-                    <div class="border border-slate-200 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
+                    <div class="border border-slate-200 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-projector-primary-500 transition-all">
                         <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
                             <Button variant="ghost" size="icon" class="h-8 w-8" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200': editor.isActive('bold') }">
                                 <Bold class="h-4 w-4" />
@@ -152,7 +152,7 @@ watch(() => props.open, (isOpen) => {
 
             <DialogFooter class="mt-4 shrink-0">
                 <Button variant="outline" @click="isOpen = false">Cancel</Button>
-                <Button @click="emit('submit')" :disabled="form.processing" class="bg-indigo-600">
+                <Button @click="emit('submit')" :disabled="form.processing" class="bg-projector-primary-600">
                     <RefreshCw v-if="form.processing" class="w-4 h-4 mr-2 animate-spin" />
                     {{ mode === 'create' ? 'Save' : 'Update' }}
                 </Button>

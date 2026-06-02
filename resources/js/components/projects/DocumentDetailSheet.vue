@@ -89,7 +89,7 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.d
                 <div class="mt-8 space-y-10">
                     <SheetHeader class="space-y-0.5 text-left p-0">
                         <div class="flex items-center justify-between mt-5 mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-projector-primary-600 bg-projector-primary-50 px-2 py-1 rounded border border-projector-primary-100">
                                 {{ typeLabel }}
                             </span>
 

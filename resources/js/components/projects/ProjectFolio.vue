@@ -53,7 +53,7 @@ const executeDelete = () => {
 
         <div class="flex items-center gap-4 min-w-0">
             <div class="h-9 w-9 shrink-0 rounded-lg bg-slate-50 dark:bg-zinc-800 flex items-center justify-center border border-slate-100 dark:border-zinc-700 shadow-sm">
-                <div v-if="project.type" class="text-indigo-600 dark:text-indigo-400">
+                <div v-if="project.type" class="text-projector-primary-600 dark:text-projector-primary-400">
                     <ProjectIcon :name="project.type.icon" size="18" />
                 </div>
                 <FolderOpen v-else class="w-4 h-4 text-gray-400" />
@@ -90,7 +90,7 @@ const executeDelete = () => {
         <div class="flex justify-end min-w-[120px]">
             <Link
                 :href="projectRoutes.show.url(String(project.id))"
-                class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all group/btn"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-projector-primary-600 dark:text-projector-primary-400 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-500/10 transition-all group/btn"
             >
                 <Search class="w-3.5 h-3.5" />
                 View
@@ -100,7 +100,7 @@ const executeDelete = () => {
         <div class="flex justify-end w-10">
             <button
                 @click="isEditModalOpen = true"
-                class="p-2 text-slate-300 hover:text-indigo-500 transition-colors opacity-0 group-hover/folio:opacity-100"
+                class="p-2 text-slate-300 hover:text-projector-primary-500 transition-colors opacity-0 group-hover/folio:opacity-100"
                 title="Edit Project"
             >
                 <Pencil class="w-4 h-4" />

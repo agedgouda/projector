@@ -9,15 +9,15 @@ export const KANBAN_UI = {
 
     // Card Styles
     // Added focus-visible and ring-offset for Keyboard Nav support
-    card: "rounded-xl border border-gray-100 dark:border-gray-500 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
+    card: "rounded-xl border border-gray-100 dark:border-gray-500 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-projector-primary-500 focus-visible:ring-offset-2",
     cardTitle: "text-xs font-bold text-gray-900 dark:text-gray-300 leading-tight line-clamp-2",
 
     // Ghost/Placeholder Card (for when dragging)
     ghostCard: [
-        "bg-indigo-50/50",
+        "bg-projector-primary-50/50",
         "border-2",
         "border-dashed",
-        "border-indigo-200",
+        "border-projector-primary-200",
         "rounded-xl",
         "opacity-50"
     ],
@@ -68,7 +68,7 @@ export const getPriorityStyles = (priority: string) => {
  */
 export const getAvatarAppearance = (id: number = 0) => {
     const variants = [
-        "bg-indigo-50 text-indigo-700 border-indigo-100",
+        "bg-projector-primary-50 text-projector-primary-700 border-projector-primary-100",
         "bg-emerald-50 text-emerald-700 border-emerald-100",
         "bg-amber-50 text-amber-700 border-amber-100",
         "bg-rose-50 text-rose-700 border-rose-100",

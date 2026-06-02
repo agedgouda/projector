@@ -65,7 +65,7 @@ const add = (user: User) => {
                 v-model="query"
                 type="text"
                 placeholder="Search by name or email..."
-                class="h-10 w-full rounded-xl border-gray-200 bg-white pl-10 pr-10 shadow-sm transition-all focus:ring-indigo-500 dark:border-zinc-800 dark:bg-zinc-900"
+                class="h-10 w-full rounded-xl border-gray-200 bg-white pl-10 pr-10 shadow-sm transition-all focus:ring-projector-primary-500 dark:border-zinc-800 dark:bg-zinc-900"
             />
             <button
                 v-if="query"

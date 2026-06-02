@@ -18,7 +18,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <button @click="emit('back')" class="inline-flex items-center text-sm text-gray-500 hover:text-indigo-600 transition-colors mb-6 group">
+    <button @click="emit('back')" class="inline-flex items-center text-sm text-gray-500 hover:text-projector-primary-600 transition-colors mb-6 group">
         <ChevronLeft class="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
         {{ backLabel }}
     </button>
@@ -26,7 +26,7 @@ const emit = defineEmits<{
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-8 p-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div class="flex items-start md:items-center gap-5">
-                <div class="p-3.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600">
+                <div class="p-3.5 bg-projector-primary-50 dark:bg-projector-primary-900/20 rounded-xl text-projector-primary-600">
                     <ProjectIcon :name="project.type?.icon" class="w-9 h-9" />
                 </div>
                 <div>
@@ -49,7 +49,7 @@ const emit = defineEmits<{
         <button v-for="tab in ['hierarchy', 'tasks']" :key="tab"
             @click="emit('update:activeTab', tab)"
             :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
-                activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
+                activeTab === tab ? 'border-projector-primary-500 text-projector-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
             {{ tab === 'hierarchy' ? 'Documentation' : 'Tasks' }}
         </button>
     </div>

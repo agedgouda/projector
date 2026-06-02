@@ -105,7 +105,7 @@ const goToOrg = (orgId: string) => {
                                 <button
                                     type="button"
                                     @click="goToOrg(org.id)"
-                                    class="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline text-left"
+                                    class="font-semibold text-projector-primary-600 dark:text-projector-primary-400 hover:underline text-left"
                                 >{{ org.name }}</button>
                             </td>
 
@@ -113,9 +113,9 @@ const goToOrg = (orgId: string) => {
                                 <select
                                     :value="org.membership_tier"
                                     @change="updateTier(org, ($event.target as HTMLSelectElement).value)"
-                                    class="text-[11px] font-black uppercase tracking-widest rounded-lg border border-slate-200 dark:border-zinc-700 bg-transparent px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                    class="text-[11px] font-black uppercase tracking-widest rounded-lg border border-slate-200 dark:border-zinc-700 bg-transparent px-2 py-1 focus:outline-none focus:ring-2 focus:ring-projector-primary-500 cursor-pointer"
                                     :class="{
-                                        'text-indigo-600': org.membership_tier === 'pro',
+                                        'text-projector-primary-600': org.membership_tier === 'pro',
                                         'text-emerald-600': org.membership_tier === 'friends_family',
                                         'text-slate-500': org.membership_tier === 'free',
                                     }"

@@ -82,16 +82,16 @@ watch(() => props.item, (newItem) => {
                         </SheetTitle>
 
                         <div class="flex flex-col gap-1">
-                            <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-1.5 self-start px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100">
-                                <RefreshCw class="h-2.5 w-2.5 animate-spin text-indigo-600" />
-                                <span class="text-[9px] font-black uppercase tracking-wider text-indigo-600">
+                            <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-1.5 self-start px-2 py-0.5 rounded-full bg-projector-primary-50 border border-projector-primary-100">
+                                <RefreshCw class="h-2.5 w-2.5 animate-spin text-projector-primary-600" />
+                                <span class="text-[9px] font-black uppercase tracking-wider text-projector-primary-600">
                                     {{ item.currentStatus || 'AI Analyzing...' }}
                                 </span>
                             </div>
 
                             <SheetDescription class="text-[11px] text-slate-500">
                                 <div class="flex items-center gap-4 mt-1">
-                                    <div class="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2">
+                                    <div class="text-[9px] font-black uppercase tracking-[0.2em] text-projector-primary-600 flex items-center gap-2">
                                         <FileType class="h-3 w-3" /> {{ getDocLabel(item.type) }}
                                     </div>
 
@@ -159,14 +159,14 @@ watch(() => props.item, (newItem) => {
                                 <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
                                     <div class="w-4 h-px bg-slate-200"></div> Implementation Tasks
                                 </h3>
-                                <Button @click="openCreateTask" variant="ghost" size="sm" class="h-7 text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50">
+                                <Button @click="openCreateTask" variant="ghost" size="sm" class="h-7 text-[9px] font-black uppercase tracking-widest text-projector-primary-600 hover:bg-projector-primary-50">
                                     <Plus class="h-3 w-3 mr-1" /> Add Task
                                 </Button>
                             </div>
 
                             <div v-if="item.tasks?.length" class="space-y-3">
                                 <div v-for="task in item.tasks" :key="task.id"
-                                    class="group flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-100 transition-all"
+                                    class="group flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-projector-primary-100 transition-all"
                                 >
                                     <div class="flex items-center gap-4 flex-1 min-w-0">
                                         <div
@@ -198,7 +198,7 @@ watch(() => props.item, (newItem) => {
                                                 variant="ghost"
                                                 size="icon"
                                                 @click="openEditTask(task)"
-                                                class="h-7 w-7 text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                                                class="h-7 w-7 text-slate-400 hover:text-projector-primary-600 opacity-0 group-hover:opacity-100 transition-all shrink-0"
                                             >
                                                 <Edit2 class="h-3.5 w-3.5" />
                                             </Button>
@@ -206,7 +206,7 @@ watch(() => props.item, (newItem) => {
                                             <TooltipProvider v-if="task.assignee">
                                                 <Tooltip :delay-duration="200">
                                                     <TooltipTrigger as-child>
-                                                        <div class="h-7 w-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-indigo-600 shadow-sm cursor-help shrink-0">
+                                                        <div class="h-7 w-7 rounded-full bg-projector-primary-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-projector-primary-600 shadow-sm cursor-help shrink-0">
                                                             {{ (task.assignee.first_name?.[0] || '') + (task.assignee.last_name?.[0] || '') }}
                                                         </div>
                                                     </TooltipTrigger>

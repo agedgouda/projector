@@ -93,7 +93,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
             <div class="flex items-center justify-between">
                 <button
                     @click="router.visit(statusMeetingsRoutes.index.url())"
-                    class="flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                    class="flex items-center gap-2 text-sm text-slate-500 hover:text-projector-primary-600 transition-colors"
                 >
                     <ArrowLeft class="w-3 h-3" />
                     Status Meetings
@@ -128,7 +128,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                 <button v-for="tab in ['documentation', 'recordings']" :key="tab"
                     @click="activeTab = tab as 'documentation' | 'recordings'"
                     :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
-                        activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
+                        activeTab === tab ? 'border-projector-primary-500 text-projector-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
                     {{ tab === 'documentation' ? 'Documentation' : 'Recordings' }}
                 </button>
             </div>
@@ -142,7 +142,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                             <input
                                 v-model="form.name"
                                 type="text"
-                                class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
                             />
                             <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
                         </div>
@@ -152,14 +152,14 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                             <textarea
                                 v-model="form.content"
                                 rows="16"
-                                class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y font-mono leading-relaxed"
+                                class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500 resize-y font-mono leading-relaxed"
                             />
                             <p v-if="form.errors.content" class="text-xs text-red-500">{{ form.errors.content }}</p>
                         </div>
 
                         <div class="flex justify-end gap-3 pt-2">
                             <Button type="button" variant="outline" @click="toggleEdit">Cancel</Button>
-                            <Button type="submit" :disabled="form.processing" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-xl">
+                            <Button type="submit" :disabled="form.processing" class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold px-6 rounded-xl">
                                 {{ form.processing ? 'Saving...' : 'Save Changes' }}
                             </Button>
                         </div>
@@ -168,7 +168,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
 
                 <div v-else class="max-w-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 shadow-sm space-y-4">
                     <div>
-                        <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">Status Meeting</p>
+                        <p class="text-[10px] font-black uppercase tracking-widest text-projector-primary-500 mb-1">Status Meeting</p>
                         <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">{{ item.name }}</h1>
                         <p v-if="item.creator" class="text-xs text-slate-400 mt-1">Created by {{ item.creator.name }}</p>
                     </div>

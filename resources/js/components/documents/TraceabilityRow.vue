@@ -51,16 +51,16 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
             class="flex items-center transition-all group relative"
             :class="[level === 0 ? 'mb-3' : 'mb-1 opacity-90']"
         >
-            <div v-if="isSelected" class="absolute left-0 top-2 bottom-2 w-1 bg-indigo-600 rounded-full z-10"></div>
+            <div v-if="isSelected" class="absolute left-0 top-2 bottom-2 w-1 bg-projector-primary-600 rounded-full z-10"></div>
 
             <div class="flex-1 flex items-center relative">
                 <div
-                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-indigo-300 min-w-0 cursor-pointer"
+                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-projector-primary-300 min-w-0 cursor-pointer"
                     :class="[
-                        isSelected ? 'border-indigo-400 ring-1 ring-indigo-100' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300',
+                        isSelected ? 'border-projector-primary-400 ring-1 ring-projector-primary-100' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300',
                         level === 0 ? '' : (level === 1 ? 'ml-8' : 'ml-16')
                     ]"
-                    @click="() => navigateToDetails(item.project_id, item.id, 'hierarchy')"
+                    @click="() => navigateToDetails(item.project_id, item.id)"
                 >
                     <div
                         v-if="item.children?.length"
@@ -73,7 +73,7 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
                         />
                     </div>
 
-                    <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mr-4" :class="isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-500'">
+                    <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mr-4" :class="isSelected ? 'bg-projector-primary-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-500'">
                         <FileText class="h-4 w-4" />
                     </div>
 
@@ -83,8 +83,8 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
                         </div>
 
                         <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-2 ml-2">
-                            <RefreshCw class="h-3 w-3 animate-spin text-indigo-500" />
-                            <span class="text-[10px] text-indigo-500 font-medium animate-pulse">
+                            <RefreshCw class="h-3 w-3 animate-spin text-projector-primary-500" />
+                            <span class="text-[10px] text-projector-primary-500 font-medium animate-pulse">
                                 {{ item.currentStatus || 'Processing...' }}
                             </span>
                         </div>
@@ -137,13 +137,13 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
                             v-if="isReprocessable && !isReadOnly"
                             variant="ghost" size="sm" @click.stop="emit('handleReprocess', item.id)"
                             :disabled="item.currentStatus || item.processed_at === null"
-                            class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl group/ai"
+                            class="h-8 px-3 bg-projector-highlight-50 dark:bg-projector-highlight-950/30 text-projector-highlight-700 dark:text-projector-highlight-400 border border-projector-highlight-100 dark:border-projector-highlight-900/50 rounded-xl group/ai"
                         >
                             <Sparkles class="h-3.5 w-3.5 mr-2" />
                             <span class="text-[10px] font-black uppercase tracking-wider">{{ processButtonLabel }}</span>
                         </Button>
                         <Button
-                            variant="ghost" size="sm" @click="() => navigateToDetails(item.project_id, item.id, 'hierarchy')"
+                            variant="ghost" size="sm" @click="() => navigateToDetails(item.project_id, item.id)"
                             class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 rounded-xl group/view"
                         >
                             <Eye class="h-3.5 w-3.5 mr-2" />

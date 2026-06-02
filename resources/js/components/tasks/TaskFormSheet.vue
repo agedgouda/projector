@@ -97,7 +97,7 @@ const submit = () => {
         <SheetContent class="sm:max-w-[700px] p-0 flex flex-col h-full bg-white">
             <div class="p-8 border-b shrink-0 bg-slate-50/50">
                 <div class="flex items-center gap-3 mb-1">
-                    <div class="p-2 bg-indigo-600 rounded-lg text-white">
+                    <div class="p-2 bg-projector-primary-600 rounded-lg text-white">
                         <ClipboardList class="w-5 h-5" />
                     </div>
                     <SheetTitle class="text-2xl font-black text-slate-900 tracking-tight">
@@ -114,7 +114,7 @@ const submit = () => {
                     <TabsList class="h-12 w-full justify-start gap-6 bg-transparent p-0">
                         <TabsTrigger
                             value="edit"
-                            class="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
+                            class="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400 data-[state=active]:border-projector-primary-600 data-[state=active]:text-projector-primary-600 data-[state=active]:shadow-none"
                         >
                             <Settings2 class="w-3.5 h-3.5 mr-2" />
                             Configuration
@@ -122,11 +122,11 @@ const submit = () => {
                         <TabsTrigger
                             v-if="task"
                             value="discussion"
-                            class="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
+                            class="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400 data-[state=active]:border-projector-primary-600 data-[state=active]:text-projector-primary-600 data-[state=active]:shadow-none"
                         >
                             <MessageSquare class="w-3.5 h-3.5 mr-2" />
                             Discussion
-                            <span v-if="task.comments?.length" class="ml-2 px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 text-[9px] font-bold">
+                            <span v-if="task.comments?.length" class="ml-2 px-1.5 py-0.5 rounded-full bg-projector-primary-100 text-projector-primary-600 text-[9px] font-bold">
                                 {{ task.comments.length }}
                             </span>
                         </TabsTrigger>
@@ -146,9 +146,9 @@ const submit = () => {
                             </div>
                         </div>
 
-                        <div class="bg-indigo-50/30 rounded-2xl p-6 border border-indigo-100/50">
-                            <h4 class="font-bold text-indigo-900 text-sm mb-3 flex items-center gap-2">
-                                <FileText class="w-4 h-4 text-indigo-400" />
+                        <div class="bg-projector-primary-50/30 rounded-2xl p-6 border border-projector-primary-100/50">
+                            <h4 class="font-bold text-projector-primary-900 text-sm mb-3 flex items-center gap-2">
+                                <FileText class="w-4 h-4 text-projector-primary-400" />
                                 {{ initialTitle }}
                             </h4>
                             <div
@@ -176,7 +176,7 @@ const submit = () => {
                 <Button
                     @click="submit"
                     :disabled="form.processing"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-10 font-black shadow-lg shadow-indigo-200 transition-all h-12 min-w-[160px]"
+                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl px-10 font-black shadow-lg shadow-projector-primary-200 transition-all h-12 min-w-[160px]"
                 >
                     <Loader2 v-if="form.processing" class="w-4 h-4 mr-2 animate-spin" />
                     {{ task ? 'Update Task' : 'Create Task' }}

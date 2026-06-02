@@ -101,7 +101,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
             </div>
 
             <div v-for="comment in comments" :key="comment.id" class="group flex gap-3 pr-2">
-                <div class="h-8 w-8 rounded-full bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center text-[10px] font-black text-indigo-600 dark:text-indigo-400 shrink-0">
+                <div class="h-8 w-8 rounded-full bg-projector-primary-50 dark:bg-projector-primary-950 border border-projector-primary-100 dark:border-projector-primary-900 flex items-center justify-center text-[10px] font-black text-projector-primary-600 dark:text-projector-primary-400 shrink-0">
                     {{ comment.user?.first_name?.[0] }}{{ comment.user?.last_name?.[0] }}
                 </div>
 
@@ -145,7 +145,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
             @keydown.meta.enter="submitComment"
             @keydown.ctrl.enter="submitComment"
         >
-            <div class="border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all dark:bg-white/5">
+            <div class="border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-projector-primary-500 focus-within:border-transparent transition-all dark:bg-white/5">
                 <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-white/5">
                     <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bold') }">
                         <Bold class="h-4 w-4" />
@@ -169,7 +169,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                     @click="submitComment"
                     :disabled="!form.body.trim() || form.processing"
                     size="sm"
-                    class="h-8 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-widest px-4"
+                    class="h-8 bg-projector-primary-600 hover:bg-projector-primary-700 rounded-lg text-[10px] font-bold uppercase tracking-widest px-4"
                 >
                     <Loader2 v-if="form.processing" class="w-3 h-3 mr-1 animate-spin" />
                     <Send v-else class="w-3 h-3 mr-1" />

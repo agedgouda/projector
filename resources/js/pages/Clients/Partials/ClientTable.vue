@@ -53,11 +53,11 @@ const handleDelete = () => {
                     <div
                         class="group relative flex flex-col md:flex-row md:items-center justify-between p-5 bg-white dark:bg-gray-900 border rounded-2xl transition-all duration-300 shadow-sm z-20"
                         :class="selectedClientId === client.id
-                            ? 'border-indigo-500 ring-4 ring-indigo-500/5'
+                            ? 'border-projector-primary-500 ring-4 ring-projector-primary-500/5'
                             : 'border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'"
                     >
                         <div class="flex items-start gap-4 flex-1">
-                            <div class="mt-1 flex items-center justify-center w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 dark:group-hover:bg-indigo-500/10 transition-colors">
+                            <div class="mt-1 flex items-center justify-center w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 group-hover:bg-projector-primary-50 group-hover:text-projector-primary-600 dark:group-hover:bg-projector-primary-500/10 transition-colors">
                                 <Briefcase class="w-5 h-5" />
                             </div>
 
@@ -89,8 +89,8 @@ const handleDelete = () => {
                                 :class="[
                                     'h-10 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95',
                                     selectedClientId === client.id
-                                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_0_20px_rgba(79,70,229,0.3)]'
-                                        : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
+                                        ? 'bg-projector-primary-600 hover:bg-projector-primary-700 text-white shadow-[0_0_20px_rgba(79,70,229,0.3)]'
+                                        : 'text-gray-500 hover:text-projector-primary-600 hover:bg-projector-primary-50'
                                 ]"
                             >
                                 <ChevronDown
@@ -102,7 +102,7 @@ const handleDelete = () => {
                                     class="ml-2 px-1.5 py-0.5 rounded-md text-[10px] transition-colors"
                                     :class="selectedClientId === client.id
                                         ? 'bg-white/20 text-white'
-                                        : 'bg-gray-200 dark:bg-gray-800 text-gray-600 group-hover/btn:bg-indigo-100 group-hover/btn:text-indigo-600'"
+                                        : 'bg-gray-200 dark:bg-gray-800 text-gray-600 group-hover/btn:bg-projector-primary-100 group-hover/btn:text-projector-primary-600'"
                                 >
                                     {{ client.projects?.length || 0 }}
                                 </span>
@@ -112,7 +112,7 @@ const handleDelete = () => {
                                 variant="ghost"
                                 size="icon"
                                 @click="emit('edit', client)"
-                                class="rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                                class="rounded-xl text-gray-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 transition-all"
                             >
                                 <Edit2 class="w-4 h-4" />
                             </Button>
@@ -137,13 +137,13 @@ const handleDelete = () => {
                         leave-to-class="opacity-0 -translate-y-8 max-h-0"
                     >
                         <div v-if="selectedClientId === client.id" class="overflow-hidden">
-                            <div class="pt-10 pb-8 px-6 border-x border-b border-indigo-100 dark:border-indigo-500/20 bg-gray-50/50 dark:bg-indigo-500/5 rounded-b-3xl -mt-6">
+                            <div class="pt-10 pb-8 px-6 border-x border-b border-projector-primary-100 dark:border-projector-primary-500/20 bg-gray-50/50 dark:bg-projector-primary-500/5 rounded-b-3xl -mt-6">
                                 <div class="flex items-center gap-4 mb-8">
-                                    <div class="h-px bg-indigo-200 dark:bg-indigo-500/30 flex-1"></div>
-                                    <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500 dark:text-indigo-400">
+                                    <div class="h-px bg-projector-primary-200 dark:bg-projector-primary-500/30 flex-1"></div>
+                                    <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-projector-primary-500 dark:text-projector-primary-400">
                                         Project Portfolio for {{ client.company_name }}
                                     </h4>
-                                    <div class="h-px bg-indigo-200 dark:bg-indigo-500/30 flex-1"></div>
+                                    <div class="h-px bg-projector-primary-200 dark:bg-projector-primary-500/30 flex-1"></div>
                                 </div>
 
                                 <ClientProjects

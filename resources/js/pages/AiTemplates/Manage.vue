@@ -57,7 +57,7 @@ const submit = () => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 w-full">
-            <button @click="handleShow()" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm font-medium mb-4">
+            <button @click="handleShow()" class="text-projector-primary-600 hover:text-projector-primary-800 dark:text-projector-primary-400 dark:hover:text-projector-primary-300 text-sm font-medium mb-4">
                 &larr; Back
             </button>
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">

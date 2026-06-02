@@ -34,8 +34,8 @@ const limitLabel = props.limitKey ? LIMIT_LABELS[props.limitKey] : 'items';
         <DialogContent class="sm:max-w-[440px]">
             <DialogHeader>
                 <div class="flex items-center gap-3 mb-1">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-                        <Sparkles class="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-projector-primary-50 dark:bg-projector-primary-900/30">
+                        <Sparkles class="h-5 w-5 text-projector-primary-600 dark:text-projector-primary-400" />
                     </div>
                     <DialogTitle class="text-lg font-black">Upgrade to Pro</DialogTitle>
                 </div>
@@ -45,7 +45,7 @@ const limitLabel = props.limitKey ? LIMIT_LABELS[props.limitKey] : 'items';
                 </DialogDescription>
             </DialogHeader>
 
-            <div class="rounded-xl border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-900/10 p-4 text-sm text-slate-700 dark:text-slate-300">
+            <div class="rounded-xl border border-projector-primary-100 dark:border-projector-primary-900/50 bg-projector-primary-50/50 dark:bg-projector-primary-900/10 p-4 text-sm text-slate-700 dark:text-slate-300">
                 Contact your administrator to upgrade your organization's plan.
             </div>
 

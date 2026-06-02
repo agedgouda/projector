@@ -66,7 +66,7 @@ const goBack = () => {
             <div class="flex items-center justify-between mb-10">
                 <button
                     @click="goBack"
-                    class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-indigo-600 transition-colors group"
+                    class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-projector-primary-600 transition-colors group"
                 >
                     <ArrowLeft class="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                     Back to Library
@@ -77,18 +77,18 @@ const goBack = () => {
                     @click="handleEdit"
                     class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 font-black px-6 rounded-xl shadow-sm transition-all active:scale-95 text-[10px] uppercase tracking-widest"
                 >
-                    <Settings2 class="w-4 h-4 mr-2 text-indigo-500" />
+                    <Settings2 class="w-4 h-4 mr-2 text-projector-primary-500" />
                     Edit Configuration
                 </Button>
             </div>
 
             <div class="mb-12 flex items-center gap-6">
-                <div class="h-20 w-20 rounded-[2rem] bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20">
+                <div class="h-20 w-20 rounded-[2rem] bg-projector-primary-600 flex items-center justify-center text-white shadow-xl shadow-projector-primary-500/20">
                     <Wand2 class="w-10 h-10" />
                 </div>
                 <div>
                     <div class="flex items-center gap-2 mb-1">
-                        <span class="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500/60">Intelligence Protocol</span>
+                        <span class="text-[10px] font-black uppercase tracking-[0.3em] text-projector-primary-500/60">Intelligence Protocol</span>
                     </div>
                     <h1 class="text-4xl font-black tracking-tighter text-gray-900 dark:text-white uppercase italic">
                         {{ aiTemplate.name }}
@@ -103,7 +103,7 @@ const goBack = () => {
                         <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
                             System Persona (Instructions)
                         </div>
-                        <button @click="copyToClipboard(aiTemplate.system_prompt)" class="text-[10px] font-bold text-indigo-500 hover:underline flex items-center gap-1">
+                        <button @click="copyToClipboard(aiTemplate.system_prompt)" class="text-[10px] font-bold text-projector-primary-500 hover:underline flex items-center gap-1">
                             <Copy class="w-3 h-3" /> Copy
                         </button>
                     </div>
@@ -120,14 +120,14 @@ const goBack = () => {
                         <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
                             Transformation Logic (Prompt)
                         </div>
-                        <button @click="copyToClipboard(aiTemplate.user_prompt)" class="text-[10px] font-bold text-indigo-500 hover:underline flex items-center gap-1">
+                        <button @click="copyToClipboard(aiTemplate.user_prompt)" class="text-[10px] font-bold text-projector-primary-500 hover:underline flex items-center gap-1">
                             <Copy class="w-3 h-3" /> Copy
                         </button>
                     </div>
                     <div class="bg-gray-900 dark:bg-black rounded-[2rem] p-8 shadow-inner border border-gray-800 relative overflow-hidden">
-                        <div class="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
+                        <div class="absolute -top-24 -right-24 w-64 h-64 bg-projector-primary-500/10 blur-[100px] pointer-events-none"></div>
 
-                        <pre class="text-indigo-400 font-mono text-sm leading-7 whitespace-pre-wrap relative z-10">{{ aiTemplate.user_prompt }}</pre>
+                        <pre class="text-projector-primary-400 font-mono text-sm leading-7 whitespace-pre-wrap relative z-10">{{ aiTemplate.user_prompt }}</pre>
                     </div>
                 </section>
 

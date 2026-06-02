@@ -15,7 +15,7 @@ defineEmits(['toggle']);
         @click="$emit('toggle')"
         class="flex items-center gap-4 mt-10 mb-6 cursor-pointer group/header select-none w-full"
     >
-        <div class="flex items-center justify-center w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover/header:bg-indigo-500 group-hover/header:text-white transition-all">
+        <div class="flex items-center justify-center w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover/header:bg-projector-primary-500 group-hover/header:text-white transition-all">
             <ChevronDown
                 class="w-3.5 h-3.5 transition-transform duration-300"
                 :class="{ '-rotate-90': collapsed }"
@@ -24,11 +24,11 @@ defineEmits(['toggle']);
         <div class="flex items-center gap-3">
             <slot name="title" v-if="$slots.title" />
 
-            <h3 v-else class="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 group-hover/header:text-indigo-600 transition-colors">
+            <h3 v-else class="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 group-hover/header:text-projector-primary-600 transition-colors">
                 {{ title }}
             </h3>
 
-            <span v-if="count !== undefined" class="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-500/20">
+            <span v-if="count !== undefined" class="text-[10px] font-mono font-bold text-projector-primary-600 dark:text-projector-primary-400 bg-projector-primary-50 dark:bg-projector-primary-500/10 px-2 py-0.5 rounded-full border border-projector-primary-100 dark:border-projector-primary-500/20">
                 {{ count }}
             </span>
         </div>

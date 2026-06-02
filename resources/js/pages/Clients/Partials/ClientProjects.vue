@@ -51,12 +51,12 @@ const filteredProjects = computed(() => {
 
             <div class="flex items-center gap-3 w-full md:w-auto">
                 <div class="relative flex-1 md:w-64 group">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-projector-primary-500 transition-colors" />
                     <input
                         v-model="searchQuery"
                         type="text"
                         placeholder="Filter projects..."
-                        class="block w-full pl-9 pr-9 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+                        class="block w-full pl-9 pr-9 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950 focus:ring-4 focus:ring-projector-primary-500/10 focus:border-projector-primary-500 transition-all shadow-sm"
                     />
                     <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         <X class="w-4 h-4" />
@@ -65,7 +65,7 @@ const filteredProjects = computed(() => {
 
                 <Dialog v-model:open="isProjectModalOpen">
                     <DialogTrigger asChild>
-                        <Button variant="outline" class="border-indigo-200 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 font-bold rounded-xl">
+                        <Button variant="outline" class="border-projector-primary-200 dark:border-projector-primary-900/50 text-projector-primary-600 dark:text-projector-primary-400 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-900/20 font-bold rounded-xl">
                             <Plus class="w-4 h-4 mr-2" />
                             Add Project
                         </Button>

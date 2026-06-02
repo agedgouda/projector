@@ -110,7 +110,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                 <Button
                     v-if="canCreate"
                     @click="handleCreate"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all"
                 >
                     <PlusIcon class="w-5 h-5 mr-2" />
                     New Template
@@ -141,7 +141,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                 <!-- My Organization section -->
                 <div v-if="orgItems.length > 0">
                     <div class="flex items-center gap-3 mb-4">
-                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-projector-primary-600 dark:text-projector-primary-400">
                             My Organization
                         </h2>
                         <span class="text-[9px] font-black text-gray-400 dark:text-gray-600">{{ orgTemplates.length }}</span>
@@ -166,14 +166,14 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                 <div class="flex items-center gap-4">
                                     <div
                                         @click="handleShow(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
                                     >
                                         <Edit2 class="w-5 h-5" />
                                     </div>
                                     <div
                                         v-if="canCreate"
                                         @click="handleCopy(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
                                     >
                                         <Copy class="w-5 h-5" />
                                     </div>
@@ -218,14 +218,14 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                 <div class="flex items-center gap-4">
                                     <div
                                         @click="handleShow(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
                                     >
                                         <Edit2 class="w-5 h-5" />
                                     </div>
                                     <div
                                         v-if="canCreate"
                                         @click="handleCopy(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-500 transition-colors"
+                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
                                     >
                                         <Copy class="w-5 h-5" />
                                     </div>

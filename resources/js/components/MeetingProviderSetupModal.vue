@@ -36,7 +36,7 @@ const titles: Record<string, string> = {
                 <div class="space-y-5 text-sm text-gray-700 dark:text-gray-300">
                     <div class="space-y-3">
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">1</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">1</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Create a Server-to-Server OAuth App</p>
                                 <p class="text-xs text-gray-500 mt-0.5">Go to <span class="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">marketplace.zoom.us</span>, sign in as an admin, and navigate to <strong>Develop &gt; Build App</strong>. Choose <strong>Server-to-Server OAuth</strong> and click <strong>Create</strong>.</p>
@@ -44,7 +44,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">2</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">2</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Add Required Scopes</p>
                                 <p class="text-xs text-gray-500 mt-0.5">Under <strong>Scopes</strong>, add the following:</p>
@@ -56,7 +56,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">3</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">3</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Activate the App</p>
                                 <p class="text-xs text-gray-500 mt-0.5">Click <strong>Activate your app</strong>. The app must be active before credentials will work.</p>
@@ -64,7 +64,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">4</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">4</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Enable Cloud Recording Transcripts</p>
                                 <p class="text-xs text-gray-500 mt-0.5">In the Zoom Admin portal, go to <strong>Account Management &gt; Account Settings &gt; Recording</strong> and enable <strong>Audio transcript</strong>.</p>
@@ -103,7 +103,7 @@ const titles: Record<string, string> = {
                 <div class="space-y-5 text-sm text-gray-700 dark:text-gray-300">
                     <div class="space-y-3">
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">1</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">1</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Register an Application in Azure</p>
                                 <p class="text-xs text-gray-500 mt-0.5">Sign in to <span class="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">portal.azure.com</span> as an admin. Go to <strong>Azure Active Directory &gt; App registrations &gt; New registration</strong>. Give it a name and click <strong>Register</strong>.</p>
@@ -111,7 +111,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">2</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">2</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Add API Permissions</p>
                                 <p class="text-xs text-gray-500 mt-0.5">Go to <strong>API permissions &gt; Add a permission &gt; Microsoft Graph &gt; Application permissions</strong> and add:</p>
@@ -124,7 +124,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">3</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">3</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Create a Client Secret</p>
                                 <p class="text-xs text-gray-500 mt-0.5">Go to <strong>Certificates &amp; secrets &gt; New client secret</strong>. Set an expiry and click <strong>Add</strong>. Copy the secret <strong>Value</strong> immediately — it is only shown once.</p>
@@ -132,7 +132,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">4</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">4</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Enable Transcription in Teams Admin</p>
                                 <p class="text-xs text-gray-500 mt-0.5">In the <strong>Teams Admin Center</strong>, go to <strong>Meetings &gt; Meeting policies</strong>, select the relevant policy, and enable <strong>Transcription</strong>.</p>
@@ -171,7 +171,7 @@ const titles: Record<string, string> = {
                 <div class="space-y-5 text-sm text-gray-700 dark:text-gray-300">
                     <div class="space-y-3">
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">1</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">1</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Enable the Google Meet API</p>
                                 <p class="text-xs text-gray-500 mt-0.5">In <span class="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">console.cloud.google.com</span>, go to <strong>APIs &amp; Services &gt; Library</strong>, search for <strong>Google Meet API</strong>, and click <strong>Enable</strong>.</p>
@@ -179,7 +179,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">2</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">2</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Enable Transcription in Workspace Admin</p>
                                 <p class="text-xs text-gray-500 mt-0.5">In <span class="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">admin.google.com</span>, go to <strong>Apps &gt; Google Workspace &gt; Google Meet &gt; Meet video settings</strong> and enable <strong>Transcription</strong>. Requires Business Standard or higher.</p>
@@ -187,7 +187,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">3</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">3</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Create a Service Account</p>
                                 <p class="text-xs text-gray-500 mt-0.5">In the Cloud Console, go to <strong>IAM &amp; Admin &gt; Service Accounts &gt; Create Service Account</strong>. After creating it, go to the <strong>Keys</strong> tab, click <strong>Add Key &gt; JSON</strong>, and download the file.</p>
@@ -195,7 +195,7 @@ const titles: Record<string, string> = {
                         </div>
 
                         <div class="flex gap-3">
-                            <span class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black">4</span>
+                            <span class="shrink-0 w-6 h-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-500/20 text-projector-primary-600 dark:text-projector-primary-400 flex items-center justify-center text-[10px] font-black">4</span>
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Enable Domain-Wide Delegation</p>
                                 <p class="text-xs text-gray-500 mt-0.5">In the Admin Console, go to <strong>Security &gt; API controls &gt; Domain Wide Delegation &gt; Add new</strong>. Enter the service account's <strong>Client ID</strong> and add these scopes:</p>

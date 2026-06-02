@@ -93,7 +93,7 @@ const breadcrumbs = [{ title: 'Roles', href: roleRoutes.index().url }];
                     <label class="text-sm font-bold text-gray-500 uppercase tracking-wider">New Role Name</label>
                     <Input v-model="form.name" class="bg-white dark:bg-gray-800" placeholder="e.g. support" />
                 </div>
-                <Button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10">
+                <Button type="submit" class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10">
                     <ShieldPlus class="w-4 h-4 mr-2" /> Add Role
                 </Button>
             </form>
@@ -129,13 +129,13 @@ const breadcrumbs = [{ title: 'Roles', href: roleRoutes.index().url }];
                             @delete="unassignUser(role.id, user.id)"
                         >
                             <template #icon>
-                                <div class="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600">
+                                <div class="p-1.5 rounded-lg bg-projector-primary-50 dark:bg-projector-primary-900/30 text-projector-primary-600">
                                     <UserIcon class="w-4 h-4" />
                                 </div>
                             </template>
 
                             <template #actions>
-                                <div v-if="role.name === 'super-admin' && user.id === authUser.id" class="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic pr-3">
+                                <div v-if="role.name === 'super-admin' && user.id === authUser.id" class="text-[10px] font-black uppercase tracking-widest text-projector-primary-400 italic pr-3">
                                     Current User
                                 </div>
                                 <div v-else class="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-red-500 transition-colors">

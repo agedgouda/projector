@@ -14,9 +14,9 @@ defineProps<{
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
     >
-        <div v-if="isProcessing" class="fixed top-0 left-0 right-0 z-[100] h-[3px] bg-indigo-100/20">
+        <div v-if="isProcessing" class="fixed top-0 left-0 right-0 z-[100] h-[3px] bg-projector-primary-100/20">
             <div
-                class="h-full bg-indigo-600 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(79,70,229,0.5)]"
+                class="h-full bg-projector-primary-600 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(79,70,229,0.5)]"
                 :style="{ width: `${progress}%` }"
             ></div>
         </div>

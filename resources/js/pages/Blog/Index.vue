@@ -43,9 +43,9 @@ const formatDate = (date: string | null) => {
                     v-for="post in posts"
                     :key="post.id"
                     :href="`/blog/${post.slug}`"
-                    class="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm transition-all group"
+                    class="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 hover:border-projector-primary-300 dark:hover:border-projector-primary-700 hover:shadow-sm transition-all group"
                 >
-                    <h2 class="text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-2">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white group-hover:text-projector-primary-600 dark:group-hover:text-projector-primary-400 transition-colors mb-2">
                         {{ post.title }}
                     </h2>
                     <div v-if="post.date" class="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 mt-2">

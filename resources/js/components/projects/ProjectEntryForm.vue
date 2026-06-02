@@ -169,8 +169,8 @@ const submit = async () => {
                     :class="{ 'border-amber-400 dark:border-amber-500': descriptionQuality === 'vague' }"
                 />
                 <div v-if="evaluating" class="flex items-center gap-2 px-1">
-                    <Loader2 class="w-3 h-3 text-indigo-400 animate-spin" />
-                    <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Analyzing description...</span>
+                    <Loader2 class="w-3 h-3 text-projector-primary-400 animate-spin" />
+                    <span class="text-[10px] font-bold text-projector-primary-400 uppercase tracking-widest">Analyzing description...</span>
                 </div>
                 <div v-else-if="descriptionQuality === 'vague'" class="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
                     <div class="flex items-center gap-2">
@@ -198,7 +198,7 @@ const submit = async () => {
                     id="project-inactive"
                     v-model="form.inactive"
                     type="checkbox"
-                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    class="h-4 w-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500"
                 />
                 <Label for="project-inactive" class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
                     Inactive
@@ -210,12 +210,12 @@ const submit = async () => {
                     <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
                         Client Assignment
                     </Label>
-                    <div v-if="client" class="h-12 flex items-center px-4 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-800 font-bold text-sm text-indigo-600">
+                    <div v-if="client" class="h-12 flex items-center px-4 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-800 font-bold text-sm text-projector-primary-600">
                         {{ client.company_name }}
                     </div>
                     <template v-else-if="showNewClientForm">
-                        <div class="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 p-4">
-                            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-3">New Client</p>
+                        <div class="rounded-xl border border-projector-primary-200 dark:border-projector-primary-800 bg-projector-primary-50/50 dark:bg-projector-primary-950/30 p-4">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-projector-primary-500 mb-3">New Client</p>
                             <ClientEntryForm
                                 :edit-data="null"
                                 @success="handleClientCreated"
@@ -228,7 +228,7 @@ const submit = async () => {
                             <SelectValue placeholder="Select a client..." />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem :value="CREATE_NEW_SENTINEL" class="text-indigo-600 font-bold">
+                            <SelectItem :value="CREATE_NEW_SENTINEL" class="text-projector-primary-600 font-bold">
                                 + Create New Client
                             </SelectItem>
                             <SelectSeparator v-if="clients?.length" />
@@ -291,7 +291,7 @@ const submit = async () => {
                 v-else
                 type="submit"
                 :disabled="form.processing || evaluating"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl shadow-lg"
+                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl shadow-lg"
             >
                 <Loader2 v-if="evaluating" class="w-4 h-4 animate-spin" />
                 <template v-else>{{ isEditing ? 'Save Changes' : 'Initialize Project' }}</template>

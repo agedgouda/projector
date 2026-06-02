@@ -29,7 +29,7 @@ const { navigateToDetails } = useDocumentActions({
 
 <template>
     <div
-        class="group bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm transition-all hover:border-indigo-300 overflow-hidden"
+        class="group bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm transition-all hover:border-projector-primary-300 overflow-hidden"
     >
         <div
             @click="isExpanded = !isExpanded"
@@ -44,7 +44,7 @@ const { navigateToDetails } = useDocumentActions({
                 <TooltipProvider v-if="task.assignee">
                     <Tooltip :delay-duration="200">
                         <TooltipTrigger as-child>
-                            <div class="h-7 w-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-indigo-600 shadow-sm cursor-help shrink-0">
+                            <div class="h-7 w-7 rounded-full bg-projector-primary-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-projector-primary-600 shadow-sm cursor-help shrink-0">
                                 {{ (task.assignee.first_name?.[0] || '') + (task.assignee.last_name?.[0] || '') }}
                             </div>
                         </TooltipTrigger>
@@ -111,8 +111,8 @@ const { navigateToDetails } = useDocumentActions({
                 <div class="flex items-center justify-between">
                     <button
                         type="button"
-                        @click.stop="() => navigateToDetails(task.project_id, task.id, 'tasks')"
-                        class="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider cursor-pointer"
+                        @click.stop="() => navigateToDetails(task.project_id, task.id)"
+                        class="flex items-center gap-1.5 text-[11px] font-bold text-projector-primary-600 hover:text-projector-primary-700 uppercase tracking-wider cursor-pointer"
                     >
                         <MessageSquare class="w-3.5 h-3.5" />
                         Details

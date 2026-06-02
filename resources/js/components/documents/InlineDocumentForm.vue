@@ -114,7 +114,7 @@ const updateCriterion = (index: number, value: string) =>
 
         <div class="grid gap-2">
             <Label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Content</Label>
-            <div class="border border-slate-200 dark:border-white/10 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all dark:bg-white/5">
+            <div class="border border-slate-200 dark:border-white/10 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-projector-primary-500 focus-within:border-transparent transition-all dark:bg-white/5">
                 <div v-if="editor" class="flex items-center gap-1 p-2 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
                     <Button type="button" variant="ghost" size="icon" class="h-8 w-8 dark:text-slate-300" @click="editor.chain().focus().toggleBold().run()" :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bold') }">
                         <Bold class="h-4 w-4" />
@@ -146,7 +146,7 @@ const updateCriterion = (index: number, value: string) =>
                     variant="outline"
                     size="sm"
                     @click="addCriterion"
-                    class="h-7 text-[9px] font-black uppercase tracking-widest text-indigo-600 border-indigo-100 hover:bg-indigo-50"
+                    class="h-7 text-[9px] font-black uppercase tracking-widest text-projector-primary-600 border-projector-primary-100 hover:bg-projector-primary-50"
                 >
                     <Plus class="h-3 w-3 mr-1" /> Add Item
                 </Button>
@@ -166,7 +166,7 @@ const updateCriterion = (index: number, value: string) =>
                         :model-value="criterion"
                         @update:model-value="(v) => updateCriterion(Number(index), String(v))"
                         placeholder="Requirement..."
-                        class="bg-white dark:bg-white/5 dark:border-white/10 dark:text-slate-200 h-10 border-slate-200 flex-1 text-[13px] focus-visible:ring-indigo-500"
+                        class="bg-white dark:bg-white/5 dark:border-white/10 dark:text-slate-200 h-10 border-slate-200 flex-1 text-[13px] focus-visible:ring-projector-primary-500"
                     />
 
                     <Button
@@ -183,9 +183,9 @@ const updateCriterion = (index: number, value: string) =>
                 <div
                     v-if="!form.metadata?.criteria?.length"
                     @click="addCriterion"
-                    class="border border-dashed border-slate-200 dark:border-white/10 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/30 dark:hover:bg-white/5 transition-all group"
+                    class="border border-dashed border-slate-200 dark:border-white/10 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-projector-primary-200 hover:bg-projector-primary-50/30 dark:hover:bg-white/5 transition-all group"
                 >
-                    <Plus class="h-5 w-5 text-slate-300 group-hover:text-indigo-400 mb-1" />
+                    <Plus class="h-5 w-5 text-slate-300 group-hover:text-projector-primary-400 mb-1" />
                     <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No criteria defined</span>
                 </div>
             </div>
@@ -196,7 +196,7 @@ const updateCriterion = (index: number, value: string) =>
         <Button variant="outline" @click="emit('cancel')" class="px-6 font-bold uppercase text-[10px] tracking-widest">
             Cancel
         </Button>
-        <Button @click="emit('submit')" :disabled="form.processing" class="bg-indigo-600 hover:bg-indigo-700 px-8 font-bold uppercase text-[10px] tracking-widest">
+        <Button @click="emit('submit')" :disabled="form.processing" class="bg-projector-primary-600 hover:bg-projector-primary-700 px-8 font-bold uppercase text-[10px] tracking-widest">
             <RefreshCw v-if="form.processing" class="w-4 h-4 mr-2 animate-spin" />
             {{ mode === 'create' ? 'Create Document' : 'Update Document' }}
         </Button>

@@ -87,7 +87,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
                 <div>
                     <h1 class="text-2xl font-black tracking-tighter text-gray-900 dark:text-white uppercase flex items-center gap-3">
-                        <Layers class="w-7 h-7 text-indigo-600" />
+                        <Layers class="w-7 h-7 text-projector-primary-600" />
                         Project Types
                     </h1>
                     <p class="text-sm text-gray-500 font-medium">Define the document structures and AI logic for your project types.</p>
@@ -95,12 +95,12 @@ const duplicateType = (typeId: string, orgId?: string) => {
 
                 <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                     <div class="relative w-full sm:w-72 group">
-                        <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                        <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-projector-primary-500 transition-colors" />
                         <Input v-model="searchQuery" placeholder="Filter project types..." class="pl-11 pr-10 rounded-2xl bg-white dark:bg-gray-900 h-12 border-gray-200 dark:border-gray-800" />
                     </div>
 
                     <Link href="/project-types/create">
-                        <Button class="w-full sm:w-auto font-black h-12 px-8 rounded-2xl shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white uppercase text-[10px] tracking-widest shadow-indigo-500/20">
+                        <Button class="w-full sm:w-auto font-black h-12 px-8 rounded-2xl shadow-lg bg-projector-primary-600 hover:bg-projector-primary-700 text-white uppercase text-[10px] tracking-widest shadow-projector-primary-500/20">
                             <Plus class="w-4 h-4 mr-2" />
                             New Project Type
                         </Button>
@@ -117,7 +117,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
                 <!-- Org-specific section -->
                 <div v-if="orgTypes.length > 0">
                     <div class="flex items-center gap-3 mb-4">
-                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-projector-primary-600 dark:text-projector-primary-400">
                             {{ isSuperAdmin ? 'Organization Types' : 'My Organization' }}
                         </h2>
                         <span class="text-[9px] font-black text-gray-400 dark:text-gray-600">{{ orgTypes.length }}</span>
@@ -130,7 +130,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                 :show-delete="false"
                             >
                                 <template #icon>
-                                    <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 text-gray-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 group-hover:text-indigo-600 transition-all">
+                                    <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 text-gray-400 group-hover:bg-projector-primary-50 dark:group-hover:bg-projector-primary-500/10 group-hover:text-projector-primary-600 transition-all">
                                         <component :is="getIcon(type.icon)" class="w-6 h-6" />
                                     </div>
                                 </template>
@@ -138,7 +138,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                 <div class="space-y-6 mt-4">
                                     <!-- Super-admin sees org name badge since they see all orgs -->
                                     <div v-if="isSuperAdmin && type.organization" class="flex items-center gap-2">
-                                        <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
+                                        <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-projector-primary-50 dark:bg-projector-primary-500/10 text-projector-primary-600 dark:text-projector-primary-400 border border-projector-primary-100 dark:border-projector-primary-500/20">
                                             {{ type.organization.name }}
                                         </span>
                                     </div>
@@ -151,10 +151,10 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                                 :key="doc.key"
                                                 class="px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1.5"
                                                 :class="doc.required
-                                                    ? 'bg-indigo-50/50 border-indigo-100 text-indigo-700 dark:bg-indigo-500/5 dark:border-indigo-500/20 dark:text-indigo-400'
+                                                    ? 'bg-projector-primary-50/50 border-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-500/5 dark:border-projector-primary-500/20 dark:text-projector-primary-400'
                                                     : 'bg-white border-gray-100 text-gray-500 dark:bg-gray-950 dark:border-gray-800'"
                                             >
-                                                <div v-if="doc.required" class="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_5px_rgba(99,102,241,0.5)]"></div>
+                                                <div v-if="doc.required" class="w-1 h-1 rounded-full bg-projector-primary-500 shadow-[0_0_5px_rgba(99,102,241,0.5)]"></div>
                                                 {{ doc.label }}
                                             </span>
                                         </div>
@@ -169,7 +169,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                                     <Zap class="w-2.5 h-2.5 text-amber-500 mb-0.5" v-if="step.ai_template_id" />
                                                     <ArrowRight class="h-3 text-gray-500" />
                                                 </div>
-                                                <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">{{ step.to_key }}</span>
+                                                <span class="text-[10px] font-black text-projector-primary-600 dark:text-projector-primary-400 uppercase tracking-tighter">{{ step.to_key }}</span>
                                                 <div v-if="Number(idx) < type.workflow.length - 1" class="ml-2 w-1 h-1 rounded-full bg-gray-200 dark:bg-gray-800"></div>
                                             </div>
                                         </div>
@@ -183,14 +183,14 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                             <option value="">Select org to duplicate into...</option>
                                             <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
                                         </select>
-                                        <Button type="button" variant="ghost" size="sm" :disabled="!duplicateTargetOrgId[type.id]" @click="duplicateType(type.id)" class="h-8 px-3 text-[10px] font-black uppercase text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 disabled:opacity-40">
+                                        <Button type="button" variant="ghost" size="sm" :disabled="!duplicateTargetOrgId[type.id]" @click="duplicateType(type.id)" class="h-8 px-3 text-[10px] font-black uppercase text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-500/10 disabled:opacity-40">
                                             <Copy class="w-3 h-3 mr-1" /> Duplicate
                                         </Button>
                                     </div>
                                 </div>
 
                                 <template #actions>
-                                    <Link v-if="canEditType(type)" :href="`/project-types/${type.id}/edit`" class="p-3 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all">
+                                    <Link v-if="canEditType(type)" :href="`/project-types/${type.id}/edit`" class="p-3 rounded-xl text-gray-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-500/10 transition-all">
                                         <Edit2 class="w-5 h-5" />
                                     </Link>
                                 </template>
@@ -215,7 +215,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                 :show-delete="false"
                             >
                                 <template #icon>
-                                    <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 text-gray-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 group-hover:text-indigo-600 transition-all">
+                                    <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 text-gray-400 group-hover:bg-projector-primary-50 dark:group-hover:bg-projector-primary-500/10 group-hover:text-projector-primary-600 transition-all">
                                         <component :is="getIcon(type.icon)" class="w-6 h-6" />
                                     </div>
                                 </template>
@@ -229,10 +229,10 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                                 :key="doc.key"
                                                 class="px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1.5"
                                                 :class="doc.required
-                                                    ? 'bg-indigo-50/50 border-indigo-100 text-indigo-700 dark:bg-indigo-500/5 dark:border-indigo-500/20 dark:text-indigo-400'
+                                                    ? 'bg-projector-primary-50/50 border-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-500/5 dark:border-projector-primary-500/20 dark:text-projector-primary-400'
                                                     : 'bg-white border-gray-100 text-gray-500 dark:bg-gray-950 dark:border-gray-800'"
                                             >
-                                                <div v-if="doc.required" class="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_5px_rgba(99,102,241,0.5)]"></div>
+                                                <div v-if="doc.required" class="w-1 h-1 rounded-full bg-projector-primary-500 shadow-[0_0_5px_rgba(99,102,241,0.5)]"></div>
                                                 {{ doc.label }}
                                             </span>
                                         </div>
@@ -247,7 +247,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                                     <Zap class="w-2.5 h-2.5 text-amber-500 mb-0.5" v-if="step.ai_template_id" />
                                                     <ArrowRight class="h-3 text-gray-500" />
                                                 </div>
-                                                <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">{{ step.to_key }}</span>
+                                                <span class="text-[10px] font-black text-projector-primary-600 dark:text-projector-primary-400 uppercase tracking-tighter">{{ step.to_key }}</span>
                                                 <div v-if="Number(idx) < type.workflow.length - 1" class="ml-2 w-1 h-1 rounded-full bg-gray-200 dark:bg-gray-800"></div>
                                             </div>
                                         </div>
@@ -262,20 +262,20 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                             <option value="">Select org to duplicate into...</option>
                                             <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
                                         </select>
-                                        <Button type="button" variant="ghost" size="sm" :disabled="!duplicateTargetOrgId[type.id]" @click="duplicateType(type.id)" class="h-8 px-3 text-[10px] font-black uppercase text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 disabled:opacity-40">
+                                        <Button type="button" variant="ghost" size="sm" :disabled="!duplicateTargetOrgId[type.id]" @click="duplicateType(type.id)" class="h-8 px-3 text-[10px] font-black uppercase text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-500/10 disabled:opacity-40">
                                             <Copy class="w-3 h-3 mr-1" /> Duplicate
                                         </Button>
                                     </div>
                                     <!-- Org-admin: copy global type into their org -->
                                     <div v-else-if="isOrgAdmin" class="pt-2 border-t border-gray-100 dark:border-gray-800">
-                                        <Button type="button" variant="ghost" size="sm" @click="duplicateType(type.id, activeOrgId ?? undefined)" class="h-8 px-3 text-[10px] font-black uppercase text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
+                                        <Button type="button" variant="ghost" size="sm" @click="duplicateType(type.id, activeOrgId ?? undefined)" class="h-8 px-3 text-[10px] font-black uppercase text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-500/10">
                                             <Copy class="w-3 h-3 mr-1" /> Copy to My Org
                                         </Button>
                                     </div>
                                 </div>
 
                                 <template #actions>
-                                    <Link v-if="canEditType(type)" :href="`/project-types/${type.id}/edit`" class="p-3 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all">
+                                    <Link v-if="canEditType(type)" :href="`/project-types/${type.id}/edit`" class="p-3 rounded-xl text-gray-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-500/10 transition-all">
                                         <Edit2 class="w-5 h-5" />
                                     </Link>
                                 </template>

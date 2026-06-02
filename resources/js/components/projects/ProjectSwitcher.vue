@@ -44,7 +44,7 @@ const handleSuccess = () => {
         <DropdownMenu v-if="projects.length > 0">
             <DropdownMenuTrigger as-child>
                 <Button variant="ghost" class="h-14 px-5 rounded-2xl bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-all shadow-sm">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+                    <div class="w-10 h-10 rounded-xl bg-projector-primary-600 flex items-center justify-center text-white">
                         <Folder class="w-5 h-5" />
                     </div>
                     <div class="text-left">
@@ -66,8 +66,8 @@ const handleSuccess = () => {
 
                 <DropdownMenuSeparator class="my-2 bg-gray-100 dark:bg-gray-800" />
 
-                <DropdownMenuItem @click="isModalOpen = true" class="p-3 cursor-pointer rounded-lg text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center">
+                <DropdownMenuItem @click="isModalOpen = true" class="p-3 cursor-pointer rounded-lg text-projector-primary-600 hover:text-projector-primary-700 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md bg-projector-primary-50 dark:bg-projector-primary-900/50 flex items-center justify-center">
                         <Plus class="w-3.5 h-3.5" />
                     </div>
                     <span class="font-black uppercase text-[10px] tracking-widest">New Project</span>

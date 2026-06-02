@@ -49,13 +49,13 @@ const generate = () => {
             </div>
             <ul role="list" class="divide-y divide-gray-200">
                 <li v-for="(story, index) in stories" :key="index" class="px-4 py-5 sm:px-6 hover:bg-gray-50">
-                    <h4 class="text-md font-bold text-indigo-600">{{ story.title }}</h4>
+                    <h4 class="text-md font-bold text-projector-primary-600">{{ story.title }}</h4>
                     <p class="text-sm text-gray-700 italic mt-1">"{{ story.story }}"</p>
                     <div class="mt-4">
                         <h5 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Acceptance Criteria</h5>
                         <ul class="space-y-1">
                             <li v-for="item in story.criteria" :key="item" class="text-xs text-gray-500 flex items-start">
-                                <span class="mr-2 text-indigo-400">•</span> {{ item }}
+                                <span class="mr-2 text-projector-primary-400">•</span> {{ item }}
                             </li>
                         </ul>
                     </div>

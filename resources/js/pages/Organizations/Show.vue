@@ -179,7 +179,7 @@ const submitInvite = (orgId: string) => {
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase flex items-center gap-3">
-                        <Building2 class="w-8 h-8 text-indigo-500" />
+                        <Building2 class="w-8 h-8 text-projector-primary-500" />
                         Organization Profile
                     </h1>
                 </div>
@@ -188,7 +188,7 @@ const submitInvite = (orgId: string) => {
                     <Link
                         v-if="isSuperAdmin"
                         :href="organizationRoutes.create.url()"
-                        class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                        class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all"
                     >
                         <Plus class="w-4 h-4 mr-2" />
                         <span class="text-[10px] font-black uppercase tracking-widest">New Org</span>
@@ -202,10 +202,10 @@ const submitInvite = (orgId: string) => {
                 </div>
             </div>
 
-            <div class="bg-indigo-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
+            <div class="bg-projector-primary-600 rounded-2xl p-8 text-white shadow-xl shadow-projector-primary-500/20 relative overflow-hidden">
                 <div class="relative z-10">
                     <h2 class="text-3xl font-black uppercase tracking-tighter mb-4">{{ currentOrg.name }}</h2>
-                    <div class="flex flex-wrap gap-6 text-indigo-100 font-medium text-sm">
+                    <div class="flex flex-wrap gap-6 text-projector-primary-100 font-medium text-sm">
                         <span v-if="currentOrg.website" class="flex items-center gap-2">
                             <Globe class="h-4 w-4" /> {{ currentOrg.website }}
                         </span>
@@ -225,7 +225,7 @@ const submitInvite = (orgId: string) => {
                         @click="activeTab = 'team'"
                         class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'team'
-                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
                     >
                         <Users class="w-3.5 h-3.5" />
@@ -236,7 +236,7 @@ const submitInvite = (orgId: string) => {
                         @click="activeTab = 'clients'"
                         class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'clients'
-                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
                     >
                         <Briefcase class="w-3.5 h-3.5" />
@@ -247,7 +247,7 @@ const submitInvite = (orgId: string) => {
                         @click="activeTab = 'configuration'"
                         class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'configuration'
-                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
                     >
                         <SlidersHorizontal class="w-3.5 h-3.5" />
@@ -258,7 +258,7 @@ const submitInvite = (orgId: string) => {
                         @click="activeTab = 'usage'"
                         class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'usage'
-                            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                            ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
                     >
                         <Cpu class="w-3.5 h-3.5" />
@@ -281,7 +281,7 @@ const submitInvite = (orgId: string) => {
                             <button
                                 type="button"
                                 @click="openAddUser"
-                                class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all gap-2"
+                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all gap-2"
                             >
                                 <Plus class="w-4 h-4" />
                                 <span class="text-[10px] font-black uppercase tracking-widest">Add User</span>
@@ -292,7 +292,7 @@ const submitInvite = (orgId: string) => {
                             <button
                                 type="button"
                                 @click="openInviteUser"
-                                class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all gap-2"
+                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all gap-2"
                             >
                                 <UserPlus class="w-4 h-4" />
                                 <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
@@ -364,7 +364,7 @@ const submitInvite = (orgId: string) => {
                                     :key="project.project_id"
                                     class="flex items-center px-5 py-3"
                                 >
-                                    <span class="text-xs text-slate-600 dark:text-slate-300 pl-3 border-l-2 border-indigo-200 dark:border-indigo-800 flex-1">
+                                    <span class="text-xs text-slate-600 dark:text-slate-300 pl-3 border-l-2 border-projector-primary-200 dark:border-projector-primary-800 flex-1">
                                         {{ project.projectName }}
                                     </span>
                                     <span class="text-xs text-slate-400 text-right">{{ formatDocs(project.documents_processed) }}</span>
@@ -405,7 +405,7 @@ const submitInvite = (orgId: string) => {
                         <select
                             id="invite-role"
                             v-model="inviteForm.role"
-                            class="w-full h-10 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[hsl(222_47%_8%)] px-3 text-sm text-gray-900 dark:text-slate-200 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                            class="w-full h-10 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[hsl(222_47%_8%)] px-3 text-sm text-gray-900 dark:text-slate-200 focus:ring-4 focus:ring-projector-primary-500/5 transition-all outline-none"
                         >
                             <option value="team-member">Team Member</option>
                             <option value="project-lead">Project Lead</option>

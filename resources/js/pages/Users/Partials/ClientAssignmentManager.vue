@@ -56,7 +56,7 @@ const getClientName = (id: string) => {
         <div class="flex gap-2 w-full">
             <select
                 v-model="form.client_id"
-                class="flex-1 rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm font-medium h-10 px-3 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-gray-900 dark:text-gray-100"
+                class="flex-1 rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm font-medium h-10 px-3 outline-none focus:ring-2 focus:ring-projector-primary-500/20 transition-all text-gray-900 dark:text-gray-100"
             >
                 <option value="" disabled>Assign a client...</option>
                 <option
@@ -72,7 +72,7 @@ const getClientName = (id: string) => {
             <Button
                 @click="assignClient"
                 :disabled="!form.client_id || form.processing"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-10 px-4 transition-all active:scale-95"
+                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl h-10 px-4 transition-all active:scale-95"
             >
                 <Plus class="w-4 h-4" />
             </Button>
@@ -103,7 +103,7 @@ const getClientName = (id: string) => {
                     <template #actions>
                         <Link
                             :href="`/clients/${clientId}`"
-                            class="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                            class="p-2 text-gray-400 hover:text-projector-primary-600 transition-colors"
                         >
                             <ExternalLink class="w-3.5 h-3.5" />
                         </Link>

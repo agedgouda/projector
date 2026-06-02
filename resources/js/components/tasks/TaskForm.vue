@@ -115,7 +115,7 @@ const dateProxy = computed({
                 <input
                     type="date"
                     v-model="dateProxy"
-                    class="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-sm"
+                    class="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector-primary-500 shadow-sm"
                 />
             </div>
         </div>
@@ -125,7 +125,7 @@ const dateProxy = computed({
             <textarea
                 :value="form.description ?? ''"
                 @input="(e: any) => updateField('description', e.target.value)"
-                class="min-h-[140px] w-full rounded-2xl border border-slate-200 p-4 text-sm resize-none outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                class="min-h-[140px] w-full rounded-2xl border border-slate-200 p-4 text-sm resize-none outline-none focus:ring-2 focus:ring-projector-primary-500 transition-all"
             ></textarea>
         </div>
     </div>

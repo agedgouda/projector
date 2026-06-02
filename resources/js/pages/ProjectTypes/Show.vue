@@ -64,7 +64,7 @@ const handleSuccess = () => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 w-full">
             <div class="mb-10">
-                <Link href="/project-types" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-indigo-600 transition-colors mb-6 group">
+                <Link href="/project-types" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-projector-primary-600 transition-colors mb-6 group">
                     <ChevronLeft class="w-3 h-3 transition-transform group-hover:-translate-x-1" />
                     Back to Project Types
                 </Link>

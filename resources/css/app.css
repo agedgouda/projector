@@ -61,6 +61,30 @@
     --color-sidebar-ring: var(--sidebar-ring);
 
     --color-light-background: var(--light-background);
+
+    --color-projector-highlight-50: #fef4f0;
+    --color-projector-highlight-100: #fde7dd;
+    --color-projector-highlight-200: #facbb7;
+    --color-projector-highlight-300: #f7a482;
+    --color-projector-highlight-400: #f47c4b;
+    --color-projector-highlight-500: #f05819;
+    --color-projector-highlight-600: #dc4a0e;
+    --color-projector-highlight-700: #c2410c;
+    --color-projector-highlight-800: #862d09;
+    --color-projector-highlight-900: #561d06;
+    --color-projector-highlight-950: #391304;
+
+    --color-projector-primary-50: #fdf1f1;
+    --color-projector-primary-100: #fbdfdf;
+    --color-projector-primary-200: #f8bbba;
+    --color-projector-primary-300: #f28987;
+    --color-projector-primary-400: #ee605d;
+    --color-projector-primary-500: #e82824;
+    --color-projector-primary-600: #c61915;
+    --color-projector-primary-700: #9d1310;
+    --color-projector-primary-800: #730e0c;
+    --color-projector-primary-900: #4e0a08;
+    --color-projector-primary-950: #370706;
 }
 
 /*

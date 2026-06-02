@@ -79,7 +79,7 @@ const submit = () => {
                 <Input
                     v-model="form.company_name"
                     placeholder="Company Name"
-                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
+                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-projector-primary-500"
                     required
                 />
                 <p v-if="form.errors.company_name" class="text-destructive text-xs mt-1">{{ form.errors.company_name }}</p>
@@ -90,7 +90,7 @@ const submit = () => {
                 <Input
                     v-model="form.contact_name"
                     placeholder="Contact Name"
-                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
+                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-projector-primary-500"
                     required
                 />
             </div>
@@ -110,7 +110,7 @@ const submit = () => {
                     v-model="form.email"
                     type="email"
                     placeholder="contact@example.com"
-                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-indigo-500"
+                    class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-projector-primary-500"
                 />
                 <p v-if="form.errors.email" class="text-destructive text-xs mt-1">{{ form.errors.email }}</p>
             </div>
@@ -126,7 +126,7 @@ const submit = () => {
                     id="client-inactive"
                     v-model="form.inactive"
                     type="checkbox"
-                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    class="h-4 w-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500"
                 />
                 <Label for="client-inactive" class="cursor-pointer">Inactive</Label>
             </div>
@@ -135,7 +135,7 @@ const submit = () => {
                 <Button
                     type="submit"
                     :disabled="form.processing"
-                    class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition disabled:opacity-50"
+                    class="bg-projector-primary-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-projector-primary-700 transition disabled:opacity-50"
                 >
                     {{ isEditing ? 'Update' : 'Save' }}
                 </Button>

@@ -49,7 +49,7 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
             <div class="flex items-center gap-4 text-sm text-slate-900 dark:text-slate-400">
                 <button
                     @click="emit('back')"
-                    class="hover:text-indigo-600 transition-colors flex items-center gap-2 cursor-pointer bg-transparent border-0 p-0"
+                    class="hover:text-projector-primary-600 transition-colors flex items-center gap-2 cursor-pointer bg-transparent border-0 p-0"
                 >
                     <ArrowLeft class="w-3 h-3" />
                     {{ project.name }}
@@ -58,7 +58,7 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
                     <span class="text-slate-300">/</span>
                     <button
                         @click="navigateToAncestor(ancestor.id)"
-                        class="hover:text-indigo-600 transition-colors cursor-pointer bg-transparent border-0 p-0 truncate max-w-[200px]"
+                        class="hover:text-projector-primary-600 transition-colors cursor-pointer bg-transparent border-0 p-0 truncate max-w-[200px]"
                     >
                         {{ ancestor.name }}
                     </button>
@@ -71,7 +71,7 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
                     size="sm"
                     :disabled="isSaving"
                     @click="emit('save')"
-                    class="h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 text-white"
+                    class="h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-projector-primary-600 hover:bg-projector-primary-700 text-white"
                 >
                     <Save class="h-3 w-3 mr-1.5" />
                     {{ saveLabel ?? 'Save' }}

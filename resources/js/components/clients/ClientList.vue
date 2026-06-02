@@ -107,7 +107,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
         <div v-if="canAddClient" class="flex justify-end">
             <Button
                 @click="openCreateModal"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all"
             >
                 <Plus class="w-4 h-4 mr-2" />
                 <span class="text-[10px] font-black uppercase tracking-widest">Add Client</span>
@@ -152,7 +152,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                                 <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
                                     Inactive
                                 </span>
-                                <span class="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-2 py-0.5 rounded-full font-black">
+                                <span class="text-[10px] bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-500/20 dark:text-projector-primary-400 px-2 py-0.5 rounded-full font-black">
                                     {{ client.projects?.length || 0 }} {{ (client.projects?.length === 1) ? 'Project' : 'Projects' }}
                                 </span>
                             </h2>
@@ -164,7 +164,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                         <button @click="openAddProjectModal(client)" class="p-2 text-gray-400 hover:text-emerald-600 transition-colors" title="Add Project">
                             <FolderPlus class="w-4 h-4" />
                         </button>
-                        <button @click="handleEditRequest(client)" class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                        <button @click="handleEditRequest(client)" class="p-2 text-gray-400 hover:text-projector-primary-600 transition-colors">
                             <Pencil class="w-4 h-4" />
                         </button>
                         <button @click="confirmDeleteClient(client)" class="p-2 text-gray-400 hover:text-red-500 transition-colors">

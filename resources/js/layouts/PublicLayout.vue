@@ -22,12 +22,12 @@ const isAuthenticated = computed(() => !!page.props.auth?.user);
         <header class="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
             <div class="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
                 <Link href="/" class="flex items-center gap-2 text-slate-900 dark:text-white">
-                    <AppLogoIcon class="h-7 w-7 text-indigo-600" />
+                    <AppLogoIcon class="h-7 w-7 text-projector-primary-600" />
                     <span class="font-black tracking-tighter text-sm uppercase">{{ $page.props.name }}</span>
                 </Link>
                 <Link
                     href="/login"
-                    class="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
+                    class="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-projector-primary-600 dark:text-slate-400 dark:hover:text-projector-primary-400 transition-colors"
                 >
                     Log in
                 </Link>

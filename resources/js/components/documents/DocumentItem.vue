@@ -41,7 +41,7 @@ const isProcessed = computed(() => props.doc.processed_at !== null);
                 <button @click="onToggle" type="button" class="flex h-6 w-6 items-center justify-center rounded hover:bg-slate-200">
                     <component :is="isExpanded ? ChevronDown : ChevronRight" class="h-4 w-4 text-slate-500" />
                 </button>
-                <FileText class="h-4 w-4 shrink-0 text-indigo-500" />
+                <FileText class="h-4 w-4 shrink-0 text-projector-primary-500" />
                 <div class="flex flex-col overflow-hidden">
                     <span class="truncate text-sm font-semibold text-slate-900">{{ doc.name }}</span>
                     <div class="flex items-center gap-2">
@@ -62,11 +62,11 @@ const isProcessed = computed(() => props.doc.processed_at !== null);
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                class="h-8 w-8 text-slate-400 hover:text-indigo-600"
+                                class="h-8 w-8 text-slate-400 hover:text-projector-primary-600"
                                 :disabled="!isProcessed"
                                 @click.stop="onReprocess"
                             >
-                                <RefreshCw :class="['h-3.5 w-3.5', { 'animate-spin text-indigo-600': !isProcessed }]" />
+                                <RefreshCw :class="['h-3.5 w-3.5', { 'animate-spin text-projector-primary-600': !isProcessed }]" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>{{ isProcessed ? 'Reprocess with AI' : 'AI Engine Working...' }}</TooltipContent>

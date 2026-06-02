@@ -22,7 +22,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Clients', href: clientRoutes.in
         <div class="p-6 w-full">
             <div class="mb-8">
                 <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase flex items-center gap-3">
-                    <Building2 class="w-8 h-8 text-indigo-500" />
+                    <Building2 class="w-8 h-8 text-projector-primary-500" />
                     {{ activeOrg.name }} Client Management
                 </h1>
                 <p class="text-sm text-gray-500 mt-1">Manage client relationships and project history.</p>

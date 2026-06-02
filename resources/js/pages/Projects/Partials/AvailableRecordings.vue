@@ -67,10 +67,10 @@ const {
             <div
                 v-for="recording in pendingRecordings"
                 :key="recording.id"
-                class="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors"
+                class="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-projector-primary-200 dark:hover:border-projector-primary-700 transition-colors"
             >
-                <div class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 shrink-0">
-                    <Video class="w-4 h-4 text-indigo-500" />
+                <div class="p-2 rounded-xl bg-projector-primary-50 dark:bg-projector-primary-950 shrink-0">
+                    <Video class="w-4 h-4 text-projector-primary-500" />
                 </div>
 
                 <div class="flex-1 min-w-0">
@@ -87,7 +87,7 @@ const {
                     <Button
                         size="sm"
                         :disabled="importing === recording.id || importingAsRequirements === recording.id"
-                        class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 h-9 text-[10px] font-black uppercase tracking-widest"
+                        class="shrink-0 bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl px-4 h-9 text-[10px] font-black uppercase tracking-widest"
                         @click="importRecording(recording)"
                     >
                         <Loader2 v-if="importing === recording.id" class="w-3 h-3 mr-1.5 animate-spin" />

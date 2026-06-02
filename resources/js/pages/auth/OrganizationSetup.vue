@@ -93,17 +93,17 @@ const tiers = [
                             @click="selectedTier = tier.key"
                             class="relative rounded-xl border-2 p-4 text-left transition-all focus:outline-none"
                             :class="selectedTier === tier.key
-                                ? 'border-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20'
+                                ? 'border-projector-primary-600 bg-projector-primary-50/60 dark:bg-projector-primary-900/20'
                                 : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'"
                         >
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-sm font-black text-slate-900 dark:text-white">{{ tier.label }}</span>
                                 <CheckCircle2
                                     v-if="selectedTier === tier.key"
-                                    class="h-4 w-4 text-indigo-600"
+                                    class="h-4 w-4 text-projector-primary-600"
                                 />
                             </div>
-                            <p class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2">{{ tier.price }}</p>
+                            <p class="text-xs font-semibold text-projector-primary-600 dark:text-projector-primary-400 mb-2">{{ tier.price }}</p>
                             <ul class="space-y-1">
                                 <li v-for="feature in tier.features" :key="feature" class="text-[11px] text-slate-500 dark:text-slate-400">
                                     {{ feature }}
@@ -121,7 +121,7 @@ const tiers = [
                         id="user_count"
                         :value="selectedUserCount"
                         @change="selectedUserCount = ($event.target as HTMLSelectElement).value === '20+' ? '20+' : Number(($event.target as HTMLSelectElement).value)"
-                        class="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                        class="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-projector-primary-500/10 outline-none transition-all"
                     >
                         <option v-for="n in userCountOptions" :key="n" :value="n">{{ n }}</option>
                         <option value="20+">20+</option>

@@ -169,7 +169,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                         v-if="organizations.length > 1"
                         :value="currentOrg.id"
                         @change="switchOrg(($event.target as HTMLSelectElement).value)"
-                        class="h-10 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="h-10 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
                     >
                         <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
                     </select>
@@ -177,7 +177,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                     <Button
                         v-if="canManage"
                         @click="router.visit(orgDocumentsRoutes.create({ organization: currentOrg.id }).url)"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                        class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all"
                     >
                         <Plus class="w-4 h-4 mr-2" />
                         <span class="text-[10px] font-black uppercase tracking-widest">New Status Meeting</span>
@@ -190,7 +190,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                 <button v-for="tab in ['documentation', 'recordings']" :key="tab"
                     @click="activeTab = tab as 'documentation' | 'recordings'"
                     :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
-                        activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
+                        activeTab === tab ? 'border-projector-primary-500 text-projector-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
                     {{ tab === 'documentation' ? 'Documentation' : 'Recordings' }}
                 </button>
             </div>
@@ -213,7 +213,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                         <!-- Meeting row -->
                         <div class="flex items-center mb-1">
                             <div
-                                class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-indigo-300 min-w-0 cursor-pointer"
+                                class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-projector-primary-300 min-w-0 cursor-pointer"
                                 @click="router.visit(showUrl(meeting))"
                             >
                                 <!-- Expand toggle -->
@@ -242,8 +242,8 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
 
                                     <!-- Processing indicator -->
                                     <div v-if="meeting.ai_draft_status === 'processing'" class="flex items-center gap-1.5 shrink-0">
-                                        <RefreshCw class="h-3 w-3 animate-spin text-indigo-500" />
-                                        <span class="text-[10px] text-indigo-500 font-black uppercase tracking-widest animate-pulse">Processing…</span>
+                                        <RefreshCw class="h-3 w-3 animate-spin text-projector-primary-500" />
+                                        <span class="text-[10px] text-projector-primary-500 font-black uppercase tracking-widest animate-pulse">Processing…</span>
                                     </div>
 
                                     <!-- Pending review badge -->
@@ -347,7 +347,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                                 class="flex items-center mb-1"
                             >
                                 <div
-                                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2 px-4 rounded-xl shadow-sm ml-8 min-w-0 cursor-pointer hover:border-indigo-300 transition-colors"
+                                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2 px-4 rounded-xl shadow-sm ml-8 min-w-0 cursor-pointer hover:border-projector-primary-300 transition-colors"
                                     @click="router.visit(docUrl(doc))"
                                 >
                                     <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mr-3 bg-slate-50 dark:bg-slate-800 text-slate-400">

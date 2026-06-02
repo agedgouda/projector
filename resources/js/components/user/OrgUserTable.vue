@@ -67,7 +67,7 @@ const updateUserRole = (user: User, role: string) => {
                     method="post"
                     as="button"
                     :preserve-scroll="true"
-                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/10 transition-colors"
+                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-highlight-200 text-projector-highlight-700 hover:bg-projector-highlight-50 dark:border-projector-highlight-900/50 dark:text-projector-highlight-400 dark:hover:bg-projector-highlight-950/30 transition-colors"
                 >
                     Make Super Admin
                 </Link>

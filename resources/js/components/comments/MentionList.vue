@@ -41,10 +41,10 @@ defineExpose({ onKeyDown });
                 v-for="(item, index) in items"
                 :key="item.id"
                 class="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
-                :class="index === selectedIndex ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-slate-50 dark:hover:bg-slate-700'"
+                :class="index === selectedIndex ? 'bg-projector-primary-50 dark:bg-projector-primary-950' : 'hover:bg-slate-50 dark:hover:bg-slate-700'"
                 @click="selectItem(index)"
             >
-                <div class="h-6 w-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[9px] font-black text-indigo-600 dark:text-indigo-400 shrink-0">
+                <div class="h-6 w-6 rounded-full bg-projector-primary-100 dark:bg-projector-primary-900 flex items-center justify-center text-[9px] font-black text-projector-primary-600 dark:text-projector-primary-400 shrink-0">
                     {{ item.first_name?.[0] }}{{ item.last_name?.[0] }}
                 </div>
                 <span class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{{ item.name }}</span>

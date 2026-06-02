@@ -15,7 +15,7 @@ const props = defineProps<{
 }>();
 
 const colorMap: Record<string, string> = {
-    indigo: 'bg-indigo-500',
+    indigo: 'bg-projector-primary-500',
     blue: 'bg-blue-500',
     green: 'bg-green-500',
     amber: 'bg-amber-500',
@@ -69,7 +69,7 @@ const selectStep = (stepId: number | null) => {
                 :key="step.id"
                 @click="selectStep(step.id!)"
                 class="p-3 cursor-pointer rounded-lg mb-0.5 flex items-center gap-2.5"
-                :class="{ 'bg-indigo-50 dark:bg-indigo-950/30': currentStep?.id === step.id }"
+                :class="{ 'bg-projector-primary-50 dark:bg-projector-primary-950/30': currentStep?.id === step.id }"
             >
                 <div
                     class="w-2 h-2 rounded-full shrink-0"

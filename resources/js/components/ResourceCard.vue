@@ -12,7 +12,7 @@ defineEmits(['delete', 'click']);
 </script>
 
 <template>
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors group">
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm hover:border-projector-primary-300 dark:hover:border-projector-primary-800 transition-colors group">
         <div class="min-w-0 flex-1 mr-4" @click="$emit('click')">
             <div class="flex items-center gap-2 flex-wrap">
                 <slot name="icon"></slot>
@@ -21,7 +21,7 @@ defineEmits(['delete', 'click']);
                     {{ title }}
                 </h4>
 
-                <span v-if="pillText" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                <span v-if="pillText" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-900/40 dark:text-projector-primary-300 border border-projector-primary-200 dark:border-projector-primary-800">
                     {{ pillText }}
                 </span>
             </div>

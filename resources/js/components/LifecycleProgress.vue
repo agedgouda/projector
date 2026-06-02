@@ -10,7 +10,7 @@ const props = defineProps<{
 }>();
 
 const colorMap: Record<string, string> = {
-    indigo: 'bg-indigo-500',
+    indigo: 'bg-projector-primary-500',
     blue: 'bg-blue-500',
     green: 'bg-green-500',
     amber: 'bg-amber-500',
@@ -49,7 +49,7 @@ const selectStep = (stepId: number) => {
                             index < currentIndex
                                 ? (step.color ? colorMap[step.color] + ' border-transparent opacity-50' : 'bg-gray-300 border-transparent')
                                 : index === currentIndex
-                                    ? (step.color ? colorMap[step.color] + ' border-transparent ring-4 ring-offset-2 ring-indigo-200 dark:ring-indigo-900 scale-125' : 'bg-gray-400 border-transparent ring-4 ring-offset-2 ring-gray-200')
+                                    ? (step.color ? colorMap[step.color] + ' border-transparent ring-4 ring-offset-2 ring-projector-primary-200 dark:ring-projector-primary-900 scale-125' : 'bg-gray-400 border-transparent ring-4 ring-offset-2 ring-gray-200')
                                     : 'bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-700 group-hover:border-gray-400 dark:group-hover:border-gray-500',
                         ]"
                     />

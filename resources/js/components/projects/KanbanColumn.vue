@@ -45,7 +45,7 @@ const emit = defineEmits(['drag', 'open', 'create']);
             variant="ghost"
             @click="emit('create')"
             :class="[
-                'w-full h-14 rounded-2xl transition-all bg-transparent shadow-none mt-auto hover:text-indigo-600 hover:bg-white',
+                'w-full h-14 rounded-2xl transition-all bg-transparent shadow-none mt-auto hover:text-projector-primary-600 hover:bg-white',
                 KANBAN_UI.subtleLabel
             ]"
         >

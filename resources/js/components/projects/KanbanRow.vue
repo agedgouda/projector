@@ -20,14 +20,14 @@ defineProps<{
 <template>
     <div class="space-y-4">
         <div v-if="row.label" class="flex items-center gap-4 px-2">
-            <h3 :class="[KANBAN_UI.label, 'text-indigo-900 bg-indigo-50/80 px-2 py-1 rounded-md border border-indigo-100/50']">
+            <h3 :class="[KANBAN_UI.label, 'text-projector-primary-900 bg-projector-primary-50/80 px-2 py-1 rounded-md border border-projector-primary-100/50']">
                 {{ row.label }}
             </h3>
-            <div class="h-px flex-1 bg-gradient-to-r from-indigo-100/50 to-transparent"></div>
+            <div class="h-px flex-1 bg-gradient-to-r from-projector-primary-100/50 to-transparent"></div>
             <Link
                 v-if="canViewProjectDetails"
                 :href="projectRoutes.show.url(row.key)"
-                class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors shrink-0"
+                class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-projector-primary-600 hover:text-projector-primary-800 transition-colors shrink-0"
             >
                 <ExternalLink class="w-3 h-3" />
                 View Details

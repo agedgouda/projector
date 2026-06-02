@@ -36,7 +36,7 @@ const formatDate = (date: string | null) => {
             <div>
                 <Link
                     href="/blog"
-                    class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors mb-6"
+                    class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-projector-primary-600 dark:hover:text-projector-primary-400 transition-colors mb-6"
                 >
                     <ArrowLeft class="w-3.5 h-3.5" /> Back to Blog
                 </Link>
