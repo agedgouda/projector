@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { dashboard, login, register } from '@/routes';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import { computed } from 'vue';
 
 withDefaults(
     defineProps<{
@@ -11,6 +12,9 @@ withDefaults(
         canRegister: true,
     },
 );
+
+const page = usePage<AppPageProps>();
+const authUser = computed(() => page.props.auth.user);
 </script>
 
 <template>
@@ -18,15 +22,11 @@ withDefaults(
         <link rel="preconnect" href="https://rsms.me/" />
         <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     </Head>
-    <div
-        class="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-light-background dark:text-slate-200"
-    >
-        <header
-            class="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl"
-        >
+    <div class="flex min-h-screen flex-col bg-[#FDFDFC] dark:bg-light-background text-[#1b1b18] dark:text-slate-200">
+        <header class="w-full p-6 text-sm not-has-[nav]:hidden">
             <nav class="flex items-center justify-end gap-4">
                 <Link
-                    v-if="$page.props.auth.user"
+                    v-if="authUser"
                     :href="dashboard()"
                     class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-white/20 dark:text-slate-200 dark:hover:border-white/40"
                 >
@@ -49,17 +49,8 @@ withDefaults(
                 </template>
             </nav>
         </header>
-        <div
-            class="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0"
-        >
-            <main
-                class="flex w-full max-w-[335px] flex-col-reverse overflow-hidden rounded-lg lg:max-w-4xl lg:flex-row"
-            >
-            <AppLogoIcon
-            />
-
-            </main>
-        </div>
-        <div class="hidden h-14.5 lg:block"></div>
+        <main class="flex flex-1 items-center justify-center p-6">
+            <AppLogoIcon class="w-full max-w-[min(80vw,80vh)] h-auto" />
+        </main>
     </div>
 </template>
