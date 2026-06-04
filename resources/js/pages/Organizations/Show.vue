@@ -223,7 +223,7 @@ const submitInvite = (orgId: string) => {
                     <button
                         type="button"
                         @click="activeTab = 'team'"
-                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'team'
                             ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
@@ -234,7 +234,7 @@ const submitInvite = (orgId: string) => {
                     <button
                         type="button"
                         @click="activeTab = 'clients'"
-                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'clients'
                             ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
@@ -245,7 +245,7 @@ const submitInvite = (orgId: string) => {
                     <button
                         type="button"
                         @click="activeTab = 'configuration'"
-                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'configuration'
                             ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
@@ -256,7 +256,7 @@ const submitInvite = (orgId: string) => {
                     <button
                         type="button"
                         @click="activeTab = 'usage'"
-                        class="flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
+                        class="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors border-b-2 -mb-px"
                         :class="activeTab === 'usage'
                             ? 'border-projector-primary-500 text-projector-primary-600 dark:text-projector-primary-400'
                             : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'"
