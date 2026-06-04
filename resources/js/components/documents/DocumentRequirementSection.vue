@@ -32,15 +32,15 @@ const handleMiddleReprocess = (payload: string): void => {
     <div class="border-b py-4 last:border-0">
         <div class="flex items-center justify-between mb-2">
             <div>
-                <h4 class="font-medium text-gray-900">{{ req.plural_label }}</h4>
-                <p class="text-xs text-gray-500">
+                <h4 class="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">{{ req.plural_label }}</h4>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
                     {{ req.required ? 'Required' : 'Optional' }}
                 </p>
             </div>
             <Button
                 variant="ghost"
                 size="sm"
-                class="h-7 text-xs text-projector-primary-600 hover:text-projector-primary-700 hover:bg-projector-primary-50"
+                class="h-7 bg-projector-highlight-50 dark:bg-projector-highlight-950/30 text-projector-highlight-700 dark:text-projector-highlight-400 border border-projector-highlight-100 dark:border-projector-highlight-900/50 hover:bg-projector-highlight-100"
                 @click="emit('openUpload', req)"
             >
                 <PlusIcon class="w-3 h-3 mr-1" />

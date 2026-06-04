@@ -51,7 +51,7 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
             class="flex items-center transition-all group relative"
             :class="[level === 0 ? 'mb-3' : 'mb-1 opacity-90']"
         >
-            <div v-if="isSelected" class="absolute left-0 top-2 bottom-2 w-1 bg-projector-primary-600 rounded-full z-10"></div>
+            <div v-if="isSelected" class="absolute left-0 top-2 bottom-2 w-1.5 bg-projector-primary-600 rounded-full z-10"></div>
 
             <div class="flex-1 flex items-center relative">
                 <div
@@ -73,12 +73,12 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
                         />
                     </div>
 
-                    <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mr-4" :class="isSelected ? 'bg-projector-primary-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-500'">
+                    <div class="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mr-4" :class="isSelected ? 'bg-projector-primary-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-500'">
                         <FileText class="h-4 w-4" />
                     </div>
 
                     <div class="flex-1 flex items-center gap-3 overflow-hidden mr-4">
-                        <div class="font-bold truncate text-sm tracking-tight text-slate-900 dark:text-slate-100">
+                        <div class="font-black truncate text-sm text-slate-900 dark:text-slate-100">
                             {{ item.name }}
                         </div>
 
@@ -90,7 +90,7 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
                         </div>
 
                         <div class="flex items-center gap-2 shrink-0">
-                            <span class="text-[9px] font-black tracking-widest uppercase text-slate-400">
+                            <span class="text-[10px] font-black tracking-widest uppercase text-slate-400">
                                 {{ getDocLabel(item.type) }}
                             </span>
                             <div v-if="item.tasks?.length" class="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 text-[8px] px-1.5 py-0.5 rounded-md font-black">
@@ -144,7 +144,7 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.i
                         </Button>
                         <Button
                             variant="ghost" size="sm" @click="() => navigateToDetails(item.project_id, item.id)"
-                            class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 rounded-xl group/view"
+                            class="h-8 px-3 bg-projector-primary-50 dark:bg-projector-primary-950/30 text-projector-primary-700 dark:text-projector-primary-400 border border-projector-primary-200 dark:border-projector-primary-900/50 rounded-xl group/view"
                         >
                             <Eye class="h-3.5 w-3.5 mr-2" />
                             <span class="text-[10px] font-black uppercase tracking-wider">Details</span>

@@ -33,19 +33,19 @@ const isProcessed = computed(() => props.doc.processed_at !== null);
 
 <template>
     <div
-        class="group relative flex flex-col rounded-lg border border-transparent transition-all hover:border-slate-200 hover:bg-slate-50/50"
+        class="group relative flex flex-col rounded-xl border border-transparent transition-all hover:border-slate-200 hover:bg-slate-50/50 dark:hover:border-slate-700 dark:hover:bg-slate-800/50"
         :class="{ 'bg-slate-50 border-slate-200 shadow-sm': isExpanded }"
     >
         <div class="flex items-center justify-between p-3">
             <div class="flex flex-1 items-center gap-3 overflow-hidden">
-                <button @click="onToggle" type="button" class="flex h-6 w-6 items-center justify-center rounded hover:bg-slate-200">
+                <button @click="onToggle" type="button" class="flex h-6 w-6 items-center justify-center rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
                     <component :is="isExpanded ? ChevronDown : ChevronRight" class="h-4 w-4 text-slate-500" />
                 </button>
                 <FileText class="h-4 w-4 shrink-0 text-projector-primary-500" />
                 <div class="flex flex-col overflow-hidden">
-                    <span class="truncate text-sm font-semibold text-slate-900">{{ doc.name }}</span>
+                    <span class="truncate text-sm font-black text-slate-900 dark:text-slate-100">{{ doc.name }}</span>
                     <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-slate-500 uppercase font-medium tracking-wider">{{ doc.type.replace('_', ' ') }}</span>
+                        <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest">{{ doc.type.replace('_', ' ') }}</span>
 
                         <div v-if="!isProcessed" class="flex items-center gap-1">
                             <Clock class="h-3 w-3 text-amber-500 animate-pulse" />
@@ -83,7 +83,7 @@ const isProcessed = computed(() => props.doc.processed_at !== null);
         </div>
 
         <div v-if="isExpanded" class="px-12 pb-4">
-            <div class="rounded-md bg-white border border-slate-200 p-3 text-xs text-slate-600 max-h-40 overflow-y-auto whitespace-pre-wrap">
+            <div class="rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 text-xs text-slate-600 dark:text-slate-300 max-h-40 overflow-y-auto whitespace-pre-wrap">
                 {{ doc.content || 'No content preview available.' }}
             </div>
         </div>
