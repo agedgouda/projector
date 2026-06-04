@@ -110,7 +110,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                 <Button
                     v-if="canCreate"
                     @click="handleCreate"
-                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all"
+                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all"
                 >
                     <PlusIcon class="w-5 h-5 mr-2" />
                     New Template

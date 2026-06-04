@@ -188,7 +188,7 @@ const submitInvite = (orgId: string) => {
                     <Link
                         v-if="isSuperAdmin"
                         :href="organizationRoutes.create.url()"
-                        class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all"
+                        class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all"
                     >
                         <Plus class="w-4 h-4 mr-2" />
                         <span class="text-[10px] font-black uppercase tracking-widest">New Org</span>
@@ -202,7 +202,7 @@ const submitInvite = (orgId: string) => {
                 </div>
             </div>
 
-            <div class="bg-projector-primary-600 rounded-2xl p-8 text-white shadow-xl shadow-projector-primary-500/20 relative overflow-hidden">
+            <div class="bg-projector-primary-600 rounded-2xl p-8 text-white shadow-xl shadow-projector-primary-500/30 relative overflow-hidden">
                 <div class="relative z-10">
                     <h2 class="text-3xl font-black uppercase tracking-tighter mb-4">{{ currentOrg.name }}</h2>
                     <div class="flex flex-wrap gap-6 text-projector-primary-100 font-medium text-sm">
@@ -281,7 +281,7 @@ const submitInvite = (orgId: string) => {
                             <button
                                 type="button"
                                 @click="openAddUser"
-                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all gap-2"
+                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all gap-2"
                             >
                                 <Plus class="w-4 h-4" />
                                 <span class="text-[10px] font-black uppercase tracking-widest">Add User</span>
@@ -292,7 +292,7 @@ const submitInvite = (orgId: string) => {
                             <button
                                 type="button"
                                 @click="openInviteUser"
-                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all gap-2"
+                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all gap-2"
                             >
                                 <UserPlus class="w-4 h-4" />
                                 <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>

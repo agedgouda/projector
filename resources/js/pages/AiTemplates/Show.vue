@@ -83,7 +83,7 @@ const goBack = () => {
             </div>
 
             <div class="mb-12 flex items-center gap-6">
-                <div class="h-20 w-20 rounded-[2rem] bg-projector-primary-600 flex items-center justify-center text-white shadow-xl shadow-projector-primary-500/20">
+                <div class="h-20 w-20 rounded-[2rem] bg-projector-primary-600 flex items-center justify-center text-white shadow-xl shadow-projector-primary-500/30">
                     <Wand2 class="w-10 h-10" />
                 </div>
                 <div>

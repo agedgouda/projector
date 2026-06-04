@@ -100,7 +100,7 @@ const duplicateType = (typeId: string, orgId?: string) => {
                     </div>
 
                     <Link href="/project-types/create">
-                        <Button class="w-full sm:w-auto font-black h-12 px-8 rounded-2xl shadow-lg bg-projector-primary-600 hover:bg-projector-primary-700 text-white uppercase text-[10px] tracking-widest shadow-projector-primary-500/20">
+                        <Button class="w-full sm:w-auto font-black h-12 px-8 rounded-2xl shadow-lg bg-projector-primary-600 hover:bg-projector-primary-700 text-white uppercase text-[10px] tracking-widest shadow-projector-primary-500/30">
                             <Plus class="w-4 h-4 mr-2" />
                             New Project Type
                         </Button>

@@ -107,7 +107,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
         <div v-if="canAddClient" class="flex justify-end">
             <Button
                 @click="openCreateModal"
-                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/20 active:scale-95 transition-all"
+                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all"
             >
                 <Plus class="w-4 h-4 mr-2" />
                 <span class="text-[10px] font-black uppercase tracking-widest">Add Client</span>

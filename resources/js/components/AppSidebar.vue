@@ -31,7 +31,7 @@ import adminOrgRoutes from '@/routes/admin/organizations/index';
 import faqRoutes from '@/routes/faq/index';
 import { usePermissions } from '@/composables/usePermissions';
 
-import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Sparkles, Building2, CalendarDays, TriangleAlert, HelpCircle, Newspaper } from 'lucide-vue-next';
+import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Building2, CalendarDays, TriangleAlert, HelpCircle, Newspaper } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();

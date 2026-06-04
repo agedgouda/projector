@@ -62,29 +62,29 @@
 
     --color-light-background: var(--light-background);
 
-    --color-projector-highlight-50: #fef4f0;
-    --color-projector-highlight-100: #fde7dd;
-    --color-projector-highlight-200: #facbb7;
-    --color-projector-highlight-300: #f7a482;
-    --color-projector-highlight-400: #f47c4b;
-    --color-projector-highlight-500: #f05819;
-    --color-projector-highlight-600: #dc4a0e;
-    --color-projector-highlight-700: #c2410c;
-    --color-projector-highlight-800: #862d09;
-    --color-projector-highlight-900: #561d06;
-    --color-projector-highlight-950: #391304;
+    --color-projector-highlight-50: #fef7f0;
+    --color-projector-highlight-100: #fdecdd;
+    --color-projector-highlight-200: #fad6b7;
+    --color-projector-highlight-300: #f7b782;
+    --color-projector-highlight-400: #f4984b;
+    --color-projector-highlight-500: #f07b19;
+    --color-projector-highlight-600: #dd6c0e;
+    --color-projector-highlight-700: #c25f0c;
+    --color-projector-highlight-800: #864209;
+    --color-projector-highlight-900: #562a06;
+    --color-projector-highlight-950: #391c04;
 
-    --color-projector-primary-50: #fdf1f1;
-    --color-projector-primary-100: #fbdfdf;
-    --color-projector-primary-200: #f8bbba;
-    --color-projector-primary-300: #f28987;
-    --color-projector-primary-400: #ee605d;
-    --color-projector-primary-500: #e82824;
-    --color-projector-primary-600: #c61915;
-    --color-projector-primary-700: #9d1310;
-    --color-projector-primary-800: #730e0c;
-    --color-projector-primary-900: #4e0a08;
-    --color-projector-primary-950: #370706;
+    --color-projector-primary-50: #fdf4f1;
+    --color-projector-primary-100: #fbe4df;
+    --color-projector-primary-200: #f8c5ba;
+    --color-projector-primary-300: #f29b87;
+    --color-projector-primary-400: #ee795d;
+    --color-projector-primary-500: #e84924;
+    --color-projector-primary-600: #c63615;
+    --color-projector-primary-700: #9d2b10;
+    --color-projector-primary-800: #73200c;
+    --color-projector-primary-900: #4e1508;
+    --color-projector-primary-950: #370f06;
 }
 
 /*
@@ -154,45 +154,45 @@
 }
 
 .dark {
-    --light-background: hsl(222 47% 6%);
-    --background: hsl(222 47% 8%);
+    --light-background: hsl(15 8% 6%);
+    --background: hsl(15 8% 9%);
     --foreground: hsl(0 0% 98%);
-    --card: hsl(0 0% 3.9%);
+    --card: hsl(15 6% 6%);
     --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(0 0% 3.9%);
+    --popover: hsl(15 6% 6%);
     --popover-foreground: hsl(0 0% 98%);
     --primary: hsl(239 84% 60%);
     --primary-foreground: hsl(0 0% 98%);
-    --secondary: hsl(0 0% 14.9%);
+    --secondary: hsl(15 6% 15%);
     --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(222 47% 12%);
+    --muted: hsl(15 6% 13%);
     --muted-foreground: hsl(0 0% 63.9%);
-    --accent: hsl(0 0% 14.9%);
+    --accent: hsl(15 6% 15%);
     --accent-foreground: hsl(0 0% 98%);
     --destructive: hsl(0 84% 60%);
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 14.9%);
-    --input: hsl(0 0% 14.9%);
+    --border: hsl(15 6% 16%);
+    --input: hsl(15 6% 16%);
     --ring: hsl(0 0% 83.1%);
     --chart-1: hsl(220 70% 50%);
     --chart-2: hsl(160 60% 45%);
     --chart-3: hsl(30 80% 55%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(222 47% 4%);
+    --sidebar-background: hsl(10 10% 5%);
     --sidebar-foreground: hsl(0 0% 95.9%);
     --sidebar-primary: hsl(360, 100%, 100%);
     --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(222 47% 9%);
+    --sidebar-accent: hsl(10 8% 11%);
     --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(222 47% 9%);
+    --sidebar-border: hsl(10 8% 11%);
     --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(222 47% 4%);
+    --sidebar: hsl(10 10% 5%);
 }
 
 @layer base {
     .dark [data-slot="select-content"] {
-        background-color: hsl(222 47% 8%);
+        background-color: hsl(15 8% 9%);
         color: hsl(0 0% 90%);
         border-color: rgba(255, 255, 255, 0.1);
     }
@@ -205,7 +205,7 @@
     .dark input:-webkit-autofill,
     .dark input:-webkit-autofill:hover,
     .dark input:-webkit-autofill:focus {
-        -webkit-box-shadow: 0 0 0px 1000px hsl(222 47% 8%) inset !important;
+        -webkit-box-shadow: 0 0 0px 1000px hsl(15 8% 9%) inset !important;
         -webkit-text-fill-color: hsl(0 0% 85%) !important;
         caret-color: hsl(0 0% 85%);
     }
@@ -213,7 +213,7 @@
     .dark .tiptap,
     .dark .tiptap .ProseMirror,
     .dark .ProseMirror {
-        background-color: hsl(222 47% 8%) !important;
+        background-color: hsl(15 8% 9%) !important;
         color: hsl(0 0% 85%) !important;
     }
 

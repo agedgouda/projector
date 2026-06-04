@@ -5,11 +5,11 @@ import { globalAiState } from '@/state';
 
 <template>
     <div
-        class="flex aspect-square size-8 items-center justify-center rounded-md "
+        class="flex aspect-square size-8 items-center justify-center rounded-full bg-[#1c1210]"
     >
         <AppLogoIcon
         :class="{ 'ai-active': globalAiState.isProcessing }"
-        class="h-8 w-8 transition-colors duration-500"
+        class="h-7 w-7 transition-colors duration-500"
         />
     </div>
     <div class="ml-1 grid flex-1 text-left text-sm">
