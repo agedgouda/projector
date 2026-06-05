@@ -2,14 +2,17 @@
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import clientRoutes from '@/routes/clients/index';
+import clientLogoRoutes from '@/routes/clients/logo/index';
 import PhoneInput from '@/components/PhoneInput.vue';
 import IndustryCombobox from '@/components/clients/IndustryCombobox.vue';
+import LogoUpload from '@/components/LogoUpload.vue';
+import LogoFileInput from '@/components/LogoFileInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const props = defineProps<{
-    editData: Client | null;
+    editData: (Client & { logo_url?: string | null }) | null;
 }>();
 
 const emit = defineEmits<{
@@ -28,6 +31,7 @@ const form = useForm({
     email: '',
     industry: null as string | null,
     inactive: false,
+    logo: null as File | null,
 });
 
 watch(() => props.editData, (newVal) => {
@@ -59,6 +63,7 @@ const submit = () => {
     const method = isEditing.value ? 'patch' : 'post';
 
     form[method](url, {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             const newClientId = page.props.flash?.newClientId;
@@ -73,7 +78,23 @@ const submit = () => {
 
 <template>
     <div>
+        <LogoUpload
+            v-if="isEditing && editData"
+            :current-logo-url="editData.logo_url ?? null"
+            :upload-url="clientLogoRoutes.store.url(editData.id)"
+            :delete-url="clientLogoRoutes.destroy.url(editData.id)"
+            label="Client Logo"
+            class="mb-4"
+        />
+
         <form @submit.prevent="submit" class="space-y-4">
+        <LogoFileInput
+            v-if="!isEditing"
+            v-model="form.logo"
+            label="Client Logo"
+            :error="form.errors.logo"
+            class="mb-2"
+        />
             <div>
                 <Label :class="{ 'text-destructive': form.errors.company_name }">Company Name</Label>
                 <Input
@@ -144,7 +165,7 @@ const submit = () => {
                     v-if="isEditing"
                     @click="resetForm"
                     type="button"
-                    class="text-sm text-gray-400 hover:text-gray-600 transition"
+                    class="bg-white text-projector-primary-600 border border-projector-primary-600 px-4 py-2 rounded-lg font-bold hover:bg-projector-primary-50 transition dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30"
                 >
                     Cancel
                 </Button>

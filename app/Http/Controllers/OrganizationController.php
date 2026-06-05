@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\OrganizationRequest;
 use App\Http\Requests\UpdateOrganizationTierRequest;
 use App\Models\AiUsageLog;
+use App\Models\Client;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
@@ -37,6 +38,7 @@ class OrganizationController extends Controller
         // 3. Resolve the Current Org (Query > Cookie > First Available)
         $orgId = $request->query('org', $request->cookie('last_org_id'));
         $currentOrg = $organizations->firstWhere('id', $orgId) ?? $organizations->first();
+        $currentOrg->load('media');
 
         // 4. Set the Spatie context BEFORE checking the Policy
         setPermissionsTeamId($currentOrg->id);
@@ -66,7 +68,6 @@ class OrganizationController extends Controller
             ])
             : collect();
 
-
         $currentOrgData = array_merge($currentOrg->makeHidden(['llm_config', 'vector_config'])->toArray(), [
             'llm_config_form' => $currentOrg->llmConfigForForm(),
             'vector_config_form' => $currentOrg->vectorConfigForForm(),
@@ -83,7 +84,8 @@ class OrganizationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(['id', 'email', 'token', 'expires_at']);
 
-        $clients = $currentOrg->clients()->with('projects')->get();
+        $clients = $currentOrg->clients()->with(['projects', 'media'])->get()
+            ->map(fn (Client $c) => array_merge($c->toArray(), ['logo_url' => $c->logo_url]));
         $projectTypes = ProjectType::all();
 
         $usageByProject = AiUsageLog::query()
@@ -111,6 +113,7 @@ class OrganizationController extends Controller
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
             'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
+                'logo_url' => $currentOrg->logo_url,
                 'users' => $members,
                 'llm_config_form' => $currentOrg->llmConfigForForm(),
                 'vector_config_form' => $currentOrg->vectorConfigForForm(),
@@ -147,11 +150,17 @@ class OrganizationController extends Controller
      */
     public function store(OrganizationRequest $request)
     {
-        // The validation & normalized check already passed.
+        $request->validate([
+            'logo' => ['nullable', 'image', 'mimes:jpeg,png,webp,gif', 'max:5120'],
+        ]);
+
         $org = Organization::create($request->validated());
 
-        // Set the team context for the newly created org
         setPermissionsTeamId($org->id);
+
+        if ($request->hasFile('logo')) {
+            $org->addMediaFromRequest('logo')->toMediaCollection('logo');
+        }
 
         return redirect()->route('organizations.index', ['org' => $org->id])
             ->with('success', 'Organization created successfully.');
@@ -170,10 +179,13 @@ class OrganizationController extends Controller
     {
         Gate::authorize('update', $organization);
 
+        $organization->load(['users', 'media']);
+
         return inertia('Organizations/Edit', [
             'organization' => array_merge(
-                $organization->load('users')->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(),
+                $organization->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(),
                 [
+                    'logo_url' => $organization->logo_url,
                     'llm_config_form' => $organization->llmConfigForForm(),
                     'vector_config_form' => $organization->vectorConfigForForm(),
                     'meeting_config_form' => $organization->meetingConfigForForm(),

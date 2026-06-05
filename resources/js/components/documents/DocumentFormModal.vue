@@ -151,7 +151,7 @@ watch(() => props.open, (isOpen) => {
             </div>
 
             <DialogFooter class="mt-4 shrink-0">
-                <Button variant="outline" @click="isOpen = false">Cancel</Button>
+                <Button @click="isOpen = false" class="bg-white text-projector-primary-600 border border-projector-primary-600 hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">Cancel</Button>
                 <Button @click="emit('submit')" :disabled="form.processing" class="bg-projector-primary-600">
                     <RefreshCw v-if="form.processing" class="w-4 h-4 mr-2 animate-spin" />
                     {{ mode === 'create' ? 'Save' : 'Update' }}

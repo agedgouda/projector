@@ -4,7 +4,7 @@ import { Head, router, usePage, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { type BreadcrumbItem, type AppPageProps } from '@/types';
+import { type BreadcrumbItem } from '@/types';
 import { Search, Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp } from 'lucide-vue-next';
 import faqRoutes from '@/routes/faq/index';
 
@@ -162,7 +162,7 @@ const submitAdd = () => {
                     <Input v-model="addForm.keywords" placeholder="e.g. intro, overview, ai" />
                 </div>
                 <div class="flex justify-end gap-2">
-                    <Button variant="ghost" @click="showAddForm = false; addForm.reset()" class="text-[10px] font-black uppercase">Cancel</Button>
+                    <Button @click="showAddForm = false; addForm.reset()" class="bg-white text-projector-primary-600 border border-projector-primary-600 text-[10px] font-black uppercase hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">Cancel</Button>
                     <Button @click="submitAdd" :disabled="addForm.processing" class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white text-[10px] font-black uppercase tracking-widest">
                         Save
                     </Button>
@@ -214,7 +214,7 @@ const submitAdd = () => {
                                 <Input v-model="editForm.keywords" />
                             </div>
                             <div class="flex justify-end gap-2">
-                                <Button variant="ghost" size="sm" @click="cancelEdit" class="h-8 text-[10px] font-black uppercase">
+                                <Button size="sm" @click="cancelEdit" class="h-8 bg-white text-projector-primary-600 border border-projector-primary-600 text-[10px] font-black uppercase hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
                                     <X class="w-3 h-3 mr-1" /> Cancel
                                 </Button>
                                 <Button size="sm" @click="saveEdit(faq)" :disabled="editForm.processing" class="h-8 bg-projector-primary-600 hover:bg-projector-primary-700 text-white text-[10px] font-black uppercase tracking-widest">

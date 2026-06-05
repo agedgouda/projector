@@ -29,8 +29,9 @@ class ClientController extends Controller
         // 3. Fetch clients strictly for this organization
         $clients = Client::where('organization_id', $organization->id)
             ->latest()
-            ->with(['projects.type'])
-            ->get();
+            ->with(['projects.type', 'media'])
+            ->get()
+            ->map(fn (Client $c) => array_merge($c->toArray(), ['logo_url' => $c->logo_url]));
 
         return inertia('Clients/Index', [
             'clients' => $clients,
@@ -46,8 +47,14 @@ class ClientController extends Controller
         setPermissionsTeamId($client->organization_id);
         Gate::authorize('view', $client);
 
+        $clients = Client::where('organization_id', $client->organization_id)
+            ->latest()
+            ->with(['projects.type', 'media'])
+            ->get()
+            ->map(fn (Client $c) => array_merge($c->toArray(), ['logo_url' => $c->logo_url]));
+
         return inertia('Clients/Index', [
-            'clients' => Client::where('organization_id', $client->organization_id)->latest()->get(),
+            'clients' => $clients,
             'projects' => $client->projects()->with('type')->get(),
             'activeClientId' => $client->id,
             'projectTypes' => ProjectType::all(),
@@ -59,6 +66,10 @@ class ClientController extends Controller
      */
     public function store(ClientRequest $request)
     {
+        $request->validate([
+            'logo' => ['nullable', 'image', 'mimes:jpeg,png,webp,gif', 'max:5120'],
+        ]);
+
         $orgId = $request->cookie('last_org_id') ?? getPermissionsTeamId();
         setPermissionsTeamId($orgId);
 
@@ -73,6 +84,10 @@ class ClientController extends Controller
             $request->validated(),
             ['organization_id' => $orgId]
         ));
+
+        if ($request->hasFile('logo')) {
+            $client->addMediaFromRequest('logo')->toMediaCollection('logo');
+        }
 
         return back()->with('success', 'Client created successfully.')->with('newClientId', $client->id);
     }

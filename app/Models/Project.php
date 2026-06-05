@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Project extends Model
+class Project extends Model implements HasMedia
 {
-    use HasUuids;
+    use HasUuids, InteractsWithMedia;
 
     protected $fillable = [
         'name',
@@ -34,6 +37,33 @@ class Project extends Model
     protected $keyType = 'string';
 
     public $incrementing = false;
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        $url = $this->getFirstMediaUrl('logo', 'preview');
+
+        return $url !== '' ? $url : null;
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('logo')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(150)
+            ->height(150)
+            ->nonQueued();
+
+        $this->addMediaConversion('preview')
+            ->width(400)
+            ->height(400)
+            ->nonQueued();
+    }
 
     /**
      * Register the Custom Collection for Pipeline logic.

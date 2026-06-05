@@ -107,13 +107,14 @@ class ProjectController extends Controller
         $project->loadMissing('type');
         $project->load([
             'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee'])->latest(),
+            'media',
         ]);
 
         $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
 
         return Inertia::render('Projects/Show', [
             'projects' => $projects,
-            'currentProject' => $project,
+            'currentProject' => array_merge($project->toArray(), ['logo_url' => $project->logo_url]),
             'kanbanData' => $kanbanData,
             'activeTab' => $tab,
             'clients' => $clients,
@@ -176,6 +177,9 @@ class ProjectController extends Controller
      */
     public function store(ProjectRequest $request)
     {
+        $request->validate([
+            'logo' => ['nullable', 'image', 'mimes:jpeg,png,webp,gif', 'max:5120'],
+        ]);
 
         try {
             // Validation and Authorization already handled by ProjectRequest
@@ -190,6 +194,10 @@ class ProjectController extends Controller
             }
 
             $project = Project::create($request->validated());
+
+            if ($request->hasFile('logo')) {
+                $project->addMediaFromRequest('logo')->toMediaCollection('logo');
+            }
 
             if (! empty($project->description)) {
                 EvaluateProjectDescription::dispatch($project);

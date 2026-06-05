@@ -26,7 +26,9 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useWorkflow } from '@/composables/useWorkflow';
 import DocumentManager from '@/components/documents/DocumentManager.vue';
 import projectRoutes from '@/routes/projects/index';
+import projectLogoRoutes from '@/routes/projects/logo/index';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import LogoUpload from '@/components/LogoUpload.vue';
 
 
 // UI Components
@@ -39,7 +41,7 @@ import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 
 const props = defineProps<{
     projects: Project[];
-    currentProject: Project | null;
+    currentProject: (Project & { logo_url?: string | null }) | null;
     kanbanData: Record<string, ProjectDocument[]>;
     activeTab: string;
     clients: Client[];
@@ -309,6 +311,13 @@ watch(() => props.currentProject, (newProject) => {
                     </DialogContent>
                 </Dialog>
             </div>
+
+            <LogoUpload
+                :current-logo-url="currentProject.logo_url ?? null"
+                :upload-url="projectLogoRoutes.store.url(String(currentProject.id))"
+                :delete-url="projectLogoRoutes.destroy.url(String(currentProject.id))"
+                label="Project Logo"
+            />
 
             <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
                 <button v-for="tab in ['tasks', 'hierarchy', 'recordings']" :key="tab"

@@ -193,7 +193,7 @@ const updateCriterion = (index: number, value: string) =>
     </div>
 
     <div class="flex justify-end gap-3 px-6 py-4 mt-6">
-        <Button variant="outline" @click="emit('cancel')" class="px-6 font-bold uppercase text-[10px] tracking-widest">
+        <Button @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 px-6 font-bold uppercase text-[10px] tracking-widest hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
             Cancel
         </Button>
         <Button @click="emit('submit')" :disabled="form.processing" class="bg-projector-primary-600 hover:bg-projector-primary-700 px-8 font-bold uppercase text-[10px] tracking-widest">

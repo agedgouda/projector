@@ -7,8 +7,11 @@ import { Button } from '@/components/ui/button';
 import { toast } from "vue-sonner";
 import { HelpCircle } from 'lucide-vue-next';
 import organizationRoutes from '@/routes/organizations/index';
+import organizationLogoRoutes from '@/routes/organizations/logo/index';
 import { LLM_DRIVERS, VECTOR_DRIVERS, MEETING_PROVIDERS } from '@/lib/constants';
 import MeetingProviderSetupModal from '@/components/MeetingProviderSetupModal.vue';
+import LogoUpload from '@/components/LogoUpload.vue';
+import LogoFileInput from '@/components/LogoFileInput.vue';
 
 interface AiConfigForm {
     model: string;
@@ -30,6 +33,7 @@ interface MeetingConfigForm {
 
 interface Props {
     organization?: Organization & {
+        logo_url?: string | null;
         llm_config_form?: AiConfigForm;
         vector_config_form?: AiConfigForm;
         meeting_config_form?: MeetingConfigForm;
@@ -43,6 +47,7 @@ const isEditing = !!props.organization;
 
 const form = useForm({
     name: props.organization?.name || '',
+    logo: null as File | null,
     llm_driver: props.organization?.llm_driver || '',
     llm_config: {
         key:   '',
@@ -147,6 +152,7 @@ const submit = () => {
     const method = isEditing ? 'patch' : 'post';
 
     form[method](url, {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             toast.success(isEditing ? 'Organization updated' : 'Organization created');
@@ -163,6 +169,20 @@ const submit = () => {
 
 <template>
     <form @submit.prevent="submit" class="space-y-6">
+        <LogoUpload
+            v-if="isEditing && organization"
+            :current-logo-url="organization.logo_url ?? null"
+            :upload-url="organizationLogoRoutes.store.url(organization.id)"
+            :delete-url="organizationLogoRoutes.destroy.url(organization.id)"
+            label="Organization Logo"
+        />
+        <LogoFileInput
+            v-else
+            v-model="form.logo"
+            label="Organization Logo"
+            :error="form.errors.logo"
+        />
+
         <div class="grid gap-2">
             <Label for="name" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
                 Organization Name
@@ -475,7 +495,7 @@ const submit = () => {
         />
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <Button type="button" variant="ghost" @click="emit('cancel')" class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
                 Cancel
             </Button>
             <Button

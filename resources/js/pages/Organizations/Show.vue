@@ -26,6 +26,7 @@ const props = defineProps<{
     organizations: Organization[];
     users: User[];
     currentOrg: Organization & {
+        logo_url?: string | null;
         llm_config_form?: { model: string; host: string; has_key: boolean };
         vector_config_form?: { model: string; host: string; has_key: boolean };
         meeting_config_form?: {
@@ -202,19 +203,24 @@ const submitInvite = (orgId: string) => {
                 </div>
             </div>
 
-            <div class="bg-projector-primary-600 rounded-2xl p-8 text-white shadow-xl shadow-projector-primary-500/30 relative overflow-hidden">
-                <div class="relative z-10">
-                    <h2 class="text-3xl font-black uppercase tracking-tighter mb-4">{{ currentOrg.name }}</h2>
-                    <div class="flex flex-wrap gap-6 text-projector-primary-100 font-medium text-sm">
-                        <span v-if="currentOrg.website" class="flex items-center gap-2">
-                            <Globe class="h-4 w-4" /> {{ currentOrg.website }}
+            <div class="flex items-center gap-4">
+                <div v-if="currentOrg.logo_url" class="size-16 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 overflow-hidden shrink-0">
+                    <img :src="currentOrg.logo_url" :alt="currentOrg.name" class="size-full object-contain" />
+                </div>
+                <div v-else class="size-16 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                    <Building2 class="w-8 h-8 text-gray-300 dark:text-zinc-600" />
+                </div>
+                <div>
+                    <h2 class="text-3xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">{{ currentOrg.name }}</h2>
+                    <div class="flex flex-wrap gap-4 text-gray-500 dark:text-zinc-400 text-sm mt-1">
+                        <span v-if="currentOrg.website" class="flex items-center gap-1.5">
+                            <Globe class="h-3.5 w-3.5" /> {{ currentOrg.website }}
                         </span>
-                        <span v-if="currentOrg.email" class="flex items-center gap-2">
-                            <Mail class="h-4 w-4" /> {{ currentOrg.email }}
+                        <span v-if="currentOrg.email" class="flex items-center gap-1.5">
+                            <Mail class="h-3.5 w-3.5" /> {{ currentOrg.email }}
                         </span>
                     </div>
                 </div>
-                <Building2 class="absolute -right-12 -bottom-12 w-64 h-64 text-white/10 rotate-12" />
             </div>
 
             <!-- Tabs -->

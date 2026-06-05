@@ -89,7 +89,7 @@ const { editor } = useDocumentEditor(
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <Button type="button" variant="ghost" @click="emit('cancel')" class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
                 Cancel
             </Button>
             <Button

@@ -18,6 +18,7 @@ import { AlertTriangle, Loader2 } from 'lucide-vue-next';
 import projectRoutes from '@/routes/projects/index';
 import { evaluateDescription as evaluateDescriptionRoute } from '@/actions/App/Http/Controllers/ProjectController';
 import ClientEntryForm from '@/pages/Clients/Partials/ClientEntryForm.vue';
+import LogoFileInput from '@/components/LogoFileInput.vue';
 
 interface Props {
     clients?: Client[];
@@ -42,6 +43,7 @@ const form = useForm({
     inactive: props.editData?.inactive ?? false,
     client_id: props.editData?.client_id || props.client?.id || '',
     project_type_id: props.editData?.project_type_id || '',
+    logo: null as File | null,
 });
 
 const evaluating = ref(false);
@@ -84,6 +86,7 @@ const doSubmit = () => {
     const method = isEditing ? 'patch' : 'post';
 
     form[method](url, {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             toast.success(isEditing ? 'Project Updated' : 'Project Created');
@@ -206,6 +209,12 @@ const submit = async () => {
             </div>
 
             <template v-if="!isEditing">
+                <LogoFileInput
+                    v-model="form.logo"
+                    label="Project Logo"
+                    :error="form.errors.logo"
+                />
+
                 <div class="grid gap-2">
                     <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
                         Client Assignment
@@ -264,7 +273,7 @@ const submit = async () => {
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <Button type="button" variant="ghost" @click="emit('cancel')" class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
                 Cancel
             </Button>
 

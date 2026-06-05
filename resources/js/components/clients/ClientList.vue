@@ -5,7 +5,7 @@ import { useResourceExpansion } from '@/composables/useResourceExpansion';
 import { usePermissions } from '@/composables/usePermissions';
 import clientRoutes from '@/routes/clients/index';
 import { router, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
@@ -26,6 +26,14 @@ const props = defineProps<{
 const filteredClients = ref<Client[]>([...props.clients]);
 const isFormOpen = ref(false);
 const clientToEdit = ref<Client | null>(null);
+
+watch(() => props.clients, (updated) => {
+    filteredClients.value = [...updated];
+    if (clientToEdit.value) {
+        const fresh = updated.find(c => c.id === clientToEdit.value!.id);
+        if (fresh) { clientToEdit.value = fresh; }
+    }
+});
 
 const isProjectFormOpen = ref(false);
 const targetClientForProject = ref<Client | null>(null);

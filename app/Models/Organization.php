@@ -9,10 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Organization extends Model
+class Organization extends Model implements HasMedia
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, InteractsWithMedia;
 
     const TIER_FREE = 'free';
 
@@ -287,6 +290,35 @@ class Organization extends Model
             'projects' => $limits['projects'] !== null && $this->currentProjectCount() >= $limits['projects'],
             'ai_docs' => $limits['ai_docs_per_month'] !== null && $this->currentMonthAiUsage() >= $limits['ai_docs_per_month'],
         ];
+    }
+
+    /* --- Media --- */
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        $url = $this->getFirstMediaUrl('logo', 'preview');
+
+        return $url !== '' ? $url : null;
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('logo')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(150)
+            ->height(150)
+            ->nonQueued();
+
+        $this->addMediaConversion('preview')
+            ->width(400)
+            ->height(400)
+            ->nonQueued();
     }
 
     /* --- Relationships --- */

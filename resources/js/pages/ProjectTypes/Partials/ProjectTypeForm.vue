@@ -221,7 +221,7 @@ const removeLifecycleStep = (index: number) => {
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <Button type="button" variant="ghost" @click="emit('cancel')" class="h-9 px-4 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 h-9 px-6 rounded-lg font-black uppercase text-[9px] tracking-widest hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
                     Cancel
                 </Button>
                 <Button

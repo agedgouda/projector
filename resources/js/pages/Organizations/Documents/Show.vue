@@ -158,7 +158,7 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                         </div>
 
                         <div class="flex justify-end gap-3 pt-2">
-                            <Button type="button" variant="outline" @click="toggleEdit">Cancel</Button>
+                            <Button type="button" @click="toggleEdit" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-bold px-6 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">Cancel</Button>
                             <Button type="submit" :disabled="form.processing" class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold px-6 rounded-xl">
                                 {{ form.processing ? 'Saving...' : 'Save Changes' }}
                             </Button>

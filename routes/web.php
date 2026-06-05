@@ -4,6 +4,7 @@ use App\Http\Controllers\AiTemplateController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\BugReportController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientLogoController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
@@ -12,9 +13,11 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MeetingTranscriptController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationLoginController;
+use App\Http\Controllers\OrganizationLogoController;
 use App\Http\Controllers\OrganizationRegistrationController;
 use App\Http\Controllers\OrganizationSetupController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectLogoController;
 use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
@@ -122,6 +125,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Organizations are accessible to any org member; policy handles per-action authorization.
     Route::resource('organizations', OrganizationController::class);
+    Route::post('/organizations/{organization}/logo', [OrganizationLogoController::class, 'store'])
+        ->name('organizations.logo.store');
+    Route::delete('/organizations/{organization}/logo', [OrganizationLogoController::class, 'destroy'])
+        ->name('organizations.logo.destroy');
     Route::post('/organizations/{organization}/invite', [InvitationController::class, 'store'])
         ->name('organizations.invite');
     Route::post('/organizations/{organization}/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
@@ -157,6 +164,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
      * 2. Client & Project Management
      * This uses your updated 'EnsureUserCanAccessClient' middleware (aliased as client.access)
      */
+    // Logo routes use their own Gate::authorize — no client.access needed
+    Route::post('/clients/{client}/logo', [ClientLogoController::class, 'store'])
+        ->name('clients.logo.store');
+    Route::delete('/clients/{client}/logo', [ClientLogoController::class, 'destroy'])
+        ->name('clients.logo.destroy');
+    Route::post('/projects/{project}/logo', [ProjectLogoController::class, 'store'])
+        ->name('projects.logo.store');
+    Route::delete('/projects/{project}/logo', [ProjectLogoController::class, 'destroy'])
+        ->name('projects.logo.destroy');
+
     Route::middleware(['client.access'])->group(function () {
         Route::resource('clients', ClientController::class);
         Route::resource('comments', CommentController::class);

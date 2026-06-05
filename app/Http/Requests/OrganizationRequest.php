@@ -17,10 +17,12 @@ class OrganizationRequest extends FormRequest
             setPermissionsTeamId($organization->id);
         }
 
-        $this->merge([
-            'slug' => Str::slug($this->name),
-            'normalized_name' => Organization::normalize($this->name),
-        ]);
+        if ($this->name) {
+            $this->merge([
+                'slug' => Str::slug($this->name),
+                'normalized_name' => Organization::normalize($this->name),
+            ]);
+        }
     }
 
     public function authorize(): bool
@@ -35,8 +37,8 @@ class OrganizationRequest extends FormRequest
     public function rules(): array
     {
         $organization = $this->route('organization');
-        $slug = Str::slug($this->name);
-        $normalized = Organization::normalize($this->name);
+        $slug = $this->name ? Str::slug($this->name) : '';
+        $normalized = $this->name ? Organization::normalize($this->name) : '';
 
         return [
             'name' => [
