@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Folder, ChevronDown, Plus } from 'lucide-vue-next';
+import { Folder, FolderOpen, ChevronDown, Plus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -44,8 +44,9 @@ const handleSuccess = () => {
         <DropdownMenu v-if="projects.length > 0">
             <DropdownMenuTrigger as-child>
                 <Button variant="ghost" class="h-14 px-5 rounded-2xl bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-all shadow-sm">
-                    <div class="w-10 h-10 rounded-xl bg-projector-primary-600 flex items-center justify-center text-white">
-                        <Folder class="w-5 h-5" />
+                    <div class="w-10 h-10 rounded-xl bg-projector-primary-600 flex items-center justify-center text-white overflow-hidden shrink-0">
+                        <img v-if="currentProject?.logo_url" :src="currentProject.logo_url" :alt="currentProject.name" class="size-full object-contain" />
+                        <Folder v-else class="w-5 h-5" />
                     </div>
                     <div class="text-left">
                         <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 leading-none mb-1.5">Active Project</p>
@@ -60,7 +61,11 @@ const handleSuccess = () => {
                     Your Portfolio
                 </div>
 
-                <DropdownMenuItem v-for="p in projects" :key="p.id" @click="emit('switch', p.id)" class="p-3 cursor-pointer rounded-lg mb-1">
+                <DropdownMenuItem v-for="p in projects" :key="p.id" @click="emit('switch', p.id)" class="p-3 cursor-pointer rounded-lg mb-1 flex items-center gap-3">
+                    <div class="w-6 h-6 rounded-md bg-projector-primary-50 dark:bg-projector-primary-900/50 flex items-center justify-center shrink-0 overflow-hidden">
+                        <img v-if="p.logo_url" :src="p.logo_url" :alt="p.name" class="size-full object-contain" />
+                        <FolderOpen v-else class="w-3.5 h-3.5 text-projector-primary-400" />
+                    </div>
                     <span class="font-bold text-sm">{{ p.name }}</span>
                 </DropdownMenuItem>
 

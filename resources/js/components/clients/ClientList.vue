@@ -153,7 +153,13 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
             >
                 <div class="w-full flex items-center justify-between p-4 bg-gray-50/50 dark:bg-zinc-800/50 transition-colors group">
                     <button @click="toggleProjects(client.id)" class="flex items-center gap-3 flex-1 text-left">
-                        <component :is="collapsedClients[client.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-gray-400" />
+                        <component :is="collapsedClients[client.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-gray-400 shrink-0" />
+                        <img
+                            v-if="client.logo_url"
+                            :src="client.logo_url"
+                            :alt="client.company_name"
+                            class="size-8 rounded-md object-contain border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shrink-0"
+                        />
                         <div class="flex flex-col">
                             <h2 class="font-black uppercase tracking-tight text-sm text-gray-700 dark:text-zinc-200 flex items-center gap-2">
                                 {{ client.company_name }}

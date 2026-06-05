@@ -84,8 +84,11 @@ class OrganizationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(['id', 'email', 'token', 'expires_at']);
 
-        $clients = $currentOrg->clients()->with(['projects', 'media'])->get()
-            ->map(fn (Client $c) => array_merge($c->toArray(), ['logo_url' => $c->logo_url]));
+        $clients = $currentOrg->clients()->with(['projects.media', 'media'])->get()
+            ->map(fn (Client $c) => array_merge($c->toArray(), [
+                'logo_url' => $c->logo_url,
+                'projects' => $c->projects->map(fn ($p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]))->all(),
+            ]));
         $projectTypes = ProjectType::all();
 
         $usageByProject = AiUsageLog::query()

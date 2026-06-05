@@ -29,9 +29,12 @@ class ClientController extends Controller
         // 3. Fetch clients strictly for this organization
         $clients = Client::where('organization_id', $organization->id)
             ->latest()
-            ->with(['projects.type', 'media'])
+            ->with(['projects.type', 'projects.media', 'media'])
             ->get()
-            ->map(fn (Client $c) => array_merge($c->toArray(), ['logo_url' => $c->logo_url]));
+            ->map(fn (Client $c) => array_merge($c->toArray(), [
+                'logo_url' => $c->logo_url,
+                'projects' => $c->projects->map(fn ($p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]))->all(),
+            ]));
 
         return inertia('Clients/Index', [
             'clients' => $clients,

@@ -37,6 +37,7 @@ declare global {
         contact_phone: string | null;
         email: string | null;
         industry: string | null;
+        logo_url?: string | null;
         users?: User[];
         organization: Organization;
         projects?: Project[];
@@ -82,6 +83,7 @@ declare global {
         client_id: string;
         project_type_id: string | null;
         current_lifecycle_step_id?: number | null;
+        logo_url?: string | null;
 
         // Relationships
         client: Client;

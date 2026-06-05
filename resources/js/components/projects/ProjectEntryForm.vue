@@ -16,15 +16,17 @@ import {
 import { toast } from "vue-sonner";
 import { AlertTriangle, Loader2 } from 'lucide-vue-next';
 import projectRoutes from '@/routes/projects/index';
+import projectLogoRoutes from '@/routes/projects/logo/index';
 import { evaluateDescription as evaluateDescriptionRoute } from '@/actions/App/Http/Controllers/ProjectController';
 import ClientEntryForm from '@/pages/Clients/Partials/ClientEntryForm.vue';
 import LogoFileInput from '@/components/LogoFileInput.vue';
+import LogoUpload from '@/components/LogoUpload.vue';
 
 interface Props {
     clients?: Client[];
     client?: Client;
     projectTypes?: ProjectType[];
-    editData?: Project;
+    editData?: Project & { logo_url?: string | null };
     initialName?: string;
 }
 
@@ -145,6 +147,14 @@ const submit = async () => {
 
 <template>
     <form @submit.prevent="submit" class="space-y-6">
+        <LogoUpload
+            v-if="isEditing && editData"
+            :current-logo-url="editData.logo_url ?? null"
+            :upload-url="projectLogoRoutes.store.url(String(editData.id))"
+            :delete-url="projectLogoRoutes.destroy.url(String(editData.id))"
+            label="Project Logo"
+        />
+
         <div class="space-y-5">
             <div class="grid gap-2">
                 <Label for="name" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">

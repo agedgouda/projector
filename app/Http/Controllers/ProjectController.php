@@ -76,7 +76,8 @@ class ProjectController extends Controller
         $user = auth()->user();
 
         // 1. Get projects using your custom collection
-        $projects = Project::visibleTo($user)->where('inactive', false)->latest()->get()->withDashboardContext();
+        $projects = Project::visibleTo($user)->where('inactive', false)->latest()->with('media')->get()->withDashboardContext()
+            ->map(fn (Project $p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]));
 
         if ($projects->isEmpty()) {
             return Inertia::render('Dashboard/AccessPending', [
