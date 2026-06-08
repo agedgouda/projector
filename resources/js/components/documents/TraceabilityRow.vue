@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ChevronRight, FileText, CheckSquare, Eye, Sparkles, RefreshCw } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { statusDotClasses, priorityDotClasses, STATUS_LABELS, PRIORITY_LABELS } from '@/lib/constants';
 import { getAvatarAppearance } from '@/lib/kanban-theme';
+import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED, FLAT_ROW_ACCENT_BAR } from '@/lib/flat-ui';
 
 const props = defineProps<{
     item: any;
@@ -33,6 +33,7 @@ const emit = defineEmits<{
 const isTreeExpanded = computed(() => props.expandedRootIds instanceof Set && props.expandedRootIds.has(props.item.id));
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
 const isTask = computed(() => props.isTaskType(props.item.type));
+const isProcessing = computed(() => !!props.item.currentStatus || props.item.processed_at === null);
 
 // Use the helper to get the lead user for this row
 const leadUser = computed(() => props.getLeadUser(props.item));
@@ -43,118 +44,108 @@ const { navigateToDetails } = useDocumentActions({
 const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.type));
 const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.item.id) ? 'Reprocess' : 'Process');
 
+const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id);
 </script>
 
 <template>
     <div class="flex flex-col">
         <div
-            class="flex items-center transition-all group relative"
-            :class="[level === 0 ? 'mb-3' : 'mb-1 opacity-90']"
+            class="group relative flex items-center gap-2.5 h-9 pr-2 rounded-md cursor-pointer transition-colors"
+            :class="isSelected ? FLAT_ROW_SELECTED : FLAT_ROW_HOVER"
+            @click="goToDetails"
         >
-            <div v-if="isSelected" class="absolute left-0 top-2 bottom-2 w-1.5 bg-projector-primary-600 rounded-full z-10"></div>
+            <div v-if="isSelected" :class="FLAT_ROW_ACCENT_BAR"></div>
 
-            <div class="flex-1 flex items-center relative">
-                <div
-                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-projector-primary-300 min-w-0 cursor-pointer"
+            <button
+                v-if="item.children?.length"
+                type="button"
+                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                @click.stop="emit('toggleRoot', item.id)"
+            >
+                <ChevronRight class="w-3.5 h-3.5 transition-transform duration-200" :class="{ 'rotate-90': isTreeExpanded }" />
+            </button>
+            <span v-else class="w-5 h-5 shrink-0"></span>
+
+            <div class="w-4 h-4 flex items-center justify-center shrink-0" :class="isSelected ? 'text-projector-primary-600' : 'text-slate-400'">
+                <CheckSquare v-if="isTask" class="w-3.5 h-3.5" />
+                <FileText v-else class="w-3.5 h-3.5" />
+            </div>
+
+            <div class="flex-1 flex items-center gap-2.5 min-w-0">
+                <span
+                    class="text-[13px] truncate"
                     :class="[
-                        isSelected ? 'border-projector-primary-400 ring-1 ring-projector-primary-100' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300',
-                        level === 0 ? '' : (level === 1 ? 'ml-8' : 'ml-16')
+                        level === 0 ? 'font-bold' : 'font-medium',
+                        isProcessing ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'
                     ]"
-                    @click="() => navigateToDetails(item.project_id, item.id)"
                 >
-                    <div
-                        v-if="item.children?.length"
-                        class="w-6 flex items-center justify-center cursor-pointer hover:bg-slate-100 rounded-md h-6 mr-2 transition-colors shrink-0"
-                        @click.stop="emit('toggleRoot', item.id)"
-                    >
-                        <ChevronRight
-                            :class="['text-slate-400 transition-transform duration-300', { 'rotate-90': isTreeExpanded }]"
-                            class="h-4 w-4"
-                        />
-                    </div>
+                    {{ item.name }}
+                </span>
 
-                    <div class="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mr-4" :class="isSelected ? 'bg-projector-primary-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-500'">
-                        <FileText class="h-4 w-4" />
-                    </div>
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600 shrink-0">
+                    {{ getDocLabel(item.type) }}
+                </span>
 
-                    <div class="flex-1 flex items-center gap-3 overflow-hidden mr-4">
-                        <div class="font-black truncate text-sm text-slate-900 dark:text-slate-100">
-                            {{ item.name }}
-                        </div>
+                <span v-if="item.tasks?.length" class="flex items-center gap-1 text-[9px] font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <CheckSquare class="w-2.5 h-2.5" /> {{ item.tasks.length }}
+                </span>
 
-                        <div v-if="item.currentStatus || item.processed_at === null" class="flex items-center gap-2 ml-2">
-                            <RefreshCw class="h-3 w-3 animate-spin text-projector-primary-500" />
-                            <span class="text-[10px] text-projector-primary-500 font-medium animate-pulse">
-                                {{ item.currentStatus || 'Processing...' }}
-                            </span>
-                        </div>
+                <span v-if="isProcessing" class="flex items-center gap-1.5 text-[10px] text-projector-primary-500 shrink-0">
+                    <RefreshCw class="w-3 h-3 animate-spin" />
+                    <span class="animate-pulse">{{ item.currentStatus || 'Processing...' }}</span>
+                </span>
+            </div>
 
-                        <div class="flex items-center gap-2 shrink-0">
-                            <span class="text-[10px] font-black tracking-widest uppercase text-slate-400">
-                                {{ getDocLabel(item.type) }}
-                            </span>
-                            <div v-if="item.tasks?.length" class="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 text-[8px] px-1.5 py-0.5 rounded-md font-black">
-                                <CheckSquare class="w-2.5 h-2.5" /> {{ item.tasks.length }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="hidden md:flex items-center gap-3 shrink-0 mr-4">
-                        <div v-if="leadUser">
-                            <div
-                                :class="[
-                                    'h-7 w-7 rounded-full border-2 flex items-center justify-center shadow-sm',
-                                    isTask ? getAvatarAppearance(leadUser.id) : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                                ]"
-                            >
-                                <span :class="['text-[10px] font-black uppercase', isTask ? '' : 'text-slate-500']">
-                                    {{ leadUser.initials }}
-                                </span>
-                            </div>
-                        </div>
-                        <div v-else class="h-7 w-7 rounded-full border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center">
-                            <span class="text-[9px] font-bold text-slate-300">--</span>
-                        </div>
-
-                        <template v-if="isTask">
-                            <div v-if="item.priority" class="flex items-center gap-1">
-                                <div :class="['w-2 h-2 rounded-full shrink-0', priorityDotClasses[item.priority] ?? priorityDotClasses.low]"></div>
-                                <span class="text-[9px] font-black uppercase tracking-wider text-slate-500">
-                                    {{ PRIORITY_LABELS[item.priority] ?? item.priority }}
-                                </span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <div :class="['w-2 h-2 rounded-full shrink-0', statusDotClasses[item.task_status ?? 'todo']]"></div>
-                                <span class="text-[9px] font-black uppercase tracking-wider text-slate-500">
-                                    {{ STATUS_LABELS[item.task_status ?? 'todo'] }}
-                                </span>
-                            </div>
-                        </template>
-                    </div>
-
-                    <div class="flex items-center gap-2 text-right shrink-0">
-                        <Button
-                            v-if="isReprocessable && !isReadOnly"
-                            variant="ghost" size="sm" @click.stop="emit('handleReprocess', item.id)"
-                            :disabled="item.currentStatus || item.processed_at === null"
-                            class="h-8 px-3 bg-projector-highlight-50 dark:bg-projector-highlight-950/30 text-projector-highlight-700 dark:text-projector-highlight-400 border border-projector-highlight-100 dark:border-projector-highlight-900/50 rounded-xl group/ai"
-                        >
-                            <Sparkles class="h-3.5 w-3.5 mr-2" />
-                            <span class="text-[10px] font-black uppercase tracking-wider">{{ processButtonLabel }}</span>
-                        </Button>
-                        <Button
-                            variant="ghost" size="sm" @click="() => navigateToDetails(item.project_id, item.id)"
-                            class="h-8 px-3 bg-projector-primary-50 dark:bg-projector-primary-950/30 text-projector-primary-700 dark:text-projector-primary-400 border border-projector-primary-200 dark:border-projector-primary-900/50 rounded-xl group/view"
-                        >
-                            <Eye class="h-3.5 w-3.5 mr-2" />
-                            <span class="text-[10px] font-black uppercase tracking-wider">Details</span>
-                        </Button>
-                    </div>
+            <div class="hidden md:flex items-center gap-3 shrink-0 ml-3">
+                <div
+                    v-if="leadUser"
+                    :class="[
+                        'h-6 w-6 rounded-full border flex items-center justify-center',
+                        isTask ? getAvatarAppearance(leadUser.id) : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                    ]"
+                >
+                    <span :class="['text-[9px] font-black uppercase', isTask ? '' : 'text-slate-500']">{{ leadUser.initials }}</span>
                 </div>
+                <div v-else class="h-6 w-6 rounded-full border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center">
+                    <span class="text-[8px] font-bold text-slate-300">--</span>
+                </div>
+
+                <template v-if="isTask">
+                    <div v-if="item.priority" class="flex items-center gap-1.5">
+                        <span :class="['w-1.5 h-1.5 rounded-full shrink-0', priorityDotClasses[item.priority] ?? priorityDotClasses.low]"></span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ PRIORITY_LABELS[item.priority] ?? item.priority }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span :class="['w-1.5 h-1.5 rounded-full shrink-0', statusDotClasses[item.task_status ?? 'todo']]"></span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ STATUS_LABELS[item.task_status ?? 'todo'] }}</span>
+                    </div>
+                </template>
+            </div>
+
+            <div class="flex items-center gap-1 shrink-0 ml-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                <button
+                    v-if="isReprocessable && !isReadOnly"
+                    type="button"
+                    :disabled="item.currentStatus || item.processed_at === null"
+                    class="h-7 w-7 flex items-center justify-center rounded-md text-projector-highlight-600 dark:text-projector-highlight-400 hover:bg-projector-highlight-50 dark:hover:bg-projector-highlight-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    :title="processButtonLabel"
+                    @click.stop="emit('handleReprocess', item.id)"
+                >
+                    <Sparkles class="w-3.5 h-3.5" />
+                </button>
+                <button
+                    type="button"
+                    class="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 transition-colors"
+                    title="Open details"
+                    @click.stop="goToDetails"
+                >
+                    <Eye class="w-3.5 h-3.5" />
+                </button>
             </div>
         </div>
 
-        <div v-if="isTreeExpanded && item.children?.length" class="w-full">
+        <div v-if="isTreeExpanded && item.children?.length" class="relative pl-7">
+            <div class="absolute left-[14px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
             <TraceabilityRow
                 v-for="child in item.children"
                 :key="'doc-' + child.id"

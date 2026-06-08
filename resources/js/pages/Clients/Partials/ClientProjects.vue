@@ -2,8 +2,10 @@
 import { ref, computed } from 'vue';
 import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
-import { Search, X, Plus } from 'lucide-vue-next';
+import { Search, Plus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import {
     Dialog,
     DialogContent,
@@ -51,16 +53,12 @@ const filteredProjects = computed(() => {
 
             <div class="flex items-center gap-3 w-full md:w-auto">
                 <div class="relative flex-1 md:w-64 group">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-projector-primary-500 transition-colors" />
-                    <input
+                    <Search :class="FLAT_SEARCH_ICON" />
+                    <Input
                         v-model="searchQuery"
-                        type="text"
                         placeholder="Filter projects..."
-                        class="block w-full pl-9 pr-9 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950 focus:ring-4 focus:ring-projector-primary-500/10 focus:border-projector-primary-500 transition-all shadow-sm"
+                        :class="FLAT_SEARCH_INPUT"
                     />
-                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        <X class="w-4 h-4" />
-                    </button>
                 </div>
 
                 <Dialog v-model:open="isProjectModalOpen">

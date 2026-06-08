@@ -10,6 +10,8 @@ import AiProgressBar from '@/components/AiProgressBar.vue';
 import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import { type BreadcrumbItem } from '@/types';
 import { globalAiState } from '@/state';
+import IconTile from '@/components/IconTile.vue';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';
 import orgDocumentsDraftRoutes from '@/routes/organizations/documents/draft/index';
@@ -177,7 +179,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                     <Button
                         v-if="canManage"
                         @click="router.visit(orgDocumentsRoutes.create({ organization: currentOrg.id }).url)"
-                        class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all"
+                        class="font-bold h-10 px-5"
                     >
                         <Plus class="w-4 h-4 mr-2" />
                         <span class="text-[10px] font-black uppercase tracking-widest">New Status Meeting</span>
@@ -211,101 +213,96 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                     <div v-for="meeting in statusMeetings" :key="meeting.id" class="flex flex-col">
 
                         <!-- Meeting row -->
-                        <div class="flex items-center mb-1">
+                        <div
+                            :class="['flex items-center h-12 px-2 rounded-md transition-colors min-w-0 cursor-pointer mb-1', FLAT_ROW_HOVER]"
+                            @click="router.visit(showUrl(meeting))"
+                        >
+                            <!-- Expand toggle -->
                             <div
-                                class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2.5 px-4 rounded-xl shadow-sm transition-all hover:border-projector-primary-300 min-w-0 cursor-pointer"
-                                @click="router.visit(showUrl(meeting))"
+                                v-if="hasChildren(meeting)"
+                                class="w-6 h-6 flex items-center justify-center cursor-pointer hover:bg-slate-200/80 dark:hover:bg-slate-700/60 rounded-md mr-2 shrink-0"
+                                @click.stop="toggle(meeting.id)"
                             >
-                                <!-- Expand toggle -->
-                                <div
-                                    v-if="hasChildren(meeting)"
-                                    class="w-6 h-6 flex items-center justify-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md mr-2 shrink-0"
-                                    @click.stop="toggle(meeting.id)"
+                                <ChevronRight
+                                    class="h-4 w-4 text-slate-400 transition-transform duration-300"
+                                    :class="{ 'rotate-90': isExpanded(meeting.id) }"
+                                />
+                            </div>
+                            <div v-else class="w-6 mr-2 shrink-0" />
+
+                            <IconTile :icon="FileText" size="sm" />
+
+                            <!-- Name + meta -->
+                            <div class="flex-1 flex items-center gap-3 overflow-hidden mx-4 min-w-0">
+                                <span class="font-bold truncate text-sm tracking-tight text-slate-900 dark:text-slate-100">
+                                    {{ meeting.name }}
+                                </span>
+
+                                <!-- Processing indicator -->
+                                <div v-if="meeting.ai_draft_status === 'processing'" class="flex items-center gap-1.5 shrink-0">
+                                    <RefreshCw class="h-3 w-3 animate-spin text-projector-primary-500" />
+                                    <span class="text-[10px] text-projector-primary-500 font-black uppercase tracking-widest animate-pulse">Processing…</span>
+                                </div>
+
+                                <!-- Pending review badge -->
+                                <span
+                                    v-else-if="meeting.ai_draft_status === 'pending_review'"
+                                    class="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full shrink-0"
                                 >
-                                    <ChevronRight
-                                        class="h-4 w-4 text-slate-400 transition-transform duration-300"
-                                        :class="{ 'rotate-90': isExpanded(meeting.id) }"
-                                    />
-                                </div>
-                                <div v-else class="w-6 mr-2 shrink-0" />
+                                    Pending Review
+                                </span>
 
-                                <!-- Icon -->
-                                <div class="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mr-4 bg-slate-50 dark:bg-slate-800 text-slate-500">
-                                    <FileText class="h-4 w-4" />
-                                </div>
+                                <span class="text-[9px] font-black tracking-widest uppercase text-slate-400 shrink-0">
+                                    Status Meeting
+                                </span>
+                            </div>
 
-                                <!-- Name + meta -->
-                                <div class="flex-1 flex items-center gap-3 overflow-hidden mr-4 min-w-0">
-                                    <span class="font-bold truncate text-sm tracking-tight text-slate-900 dark:text-slate-100">
-                                        {{ meeting.name }}
+                            <!-- Date + creator -->
+                            <div class="hidden md:flex items-center gap-2 text-[11px] text-slate-400 shrink-0 mr-4">
+                                <span v-if="meeting.creator">{{ meeting.creator.name }}</span>
+                                <span v-if="meeting.creator" class="text-slate-300">·</span>
+                                <span>{{ formatDate(meeting.created_at) }}</span>
+                            </div>
+
+                            <!-- Action buttons -->
+                            <div class="flex items-center gap-2 shrink-0" @click.stop>
+                                <!-- Process / Reprocess -->
+                                <Button
+                                    v-if="canManage && meeting.ai_draft_status !== 'processing' && meeting.ai_draft_status !== 'pending_review'"
+                                    variant="ghost"
+                                    size="sm"
+                                    :disabled="!canProcess(meeting)"
+                                    @click="triggerProcess(meeting)"
+                                    class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 rounded-md"
+                                >
+                                    <Sparkles class="h-3.5 w-3.5 mr-1.5" />
+                                    <span class="text-[10px] font-black uppercase tracking-wider">
+                                        {{ meeting.ai_draft_status === 'committed' ? 'Reprocess' : 'Process' }}
                                     </span>
+                                </Button>
 
-                                    <!-- Processing indicator -->
-                                    <div v-if="meeting.ai_draft_status === 'processing'" class="flex items-center gap-1.5 shrink-0">
-                                        <RefreshCw class="h-3 w-3 animate-spin text-projector-primary-500" />
-                                        <span class="text-[10px] text-projector-primary-500 font-black uppercase tracking-widest animate-pulse">Processing…</span>
-                                    </div>
+                                <!-- Review (pending_review) -->
+                                <Button
+                                    v-if="meeting.ai_draft_status === 'pending_review'"
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="meeting.ai_draft_groups.length ? router.visit(orgDocumentsDraftRoutes.show({ organization: currentOrg.id, orgDocument: meeting.id, groupId: meeting.ai_draft_groups[0].group_id }).url) : router.visit(showUrl(meeting))"
+                                    class="h-8 px-3 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-md"
+                                >
+                                    <Sparkles class="h-3.5 w-3.5 mr-1.5" />
+                                    <span class="text-[10px] font-black uppercase tracking-wider">Review</span>
+                                </Button>
 
-                                    <!-- Pending review badge -->
-                                    <span
-                                        v-else-if="meeting.ai_draft_status === 'pending_review'"
-                                        class="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full shrink-0"
-                                    >
-                                        Pending Review
-                                    </span>
-
-                                    <span class="text-[9px] font-black tracking-widest uppercase text-slate-400 shrink-0">
-                                        Status Meeting
-                                    </span>
-                                </div>
-
-                                <!-- Date + creator -->
-                                <div class="hidden md:flex items-center gap-2 text-[11px] text-slate-400 shrink-0 mr-4">
-                                    <span v-if="meeting.creator">{{ meeting.creator.name }}</span>
-                                    <span v-if="meeting.creator" class="text-slate-300">·</span>
-                                    <span>{{ formatDate(meeting.created_at) }}</span>
-                                </div>
-
-                                <!-- Action buttons -->
-                                <div class="flex items-center gap-2 shrink-0" @click.stop>
-                                    <!-- Process / Reprocess -->
-                                    <Button
-                                        v-if="canManage && meeting.ai_draft_status !== 'processing' && meeting.ai_draft_status !== 'pending_review'"
-                                        variant="ghost"
-                                        size="sm"
-                                        :disabled="!canProcess(meeting)"
-                                        @click="triggerProcess(meeting)"
-                                        class="h-8 px-3 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 rounded-xl"
-                                    >
-                                        <Sparkles class="h-3.5 w-3.5 mr-1.5" />
-                                        <span class="text-[10px] font-black uppercase tracking-wider">
-                                            {{ meeting.ai_draft_status === 'committed' ? 'Reprocess' : 'Process' }}
-                                        </span>
-                                    </Button>
-
-                                    <!-- Review (pending_review) -->
-                                    <Button
-                                        v-if="meeting.ai_draft_status === 'pending_review'"
-                                        variant="ghost"
-                                        size="sm"
-                                        @click="meeting.ai_draft_groups.length ? router.visit(orgDocumentsDraftRoutes.show({ organization: currentOrg.id, orgDocument: meeting.id, groupId: meeting.ai_draft_groups[0].group_id }).url) : router.visit(showUrl(meeting))"
-                                        class="h-8 px-3 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 rounded-xl"
-                                    >
-                                        <Sparkles class="h-3.5 w-3.5 mr-1.5" />
-                                        <span class="text-[10px] font-black uppercase tracking-wider">Review</span>
-                                    </Button>
-
-                                    <!-- View -->
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        @click="router.visit(showUrl(meeting))"
-                                        class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 rounded-xl"
-                                    >
-                                        <Eye class="h-3.5 w-3.5 mr-1.5" />
-                                        <span class="text-[10px] font-black uppercase tracking-wider">View</span>
-                                    </Button>
-                                </div>
+                                <!-- View -->
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="router.visit(showUrl(meeting))"
+                                    class="h-8 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md"
+                                >
+                                    <Eye class="h-3.5 w-3.5 mr-1.5" />
+                                    <span class="text-[10px] font-black uppercase tracking-wider">View</span>
+                                </Button>
                             </div>
                         </div>
 
@@ -317,25 +314,20 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                                 <div
                                     v-for="group in meeting.ai_draft_groups"
                                     :key="group.group_id"
-                                    class="flex items-center mb-1"
+                                    :class="['flex items-center gap-3 h-9 px-2 ml-8 rounded-md transition-colors cursor-pointer min-w-0 mb-1', FLAT_ROW_HOVER]"
+                                    @click="router.visit(orgDocumentsDraftRoutes.show({ organization: currentOrg.id, orgDocument: meeting.id, groupId: group.group_id }).url)"
                                 >
-                                    <div class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-amber-100 dark:border-amber-900/40 py-2 px-4 rounded-xl shadow-sm ml-8 min-w-0 cursor-pointer hover:border-amber-300 transition-colors"
-                                        @click="router.visit(orgDocumentsDraftRoutes.show({ organization: currentOrg.id, orgDocument: meeting.id, groupId: group.group_id }).url)"
-                                    >
-                                        <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mr-3 bg-amber-50 dark:bg-amber-950/30 text-amber-500">
-                                            <FileText class="h-3.5 w-3.5" />
-                                        </div>
-                                        <div class="flex-1 flex items-center gap-3 overflow-hidden min-w-0">
-                                            <span class="text-sm font-semibold truncate text-slate-700 dark:text-slate-300">
-                                                {{ group.document_title || group.project_name }}
-                                            </span>
-                                            <span class="text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full shrink-0">
-                                                Draft
-                                            </span>
-                                            <span v-if="group.client_name" class="text-[10px] text-slate-400 shrink-0">
-                                                {{ group.client_name }}
-                                            </span>
-                                        </div>
+                                    <FileText class="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                    <div class="flex-1 flex items-center gap-3 overflow-hidden min-w-0">
+                                        <span class="text-sm font-semibold truncate text-slate-700 dark:text-slate-300">
+                                            {{ group.document_title || group.project_name }}
+                                        </span>
+                                        <span class="text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full shrink-0">
+                                            Draft
+                                        </span>
+                                        <span v-if="group.client_name" class="text-[10px] text-slate-400 shrink-0">
+                                            {{ group.client_name }}
+                                        </span>
                                     </div>
                                 </div>
                             </template>
@@ -344,28 +336,22 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                             <div
                                 v-for="doc in meeting.linked_documents"
                                 :key="doc.id"
-                                class="flex items-center mb-1"
+                                :class="['flex items-center gap-3 h-9 px-2 ml-8 rounded-md transition-colors cursor-pointer min-w-0 mb-1', FLAT_ROW_HOVER]"
+                                @click="router.visit(docUrl(doc))"
                             >
-                                <div
-                                    class="flex-1 flex items-center bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 py-2 px-4 rounded-xl shadow-sm ml-8 min-w-0 cursor-pointer hover:border-projector-primary-300 transition-colors"
-                                    @click="router.visit(docUrl(doc))"
-                                >
-                                    <div class="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mr-3 bg-slate-50 dark:bg-slate-800 text-slate-400">
-                                        <FileText class="h-3.5 w-3.5" />
-                                    </div>
-                                    <div class="flex-1 flex items-center gap-3 overflow-hidden min-w-0">
-                                        <span class="text-sm font-semibold truncate text-slate-700 dark:text-slate-300">
-                                            {{ doc.name }}
-                                        </span>
-                                        <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">
-                                            Action Items
-                                        </span>
-                                        <span v-if="doc.project_name" class="text-[10px] text-slate-400 shrink-0">
-                                            {{ doc.project_name }}<template v-if="doc.client_name"> · {{ doc.client_name }}</template>
-                                        </span>
-                                    </div>
-                                    <Eye class="h-3.5 w-3.5 text-slate-300 shrink-0 ml-2" />
+                                <FileText class="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                <div class="flex-1 flex items-center gap-3 overflow-hidden min-w-0">
+                                    <span class="text-sm font-semibold truncate text-slate-700 dark:text-slate-300">
+                                        {{ doc.name }}
+                                    </span>
+                                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                                        Action Items
+                                    </span>
+                                    <span v-if="doc.project_name" class="text-[10px] text-slate-400 shrink-0">
+                                        {{ doc.project_name }}<template v-if="doc.client_name"> · {{ doc.client_name }}</template>
+                                    </span>
                                 </div>
+                                <Eye class="h-3.5 w-3.5 text-slate-300 shrink-0" />
                             </div>
                         </div>
                     </div>
@@ -381,14 +367,14 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
 
                 <Deferred v-else data="recordingsData">
                     <template #fallback>
-                        <div class="space-y-3">
-                            <div v-for="i in 4" :key="i" class="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 animate-pulse">
-                                <div class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 shrink-0" />
-                                <div class="flex-1 space-y-2">
-                                    <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/3" />
-                                    <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-1/5" />
+                        <div class="grid gap-0.5">
+                            <div v-for="i in 4" :key="i" class="flex items-center gap-3 h-12 px-2 animate-pulse">
+                                <div class="w-3.5 h-3.5 rounded bg-gray-100 dark:bg-gray-800 shrink-0" />
+                                <div class="flex-1 flex items-center gap-3">
+                                    <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded w-40" />
+                                    <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-24" />
                                 </div>
-                                <div class="h-9 w-24 bg-gray-100 dark:bg-gray-800 rounded-xl" />
+                                <div class="h-8 w-20 bg-gray-100 dark:bg-gray-800 rounded-md" />
                             </div>
                         </div>
                     </template>

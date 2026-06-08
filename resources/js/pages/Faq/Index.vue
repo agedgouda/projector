@@ -5,8 +5,9 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { type BreadcrumbItem } from '@/types';
-import { Search, Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp } from 'lucide-vue-next';
+import { Search, Plus, Edit2, Trash2, X, Check, ChevronDown } from 'lucide-vue-next';
 import faqRoutes from '@/routes/faq/index';
+import { FLAT_ROW_HOVER, FLAT_ACTION_BUTTON } from '@/lib/flat-ui';
 
 interface FaqItem {
     id: number;
@@ -176,17 +177,17 @@ const submitAdd = () => {
             </div>
 
             <!-- FAQ Groups -->
-            <div v-for="[category, items] in grouped" :key="category" class="space-y-2">
-                <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-projector-primary-600 dark:text-projector-primary-400 px-1 flex items-center gap-2">
+            <div v-for="[category, items] in grouped" :key="category" class="space-y-1">
+                <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-projector-primary-600 dark:text-projector-primary-400 px-2 flex items-center gap-2">
                     <div class="w-4 h-px bg-projector-primary-300 dark:bg-projector-primary-700"></div>
                     {{ category }}
                 </h2>
 
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-                    <div v-for="(faq, idx) in items" :key="faq.id">
+                <div class="grid gap-0.5">
+                    <div v-for="faq in items" :key="faq.id">
 
                         <!-- Edit mode -->
-                        <div v-if="editingId === faq.id" class="p-5 space-y-4 border-b border-slate-100 dark:border-slate-800 last:border-0 bg-projector-primary-50/40 dark:bg-projector-primary-900/10">
+                        <div v-if="editingId === faq.id" class="rounded-md p-5 space-y-4 bg-projector-primary-50/40 dark:bg-projector-primary-900/10">
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-1">
                                     <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</label>
@@ -224,36 +225,34 @@ const submitAdd = () => {
                         </div>
 
                         <!-- View mode -->
-                        <div v-else :class="['border-b border-slate-100 dark:border-slate-800 last:border-0', idx % 2 === 1 ? 'bg-slate-50/50 dark:bg-slate-800/20' : '']">
+                        <div v-else class="group">
                             <button
                                 type="button"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                                :class="['w-full flex items-center justify-between gap-3 h-12 px-2 rounded-md text-left transition-colors', FLAT_ROW_HOVER]"
                                 @click="toggle(faq.id)"
                             >
-                                <span class="font-semibold text-sm text-slate-800 dark:text-slate-100 pr-4">{{ faq.question }}</span>
-                                <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate pr-4">{{ faq.question }}</span>
+                                <div class="flex items-center gap-1 shrink-0">
                                     <template v-if="isSuperAdmin">
-                                        <button
-                                            type="button"
-                                            @click.stop="startEdit(faq)"
-                                            class="p-1.5 rounded-lg text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-900/20 transition-colors"
-                                        >
+                                        <button type="button" @click.stop="startEdit(faq)" :class="FLAT_ACTION_BUTTON">
                                             <Edit2 class="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                             type="button"
                                             @click.stop="deleteFaq(faq)"
-                                            class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                            class="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-colors"
                                         >
                                             <Trash2 class="w-3.5 h-3.5" />
                                         </button>
                                     </template>
-                                    <ChevronDown v-if="!expandedIds.has(faq.id)" class="w-4 h-4 text-slate-400" />
-                                    <ChevronUp v-else class="w-4 h-4 text-projector-primary-500" />
+                                    <ChevronDown
+                                        class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                                        :class="{ 'rotate-180 text-projector-primary-500': expandedIds.has(faq.id) }"
+                                    />
                                 </div>
                             </button>
-                            <div v-if="expandedIds.has(faq.id)" class="px-5 pb-5">
-                                <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{{ faq.answer }}</p>
+                            <div v-if="expandedIds.has(faq.id)" class="px-2 pb-4">
+                                <p class="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">{{ faq.answer }}</p>
                             </div>
                         </div>
 

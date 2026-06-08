@@ -5,6 +5,7 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { Button } from '@/components/ui/button';
 import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
 import { formatDate } from '@/lib/utils';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 
 const props = defineProps<{
     projectId: string;
@@ -63,31 +64,29 @@ const {
             <p class="text-xs text-gray-400 mt-1">All recent recordings have already been imported, or none exist yet.</p>
         </div>
 
-        <div v-else class="space-y-3">
+        <div v-else class="grid gap-0.5">
             <div
                 v-for="recording in pendingRecordings"
                 :key="recording.id"
-                class="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-projector-primary-200 dark:hover:border-projector-primary-700 transition-colors"
+                :class="['group flex items-center gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
             >
-                <div class="p-2 rounded-xl bg-projector-primary-50 dark:bg-projector-primary-950 shrink-0">
-                    <Video class="w-4 h-4 text-projector-primary-500" />
+                <div class="w-4 h-4 flex items-center justify-center shrink-0 text-slate-400">
+                    <Video class="w-3.5 h-3.5" />
                 </div>
 
-                <div class="flex-1 min-w-0">
-                    <p class="font-bold text-sm text-gray-900 dark:text-white truncate">{{ recording.title }}</p>
-                    <p class="text-xs text-gray-400 mt-0.5">
+                <div class="flex-1 flex items-center gap-2.5 min-w-0">
+                    <span class="font-semibold text-[13px] text-slate-900 dark:text-slate-100 truncate">{{ recording.title }}</span>
+                    <span class="text-[11px] text-slate-400 shrink-0">
                         {{ formatDate(recording.started_at) }}
-                        <span v-if="recording.duration_minutes" class="ml-2">
-                            · {{ recording.duration_minutes }} min
-                        </span>
-                    </p>
+                        <template v-if="recording.duration_minutes">· {{ recording.duration_minutes }} min</template>
+                    </span>
                 </div>
 
                 <template v-if="canManage">
                     <Button
                         size="sm"
                         :disabled="importing === recording.id || importingAsRequirements === recording.id"
-                        class="shrink-0 bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl px-4 h-9 text-[10px] font-black uppercase tracking-widest"
+                        class="shrink-0 bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest"
                         @click="importRecording(recording)"
                     >
                         <Loader2 v-if="importing === recording.id" class="w-3 h-3 mr-1.5 animate-spin" />
@@ -99,7 +98,7 @@ const {
                         size="sm"
                         variant="outline"
                         :disabled="importing === recording.id || importingAsRequirements === recording.id"
-                        class="shrink-0 rounded-xl px-3 h-9 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300"
+                        class="shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300"
                         @click="importRecording(recording, 'requirements')"
                     >
                         <Loader2 v-if="importingAsRequirements === recording.id" class="w-3 h-3 mr-1.5 animate-spin" />
@@ -107,14 +106,14 @@ const {
                         {{ importingAsRequirements === recording.id ? 'Importing...' : 'Requirements' }}
                     </Button>
 
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        class="shrink-0 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl h-9 w-9 p-0"
+                    <button
+                        type="button"
+                        class="h-8 w-8 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        title="Dismiss recording"
                         @click="confirmDismissRecording(recording)"
                     >
-                        <Trash2 class="w-4 h-4" />
-                    </Button>
+                        <Trash2 class="w-3.5 h-3.5" />
+                    </button>
                 </template>
             </div>
         </div>

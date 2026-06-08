@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Search, X, PlusIcon, Edit2, Trash2, Copy } from 'lucide-vue-next';
+import { Search, PlusIcon, Edit2, Trash2, Copy } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import aiTemplateRoutes from '@/routes/ai-templates';
@@ -13,6 +13,8 @@ import { duplicate as duplicateRoute } from '@/routes/ai-templates/index';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import { toast } from 'vue-sonner';
+import FlatRow from '@/components/FlatRow.vue';
+import { FLAT_ACTION_BUTTON, FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 
 interface AiTemplateWithPerms extends AiTemplate {
     organization_id: string | null;
@@ -110,26 +112,21 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                 <Button
                     v-if="canCreate"
                     @click="handleCreate"
-                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all"
+                    class="font-bold h-11 px-6"
                 >
                     <PlusIcon class="w-5 h-5 mr-2" />
                     New Template
                 </Button>
             </div>
 
-            <div class="flex flex-col lg:flex-row gap-4 mb-8">
-                <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1">
-                    <div class="relative w-full md:w-80 lg:w-96">
-                        <Search class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                            v-model="searchQuery"
-                            placeholder="Search templates..."
-                            class="pl-11 pr-10 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300"
-                        />
-                        <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
-                            <X class="w-3 h-3 text-slate-500" />
-                        </button>
-                    </div>
+            <div class="mb-8">
+                <div class="relative w-full md:w-80 lg:w-96 group">
+                    <Search :class="FLAT_SEARCH_ICON" />
+                    <Input
+                        v-model="searchQuery"
+                        placeholder="Search templates..."
+                        :class="FLAT_SEARCH_INPUT"
+                    />
                 </div>
             </div>
 
@@ -154,38 +151,27 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                 :count="item.count"
                                 :collapsed="false"
                             />
-                            <div
-                                v-else
-                                class="mb-3 w-full group relative p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl flex items-center justify-between"
-                            >
-                                <div class="flex items-center gap-4">
-                                    <div>
-                                        <h3 class="font-black uppercase tracking-tight text-gray-900 dark:text-white text-sm">{{ item.name }}</h3>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <div
-                                        @click="handleShow(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
-                                    >
-                                        <Edit2 class="w-5 h-5" />
-                                    </div>
-                                    <div
-                                        v-if="canCreate"
-                                        @click="handleCopy(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
-                                    >
-                                        <Copy class="w-5 h-5" />
-                                    </div>
-                                    <div
+                            <FlatRow v-else height="md" clickable @click="handleShow(item.id)">
+                                <span class="font-bold text-[13px] text-slate-900 dark:text-slate-100 truncate">{{ item.name }}</span>
+
+                                <template #actions>
+                                    <button type="button" @click.stop="handleShow(item.id)" :class="FLAT_ACTION_BUTTON" title="Edit template">
+                                        <Edit2 class="w-3.5 h-3.5" />
+                                    </button>
+                                    <button v-if="canCreate" type="button" @click.stop="handleCopy(item.id)" :class="FLAT_ACTION_BUTTON" title="Duplicate template">
+                                        <Copy class="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
                                         v-if="item.can_edit"
-                                        @click="openModal({ id: item.id, name: item.name })"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
+                                        type="button"
+                                        @click.stop="openModal({ id: item.id, name: item.name })"
+                                        class="h-7 w-7 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-colors"
+                                        title="Delete template"
                                     >
-                                        <Trash2 class="w-5 h-5" />
-                                    </div>
-                                </div>
-                            </div>
+                                        <Trash2 class="w-3.5 h-3.5" />
+                                    </button>
+                                </template>
+                            </FlatRow>
                         </template>
                     </ResourceList>
                 </div>
@@ -206,38 +192,27 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                 :count="item.count"
                                 :collapsed="false"
                             />
-                            <div
-                                v-else
-                                class="mb-3 w-full group relative p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl flex items-center justify-between"
-                            >
-                                <div class="flex items-center gap-4">
-                                    <div>
-                                        <h3 class="font-black uppercase tracking-tight text-gray-900 dark:text-white text-sm">{{ item.name }}</h3>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <div
-                                        @click="handleShow(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
-                                    >
-                                        <Edit2 class="w-5 h-5" />
-                                    </div>
-                                    <div
-                                        v-if="canCreate"
-                                        @click="handleCopy(item.id)"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-projector-primary-500 transition-colors"
-                                    >
-                                        <Copy class="w-5 h-5" />
-                                    </div>
-                                    <div
+                            <FlatRow v-else height="md" clickable @click="handleShow(item.id)">
+                                <span class="font-bold text-[13px] text-slate-900 dark:text-slate-100 truncate">{{ item.name }}</span>
+
+                                <template #actions>
+                                    <button type="button" @click.stop="handleShow(item.id)" :class="FLAT_ACTION_BUTTON" title="Edit template">
+                                        <Edit2 class="w-3.5 h-3.5" />
+                                    </button>
+                                    <button v-if="canCreate" type="button" @click.stop="handleCopy(item.id)" :class="FLAT_ACTION_BUTTON" title="Duplicate template">
+                                        <Copy class="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
                                         v-if="item.can_edit"
-                                        @click="openModal({ id: item.id, name: item.name })"
-                                        class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-red-500 transition-colors"
+                                        type="button"
+                                        @click.stop="openModal({ id: item.id, name: item.name })"
+                                        class="h-7 w-7 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-colors"
+                                        title="Delete template"
                                     >
-                                        <Trash2 class="w-5 h-5" />
-                                    </div>
-                                </div>
-                            </div>
+                                        <Trash2 class="w-3.5 h-3.5" />
+                                    </button>
+                                </template>
+                            </FlatRow>
                         </template>
                     </ResourceList>
                 </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Trash2 } from 'lucide-vue-next';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 
 defineProps<{
     title: string;
@@ -12,36 +13,38 @@ defineEmits(['delete', 'click']);
 </script>
 
 <template>
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm hover:border-projector-primary-300 dark:hover:border-projector-primary-800 transition-colors group">
-        <div class="min-w-0 flex-1 mr-4" @click="$emit('click')">
-            <div class="flex items-center gap-2 flex-wrap">
-                <slot name="icon"></slot>
+    <div :class="['group flex items-center justify-between gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]">
+        <div class="min-w-0 flex-1 flex items-center gap-2.5" @click="$emit('click')">
+            <slot name="icon"></slot>
 
-                <h4 class="font-bold text-gray-900 dark:text-white truncate">
-                    {{ title }}
-                </h4>
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h4 class="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate">
+                        {{ title }}
+                    </h4>
 
-                <span v-if="pillText" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-900/40 dark:text-projector-primary-300 border border-projector-primary-200 dark:border-projector-primary-800">
-                    {{ pillText }}
-                </span>
+                    <span v-if="pillText" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-900/40 dark:text-projector-primary-300">
+                        {{ pillText }}
+                    </span>
+                </div>
+
+                <p v-if="description" class="text-[11px] text-slate-400 truncate">
+                    {{ description }}
+                </p>
             </div>
-
-            <p v-if="description" class="text-xs text-gray-500 mt-1 line-clamp-1">
-                {{ description }}
-            </p>
 
             <slot />
         </div>
 
-        <div class="flex items-center gap-4 shrink-0">
+        <div class="flex items-center gap-3 shrink-0">
             <slot name="actions"></slot>
 
             <button
                 v-if="showDelete !== false"
                 @click.stop="$emit('delete')"
-                class="text-gray-300 hover:text-red-500 transition-colors p-1"
+                class="h-7 w-7 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-colors shrink-0"
             >
-                <Trash2 class="h-5 w-5" />
+                <Trash2 class="w-3.5 h-3.5" />
             </button>
         </div>
     </div>

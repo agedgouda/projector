@@ -170,13 +170,13 @@ const submit = () => {
             </Tabs>
 
             <div v-if="activeTab === 'edit'" class="p-8 border-t flex justify-end gap-3 bg-slate-50/50 shrink-0">
-                <Button variant="ghost" @click="emit('update:open', false)" class="rounded-xl px-6 text-slate-500 font-bold">
+                <Button variant="ghost" @click="emit('update:open', false)" class="px-6 text-slate-500 font-bold">
                     Cancel
                 </Button>
                 <Button
                     @click="submit"
                     :disabled="form.processing"
-                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl px-10 font-black shadow-lg shadow-projector-primary-200 transition-all h-12 min-w-[160px]"
+                    class="px-10 h-12 min-w-[160px]"
                 >
                     <Loader2 v-if="form.processing" class="w-4 h-4 mr-2 animate-spin" />
                     {{ task ? 'Update Task' : 'Create Task' }}

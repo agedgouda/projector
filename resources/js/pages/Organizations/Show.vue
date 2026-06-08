@@ -189,7 +189,7 @@ const submitInvite = (orgId: string) => {
                     <Link
                         v-if="isSuperAdmin"
                         :href="organizationRoutes.create.url()"
-                        class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all"
+                        class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-md transition-all"
                     >
                         <Plus class="w-4 h-4 mr-2" />
                         <span class="text-[10px] font-black uppercase tracking-widest">New Org</span>
@@ -287,7 +287,7 @@ const submitInvite = (orgId: string) => {
                             <button
                                 type="button"
                                 @click="openAddUser"
-                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all gap-2"
+                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-md transition-all gap-2"
                             >
                                 <Plus class="w-4 h-4" />
                                 <span class="text-[10px] font-black uppercase tracking-widest">Add User</span>
@@ -298,7 +298,7 @@ const submitInvite = (orgId: string) => {
                             <button
                                 type="button"
                                 @click="openInviteUser"
-                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all gap-2"
+                                class="inline-flex items-center bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-md transition-all gap-2"
                             >
                                 <UserPlus class="w-4 h-4" />
                                 <span class="text-[10px] font-black uppercase tracking-widest">Invite User</span>
@@ -351,36 +351,31 @@ const submitInvite = (orgId: string) => {
                     </div>
 
                     <!-- Breakdown by client / project -->
-                    <div v-else class="space-y-4">
-                        <div
-                            v-for="row in clientUsageRows"
-                            :key="row.clientId"
-                            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden"
-                        >
+                    <div v-else class="space-y-6">
+                        <div v-for="row in clientUsageRows" :key="row.clientId" class="space-y-0.5">
                             <!-- Client header -->
-                            <div class="flex items-center px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-                                <span class="text-sm font-black text-slate-800 dark:text-slate-100 flex-1">{{ row.clientName }}</span>
-                                <span class="text-xs text-slate-500 dark:text-slate-400 text-right">{{ formatDocs(row.documents_processed) }}</span>
+                            <div class="flex items-center h-10 px-2">
+                                <span class="text-[13px] font-black text-slate-800 dark:text-slate-100 flex-1 truncate">{{ row.clientName }}</span>
+                                <span class="text-xs text-slate-400">{{ formatDocs(row.documents_processed) }}</span>
                             </div>
 
                             <!-- Project rows -->
-                            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                            <div class="relative pl-7">
+                                <div class="absolute left-[14px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
                                 <div
                                     v-for="project in row.projects"
                                     :key="project.project_id"
-                                    class="flex items-center px-5 py-3"
+                                    class="flex items-center h-9 px-2"
                                 >
-                                    <span class="text-xs text-slate-600 dark:text-slate-300 pl-3 border-l-2 border-projector-primary-200 dark:border-projector-primary-800 flex-1">
-                                        {{ project.projectName }}
-                                    </span>
-                                    <span class="text-xs text-slate-400 text-right">{{ formatDocs(project.documents_processed) }}</span>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400 flex-1 truncate">{{ project.projectName }}</span>
+                                    <span class="text-xs text-slate-400">{{ formatDocs(project.documents_processed) }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Total row -->
-                    <div v-if="clientUsageRows.length > 0" class="flex items-center px-5 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+                    <div v-if="clientUsageRows.length > 0" class="flex items-center h-12 px-2 mt-2 border-t border-slate-200 dark:border-slate-800">
                         <span class="text-sm font-black text-slate-800 dark:text-slate-100 flex-1">Total</span>
                         <span class="text-sm font-black text-slate-800 dark:text-slate-100">{{ formatDocs(usageTotals.documents_processed) }}</span>
                     </div>

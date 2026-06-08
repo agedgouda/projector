@@ -53,7 +53,7 @@ const handleSuccess = (clientId: string) => {
     <div>
         <div @click.capture="handleTriggerClick">
             <slot name="trigger">
-                <Button class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all">
+                <Button class="font-bold h-11 px-6">
                     <PlusIcon class="w-5 h-5 mr-2" />
                     {{ triggerLabel ?? 'New Project' }}
                 </Button>

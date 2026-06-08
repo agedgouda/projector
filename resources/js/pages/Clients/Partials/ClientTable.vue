@@ -3,9 +3,11 @@ import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import clientRoutes from '@/routes/clients/index';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ClientProjects from './ClientProjects.vue';
+import FlatRow from '@/components/FlatRow.vue';
+import IconTile from '@/components/IconTile.vue';
+import { FLAT_ACTION_BUTTON } from '@/lib/flat-ui';
 import { router } from '@inertiajs/vue3';
 import { formatPhoneNumber } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Briefcase, User, Phone, Edit2, Trash2, ChevronDown } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -50,111 +52,70 @@ const handleDelete = () => {
             <TransitionGroup name="list" tag="div" class="space-y-4 relative">
                 <div v-for="client in clients" :key="client.id" class="w-full">
 
-                    <div
-                        class="group relative flex flex-col md:flex-row md:items-center justify-between p-5 bg-white dark:bg-gray-900 border rounded-2xl transition-all duration-300 shadow-sm z-20"
-                        :class="selectedClientId === client.id
-                            ? 'border-projector-primary-500 ring-4 ring-projector-primary-500/5'
-                            : 'border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'"
-                    >
-                        <div class="flex items-start gap-4 flex-1">
-                            <div class="mt-1 flex items-center justify-center w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 group-hover:bg-projector-primary-50 group-hover:text-projector-primary-600 dark:group-hover:bg-projector-primary-500/10 transition-colors">
-                                <Briefcase class="w-5 h-5" />
-                            </div>
+                    <FlatRow height="md" :selected="selectedClientId === client.id" clickable @click="emit('toggleProjects', client.id)">
+                        <template #leading>
+                            <ChevronDown
+                                class="w-4 h-4 text-slate-400 transition-transform duration-300 shrink-0"
+                                :class="{ 'rotate-180': selectedClientId === client.id }"
+                            />
+                            <IconTile :icon="Briefcase" size="sm" />
+                        </template>
 
-                            <div class="space-y-1">
-                                <h3 class="font-black text-gray-900 dark:text-white tracking-tight text-lg flex items-center gap-2">
-                                    {{ client.company_name }}
-                                    <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
-                                        Inactive
-                                    </span>
-                                </h3>
-                                <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-                                    <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-medium">
-                                        <User class="w-3.5 h-3.5 opacity-60" />
-                                        {{ client.contact_name }}
-                                    </div>
-                                    <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-mono">
-                                        <Phone class="w-3.5 h-3.5 opacity-60" />
-                                        {{ formatPhoneNumber(client.contact_phone) }}
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="flex flex-col min-w-0">
+                            <span class="font-bold text-[13px] text-slate-900 dark:text-slate-100 flex items-center gap-2 truncate">
+                                {{ client.company_name }}
+                                <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded shrink-0">
+                                    Inactive
+                                </span>
+                            </span>
+                            <span class="flex items-center gap-3 text-[11px] text-slate-400 truncate">
+                                <span class="flex items-center gap-1.5">
+                                    <User class="w-3 h-3 opacity-60" />
+                                    {{ client.contact_name }}
+                                </span>
+                                <span class="hidden lg:flex items-center gap-1.5 font-mono">
+                                    <Phone class="w-3 h-3 opacity-60" />
+                                    {{ formatPhoneNumber(client.contact_phone) }}
+                                </span>
+                            </span>
                         </div>
 
-                        <div class="flex items-center gap-2 mt-4 md:mt-0 ml-0 md:ml-4 pt-4 md:pt-0 border-t md:border-t-0 border-gray-50 dark:border-gray-800">
+                        <template #trailing>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                {{ client.projects?.length || 0 }} {{ client.projects?.length === 1 ? 'Project' : 'Projects' }}
+                            </span>
+                        </template>
 
-                            <Button
-                                @click="emit('toggleProjects', client.id)"
-                                :variant="selectedClientId === client.id ? 'default' : 'secondary'"
-                                :class="[
-                                    'h-10 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95',
-                                    selectedClientId === client.id
-                                        ? 'bg-projector-primary-600 hover:bg-projector-primary-700 text-white shadow-[0_0_20px_rgba(79,70,229,0.3)]'
-                                        : 'text-gray-500 hover:text-projector-primary-600 hover:bg-projector-primary-50'
-                                ]"
+                        <template #actions>
+                            <button type="button" @click.stop="emit('edit', client)" :class="FLAT_ACTION_BUTTON" title="Edit client">
+                                <Edit2 class="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                                type="button"
+                                @click.stop="openModal({ id: client.id, name: client.company_name })"
+                                class="h-7 w-7 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-colors"
+                                title="Delete client"
                             >
-                                <ChevronDown
-                                    class="w-4 h-4 mr-2 transition-transform duration-300"
-                                    :class="{ 'rotate-180': selectedClientId === client.id }"
-                                />
-                                {{ selectedClientId === client.id ? 'Hide' : 'Show' }} {{ client.projects?.length === 1 ? 'Project' : 'Projects' }}
-                                <span
-                                    class="ml-2 px-1.5 py-0.5 rounded-md text-[10px] transition-colors"
-                                    :class="selectedClientId === client.id
-                                        ? 'bg-white/20 text-white'
-                                        : 'bg-gray-200 dark:bg-gray-800 text-gray-600 group-hover/btn:bg-projector-primary-100 group-hover/btn:text-projector-primary-600'"
-                                >
-                                    {{ client.projects?.length || 0 }}
-                                </span>
-                            </Button>
+                                <Trash2 class="w-3.5 h-3.5" />
+                            </button>
+                        </template>
+                    </FlatRow>
 
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                @click="emit('edit', client)"
-                                class="rounded-xl text-gray-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 transition-all"
-                            >
-                                <Edit2 class="w-4 h-4" />
-                            </Button>
+                    <div v-if="selectedClientId === client.id" class="relative pl-7">
+                        <div class="absolute left-[14px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
+                        <div class="py-4 pr-2">
+                            <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">
+                                Project Portfolio for {{ client.company_name }}
+                            </h4>
 
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                @click="openModal({ id: client.id, name: client.company_name })"
-                                class="rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                            >
-                                <Trash2 class="w-4 h-4" />
-                            </Button>
+                            <ClientProjects
+                                :key="client.id"
+                                :client="client"
+                                :projects="client.projects"
+                                :projectTypes="projectTypes"
+                            />
                         </div>
                     </div>
-
-                    <transition
-                        enter-active-class="transition-all duration-500 ease-out"
-                        leave-active-class="transition-all duration-300 ease-in"
-                        enter-from-class="opacity-0 -translate-y-8 max-h-0"
-                        enter-to-class="opacity-100 translate-y-0 max-h-[2000px]"
-                        leave-from-class="opacity-100 translate-y-0 max-h-[2000px]"
-                        leave-to-class="opacity-0 -translate-y-8 max-h-0"
-                    >
-                        <div v-if="selectedClientId === client.id" class="overflow-hidden">
-                            <div class="pt-10 pb-8 px-6 border-x border-b border-projector-primary-100 dark:border-projector-primary-500/20 bg-gray-50/50 dark:bg-projector-primary-500/5 rounded-b-3xl -mt-6">
-                                <div class="flex items-center gap-4 mb-8">
-                                    <div class="h-px bg-projector-primary-200 dark:bg-projector-primary-500/30 flex-1"></div>
-                                    <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-projector-primary-500 dark:text-projector-primary-400">
-                                        Project Portfolio for {{ client.company_name }}
-                                    </h4>
-                                    <div class="h-px bg-projector-primary-200 dark:bg-projector-primary-500/30 flex-1"></div>
-                                </div>
-
-                                <ClientProjects
-                                    :key="client.id"
-                                    :client="client"
-                                    :projects="client.projects"
-                                    :projectTypes="projectTypes"
-                                />
-                            </div>
-                        </div>
-                    </transition>
                 </div>
             </TransitionGroup>
         </div>

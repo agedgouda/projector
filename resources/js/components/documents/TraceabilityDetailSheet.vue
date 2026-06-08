@@ -13,6 +13,7 @@ import TaskFormSheet from '@/components/tasks/TaskFormSheet.vue';
 import InlineDocumentForm from './InlineDocumentForm.vue';
 import { formatDate } from '@/lib/utils'
 import { STATUS_LABELS, PRIORITY_LABELS,priorityClasses, statusClasses,priorityDotClasses } from '@/lib/constants'
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 
 const props = defineProps<{
     open: boolean;
@@ -164,11 +165,11 @@ watch(() => props.item, (newItem) => {
                                 </Button>
                             </div>
 
-                            <div v-if="item.tasks?.length" class="space-y-3">
+                            <div v-if="item.tasks?.length" class="grid gap-0.5">
                                 <div v-for="task in item.tasks" :key="task.id"
-                                    class="group flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-projector-primary-100 transition-all"
+                                    :class="['group flex items-center justify-between gap-4 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
                                 >
-                                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                                    <div class="flex items-center gap-3 flex-1 min-w-0">
                                         <div
                                             class="h-2 w-2 rounded-full shrink-0 transition-all"
                                             :class="priorityDotClasses[task.priority]"
@@ -179,7 +180,7 @@ watch(() => props.item, (newItem) => {
                                     </div>
 
                                     <div class="flex items-center gap-4 ml-4 shrink-0">
-                                        <div class="flex items-center gap-2">
+                                        <div class="hidden md:flex items-center gap-2">
                                             <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter" :class="statusClasses[task.status]">
                                                 {{ STATUS_LABELS[task.status] }}
                                             </span>
@@ -193,7 +194,7 @@ watch(() => props.item, (newItem) => {
                                             </span>
                                         </div>
 
-                                        <div class="flex items-center gap-2 border-l pl-4 border-slate-100 min-w-[70px] justify-end">
+                                        <div class="flex items-center gap-2 min-w-[70px] justify-end">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -206,7 +207,7 @@ watch(() => props.item, (newItem) => {
                                             <TooltipProvider v-if="task.assignee">
                                                 <Tooltip :delay-duration="200">
                                                     <TooltipTrigger as-child>
-                                                        <div class="h-7 w-7 rounded-full bg-projector-primary-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-projector-primary-600 shadow-sm cursor-help shrink-0">
+                                                        <div class="h-7 w-7 rounded-full bg-projector-primary-50 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-black text-projector-primary-600 cursor-help shrink-0">
                                                             {{ (task.assignee.first_name?.[0] || '') + (task.assignee.last_name?.[0] || '') }}
                                                         </div>
                                                     </TooltipTrigger>

@@ -72,7 +72,7 @@ const getClientName = (id: string) => {
             <Button
                 @click="assignClient"
                 :disabled="!form.client_id || form.processing"
-                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl h-10 px-4 transition-all active:scale-95"
+                class="h-10 px-4"
             >
                 <Plus class="w-4 h-4" />
             </Button>

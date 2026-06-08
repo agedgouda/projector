@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { type BreadcrumbItem } from '@/types';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import bugReportsRoutes from '@/routes/bug-reports/index';
 
 interface BugReport {
@@ -46,16 +47,15 @@ const toggleStatus = (report: BugReport) => {
                 </div>
             </div>
 
-            <div v-if="bugReports.length === 0" class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-12 text-center shadow-sm">
+            <div v-if="bugReports.length === 0" class="p-12 text-center border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-2xl">
                 <p class="text-sm text-slate-500">No bug reports yet.</p>
             </div>
 
-            <div v-else class="space-y-3">
+            <div v-else class="space-y-1">
                 <div
                     v-for="report in bugReports"
                     :key="report.id"
-                    class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-3"
-                    :class="{ 'opacity-60': report.status === 'resolved' }"
+                    :class="['rounded-md transition-colors p-4 space-y-3', FLAT_ROW_HOVER, { 'opacity-60': report.status === 'resolved' }]"
                 >
                     <div class="flex items-start justify-between gap-4">
                         <div class="space-y-1 min-w-0">
@@ -72,7 +72,7 @@ const toggleStatus = (report: BugReport) => {
                         <Button
                             variant="outline"
                             size="sm"
-                            class="shrink-0 text-[10px] font-black uppercase tracking-widest"
+                            class="shrink-0 text-[10px] font-black uppercase tracking-widest rounded-md"
                             @click="toggleStatus(report)"
                         >
                             {{ report.status === 'open' ? 'Mark Resolved' : 'Reopen' }}

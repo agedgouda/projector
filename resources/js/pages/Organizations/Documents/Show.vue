@@ -188,14 +188,14 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
 
                 <Deferred v-else data="recordingsData">
                     <template #fallback>
-                        <div class="space-y-3">
-                            <div v-for="i in 4" :key="i" class="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 animate-pulse">
-                                <div class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 shrink-0" />
-                                <div class="flex-1 space-y-2">
-                                    <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/3" />
-                                    <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-1/5" />
+                        <div class="grid gap-0.5">
+                            <div v-for="i in 4" :key="i" class="flex items-center gap-3 h-12 px-2 animate-pulse">
+                                <div class="w-3.5 h-3.5 rounded bg-gray-100 dark:bg-gray-800 shrink-0" />
+                                <div class="flex-1 flex items-center gap-3">
+                                    <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded w-40" />
+                                    <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-24" />
                                 </div>
-                                <div class="h-9 w-24 bg-gray-100 dark:bg-gray-800 rounded-xl" />
+                                <div class="h-8 w-20 bg-gray-100 dark:bg-gray-800 rounded-md" />
                             </div>
                         </div>
                     </template>

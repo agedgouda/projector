@@ -227,7 +227,7 @@ const removeLifecycleStep = (index: number) => {
                 <Button
                     type="submit"
                     :disabled="form.processing"
-                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-lg font-black px-6 h-9 uppercase text-[9px] tracking-widest shadow-sm transition-all active:scale-95"
+                    class="px-6 h-9 text-[9px]"
                 >
                     {{ form.processing ? 'Saving...' : (editData ? 'Save Changes' : 'Create Protocol') }}
                 </Button>

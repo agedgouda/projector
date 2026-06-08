@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import {
     Check,
-    ChevronsUpDown,
     Building2,
     Plus
 } from "lucide-vue-next";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import FlatSwitcherTrigger from "@/components/FlatSwitcherTrigger.vue";
 import {
     Command,
     CommandEmpty,
@@ -46,22 +45,13 @@ const handleSelect = (orgId: string | number) => {
 <template>
     <Popover v-model:open="open">
         <PopoverTrigger as-child>
-            <Button
-                variant="outline"
-                role="combobox"
-                :aria-expanded="open"
-                class="w-full md:w-[300px] justify-between h-12 rounded-xl bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 shadow-sm"
-            >
-                <div class="flex items-center gap-3 truncate">
-                    <div class="bg-projector-primary-500/10 p-1.5 rounded-lg">
-                        <Building2 class="h-4 w-4 text-projector-primary-500" />
-                    </div>
-                    <span class="font-bold truncate text-gray-900 dark:text-white">
-                        {{ currentOrg?.name }}
-                    </span>
-                </div>
-                <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
+            <FlatSwitcherTrigger
+                :icon-src="currentOrg?.logo_url"
+                :icon-alt="currentOrg?.name"
+                :icon-fallback="Building2"
+                eyebrow="Organization"
+                :title="currentOrg?.name ?? 'Select Organization'"
+            />
         </PopoverTrigger>
         <PopoverContent class="w-[300px] p-0 rounded-xl overflow-hidden border-gray-200 dark:border-zinc-800">
             <Command>

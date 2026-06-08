@@ -6,6 +6,7 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useProjectState } from '@/composables/useProjectState';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useWorkflow } from '@/composables/useWorkflow';
+import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 
 // UI Components
 import { Input } from '@/components/ui/input';
@@ -224,14 +225,16 @@ onMounted(() => {
 <template>
     <div class="space-y-6">
 
-        <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div class="relative w-full md:w-80 lg:w-96">
-                <Search class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input v-model="searchQuery" placeholder="Search documentation..." class="pl-11 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300" />
-            </div>
+        <div class="relative w-full md:w-80 lg:w-96 group">
+            <Search :class="FLAT_SEARCH_ICON" />
+            <Input
+                v-model="searchQuery"
+                placeholder="Search documentation..."
+                :class="FLAT_SEARCH_INPUT"
+            />
         </div>
 
-        <div class="grid gap-3">
+        <div class="grid gap-0.5">
             <TraceabilityRow
                 v-for="intake in documentTree"
                 :key="intake.id"

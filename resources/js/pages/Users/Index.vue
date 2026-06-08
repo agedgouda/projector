@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
+import FlatRow from '@/components/FlatRow.vue';
+import IconTile from '@/components/IconTile.vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import { useResourceExpansion } from '@/composables/useResourceExpansion';
 import { Head } from '@inertiajs/vue3';
@@ -69,31 +71,29 @@ const {
                 />
             </div>
 
-            <div class="space-y-6">
+            <div class="space-y-4">
                 <div v-if="filteredOrgs.length === 0" class="p-12 text-center border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-2xl">
                     <p class="text-gray-500 font-medium italic">No organizations or users found matching your search.</p>
                 </div>
 
-                <div v-for="org in filteredOrgs" :key="org.id"
-                    class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm"
-                >
-                    <button
-                        @click="toggleOrg(org.id)"
-                        class="w-full flex items-center justify-between p-4 bg-gray-50/50 dark:bg-zinc-800/50 border-b border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                        <div class="flex items-center gap-3">
-                            <component :is="collapsedOrgs[org.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-gray-400" />
-                            <Building2 class="w-5 h-5 text-projector-primary-500" />
-                            <h2 class="font-black uppercase tracking-tight text-sm text-gray-700 dark:text-zinc-200">
-                                {{ org.name }}
-                            </h2>
-                            <span class="text-[10px] bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-500/20 dark:text-projector-primary-400 px-2 py-0.5 rounded-full font-black">
+                <div v-for="org in filteredOrgs" :key="org.id">
+                    <FlatRow height="md" clickable @click="toggleOrg(org.id)">
+                        <template #leading>
+                            <component :is="collapsedOrgs[org.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-slate-400 shrink-0" />
+                            <IconTile :icon="Building2" size="sm" />
+                        </template>
+
+                        <span class="font-bold text-[13px] text-slate-900 dark:text-slate-100 truncate">{{ org.name }}</span>
+
+                        <template #trailing>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
                                 {{ org.members.length }} {{ org.members.length === 1 ? 'User' : 'Users' }}
                             </span>
-                        </div>
-                    </button>
+                        </template>
+                    </FlatRow>
 
-                    <div v-if="!collapsedOrgs[org.id]" class="p-4 border-t border-gray-100 dark:border-zinc-800">
+                    <div v-if="!collapsedOrgs[org.id]" class="relative pl-7">
+                        <div class="absolute left-[14px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
                         <OrgUserTable
                             :users="org.members"
                             :show-admin-toggle="true"

@@ -10,11 +10,14 @@ import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderPlus } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderPlus, Building2 } from 'lucide-vue-next';
 import ProjectFolio from '@/components/projects/ProjectFolio.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
 import UpgradeModal from '@/components/UpgradeModal.vue';
+import FlatRow from '@/components/FlatRow.vue';
+import IconTile from '@/components/IconTile.vue';
+import { FLAT_ACTION_BUTTON } from '@/lib/flat-ui';
 import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
@@ -115,7 +118,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
         <div v-if="canAddClient" class="flex justify-end">
             <Button
                 @click="openCreateModal"
-                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-projector-primary-500/30 active:scale-95 transition-all"
+                class="font-bold h-10 px-5"
             >
                 <Plus class="w-4 h-4 mr-2" />
                 <span class="text-[10px] font-black uppercase tracking-widest">Add Client</span>
@@ -146,56 +149,60 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                 <p class="text-gray-500 font-medium">No clients found matching your search.</p>
             </div>
 
-            <div
-                v-for="client in filteredClients"
-                :key="client.id"
-                class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm transition-all"
-            >
-                <div class="w-full flex items-center justify-between p-4 bg-gray-50/50 dark:bg-zinc-800/50 transition-colors group">
-                    <button @click="toggleProjects(client.id)" class="flex items-center gap-3 flex-1 text-left">
-                        <component :is="collapsedClients[client.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-gray-400 shrink-0" />
-                        <img
-                            v-if="client.logo_url"
-                            :src="client.logo_url"
-                            :alt="client.company_name"
-                            class="size-8 rounded-md object-contain border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shrink-0"
-                        />
-                        <div class="flex flex-col">
-                            <h2 class="font-black uppercase tracking-tight text-sm text-gray-700 dark:text-zinc-200 flex items-center gap-2">
-                                {{ client.company_name }}
-                                <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
-                                    Inactive
-                                </span>
-                                <span class="text-[10px] bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-500/20 dark:text-projector-primary-400 px-2 py-0.5 rounded-full font-black">
-                                    {{ client.projects?.length || 0 }} {{ (client.projects?.length === 1) ? 'Project' : 'Projects' }}
-                                </span>
-                            </h2>
-                            <span class="text-[11px] text-gray-400 font-medium">{{ client.contact_name }}</span>
-                        </div>
-                    </button>
+            <div v-for="client in filteredClients" :key="client.id">
+                <FlatRow height="md" clickable @click="toggleProjects(client.id)">
+                    <template #leading>
+                        <component :is="collapsedClients[client.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-slate-400 shrink-0" />
+                        <IconTile :src="client.logo_url" :alt="client.company_name" :icon="Building2" size="sm" />
+                    </template>
 
-                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button @click="openAddProjectModal(client)" class="p-2 text-gray-400 hover:text-emerald-600 transition-colors" title="Add Project">
-                            <FolderPlus class="w-4 h-4" />
-                        </button>
-                        <button @click="handleEditRequest(client)" class="p-2 text-gray-400 hover:text-projector-primary-600 transition-colors">
-                            <Pencil class="w-4 h-4" />
-                        </button>
-                        <button @click="confirmDeleteClient(client)" class="p-2 text-gray-400 hover:text-red-500 transition-colors">
-                            <Trash2 class="w-4 h-4" />
-                        </button>
+                    <div class="flex flex-col min-w-0">
+                        <span class="font-bold text-[13px] text-slate-900 dark:text-slate-100 flex items-center gap-2 truncate">
+                            {{ client.company_name }}
+                            <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded shrink-0">
+                                Inactive
+                            </span>
+                        </span>
+                        <span class="text-[11px] text-slate-400 truncate">{{ client.contact_name }}</span>
                     </div>
-                </div>
 
-                <div v-if="!collapsedClients[client.id]" class="border-t border-gray-100 dark:border-zinc-800">
-                    <div class="divide-y divide-gray-50 dark:divide-zinc-800/50">
-                        <div v-if="client.projects?.length === 0" class="p-8 text-center text-gray-400 text-[10px] font-black uppercase tracking-widest italic">
-                            No active projects for this client
-                        </div>
-                        <div v-else v-for="project in client.projects" :key="`proj-${project.id}`" class="px-4">
-                            <ProjectFolio :project="project" :redirect-to="redirectTo ?? '/clients'" class="w-full" />
-                        </div>
+                    <template #trailing>
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            {{ client.projects?.length || 0 }} {{ (client.projects?.length === 1) ? 'Project' : 'Projects' }}
+                        </span>
+                    </template>
+
+                    <template #actions>
+                        <button type="button" @click.stop="openAddProjectModal(client)" :class="FLAT_ACTION_BUTTON" title="Add Project">
+                            <FolderPlus class="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" @click.stop="handleEditRequest(client)" :class="FLAT_ACTION_BUTTON" title="Edit client">
+                            <Pencil class="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            type="button"
+                            @click.stop="confirmDeleteClient(client)"
+                            class="h-7 w-7 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-colors"
+                            title="Delete client"
+                        >
+                            <Trash2 class="w-3.5 h-3.5" />
+                        </button>
+                    </template>
+                </FlatRow>
+
+                <div v-if="!collapsedClients[client.id]" class="relative pl-7">
+                    <div class="absolute left-[14px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
+                    <div v-if="client.projects?.length === 0" class="py-4 text-slate-400 text-[10px] font-black uppercase tracking-widest italic">
+                        No active projects for this client
                     </div>
+                    <ProjectFolio
+                        v-else
+                        v-for="project in client.projects"
+                        :key="`proj-${project.id}`"
+                        :project="project"
+                        :redirect-to="redirectTo ?? '/clients'"
+                        class="w-full"
+                    />
                 </div>
             </div>
         </div>

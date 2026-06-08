@@ -4,6 +4,7 @@ import { Search, Filter, ArrowUpDown, User2 } from 'lucide-vue-next';
 import TaskCard from '@/components/tasks/TaskCard.vue';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FLAT_ROW_HOVER, FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 
 const props = defineProps<{
     tasks: ProjectDocument[];
@@ -76,19 +77,19 @@ const resetFilters = () => {
 
 <template>
     <div class="space-y-6">
-        <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div class="relative w-full md:w-80 lg:w-96">
-                <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div class="relative w-full md:w-80 lg:w-96 group">
+                <Search :class="FLAT_SEARCH_ICON" />
                 <Input
                     v-model="searchQuery"
                     placeholder="Search tasks..."
-                    class="pl-11 bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl focus-visible:ring-1 focus-visible:ring-slate-300"
+                    :class="FLAT_SEARCH_INPUT"
                 />
             </div>
 
-            <div class="flex items-center gap-2 w-full md:w-auto pr-2">
+            <div class="flex items-center gap-2 w-full md:w-auto">
                 <Select v-model="assigneeFilter">
-                    <SelectTrigger class="w-full md:w-[150px] bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl">
+                    <SelectTrigger :class="['w-full md:w-[150px] h-9 rounded-md border-0 bg-transparent shadow-none text-[13px] transition-colors', FLAT_ROW_HOVER]">
                         <User2 class="w-3 h-3 mr-2 opacity-50" />
                         <SelectValue placeholder="Assignee" />
                     </SelectTrigger>
@@ -102,7 +103,7 @@ const resetFilters = () => {
                 </Select>
 
                 <Select v-model="statusFilter">
-                    <SelectTrigger class="w-full md:w-[140px] bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl">
+                    <SelectTrigger :class="['w-full md:w-[140px] h-9 rounded-md border-0 bg-transparent shadow-none text-[13px] transition-colors', FLAT_ROW_HOVER]">
                         <Filter class="w-3 h-3 mr-2 opacity-50" />
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -115,7 +116,7 @@ const resetFilters = () => {
                 </Select>
 
                 <Select v-model="sortBy">
-                    <SelectTrigger class="w-full md:w-[140px] bg-slate-50 dark:bg-slate-950 border-none h-11 rounded-xl">
+                    <SelectTrigger :class="['w-full md:w-[140px] h-9 rounded-md border-0 bg-transparent shadow-none text-[13px] transition-colors', FLAT_ROW_HOVER]">
                         <ArrowUpDown class="w-3 h-3 mr-2 opacity-50" />
                         <SelectValue placeholder="Sort By" />
                     </SelectTrigger>

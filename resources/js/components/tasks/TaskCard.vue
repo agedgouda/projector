@@ -5,6 +5,7 @@ import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from '@/components/ui/tooltip';
 import { PRIORITY_LABELS, STATUS_LABELS, priorityClasses, statusClasses, statusDotClasses } from '@/lib/constants';
+import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED } from '@/lib/flat-ui';
 import { Badge } from '@/components/ui/badge';
 
 import { formatDate } from '@/lib/utils';
@@ -28,23 +29,21 @@ const { navigateToDetails } = useDocumentActions({
 </script>
 
 <template>
-    <div
-        class="group bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm transition-all hover:border-projector-primary-300 overflow-hidden"
-    >
+    <div class="group rounded-md transition-colors" :class="isExpanded ? FLAT_ROW_SELECTED : FLAT_ROW_HOVER">
         <div
             @click="isExpanded = !isExpanded"
-            class="py-2.5 px-4 flex items-center justify-between cursor-pointer select-none"
+            class="h-12 px-2 flex items-center justify-between gap-4 cursor-pointer select-none"
         >
-            <div class="flex items-center gap-4 flex-1 min-w-0">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
                 <div
-                    class="w-2 h-2 rounded-full shrink-0"
+                    class="w-1.5 h-1.5 rounded-full shrink-0"
                     :class="statusDotClasses[task.task_status]"
                 />
 
                 <TooltipProvider v-if="task.assignee">
                     <Tooltip :delay-duration="200">
                         <TooltipTrigger as-child>
-                            <div class="h-7 w-7 rounded-full bg-projector-primary-50 border-2 border-white flex items-center justify-center text-[9px] font-black text-projector-primary-600 shadow-sm cursor-help shrink-0">
+                            <div class="h-6 w-6 rounded-full bg-projector-primary-50 border border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-black text-projector-primary-600 cursor-help shrink-0">
                                 {{ (task.assignee.first_name?.[0] || '') + (task.assignee.last_name?.[0] || '') }}
                             </div>
                         </TooltipTrigger>
@@ -57,7 +56,7 @@ const { navigateToDetails } = useDocumentActions({
                 <TooltipProvider v-else>
                     <Tooltip :delay-duration="200">
                         <TooltipTrigger as-child>
-                            <div class="h-7 w-7 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center bg-transparent shrink-0 cursor-help">
+                            <div class="h-6 w-6 rounded-full border border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 cursor-help">
                                 <User2 class="w-3 h-3 text-slate-400" />
                             </div>
                         </TooltipTrigger>
@@ -67,11 +66,9 @@ const { navigateToDetails } = useDocumentActions({
                     </Tooltip>
                 </TooltipProvider>
 
-                <div class="flex flex-col min-w-0">
-                    <h4 class="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                        {{ task.name }}
-                    </h4>
-                </div>
+                <h4 class="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    {{ task.name }}
+                </h4>
             </div>
 
             <div class="flex items-center gap-4 text-right shrink-0">
@@ -93,20 +90,20 @@ const { navigateToDetails } = useDocumentActions({
                     </span>
                 </div>
 
-                <div class="w-[100px] text-[11px] font-mono text-slate-500">
+                <div class="w-[100px] text-[11px] font-mono text-slate-400">
                     {{ formatDate(task.due_at) }}
                 </div>
 
-                <div class="ml-2 text-slate-300 group-hover:text-slate-600">
+                <div class="text-slate-300 group-hover:text-slate-500 transition-colors">
                     <ChevronDown v-if="!isExpanded" class="w-4 h-4" />
                     <ChevronUp v-else class="w-4 h-4" />
                 </div>
             </div>
         </div>
 
-        <div v-if="isExpanded" class="px-10 pb-4 border-t border-slate-50 bg-slate-50/50 dark:bg-slate-800/50">
-            <div class="pt-4 space-y-4">
-                <div  v-html="task.content"></div>
+        <div v-if="isExpanded" class="px-10 pb-4">
+            <div class="pt-2 space-y-4">
+                <div v-html="task.content"></div>
 
                 <div class="flex items-center justify-between">
                     <button

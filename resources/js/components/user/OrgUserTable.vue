@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { computed } from 'vue';
 import { formatRoleName } from '@/lib/utils';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 
 const props = defineProps<{
     users: User[];
@@ -47,8 +48,8 @@ const updateUserRole = (user: User, role: string) => {
         <div
             v-for="user in users"
             :key="user.row_key"
-            class="grid items-center hover:bg-gray-50/30 dark:hover:bg-zinc-800/10 transition-colors"
-            :class="viewerIsSuperAdmin ? 'grid-cols-[1fr_auto_200px]' : 'grid-cols-[1fr_200px]'"
+            class="grid items-center rounded-md transition-colors"
+            :class="[viewerIsSuperAdmin ? 'grid-cols-[1fr_auto_200px]' : 'grid-cols-[1fr_200px]', FLAT_ROW_HOVER]"
         >
             <div class="p-4 pl-8 min-w-0">
                 <div class="flex items-center gap-3">
