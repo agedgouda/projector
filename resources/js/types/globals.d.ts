@@ -67,6 +67,7 @@ declare global {
         description: string | null;
         client_id: string;
         project_type_id: string | null;
+        inactive: boolean;
 
         // --- Relationships ---
         client: Client;

@@ -84,6 +84,7 @@ declare global {
         project_type_id: string | null;
         current_lifecycle_step_id?: number | null;
         logo_url?: string | null;
+        inactive: boolean;
 
         // Relationships
         client: Client;
