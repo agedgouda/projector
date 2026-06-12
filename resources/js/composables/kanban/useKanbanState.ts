@@ -97,6 +97,18 @@ export function useKanbanState(props: KanbanProps) {
         router.visit(url);
     };
 
+    /**
+     * Local Update: Remove documents that no longer exist on the server,
+     * e.g. stale children replaced by reprocessing.
+     */
+    const removeLocalDocuments = (ids: Array<string | number>) => {
+        const idStrs = new Set(ids.map(String));
+
+        Object.keys(localKanbanData.value).forEach(rowKey => {
+            localKanbanData.value[rowKey] = localKanbanData.value[rowKey].filter(d => !idStrs.has(String(d.id)));
+        });
+    };
+
     return {
         selectedDocumentId,
         selectedDocument,
@@ -104,6 +116,7 @@ export function useKanbanState(props: KanbanProps) {
         localKanbanData, // Export this so useKanbanQueries can use it
         documentsById,
         applyLocalUpdate,
+        removeLocalDocuments,
         openDetail
     };
 }

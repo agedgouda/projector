@@ -96,6 +96,17 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 </span>
             </div>
 
+            <button
+                v-if="isReprocessable && !isReadOnly"
+                type="button"
+                :disabled="item.currentStatus || item.processed_at === null"
+                class="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-projector-highlight-600 dark:text-projector-highlight-400 hover:bg-projector-highlight-50 dark:hover:bg-projector-highlight-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 ml-2"
+                @click.stop="emit('handleReprocess', item.id)"
+            >
+                <Sparkles class="w-3.5 h-3.5" />
+                <span class="text-[9px] font-black uppercase tracking-widest">{{ processButtonLabel }}</span>
+            </button>
+
             <div class="hidden md:flex items-center gap-3 shrink-0 ml-3">
                 <div
                     v-if="leadUser"
@@ -122,20 +133,10 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 </template>
             </div>
 
-            <div class="flex items-center gap-1 shrink-0 ml-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                <button
-                    v-if="isReprocessable && !isReadOnly"
-                    type="button"
-                    :disabled="item.currentStatus || item.processed_at === null"
-                    class="h-7 w-7 flex items-center justify-center rounded-md text-projector-highlight-600 dark:text-projector-highlight-400 hover:bg-projector-highlight-50 dark:hover:bg-projector-highlight-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    :title="processButtonLabel"
-                    @click.stop="emit('handleReprocess', item.id)"
-                >
-                    <Sparkles class="w-3.5 h-3.5" />
-                </button>
+            <div class="flex items-center gap-1 shrink-0 ml-2">
                 <button
                     type="button"
-                    class="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 transition-colors"
+                    class="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-colors"
                     title="Open details"
                     @click.stop="goToDetails"
                 >

@@ -1,4 +1,5 @@
 import { ref, computed, watch, onBeforeUnmount, type Ref } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { globalAiState } from '@/state';
 
@@ -8,7 +9,9 @@ export function useAiProcessing(
     targetBeingCreated: Ref<string | number | null>,
     onDocumentUpdated?: (doc: ExtendedDocument) => void,
     onSuccess?: (message: string) => void,
-    onError?: (message: string) => void
+    onError?: (message: string) => void,
+    onDocumentsRemoved?: (ids: Array<string | number>) => void,
+    reloadPropsOnNewDocuments?: string[]
 ) {
     const aiStatusMessage = ref<string>('');
     const aiProgress = ref<number>(0);
@@ -99,6 +102,18 @@ export function useAiProcessing(
 
             // Reset global tracking only after data is rendered
             targetBeingCreated.value = null;
+        }
+
+        // 3. HANDLE NEWLY CREATED CHILDREN (e.g. from reprocessing)
+        // Only IDs are broadcast (full documents can exceed the broadcaster's
+        // payload limit), so pull the new records in via a partial reload.
+        if (Array.isArray(payload.newDocumentIds) && payload.newDocumentIds.length) {
+            router.reload(reloadPropsOnNewDocuments?.length ? { only: reloadPropsOnNewDocuments } : {});
+        }
+
+        // 4. HANDLE STALE CHILDREN REMOVED BY REPROCESSING
+        if (Array.isArray(payload.deletedDocumentIds) && payload.deletedDocumentIds.length && onDocumentsRemoved) {
+            onDocumentsRemoved(payload.deletedDocumentIds);
         }
     }, [projectId], 'private');
 

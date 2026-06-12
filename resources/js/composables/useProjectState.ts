@@ -91,6 +91,15 @@ export function useProjectState(
         }
     };
 
+    /**
+     * removeDocuments
+     * Drops documents from the map, e.g. when reprocessing replaces a
+     * document's previously generated children.
+     */
+    const removeDocuments = (ids: Array<string | number>) => {
+        ids.forEach(id => documentsMap.value.delete(String(id)));
+    };
+
     return {
         documentsMap,
         allDocs,
@@ -98,6 +107,7 @@ export function useProjectState(
         expandedRootIds,
         documentTree,
         toggleRoot,
-        updateDocument
+        updateDocument,
+        removeDocuments
     };
 }

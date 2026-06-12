@@ -40,7 +40,8 @@ const {
     expandedRootIds,
     documentTree,
     toggleRoot,
-    updateDocument
+    updateDocument,
+    removeDocuments
 } = useProjectState(() => props.liveDocuments, schema);
 
 const getDocLabel = (typeKey: string) => {
@@ -83,7 +84,8 @@ const { aiStatusMessage, aiProgress } = useAiProcessing(
     (errorMessage) => {
         toast.error('AI Processing Failed', { description: errorMessage });
         targetBeingCreated.value = null;
-    }
+    },
+    removeDocuments
 );
 
 watch(aiStatusMessage, (val) => aiStatusMessageRef.value = val);

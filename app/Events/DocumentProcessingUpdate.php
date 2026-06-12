@@ -13,10 +13,18 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    /**
+     * @param  array<int, string>  $deletedDocumentIds  IDs of documents removed from the
+     *                                                  traceability tree (e.g. stale children
+     *                                                  replaced by reprocessing).
+     * @param  array<int, string>  $newDocumentIds  IDs of newly created child documents.
+     */
     public function __construct(
         public Document $document,
         public string $statusMessage,
-        public int $progress = 0 // Added progress property
+        public int $progress = 0, // Added progress property
+        public array $deletedDocumentIds = [],
+        public array $newDocumentIds = [],
     ) {}
 
     public function broadcastOn(): array
@@ -33,18 +41,28 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        $document = $this->document->load(['assignee', 'project.type']);
-        $schema = collect($document->project?->type?->document_schema ?? [])->keyBy('key');
-        $typeLabel = $schema->get($document->type)['label'] ?? $document->type;
-
         return [
             'statusMessage' => $this->statusMessage,
             'document_id' => $this->document->id,
             'progress' => $this->progress,
-            'document' => array_merge(
-                $document->makeHidden('content')->toArray(),
-                ['type_label' => $typeLabel]
-            ),
+            'document' => $this->formatDocument($this->document),
+            'deletedDocumentIds' => $this->deletedDocumentIds,
+            'newDocumentIds' => $this->newDocumentIds,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatDocument(Document $document): array
+    {
+        $document->loadMissing(['assignee', 'project.type']);
+        $schema = collect($document->project?->type?->document_schema ?? [])->keyBy('key');
+        $typeLabel = $schema->get($document->type)['label'] ?? $document->type;
+
+        return array_merge(
+            $document->makeHidden('content')->toArray(),
+            ['type_label' => $typeLabel]
+        );
     }
 }

@@ -57,10 +57,16 @@ class ProcessDocumentAI implements ShouldQueue
         $outputType = $result['output_type'];
         $singleOutput = $result['single_output'] ?? false;
 
-        DB::transaction(function () use ($result, $outputType, $singleOutput) {
+        $deletedDocumentIds = [];
+        $newDocumentIds = [];
+
+        DB::transaction(function () use ($result, $outputType, $singleOutput, &$deletedDocumentIds, &$newDocumentIds) {
+            // Reprocessing replaces all previously generated children, even if the
+            // output type has changed since the last run, so nothing is left behind.
+            $deletedDocumentIds = $this->descendantIds($this->document->id);
+
             $this->document->project->documents()
                 ->where('parent_id', $this->document->id)
-                ->where('type', $outputType)
                 ->delete();
 
             if ($singleOutput) {
@@ -73,12 +79,12 @@ class ProcessDocumentAI implements ShouldQueue
 
                 $html = (new CommonMarkConverter)->convert($markdown)->getContent();
 
-                $this->document->project->documents()->create([
+                $newDocumentIds[] = $this->document->project->documents()->create([
                     'parent_id' => $this->document->id,
                     'type' => $outputType,
                     'name' => $doc['title'] ?? ($this->document->name.' — Requirements'),
                     'content' => $html,
-                ]);
+                ])->id;
             } else {
                 foreach ($result['mock_response'] ?? [] as $data) {
                     $content = $data[$outputType] ?? null;
@@ -89,7 +95,7 @@ class ProcessDocumentAI implements ShouldQueue
 
                     $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;
 
-                    $this->document->project->documents()->create([
+                    $newDocumentIds[] = $this->document->project->documents()->create([
                         'parent_id' => $this->document->id,
                         'type' => $outputType,
                         'name' => $data['title'] ?? 'Untitled Deliverable',
@@ -99,14 +105,39 @@ class ProcessDocumentAI implements ShouldQueue
                             'criteria' => $data['criteria'] ?? [],
                             'category' => $data['category'] ?? 'general',
                         ],
-                    ]);
+                    ])->id;
                 }
             }
 
             $this->document->update(['processed_at' => now()]);
         });
 
-        event(new DocumentProcessingUpdate($this->document, 'Success', 100));
+        event(new DocumentProcessingUpdate($this->document, 'Success', 100, $deletedDocumentIds, $newDocumentIds));
+    }
+
+    /**
+     * Recursively collects the IDs of every descendant of the given document,
+     * so the frontend can drop them from the traceability tree once they're deleted.
+     *
+     * @return array<int, string>
+     */
+    private function descendantIds(string $documentId): array
+    {
+        $ids = [];
+        $frontier = [$documentId];
+
+        while (! empty($frontier)) {
+            $children = Document::query()->whereIn('parent_id', $frontier)->pluck('id')->all();
+
+            if (empty($children)) {
+                break;
+            }
+
+            $ids = array_merge($ids, $children);
+            $frontier = $children;
+        }
+
+        return $ids;
     }
 
     /**

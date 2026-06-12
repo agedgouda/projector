@@ -71,6 +71,7 @@ const {
     openDetail,
     searchQuery,
     applyLocalUpdate,
+    removeLocalDocuments,
     localKanbanData
 } = useKanbanBoard(props);
 
@@ -118,7 +119,9 @@ const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
     },
     (errorMessage) => {
         toast.error('AI Sync Error', { description: errorMessage });
-    }
+    },
+    removeLocalDocuments,
+    ['currentProject', 'kanbanData']
 );
 
 // --- 3. UI METHODS & BREADCRUMBS ---

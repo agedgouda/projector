@@ -62,6 +62,7 @@ const {
     openDetail,
     searchQuery,
     applyLocalUpdate,
+    removeLocalDocuments,
     localKanbanData
 } = useKanbanBoard(props);
 
@@ -86,7 +87,9 @@ const aiInstances = props.projects.map(project =>
         targetBeingCreated,
         (incomingDoc: any) => { applyLocalUpdate(incomingDoc.id, incomingDoc); },
         () => { toast.success('Project Synced', { description: 'AI processing task completed.' }); },
-        (errorMessage) => { toast.error('AI Sync Error', { description: errorMessage }); }
+        (errorMessage) => { toast.error('AI Sync Error', { description: errorMessage }); },
+        removeLocalDocuments,
+        ['kanbanData']
     )
 );
 
