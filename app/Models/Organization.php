@@ -207,6 +207,8 @@ class Organization extends Model implements HasMedia
             'service_account_email' => $config['service_account_email'] ?? '',
             'impersonate_email' => $config['impersonate_email'] ?? '',
             'has_private_key' => ! empty($config['private_key']),
+            // Slack
+            'has_bot_token' => ! empty($config['bot_token']),
         ];
     }
 
@@ -231,6 +233,8 @@ class Organization extends Model implements HasMedia
             'service_account_email' => $input['service_account_email'] ?? ($existing['service_account_email'] ?? null),
             'impersonate_email' => $input['impersonate_email'] ?? ($existing['impersonate_email'] ?? null),
             'private_key' => ! empty($input['private_key']) ? $input['private_key'] : ($existing['private_key'] ?? null),
+            // Slack
+            'bot_token' => ! empty($input['bot_token']) ? $input['bot_token'] : ($existing['bot_token'] ?? null),
         ];
 
         $this->meeting_provider = $provider;

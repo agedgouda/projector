@@ -267,6 +267,7 @@ export interface AiDriverOption {
             service_account_email: string;
             impersonate_email: string;
             has_private_key: boolean;
+            has_bot_token: boolean;
         };
 
         // Optional relations and permissions included globally

@@ -41,9 +41,9 @@ Route::post('/register/{organization}', [OrganizationRegistrationController::cla
     ->name('organization.register.store');
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->away('https://about.projecthq.app/');
 })->name('home');
 
 Route::post('/log-connection-issue', function (Request $request) {

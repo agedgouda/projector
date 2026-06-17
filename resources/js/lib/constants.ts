@@ -51,6 +51,7 @@ export const MEETING_PROVIDERS: { value: string; label: string }[] = [
     { value: 'zoom', label: 'Zoom' },
     { value: 'teams', label: 'Microsoft Teams' },
     { value: 'google_meet', label: 'Google Meet' },
+    { value: 'slack', label: 'Slack' },
 ];
 
 export const meetingProviderLabel = (provider: string | null): string | null =>

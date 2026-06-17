@@ -27,8 +27,10 @@ interface MeetingConfigForm {
     service_account_email: string;
     impersonate_email: string;
     private_key: string;
+    bot_token: string;
     has_client_secret?: boolean;
     has_private_key?: boolean;
+    has_bot_token?: boolean;
 }
 
 interface Props {
@@ -69,6 +71,7 @@ const form = useForm({
         service_account_email: props.organization?.meeting_config_form?.service_account_email || '',
         impersonate_email:     props.organization?.meeting_config_form?.impersonate_email     || '',
         private_key:           '',
+        bot_token:             '',
     } as MeetingConfigForm,
 });
 
@@ -131,6 +134,7 @@ const isSetupGuideOpen = ref(false);
 const isZoom = computed(() => form.meeting_provider === 'zoom');
 const isTeams = computed(() => form.meeting_provider === 'teams');
 const isGoogleMeet = computed(() => form.meeting_provider === 'google_meet');
+const isSlack = computed(() => form.meeting_provider === 'slack');
 
 const clientSecretPlaceholder = computed(() =>
     props.organization?.meeting_config_form?.has_client_secret
@@ -142,6 +146,12 @@ const privateKeyPlaceholder = computed(() =>
     props.organization?.meeting_config_form?.has_private_key
         ? 'Leave blank to keep existing private key'
         : 'Paste PEM private key here'
+);
+
+const botTokenPlaceholder = computed(() =>
+    props.organization?.meeting_config_form?.has_bot_token
+        ? 'Leave blank to keep existing bot token'
+        : 'xoxb-...'
 );
 
 const submit = () => {
@@ -410,7 +420,7 @@ const submit = () => {
                 </div>
 
                 <!-- Zoom / Teams: Client ID + Secret -->
-                <template v-if="!isGoogleMeet">
+                <template v-if="!isGoogleMeet && !isSlack">
                     <div class="grid gap-2">
                         <Label for="meeting_client_id" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
                             Client ID
@@ -482,6 +492,26 @@ const submit = () => {
                         />
                         <p class="text-[10px] text-gray-400 px-1">
                             A Google Workspace user the service account will impersonate (requires domain-wide delegation).
+                        </p>
+                    </div>
+                </template>
+
+                <!-- Slack: Bot Token -->
+                <template v-if="isSlack">
+                    <div class="grid gap-2">
+                        <Label for="meeting_bot_token" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                            Bot User OAuth Token
+                        </Label>
+                        <Input
+                            id="meeting_bot_token"
+                            v-model="form.meeting_config.bot_token"
+                            type="password"
+                            autocomplete="off"
+                            :placeholder="botTokenPlaceholder"
+                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                        />
+                        <p class="text-[10px] text-gray-400 px-1">
+                            The Bot User OAuth Token (starts with <span class="font-mono">xoxb-</span>) from your Slack app's OAuth &amp; Permissions page.
                         </p>
                     </div>
                 </template>

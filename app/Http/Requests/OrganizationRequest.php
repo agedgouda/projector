@@ -76,7 +76,7 @@ class OrganizationRequest extends FormRequest
             'vector_config.key' => 'nullable|string',
 
             // Meeting Provider
-            'meeting_provider' => 'nullable|string|in:zoom,teams,google_meet',
+            'meeting_provider' => 'nullable|string|in:zoom,teams,google_meet,slack',
             'meeting_config' => 'nullable|array',
             'meeting_config.account_id' => 'nullable|string',
             'meeting_config.tenant_id' => 'nullable|string',
@@ -85,6 +85,7 @@ class OrganizationRequest extends FormRequest
             'meeting_config.service_account_email' => 'nullable|email',
             'meeting_config.impersonate_email' => 'nullable|email',
             'meeting_config.private_key' => 'nullable|string',
+            'meeting_config.bot_token' => 'nullable|string',
         ];
     }
 }

@@ -76,6 +76,58 @@ it('stores google meet config', function () {
         ->and($this->org->meeting_config['client_id'])->toBe('google_client');
 });
 
+it('stores slack meeting config', function () {
+    $this->actingAs($this->admin)
+        ->patch(route('organizations.update', $this->org), [
+            'name' => $this->org->name,
+            'meeting_provider' => 'slack',
+            'meeting_config' => [
+                'bot_token' => 'xoxb-fake-token',
+            ],
+        ])
+        ->assertRedirect();
+
+    $this->org->refresh();
+
+    expect($this->org->meeting_provider)->toBe('slack')
+        ->and($this->org->meeting_config['bot_token'])->toBe('xoxb-fake-token');
+});
+
+it('preserves existing bot token when blank is submitted', function () {
+    $this->org->meeting_provider = 'slack';
+    $this->org->meeting_config = ['bot_token' => 'existing-token'];
+    $this->org->save();
+
+    $this->actingAs($this->admin)
+        ->patch(route('organizations.update', $this->org), [
+            'name' => $this->org->name,
+            'meeting_provider' => 'slack',
+            'meeting_config' => [
+                'bot_token' => '',
+            ],
+        ])
+        ->assertRedirect();
+
+    $this->org->refresh();
+
+    expect($this->org->meeting_config['bot_token'])->toBe('existing-token');
+});
+
+it('exposes slack config form fields on edit page', function () {
+    $this->org->meeting_provider = 'slack';
+    $this->org->meeting_config = ['bot_token' => 'xoxb-fake-token'];
+    $this->org->save();
+
+    $this->actingAs($this->admin)
+        ->get(route('organizations.edit', $this->org))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Organizations/Edit')
+            ->where('organization.meeting_provider', 'slack')
+            ->where('organization.meeting_config_form.has_bot_token', true)
+        );
+});
+
 it('clears meeting config when provider is removed', function () {
     $this->org->meeting_provider = 'zoom';
     $this->org->meeting_config = ['account_id' => 'acct_123', 'client_id' => 'c', 'client_secret' => 's'];

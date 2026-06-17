@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\MeetingDriver;
 use App\Models\Organization;
 use App\Services\Meeting\Drivers\GoogleMeetMeetingDriver;
+use App\Services\Meeting\Drivers\SlackMeetingDriver;
 use App\Services\Meeting\Drivers\TeamsMeetingDriver;
 use App\Services\Meeting\Drivers\ZoomMeetingDriver;
 
@@ -21,6 +22,7 @@ class MeetingTranscriptService
             'zoom' => new ZoomMeetingDriver,
             'teams' => new TeamsMeetingDriver,
             'google_meet' => new GoogleMeetMeetingDriver,
+            'slack' => new SlackMeetingDriver,
             default => throw new \InvalidArgumentException(
                 "Meeting provider [{$provider}] is not supported."
             ),
