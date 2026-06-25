@@ -61,6 +61,7 @@ const {
     onDragChange,
     openDetail,
     searchQuery,
+    selectedPriorities,
     applyLocalUpdate,
     removeLocalDocuments,
     localKanbanData
@@ -178,6 +179,7 @@ const aiProcessedParentIds = computed(() => {
 
             <KanbanBoard
                 v-model:searchQuery="searchQuery"
+                v-model:selectedPriorities="selectedPriorities"
                 :has-visible-tasks="hasVisibleTasks"
                 :column-statuses="columnStatuses"
                 :workflow-rows="workflowRows"

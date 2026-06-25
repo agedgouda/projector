@@ -55,7 +55,7 @@ const getInitials = (user: any) =>
                     </span>
                 </div>
 
-                <div v-if="doc.priority && status !== 'done'" :class="[KANBAN_UI.badge, getPriorityStyles(doc.priority)]">
+                <div v-if="doc.priority" :class="[KANBAN_UI.badge, getPriorityStyles(doc.priority)]">
                     {{ doc.priority }}
                 </div>
             </div>

@@ -70,6 +70,7 @@ const {
     onDragChange,
     openDetail,
     searchQuery,
+    selectedPriorities,
     applyLocalUpdate,
     removeLocalDocuments,
     localKanbanData
@@ -326,6 +327,7 @@ watch(() => props.currentProject, (newProject) => {
 
                 <KanbanBoard
                     v-model:searchQuery="searchQuery"
+                    v-model:selectedPriorities="selectedPriorities"
                     :current-project="currentProject"
                     :has-visible-tasks="hasVisibleTasks"
                     :column-statuses="columnStatuses"
