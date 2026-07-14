@@ -13,6 +13,15 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * @property-read int $users_count
+ * @property-read int $invitations_count
+ * @property-read int $clients_count
+ * @property OrganizationUser $pivot
+ * @property array<string, mixed>|null $llm_config
+ * @property array<string, mixed>|null $vector_config
+ * @property array<string, mixed>|null $meeting_config
+ */
 class Organization extends Model implements HasMedia
 {
     use HasFactory, HasUuids, InteractsWithMedia;
@@ -315,14 +324,14 @@ class Organization extends Model implements HasMedia
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
+            ->nonQueued()
             ->width(150)
-            ->height(150)
-            ->nonQueued();
+            ->height(150);
 
         $this->addMediaConversion('preview')
+            ->nonQueued()
             ->width(400)
-            ->height(400)
-            ->nonQueued();
+            ->height(400);
     }
 
     /* --- Relationships --- */

@@ -57,11 +57,15 @@ class DashboardController extends Controller
         // Remove projects that have no tasks visible to this user.
         $kanbanData = array_filter($kanbanData, fn ($docs) => count($docs) > 0);
         $projectIdsWithTasks = array_keys($kanbanData);
-        $projects = $projects->filter(fn ($project) => in_array((string) $project->id, $projectIdsWithTasks))->values();
+        $projects = $projects->filter(fn (Project $project) => in_array((string) $project->id, $projectIdsWithTasks))->values();
 
         $clients = $user->newCollection([$user])->availableClients();
 
-        $response = Inertia::render('Dashboard/Index', [
+        if ($orgId) {
+            cookie()->queue(cookie()->forever('last_org_id', (string) $orgId));
+        }
+
+        return Inertia::render('Dashboard/Index', [
             'projects' => $projects,
             'kanbanData' => $kanbanData,
             'canViewProjectDetails' => ! $isTeamMemberOnly,
@@ -71,12 +75,6 @@ class DashboardController extends Controller
             'projectTypes' => $isSuperAdmin
                 ? ProjectType::all(['id', 'name'])
                 : ProjectType::where('organization_id', $orgId)->get(['id', 'name']),
-        ])->toResponse($request);
-
-        if ($orgId) {
-            $response = $response->withCookie(cookie()->forever('last_org_id', (string) $orgId));
-        }
-
-        return $response;
+        ]);
     }
 }

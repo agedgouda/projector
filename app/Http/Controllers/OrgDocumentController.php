@@ -23,6 +23,7 @@ class OrgDocumentController extends Controller
         $user = $request->user();
         $orgId = $request->query('org') ?? $request->cookie('last_org_id') ?? getPermissionsTeamId();
 
+        /** @var Organization $organization */
         $organization = $user->hasRole('super-admin')
             ? Organization::findOrFail($orgId)
             : $user->organizations()->findOrFail($orgId);
@@ -81,8 +82,10 @@ class OrgDocumentController extends Controller
 
         $canManage = $user->can('create', [OrgDocument::class, $organization]);
 
+        cookie()->queue(cookie()->forever('last_org_id', (string) $organization->id));
+
         return inertia('StatusMeetings/Index', [
-            'currentOrg' => $organization->only('id', 'name'),
+            'currentOrg' => $organization->only(['id', 'name']),
             'organizations' => $userOrganizations,
             'statusMeetings' => $statusMeetings,
             'canManage' => $canManage,
@@ -112,8 +115,7 @@ class OrgDocumentController extends Controller
                     'providerError' => $providerError,
                 ];
             })->once(),
-        ])->toResponse($request)
-            ->withCookie(cookie()->forever('last_org_id', (string) $organization->id));
+        ]);
     }
 
     public function create(Organization $organization)
@@ -355,7 +357,7 @@ class OrgDocumentController extends Controller
             ->where('inactive', false)
             ->with('client:id,company_name')
             ->get(['id', 'name', 'client_id'])
-            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'client_name' => $p->client->company_name ?? '']);
+            ->map(fn (Project $p) => ['id' => $p->id, 'name' => $p->name, 'client_name' => $p->client->company_name ?? '']);
 
         $clients = \App\Models\Client::where('organization_id', $organization->id)
             ->where('inactive', false)

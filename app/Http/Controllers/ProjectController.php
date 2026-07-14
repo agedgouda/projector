@@ -113,6 +113,10 @@ class ProjectController extends Controller
 
         $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
 
+        cookie()->queue(cookie()->forever('last_project_id', $project->id));
+        cookie()->queue(cookie()->forever('last_active_tab', $tab));
+        cookie()->queue(cookie()->forever('last_org_id', (string) $organization->id));
+
         return Inertia::render('Projects/Show', [
             'projects' => $projects,
             'currentProject' => array_merge($project->toArray(), ['logo_url' => $project->logo_url]),
@@ -165,11 +169,7 @@ class ProjectController extends Controller
                     'canManage' => $canManageTranscripts,
                 ];
             })->once(),
-        ])
-            ->toResponse($request)
-            ->withCookie(cookie()->forever('last_project_id', $project->id))
-            ->withCookie(cookie()->forever('last_active_tab', $tab))
-            ->withCookie(cookie()->forever('last_org_id', (string) $organization->id));
+        ]);
     }
 
     /**

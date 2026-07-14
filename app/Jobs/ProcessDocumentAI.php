@@ -126,7 +126,7 @@ class ProcessDocumentAI implements ShouldQueue
         $ids = [];
         $frontier = [$documentId];
 
-        while (! empty($frontier)) {
+        while (true) {
             $children = Document::query()->whereIn('parent_id', $frontier)->pluck('id')->all();
 
             if (empty($children)) {

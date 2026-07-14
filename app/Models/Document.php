@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Pgvector\Laravel\HasNeighbors;
 use Pgvector\Laravel\Vector;
 
+/**
+ * @property Project|null $project
+ * @property User|null $creator
+ * @property User|null $editor
+ * @property User|null $assignee
+ */
 class Document extends Model
 {
     use HasNeighbors, HasUuids;
@@ -101,13 +107,6 @@ class Document extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Document::class, 'parent_id');
-    }
-
-    public function scopeNearestNeighbors(Builder $query, array|Vector $vector, int $limit = 5): void
-    {
-        // The trait 'HasNeighbors' already gives you 'nearestNeighbors'
-        // But if you use your manual one, ensure the string conversion is safe
-        $query->nearestNeighbors('embedding', $vector)->limit($limit);
     }
 
     public function scopeVisibleTo(Builder $query, $user)

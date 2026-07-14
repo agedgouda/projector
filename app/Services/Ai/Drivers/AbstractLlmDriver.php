@@ -6,6 +6,11 @@ use App\Contracts\LlmDriver;
 
 abstract class AbstractLlmDriver implements LlmDriver
 {
+    protected function getEmbeddingDimensions(): int
+    {
+        return 1536;
+    }
+
     protected function getOutputSchema(string $outputType = 'content'): array
     {
         return [
@@ -19,15 +24,15 @@ abstract class AbstractLlmDriver implements LlmDriver
                             'title' => ['type' => 'string'],
                             // Use the dynamic key here!
                             $outputType => ['type' => 'string'],
-                            'criteria' => ['type' => 'array', 'items' => ['type' => 'string']]
+                            'criteria' => ['type' => 'array', 'items' => ['type' => 'string']],
                         ],
                         'required' => ['title', $outputType, 'criteria'],
-                        'additionalProperties' => false
-                    ]
-                ]
+                        'additionalProperties' => false,
+                    ],
+                ],
             ],
             'required' => ['items'],
-            'additionalProperties' => false
+            'additionalProperties' => false,
         ];
     }
 }

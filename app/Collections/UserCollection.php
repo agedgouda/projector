@@ -6,6 +6,9 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @extends Collection<int|string, User>
+ */
 class UserCollection extends Collection
 {
     public function forInertia(): array
@@ -67,15 +70,15 @@ class UserCollection extends Collection
      * Get a flattened list of organizations the users have access to,
      * formatted for project creation selects.
      */
-    public function availableClients(?string $orgId = null): array
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\Client>
+     */
+    public function availableClients(?string $orgId = null): \Illuminate\Database\Eloquent\Collection
     {
-
-        if (!$orgId) {
-            return [];
+        if (! $orgId) {
+            return new \Illuminate\Database\Eloquent\Collection;
         }
 
-        return \App\Models\Client::where('organization_id', $orgId)
-            ->get()
-            ->toArray();
+        return \App\Models\Client::where('organization_id', $orgId)->get();
     }
 }

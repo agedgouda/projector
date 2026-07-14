@@ -5,12 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property Project|null $project
+ */
 class Task extends Model
 {
-
     protected $fillable = [
         'project_id', 'assignee_id', 'document_id',
-        'title', 'description', 'status', 'priority', 'due_at'
+        'title', 'description', 'status', 'priority', 'due_at',
     ];
 
     protected $casts = [

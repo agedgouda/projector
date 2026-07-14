@@ -11,6 +11,13 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * @property Organization|null $organization
+ * @property string $organization_id
+ * @property bool $inactive
+ * @property string|null $industry
+ * @property \Illuminate\Database\Eloquent\Collection<int, Project> $projects
+ */
 class Client extends Model implements HasMedia
 {
     use HasUuids, InteractsWithMedia;
@@ -53,14 +60,14 @@ class Client extends Model implements HasMedia
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
+            ->nonQueued()
             ->width(150)
-            ->height(150)
-            ->nonQueued();
+            ->height(150);
 
         $this->addMediaConversion('preview')
+            ->nonQueued()
             ->width(400)
-            ->height(400)
-            ->nonQueued();
+            ->height(400);
     }
 
     /**

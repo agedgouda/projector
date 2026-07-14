@@ -15,10 +15,13 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         // 1. Priority: AI Transformation
         // If this document type has a workflow step defined, dispatch AI processing.
         // It will dispatch the Embedding job itself after the AI "cleans up" the text.
+        // Only root documents (not AI-generated outputs of a previous step) should
+        // trigger this, otherwise a workflow with chained steps (e.g. intake ->
+        // action_items -> task) would cascade through every step automatically.
         $hasWorkflowStep = collect($document->project->type->workflow ?? [])
             ->contains('from_key', $document->type);
 
-        if ($hasWorkflowStep && is_null($document->processed_at)) {
+        if ($hasWorkflowStep && is_null($document->processed_at) && is_null($document->parent_id)) {
             ProcessDocumentAI::dispatch($document);
 
             return;

@@ -103,7 +103,7 @@ class OrganizationController extends Controller
             'cost_usd' => (float) $usageByProject->sum('cost_usd'),
         ];
 
-        $usageByClient = $usageByProject->groupBy('client_id')->map(fn ($rows) => [
+        $usageByClient = $usageByProject->groupBy('client_id')->map(fn ($rows) => [ // @phpstan-ignore return.type
             'documents_processed' => (int) $rows->sum('documents_processed'),
             'cost_usd' => (float) $rows->sum('cost_usd'),
             'projects' => $rows->map(fn ($row) => [
@@ -112,6 +112,8 @@ class OrganizationController extends Controller
                 'cost_usd' => (float) $row->cost_usd,
             ])->values(),
         ]);
+
+        cookie()->queue(cookie()->forever('last_org_id', (string) $currentOrg->id));
 
         return Inertia::render('Organizations/Show', [
             'organizations' => $organizations,
@@ -134,9 +136,7 @@ class OrganizationController extends Controller
             'projectTypes' => $projectTypes,
             'usageTotals' => $usageTotals,
             'usageByClient' => $usageByClient,
-        ])
-            ->toResponse($request)
-            ->withCookie(cookie()->forever('last_org_id', (string) $currentOrg->id));
+        ]);
     }
 
     /**

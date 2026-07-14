@@ -1,0 +1,11 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+
+    level: 9
+
+    stubFiles:
+        - phpstan-stubs/spatie-permission.stub

@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
+/**
+ * @property string $slug
+ * @property string|null $date
+ */
 class BlogEntry extends Model
 {
     protected $connection = 'blog';

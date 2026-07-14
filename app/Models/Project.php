@@ -11,6 +11,15 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * @property Client|null $client
+ * @property ProjectType|null $type
+ * @property string|null $organization_id
+ * @property string $id
+ * @property bool $inactive
+ * @property string|null $logo_url
+ * @property \Illuminate\Database\Eloquent\Collection<int, Document> $documents
+ */
 class Project extends Model implements HasMedia
 {
     use HasUuids, InteractsWithMedia;
@@ -55,18 +64,20 @@ class Project extends Model implements HasMedia
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
+            ->nonQueued()
             ->width(150)
-            ->height(150)
-            ->nonQueued();
+            ->height(150);
 
         $this->addMediaConversion('preview')
+            ->nonQueued()
             ->width(400)
-            ->height(400)
-            ->nonQueued();
+            ->height(400);
     }
 
     /**
      * Register the Custom Collection for Pipeline logic.
+     *
+     * @phpstan-ignore method.childReturnType
      */
     public function newCollection(array $models = []): ProjectCollection
     {
@@ -78,6 +89,7 @@ class Project extends Model implements HasMedia
      */
     public function loadFullPipeline(): ?self
     {
+        /** @var static|null */
         return $this->newCollection([$this])->withFullPipeline()->first();
     }
 
@@ -105,6 +117,8 @@ class Project extends Model implements HasMedia
 
     /**
      * Get the documents associated with the project.
+     *
+     * @return HasMany<Document, $this>
      */
     public function documents(): HasMany
     {

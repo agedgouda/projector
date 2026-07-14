@@ -19,6 +19,7 @@ class ClientController extends Controller
         $orgId = $request->query('org') ?? $request->cookie('last_org_id') ?? getPermissionsTeamId();
 
         // Ensure the user actually has access to this org (or is super-admin)
+        /** @var Organization $organization */
         $organization = $user->hasRole('super-admin')
             ? Organization::findOrFail($orgId)
             : $user->organizations()->findOrFail($orgId);

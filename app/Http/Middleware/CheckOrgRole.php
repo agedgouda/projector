@@ -33,11 +33,10 @@ class CheckOrgRole
             throw UnauthorizedException::forRoles($roles);
         }
 
-        $orgRole = $user->organizations()
-            ->where('organizations.id', $activeOrgId)
-            ->first()
-            ?->pivot
-            ?->role;
+        $org = $user->organizations()->where('organizations.id', $activeOrgId)->first();
+        /** @var \App\Models\OrganizationUser|null $pivot */
+        $pivot = $org?->pivot;
+        $orgRole = $pivot?->role;
 
         if (! in_array($orgRole, $roles)) {
             throw UnauthorizedException::forRoles($roles);

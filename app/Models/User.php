@@ -11,6 +11,10 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * @property \Illuminate\Database\Eloquent\Collection<int, \App\Models\Organization> $organizations
+ * @property string|null $avatar
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -71,9 +75,15 @@ class User extends Authenticatable
         return $this->hasMany(Document::class, 'assignee_id');
     }
 
-    public function organizations()
+    public function getAvatarAttribute(): ?string
+    {
+        return null;
+    }
+
+    public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(Organization::class)
+            ->using(OrganizationUser::class)
             ->withPivot('role')
             ->withTimestamps();
     }
@@ -94,13 +104,14 @@ class User extends Authenticatable
      */
     public function roleInOrganization(string $organizationId): ?string
     {
-        return $this->organizations()
-            ->where('organizations.id', $organizationId)
-            ->first()
-            ?->pivot
-            ?->role;
+        $org = $this->organizations()->where('organizations.id', $organizationId)->first();
+        /** @var \App\Models\OrganizationUser|null $pivot */
+        $pivot = $org?->pivot;
+
+        return $pivot?->role;
     }
 
+    /** @phpstan-ignore method.childReturnType */
     public function newCollection(array $models = []): UserCollection
     {
         return new UserCollection($models);

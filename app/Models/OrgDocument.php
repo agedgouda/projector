@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property Organization|null $organization
+ * @property User|null $creator
+ */
 class OrgDocument extends Model
 {
     use HasUuids;

@@ -1,0 +1,10 @@
+<?php
+
+namespace Spatie\Permission\Models;
+
+/**
+ * @property int|null $team_id
+ */
+class Role extends \Illuminate\Database\Eloquent\Model
+{
+}
