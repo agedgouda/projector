@@ -43,7 +43,7 @@ const tiers = [
         key: 'free' as const,
         label: 'Free',
         price: '$0 / month',
-        features: ['1 user', '1 client', '1 project', '25 AI documents / month'],
+        features: ['1 user', '1 client', '1 project', '10 AI documents / month'],
     },
     {
         key: 'pro' as const,

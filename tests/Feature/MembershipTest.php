@@ -62,7 +62,7 @@ it('returns correct limits for free tier', function () {
     expect($limits['users'])->toBe(1)
         ->and($limits['clients'])->toBe(1)
         ->and($limits['projects'])->toBe(1)
-        ->and($limits['ai_docs_per_month'])->toBe(25);
+        ->and($limits['ai_docs_per_month'])->toBe(10);
 });
 
 it('returns null limits for friends_family tier', function () {

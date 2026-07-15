@@ -11,7 +11,8 @@ beforeEach(function () {
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
 
-    $this->org = Organization::create(['name' => 'Test Org']);
+    // friends_family tier avoids client/project limits unrelated to what this file tests.
+    $this->org = Organization::create(['name' => 'Test Org', 'membership_tier' => 'friends_family']);
 
     $this->admin = User::factory()->create();
     $this->org->users()->attach($this->admin->id, ['role' => 'org-admin']);

@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Queue;
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->org = Organization::factory()->create();
+    // friends_family tier avoids the project limit unrelated to what this file tests.
+    $this->org = Organization::factory()->create(['membership_tier' => 'friends_family']);
     $projectType = ProjectType::create(['name' => 'General', 'document_schema' => []]);
     $this->client = Client::create([
         'organization_id' => $this->org->id,

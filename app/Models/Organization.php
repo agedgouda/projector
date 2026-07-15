@@ -38,7 +38,7 @@ class Organization extends Model implements HasMedia
             'users' => 1,
             'clients' => 1,
             'projects' => 1,
-            'ai_docs_per_month' => 25,
+            'ai_docs_per_month' => 10,
         ],
         self::TIER_PRO => [
             'users' => null,
