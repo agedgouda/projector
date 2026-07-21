@@ -59,6 +59,7 @@ const {
     form,
     updateDocument: originalUpdateDocument,
     setDocToProcessing,
+    setDocToTransitioning,
     targetBeingCreated,
     editingDocumentId
 } = useDocumentActions(
@@ -177,6 +178,33 @@ const executeReprocess = () => {
     void setDocToProcessing(doc);
 };
 
+type TransitionPayload = { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string };
+
+const transitionConfirm = ref<{ doc: UIProjectDocument; payload: TransitionPayload } | null>(null);
+
+const handleTransition = (id: string, payload: TransitionPayload) => {
+    const doc = allDocs.value.find(d => d.id === id) as UIProjectDocument | undefined;
+    if (!doc) return;
+
+    if (!aiProcessedParentIds.value.has(id)) {
+        aiProgress.value = 5;
+        aiStatusMessage.value = 'Initializing...';
+        void setDocToTransitioning(doc, payload);
+        return;
+    }
+
+    transitionConfirm.value = { doc, payload };
+};
+
+const executeTransition = () => {
+    const pending = transitionConfirm.value;
+    transitionConfirm.value = null;
+    if (!pending) return;
+    aiProgress.value = 5;
+    aiStatusMessage.value = 'Initializing...';
+    void setDocToTransitioning(pending.doc, pending.payload);
+};
+
 const onDeleteRequested = (doc: any) => {
     isDetailsSheetOpen.value = false;
     selectedSheetId.value = null;
@@ -184,7 +212,7 @@ const onDeleteRequested = (doc: any) => {
 };
 
 // --- 5. WORKFLOW LOGIC ---
-const { reprocessableTypes } = useWorkflow(props.project);
+const { reprocessableTypes } = useWorkflow();
 
 const aiProcessedParentIds = computed(() => {
     const ids = new Set<string>();
@@ -256,6 +284,7 @@ onMounted(() => {
                 @toggle-root="toggleRoot"
                 @prepare-edit="handlePrepareEdit"
                 @handle-reprocess="handleReprocess"
+                @handle-transition="handleTransition"
                 @on-delete-requested="onDeleteRequested"
                 @submit="handleUpdateDocument"
             />
@@ -269,6 +298,15 @@ onMounted(() => {
         confirm-label="Reprocess"
         @close="reprocessConfirmDoc = null"
         @confirm="executeReprocess"
+    />
+
+    <ConfirmDeleteModal
+        :open="!!transitionConfirm"
+        title="Run Transition?"
+        :description="`This will replace the current children of &quot;${transitionConfirm?.doc?.name}&quot; with the result of this transition. This action cannot be undone.`"
+        confirm-label="Transform"
+        @close="transitionConfirm = null"
+        @confirm="executeTransition"
     />
 
 </template>

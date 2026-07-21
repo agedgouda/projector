@@ -25,7 +25,10 @@ class ProcessDocumentAI implements ShouldQueue
 
     public $timeout = 300;
 
-    public function __construct(public Document $document) {}
+    /**
+     * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     */
+    public function __construct(public Document $document, public ?array $overrideStep = null) {}
 
     public function handle(): void
     {
@@ -37,7 +40,7 @@ class ProcessDocumentAI implements ShouldQueue
 
         event(new DocumentProcessingUpdate($this->document, 'Analyzing document...', 15));
 
-        $result = $aiService->process($this->document);
+        $result = $aiService->process($this->document, $this->overrideStep);
 
         // Case 1: Early return (Workflow/Template missing)
         if ($result === null) {
@@ -56,11 +59,12 @@ class ProcessDocumentAI implements ShouldQueue
 
         $outputType = $result['output_type'];
         $singleOutput = $result['single_output'] ?? false;
+        $lockedProjectTypeId = $result['locked_project_type_id'] ?? null;
 
         $deletedDocumentIds = [];
         $newDocumentIds = [];
 
-        DB::transaction(function () use ($result, $outputType, $singleOutput, &$deletedDocumentIds, &$newDocumentIds) {
+        DB::transaction(function () use ($result, $outputType, $singleOutput, $lockedProjectTypeId, &$deletedDocumentIds, &$newDocumentIds) {
             // Reprocessing replaces all previously generated children, even if the
             // output type has changed since the last run, so nothing is left behind.
             $deletedDocumentIds = $this->descendantIds($this->document->id);
@@ -84,6 +88,7 @@ class ProcessDocumentAI implements ShouldQueue
                     'type' => $outputType,
                     'name' => $doc['title'] ?? ($this->document->name.' — Requirements'),
                     'content' => $html,
+                    'locked_project_type_id' => $lockedProjectTypeId,
                 ])->id;
             } else {
                 foreach ($result['mock_response'] ?? [] as $data) {
@@ -101,6 +106,7 @@ class ProcessDocumentAI implements ShouldQueue
                         'name' => $data['title'] ?? 'Untitled Deliverable',
                         'content' => $content,
                         'due_at' => $dueAt,
+                        'locked_project_type_id' => $lockedProjectTypeId,
                         'metadata' => [
                             'criteria' => $data['criteria'] ?? [],
                             'category' => $data['category'] ?? 'general',

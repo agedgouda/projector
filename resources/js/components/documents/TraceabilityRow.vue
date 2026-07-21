@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { ChevronRight, FileText, CheckSquare, Eye, Sparkles, RefreshCw } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { ChevronRight, FileText, Folder, CheckSquare, Eye, Sparkles, RefreshCw, GitBranch } from 'lucide-vue-next';
 import { useDocumentActions } from '@/composables/useDocumentActions';
+import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { statusDotClasses, priorityDotClasses, STATUS_LABELS, PRIORITY_LABELS } from '@/lib/constants';
 import { getAvatarAppearance } from '@/lib/kanban-theme';
 import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED, FLAT_ROW_ACCENT_BAR } from '@/lib/flat-ui';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import TransformPicker from '@/components/documents/TransformPicker.vue';
 
 const props = defineProps<{
     item: any;
@@ -25,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'toggleRoot', id: string | number): void;
     (e: 'handleReprocess', id: string ): void;
+    (e: 'handleTransition', id: string, payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string }): void;
     (e: 'onDeleteRequested', item: any): void;
     (e: 'prepareEdit', item: any): void;
     (e: 'submit', callback: () => void): void;
@@ -33,6 +37,7 @@ const emit = defineEmits<{
 const isTreeExpanded = computed(() => props.expandedRootIds instanceof Set && props.expandedRootIds.has(props.item.id));
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
 const isTask = computed(() => props.isTaskType(props.item.type));
+const isNotes = computed(() => props.item.type === INTAKE_KEY);
 const isProcessing = computed(() => !!props.item.currentStatus || props.item.processed_at === null);
 
 // Use the helper to get the lead user for this row
@@ -41,8 +46,20 @@ const { navigateToDetails } = useDocumentActions({
     project: { id: props.item.project_id } as any
 });
 
-const isReprocessable = computed(() => props.reprocessableTypes.has(props.item.type));
+const isLocked = computed(() => !!props.item.locked_project_type_id);
+// A locked document only has something to (re)process if its locked protocol
+// still defines a next workflow step for its own type — otherwise it's a
+// terminal deliverable and reprocessing would never produce a new child.
+const isReprocessable = computed(() =>
+    props.reprocessableTypes.has(props.item.type) || (isLocked.value && !!props.item.locked_next_workflow_step_exists)
+);
 const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.item.id) ? 'Reprocess' : 'Process');
+
+const isTransformOpen = ref(false);
+const handleRunTransform = (payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string }) => {
+    isTransformOpen.value = false;
+    emit('handleTransition', props.item.id, payload);
+};
 
 const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id);
 </script>
@@ -67,7 +84,8 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
             <span v-else class="w-5 h-5 shrink-0"></span>
 
             <div class="w-4 h-4 flex items-center justify-center shrink-0" :class="isSelected ? 'text-projector-primary-600' : 'text-slate-400'">
-                <CheckSquare v-if="isTask" class="w-3.5 h-3.5" />
+                <Folder v-if="isNotes" class="w-3.5 h-3.5" />
+                <CheckSquare v-else-if="isTask" class="w-3.5 h-3.5" />
                 <FileText v-else class="w-3.5 h-3.5" />
             </div>
 
@@ -106,6 +124,23 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 <Sparkles class="w-3.5 h-3.5" />
                 <span class="text-[9px] font-black uppercase tracking-widest">{{ processButtonLabel }}</span>
             </button>
+
+            <Popover v-if="!isReadOnly && !isLocked && !isTask" v-model:open="isTransformOpen">
+                <PopoverTrigger as-child>
+                    <button
+                        type="button"
+                        :disabled="!!item.currentStatus || item.processed_at === null"
+                        class="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 ml-1"
+                        @click.stop
+                    >
+                        <GitBranch class="w-3.5 h-3.5" />
+                        <span class="text-[9px] font-black uppercase tracking-widest">Transform</span>
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" class="p-0" @click.stop>
+                    <TransformPicker :project-id="String(item.project_id)" :document-id="String(item.id)" @run="handleRunTransform" />
+                </PopoverContent>
+            </Popover>
 
             <div class="hidden md:flex items-center gap-3 shrink-0 ml-3">
                 <div
@@ -165,6 +200,7 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 :is-read-only="isReadOnly"
                 @toggle-root="id => emit('toggleRoot', id)"
                 @handle-reprocess="id => emit('handleReprocess', id)"
+                @handle-transition="(id, payload) => emit('handleTransition', id, payload)"
                 @on-delete-requested="i => emit('onDeleteRequested', i)"
                 @prepare-edit="i => emit('prepareEdit', i)"
                 @submit="cb => emit('submit', cb)"

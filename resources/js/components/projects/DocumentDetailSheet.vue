@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import {
     Sheet,
@@ -15,13 +15,16 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import TransformPicker from '@/components/documents/TransformPicker.vue';
 import {
     STATUS_LABELS,
     PRIORITY_LABELS,
     statusDotClasses,
     priorityDotClasses
 } from '@/lib/constants';
-import { Clock, User as UserIcon, Calendar, Activity, ShieldAlert, Sparkles } from 'lucide-vue-next';
+import { Clock, User as UserIcon, Calendar, Activity, ShieldAlert, Sparkles, GitBranch } from 'lucide-vue-next';
+import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 
 const props = defineProps<{
     open: boolean;
@@ -39,15 +42,34 @@ const emit = defineEmits<{
 
     // The new reprocessing action
     (e: 'handleReprocess', id: string | number): void;
+
+    // Run a user-chosen protocol- or AI-template-driven transition
+    (e: 'handleTransition', id: string | number, payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string }): void;
 }>();
 const page = usePage<AppPageProps>();
 
 const currentProject = computed(() => (page.props as any).currentProject as Project | null);
 
-const typeLabel = computed(() => {
-    const schemaItem = currentProject.value?.type?.document_schema?.find(s => s.key === props.document.type);
-    return schemaItem?.label || props.document.type;
-});
+const labelForType = (key: string) => {
+    const schemaItem = currentProject.value?.type?.document_schema?.find(s => s.key === key);
+    return schemaItem?.label || key;
+};
+
+const typeLabel = computed(() => labelForType(props.document.type));
+
+const isTransformOpen = ref(false);
+const handleRunTransform = (payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string }) => {
+    isTransformOpen.value = false;
+    emit('handleTransition', props.document.id, payload);
+};
+
+// Once a document is locked to a protocol (via an earlier "Use Protocol" transform), its whole
+// downstream lineage auto-continues via that protocol — no further choice, just Reprocess.
+const isLocked = computed(() => !!props.document.locked_project_type_id);
+
+// Tasks are terminal work items, not source documents to transform into something else.
+const { isTask: isTaskType } = useDocumentPresenter(currentProject.value ?? undefined);
+const isTask = computed(() => isTaskType(props.document.type));
 
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(undefined, {
@@ -78,7 +100,12 @@ const handleUpdate = (field: string, value: any) => {
 
 };
 
-const isReprocessable = computed(() => props.reprocessableTypes.has(props.document.type));
+// A locked document only has something to (re)process if its locked protocol still defines
+// a next workflow step for its own type — otherwise it's a terminal deliverable and
+// reprocessing would never produce a new child.
+const isReprocessable = computed(() =>
+    props.reprocessableTypes.has(props.document.type) || (isLocked.value && !!props.document.locked_next_workflow_step_exists)
+);
 const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.document.id as string) ? 'Reprocess' : 'Process');
 </script>
 
@@ -93,17 +120,41 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.d
                                 {{ typeLabel }}
                             </span>
 
-                            <Button
-                                v-if="isReprocessable"
-                                variant="ghost"
-                                size="sm"
-                                @click.stop="emit('handleReprocess', document.id)"
-                                :disabled="document.currentStatus || document.processed_at === null"
-                                class="h-7 px-3 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg hover:bg-violet-100 transition-colors group/ai shrink-0"
-                            >
-                                <Sparkles class="h-3 w-3 mr-2" />
-                                <span class="text-[9px] font-black uppercase tracking-wider">{{ processButtonLabel }}</span>
-                            </Button>
+                            <div class="flex items-center gap-2">
+                                <Button
+                                    v-if="isReprocessable"
+                                    variant="ghost"
+                                    size="sm"
+                                    @click.stop="emit('handleReprocess', document.id)"
+                                    :disabled="document.currentStatus || document.processed_at === null"
+                                    class="h-7 px-3 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg hover:bg-violet-100 transition-colors group/ai shrink-0"
+                                >
+                                    <Sparkles class="h-3 w-3 mr-2" />
+                                    <span class="text-[9px] font-black uppercase tracking-wider">{{ processButtonLabel }}</span>
+                                </Button>
+
+                                <Popover v-if="!isLocked && !isTask" v-model:open="isTransformOpen">
+                                    <PopoverTrigger as-child>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            :disabled="!!document.currentStatus"
+                                            @click.stop
+                                            class="h-7 px-3 bg-sky-50 text-sky-700 border border-sky-100 rounded-lg hover:bg-sky-100 transition-colors shrink-0"
+                                        >
+                                            <GitBranch class="h-3 w-3 mr-2" />
+                                            <span class="text-[9px] font-black uppercase tracking-wider">Transform</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent align="end" class="p-0" @click.stop>
+                                        <TransformPicker
+                                            :project-id="String(currentProject?.id ?? '')"
+                                            :document-id="String(document.id)"
+                                            @run="handleRunTransform"
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         </div>
                         <SheetTitle class="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
                             {{ document.name }}

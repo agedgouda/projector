@@ -6,22 +6,24 @@ use App\Events\DocumentVectorized;
 use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class DocumentObserver implements ShouldHandleEventsAfterCommit
 {
     public function created(Document $document): void
     {
-        // 1. Priority: AI Transformation
-        // If this document type has a workflow step defined, dispatch AI processing.
-        // It will dispatch the Embedding job itself after the AI "cleans up" the text.
-        // Only root documents (not AI-generated outputs of a previous step) should
-        // trigger this, otherwise a workflow with chained steps (e.g. intake ->
-        // action_items -> task) would cascade through every step automatically.
-        $hasWorkflowStep = collect($document->project->type->workflow ?? [])
-            ->contains('from_key', $document->type);
+        // 1. Priority: the universal, protocol-independent Notes -> Action Items step.
+        // This is the only transition that ever fires automatically — every step after
+        // it is an explicit, user-reviewed choice (see DocumentController::transition()),
+        // or an automatic continuation of a protocol locked in by an earlier choice.
+        // No override is passed here — ProjectAiService::process() detects the intake type
+        // itself, so reprocessing (which also calls process() without an override) stays
+        // consistent with what happens on creation.
+        // Only root documents (not AI-generated outputs of a previous step) trigger this.
+        $isIntake = $document->type === config('workflow.intake_key');
 
-        if ($hasWorkflowStep && is_null($document->processed_at) && is_null($document->parent_id)) {
+        if ($isIntake && is_null($document->processed_at) && is_null($document->parent_id)) {
             ProcessDocumentAI::dispatch($document);
 
             return;
@@ -36,11 +38,12 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
 
     public function creating(Document $document): void
     {
-        // Determine if this type is a task based on the project protocol
-        $schema = $document->project->type->document_schema;
-        $schemaItem = collect($schema)->firstWhere('key', $document->type);
-
-        $isTask = $schemaItem['is_task'] ?? false;
+        // Determine if this type is a task from the shared document type catalog — not the
+        // project's own protocol, since a document can be produced by any protocol's recipe
+        // regardless of which protocol its project uses.
+        $catalog = DocumentTypeDefinition::catalogForOrganization($document->project?->organization_id);
+        $definition = $catalog->get($document->type);
+        $isTask = $definition instanceof DocumentTypeDefinition && $definition->is_task;
 
         // If it's a taskable type and status is currently empty, default to 'todo'
         if ($isTask && is_null($document->status)) {

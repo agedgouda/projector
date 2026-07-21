@@ -127,11 +127,32 @@ const handleReprocess = async (id: string | number) => {
     }
 };
 
+const handleTransition = async (
+    id: string | number,
+    payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string },
+) => {
+    const doc = allDocs.value.find(d => d.id.toString() === id.toString());
+    if (!doc) return;
+
+    isSheetOpen.value = false;
+
+    try {
+        await axios.post(`/projects/${doc.project_id}/documents/${doc.id}/transition`, {
+            to_key: payload.toKey,
+            ai_template_id: payload.aiTemplateId,
+            single_output: payload.singleOutput,
+            project_type_id: payload.projectTypeId,
+        });
+    } catch {
+        toast.error('Failed to start transition.');
+    }
+};
+
 // Reprocessable types based on the selected document's project
 const selectedDocumentProject = computed(() =>
     props.projects.find(p => p.id === (selectedDocument.value as any)?.project_id) ?? null
 );
-const { reprocessableTypes } = useWorkflow(selectedDocumentProject);
+const { reprocessableTypes } = useWorkflow();
 
 const aiProcessedParentIds = computed(() => {
     const ids = new Set<string>();
@@ -200,6 +221,7 @@ const aiProcessedParentIds = computed(() => {
             v-model:open="isSheetOpen"
             :document="selectedDocument as ProjectDocument"
             @handle-reprocess="handleReprocess"
+            @handle-transition="handleTransition"
             @update-attribute="(attr, val) => updateAttribute(
                 selectedDocument!.id,
                 { [attr]: val },

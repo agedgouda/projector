@@ -31,7 +31,6 @@ import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 // UI Components
 import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
-import LifecycleStepPicker from '@/components/LifecycleStepPicker.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
 import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
@@ -90,6 +89,7 @@ const currentProjectDocumentSchema = computed(() =>
 
 const {
     setDocToProcessing,
+    setDocToTransitioning,
 } = useDocumentActions(
     {
         project: props.currentProject as Project,
@@ -141,7 +141,7 @@ const hasVisibleTasks = computed(() => {
     return columnStatuses.some(status => getColumnTaskCount(status) > 0);
 });
 
-const { reprocessableTypes } = useWorkflow(props.currentProject);
+const { reprocessableTypes } = useWorkflow();
 
 const aiProcessedParentIds = computed(() => {
     const ids = new Set<string>();
@@ -167,6 +167,20 @@ const handleReprocess = (id: string | number) => {
 
     aiProgress.value = 5;
     void setDocToProcessing(doc);
+    isSheetOpen.value = false;
+};
+
+const handleTransition = (
+    id: string | number,
+    payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string },
+) => {
+    const stringId = id.toString();
+    const doc = allDocs.value.find(d => d.id.toString() === stringId) as UIProjectDocument | undefined;
+
+    if (!doc) return;
+
+    aiProgress.value = 5;
+    void setDocToTransitioning(doc, payload);
     isSheetOpen.value = false;
 };
 
@@ -273,7 +287,6 @@ watch(() => props.currentProject, (newProject) => {
                         :project-types="projectTypes"
                         @switch="(id) => router.get('/projects/' + id)"
                     />
-                    <LifecycleStepPicker :project="currentProject" />
                 </div>
 
                 <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -392,6 +405,7 @@ watch(() => props.currentProject, (newProject) => {
             v-model:open="isSheetOpen"
             :document="selectedDocument as ProjectDocument"
              @handle-reprocess="handleReprocess"
+             @handle-transition="handleTransition"
             @update-attribute="(attr, val) => updateAttribute(
                 selectedDocument!.id,
                 { [attr]: val },

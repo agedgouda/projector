@@ -14,6 +14,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 /**
  * @property Client|null $client
  * @property ProjectType|null $type
+ * @property LifecycleTemplate|null $lifecycleTemplate
  * @property string|null $organization_id
  * @property string $id
  * @property bool $inactive
@@ -30,6 +31,7 @@ class Project extends Model implements HasMedia
         'description_quality',
         'inactive',
         'project_type_id',
+        'lifecycle_template_id',
         'client_id',
         'document_id',
         'current_lifecycle_step_id',
@@ -139,6 +141,18 @@ class Project extends Model implements HasMedia
     }
 
     /**
+     * Get the lifecycle (stage) template this project follows — independent of `type`/
+     * `project_type_id`, since which document-processing protocol a project uses and which stage
+     * sequence it follows are unrelated concerns.
+     *
+     * @return BelongsTo<LifecycleTemplate, $this>
+     */
+    public function lifecycleTemplate(): BelongsTo
+    {
+        return $this->belongsTo(LifecycleTemplate::class);
+    }
+
+    /**
      * Get the current lifecycle step for this project.
      */
     public function currentLifecycleStep(): BelongsTo
@@ -193,14 +207,47 @@ class Project extends Model implements HasMedia
     }
 
     /**
-     * Get only the documentation documents (non-tasks).
+     * The effective document-type catalog for this project's organization — the source of truth
+     * for whether a document's type is a task, independent of which protocol produced it.
+     *
+     * @return \Illuminate\Support\Collection<string, DocumentTypeDefinition>
+     */
+    public function documentTypeCatalog(): \Illuminate\Support\Collection
+    {
+        return DocumentTypeDefinition::catalogForOrganization($this->organization_id);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
+     */
+    private function isTaskType(\Illuminate\Support\Collection $catalog, string $type): bool
+    {
+        $definition = $catalog->get($type);
+
+        return $definition instanceof DocumentTypeDefinition && $definition->is_task;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
+     */
+    private function labelForType(\Illuminate\Support\Collection $catalog, string $type): string
+    {
+        $definition = $catalog->get($type);
+
+        return $definition instanceof DocumentTypeDefinition ? $definition->label : $type;
+    }
+
+    /**
+     * Get only the documentation documents (non-tasks). A document's type doesn't need to be
+     * declared anywhere in advance — anything not flagged is_task in the catalog counts as
+     * documentation, since documents can be produced by any protocol's recipe.
      */
     public function getDocumentationPipe()
     {
-        $keys = $this->type->getDocumentationKeys();
+        $catalog = $this->documentTypeCatalog();
 
         return $this->documents
-            ->whereIn('type', $keys)
+            ->filter(fn (Document $doc) => ! $this->isTaskType($catalog, $doc->type))
             ->sortBy('type')
             ->values();
     }
@@ -210,25 +257,24 @@ class Project extends Model implements HasMedia
      */
     public function getKanbanPipe()
     {
-        $keys = $this->type->getTaskKeys();
+        $catalog = $this->documentTypeCatalog();
 
         return $this->documents
-            ->whereIn('type', $keys)
+            ->filter(fn (Document $doc) => $this->isTaskType($catalog, $doc->type))
             ->groupBy('type');
     }
 
     /**
-     * Get task documents for this project enriched with type_label from the schema.
+     * Get task documents for this project enriched with type_label from the catalog.
      */
     public function getKanbanDocuments(): \Illuminate\Support\Collection
     {
-        $schema = collect($this->type?->document_schema ?? [])->keyBy('key');
-        $taskKeys = $this->type?->getTaskKeys() ?? [];
+        $catalog = $this->documentTypeCatalog();
 
         return $this->documents
-            ->whereIn('type', $taskKeys)
-            ->map(fn ($doc) => array_merge($doc->toArray(), [
-                'type_label' => $schema->get($doc->type)['label'] ?? $doc->type,
+            ->filter(fn (Document $doc) => $this->isTaskType($catalog, $doc->type))
+            ->map(fn (Document $doc) => array_merge($doc->toArray(), [
+                'type_label' => $this->labelForType($catalog, $doc->type),
             ]))
             ->values();
     }

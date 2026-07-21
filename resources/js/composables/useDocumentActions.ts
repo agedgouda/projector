@@ -136,6 +136,31 @@ export function useDocumentActions(
         }
     };
 
+    const setDocToTransitioning = async (
+        doc: UIProjectDocument,
+        payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string },
+    ) => {
+        if (!doc) return;
+
+        // UI-only state
+        doc.processingError = null;
+        doc.currentStatus = 'Running transition...';
+
+        try {
+            const projectId = props.project.id;
+            await axios.post(`/projects/${projectId}/documents/${doc.id}/transition`, {
+                to_key: payload.toKey,
+                ai_template_id: payload.aiTemplateId,
+                single_output: payload.singleOutput,
+                project_type_id: payload.projectTypeId,
+            });
+        } catch {
+            const rollbackDate = new Date().toISOString();
+            doc.processingError = 'Failed to start transition.';
+            doc.processed_at = rollbackDate;
+        }
+    };
+
     const navigateToDetails = (projectId: any, documentId: any) => {
         if (!projectId || !documentId) return;
 
@@ -166,6 +191,7 @@ export function useDocumentActions(
         editingDocumentId,
         updateDocument,
         setDocToProcessing,
+        setDocToTransitioning,
         targetBeingCreated,
         patchField,
         updateField,

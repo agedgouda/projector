@@ -25,7 +25,6 @@ use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
 Route::get('/invite/{token}', [InvitationController::class, 'accept'])
     ->name('invite');
@@ -183,9 +182,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/projects/{project}/generate', [ProjectController::class, 'generate'])
             ->name('projects.generate');
 
-        Route::patch('/projects/{project}/lifecycle-step', [ProjectController::class, 'updateLifecycleStep'])
-            ->name('projects.lifecycle-step');
-
         Route::patch('/projects/{project}/reactivate', [ProjectController::class, 'reactivate'])
             ->name('projects.reactivate');
 
@@ -197,6 +193,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
                 ->middleware('throttle:10,1')
                 ->name('documents.reprocess');
+            Route::post('/documents/{document}/transition', [DocumentController::class, 'transition'])
+                ->middleware('throttle:10,1')
+                ->name('documents.transition');
+            Route::get('/documents/{document}/transition-options', [DocumentController::class, 'transitionOptions'])
+                ->name('documents.transitionOptions');
             Route::patch('/documents/{document}/attributes', [DocumentController::class, 'updateAttributes'])
                 ->name('documents.updateAttributes');
 

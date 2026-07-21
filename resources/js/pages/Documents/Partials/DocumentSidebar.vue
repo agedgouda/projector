@@ -14,17 +14,23 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Sparkles, RefreshCw } from 'lucide-vue-next';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 
 const props = defineProps<{
     project: Project;
     item: ExtendedDocument | any;
     dueAtProxy: string;
+    needsReprocess?: boolean;
+    isProcessingLive?: boolean;
+    processingMessage?: string | null;
 }>();
 
 defineEmits<{
     (e: 'change', field: string, val: any): void;
     (e: 'update:dueAtProxy', val: string): void;
+    (e: 'request-process'): void;
 }>();
 
 const { getDocLabel } = useDocumentPresenter(props.project);
@@ -55,6 +61,25 @@ const invitations = computed(() => props.project.client.organization?.invitation
                             <span class="font-black uppercase tracking-wider text-projector-primary-600 dark:text-projector-primary-400 bg-projector-primary-50 dark:bg-projector-primary-950 px-2 py-0.5 rounded text-[11px] border border-projector-primary-100 dark:border-projector-primary-800">
                                 {{ getDocLabel(item.type) || 'New Document' }}
                             </span>
+                        </div>
+
+                        <Button
+                            v-if="needsReprocess && !isProcessingLive"
+                            variant="outline"
+                            size="sm"
+                            class="w-full"
+                            @click="$emit('request-process')"
+                        >
+                            <Sparkles class="h-3.5 w-3.5" />
+                            Process Document
+                        </Button>
+
+                        <div
+                            v-else-if="isProcessingLive"
+                            class="flex items-center justify-center gap-1.5 w-full h-8 text-[13px] text-projector-primary-600 dark:text-projector-primary-400"
+                        >
+                            <RefreshCw class="w-3.5 h-3.5 animate-spin" />
+                            <span class="animate-pulse">{{ processingMessage || 'Processing...' }}</span>
                         </div>
 
                         <div class="flex flex-col" v-if="shouldShowTask">

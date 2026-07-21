@@ -38,8 +38,8 @@ class DocumentController extends Controller
             ['creator_id' => $request->user()->id]
         ));
 
-        $project->loadMissing('type');
-        $isTask = in_array($document->type, $project->type->getTaskKeys());
+        $definition = $project->documentTypeCatalog()->get($document->type);
+        $isTask = $definition instanceof \App\Models\DocumentTypeDefinition && $definition->is_task;
 
         $target = $isTask
             ? ($request->query('redirect') ?? route('projects.show', $project).'?tab=tasks')
@@ -62,7 +62,8 @@ class DocumentController extends Controller
 
         return inertia('Documents/Show', [
             'project' => $project->load(['type', 'client.organization.users', 'client.organization.invitations']),
-            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent']),
+            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent'])
+                ->loadExists('lockedNextWorkflowStep'),
         ]);
     }
 
@@ -77,10 +78,12 @@ class DocumentController extends Controller
             abort(404);
         }
 
-        // Track who is editing the document
+        // Track who is editing the document, and when its content last changed (as opposed to
+        // updateAttributes()'s quick sidebar edits) so the frontend can offer to reprocess only
+        // when there's actually new content the last AI run hasn't seen yet.
         $document->update(array_merge(
             $request->validated(),
-            ['editor_id' => $request->user()->id]
+            ['editor_id' => $request->user()->id, 'content_updated_at' => now()]
         ));
 
         return back()->with('success', 'Document updated.');
@@ -185,6 +188,106 @@ class DocumentController extends Controller
         \App\Jobs\ProcessDocumentAI::dispatch($document);
 
         return response()->json(['message' => 'AI analysis restarted.']);
+    }
+
+    /**
+     * Run a specific, user-chosen transition on a document, replacing any children it previously
+     * produced. Two ways to call this, matching the either/or processing choice:
+     *  (a) protocol-driven: pass to_key + ai_template_id + project_type_id, resolved client-side
+     *      from a chosen protocol's own workflow_steps row for this document's type — locks the
+     *      resulting document's whole downstream lineage to that protocol, so further processing
+     *      auto-continues via that protocol with no further choice offered;
+     *  (b) direct: pass only ai_template_id — to_key is derived from the AI template's name since
+     *      no protocol is involved, and nothing gets locked.
+     */
+    public function transition(Request $request, Project $project, Document $document)
+    {
+        Gate::authorize('update', $document);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'to_key' => ['sometimes', 'string', 'max:255'],
+            'ai_template_id' => ['required', 'integer', 'exists:ai_templates,id'],
+            'single_output' => ['sometimes', 'boolean'],
+            'project_type_id' => ['sometimes', 'nullable', 'uuid', 'exists:project_types,id'],
+        ]);
+
+        $orgId = $project->client?->organization_id;
+        $org = $orgId ? \App\Models\Organization::find($orgId) : null;
+        if ($org && ($block = \App\Services\MembershipGuard::check($org, 'ai_docs'))) {
+            return $block;
+        }
+
+        $aiTemplateId = $validated['ai_template_id'];
+        if (! is_int($aiTemplateId)) {
+            abort(422, 'Invalid ai_template_id.');
+        }
+
+        $toKey = $validated['to_key'] ?? null;
+        if (! is_string($toKey) || $toKey === '') {
+            $template = \App\Models\AiTemplate::findOrFail($aiTemplateId);
+            $toKey = \Illuminate\Support\Str::slug($template->name, '_');
+        }
+
+        $document->update(['processed_at' => null]);
+        \App\Jobs\ProcessDocumentAI::dispatch($document, [
+            'to_key' => $toKey,
+            'ai_template_id' => $aiTemplateId,
+            'single_output' => $validated['single_output'] ?? false,
+            'project_type_id' => $validated['project_type_id'] ?? null,
+        ]);
+
+        return response()->json(['message' => 'Transition started.']);
+    }
+
+    /**
+     * Options for the either/or processing picker:
+     *  - protocolOptions: protocols visible to this org that define their own next step from this
+     *    document's current type (path a — run that protocol's own recipe);
+     *  - aiTemplates: every workflow-capable AI template (path b — run any template directly).
+     */
+    public function transitionOptions(Project $project, Document $document)
+    {
+        Gate::authorize('view', $project);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $orgId = $project->client?->organization_id;
+
+        $protocolOptions = \App\Models\ProjectType::where(function ($q) use ($orgId) {
+            $q->whereNull('organization_id')->orWhere('organization_id', $orgId);
+        })
+            ->whereHas('workflowSteps', fn ($q) => $q->where('from_key', $document->type)->whereNotNull('ai_template_id'))
+            ->with(['workflowSteps' => fn ($q) => $q->where('from_key', $document->type)->whereNotNull('ai_template_id')])
+            ->orderBy('name')
+            ->get()
+            ->map(function ($projectType) {
+                $step = $projectType->workflowSteps->first();
+
+                return [
+                    'projectTypeId' => $projectType->id,
+                    'name' => $projectType->name,
+                    'toKey' => $step?->to_key,
+                    'aiTemplateId' => $step?->ai_template_id,
+                    'singleOutput' => $step?->single_output,
+                ];
+            })
+            ->filter(fn (array $option) => $option['toKey'] !== null && $option['aiTemplateId'] !== null)
+            ->values();
+
+        $aiTemplates = \App\Models\AiTemplate::where('type', 'workflow')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'protocolOptions' => $protocolOptions,
+            'aiTemplates' => $aiTemplates,
+        ]);
     }
 
     /**

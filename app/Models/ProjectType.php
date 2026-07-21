@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
+ * @property string|null $organization_id
  * @property array $document_schema
  */
 class ProjectType extends Model
@@ -76,24 +77,14 @@ class ProjectType extends Model
     }
 
     /**
-     * Get keys that should appear in the Document Manager (Hierarchy).
+     * Get the normalized workflow steps for this project type, ordered by position.
+     *
+     * Not yet read anywhere — this is the "expand" step of migrating workflow off JSON.
+     *
+     * @return HasMany<WorkflowStep, $this>
      */
-    public function getDocumentationKeys(): array
+    public function workflowSteps(): HasMany
     {
-        return collect($this->document_schema)
-            ->where('is_task', false)
-            ->pluck('key')
-            ->all();
-    }
-
-    /**
-     * Get keys that should appear in the Kanban Board.
-     */
-    public function getTaskKeys(): array
-    {
-        return collect($this->document_schema)
-            ->where('is_task', true)
-            ->pluck('key')
-            ->all();
+        return $this->hasMany(WorkflowStep::class)->orderBy('order');
     }
 }

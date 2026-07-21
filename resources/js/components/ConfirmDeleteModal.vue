@@ -7,15 +7,17 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonVariants } from '@/components/ui/button';
 
 // Using our strict props definition style
-const { open, title, description, loading, confirmLabel } = defineProps<{
+const { open, title, description, loading, confirmLabel, confirmVariant, cancelLabel } = defineProps<{
     open: boolean;
     title?: string;
     description?: string;
     loading?: boolean;
     confirmLabel?: string;
+    confirmVariant?: ButtonVariants['variant'];
+    cancelLabel?: string;
 }>();
 
 const emit = defineEmits(['close', 'confirm']);
@@ -33,9 +35,9 @@ const emit = defineEmits(['close', 'confirm']);
 
             <DialogFooter class="gap-2 sm:gap-4">
                 <Button variant="outline" @click="emit('close')" :disabled="loading">
-                    Cancel
+                    {{ cancelLabel ?? 'Cancel' }}
                 </Button>
-                <Button variant="destructive" @click="emit('confirm')" :disabled="loading">
+                <Button :variant="confirmVariant ?? 'destructive'" @click="emit('confirm')" :disabled="loading">
                     {{ loading ? 'Please wait...' : (confirmLabel ?? 'Confirm Delete') }}
                 </Button>
             </DialogFooter>

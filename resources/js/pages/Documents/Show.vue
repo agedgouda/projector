@@ -19,6 +19,7 @@ import CommentSection from '@/components/comments/CommentSection.vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentForm } from '@/composables/documents/useDocumentForm';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
+import { useWorkflow } from '@/composables/useWorkflow';
 
 /* ---------------------------
    2. Props
@@ -36,9 +37,14 @@ const {
     isEditing,
     isDeleting,
     isDeleteModalOpen,
+    isReprocessPromptOpen,
+    isReprocessing,
+    isProcessingLive,
+    processingMessage,
     toggleEdit,
     handleFormSubmit,
     confirmDeletion,
+    confirmReprocess,
     syncSidebarFields,
 } = useDocumentForm(props.project, props.item);
 
@@ -58,6 +64,22 @@ const { updateField } = useDocumentActions(
 const dueAtProxy = computed<string>({
     get: () => props.item.due_at?.substring(0, 10) ?? '',
     set: (val) => updateField(props.item.id as string, 'due_at', val)
+});
+
+// Derived from the live `props.item` (not a one-time snapshot) so it stays accurate across
+// saves within the same page visit — a document has something to reprocess once its content
+// has been edited more recently than the last successful AI run, and its type is actually
+// reprocessable (an intake document, or one locked to a protocol that still has a next step).
+const { reprocessableTypes } = useWorkflow();
+const needsReprocess = computed(() => {
+    const item = props.item;
+    const isLocked = !!item.locked_project_type_id;
+    const isReprocessableType = reprocessableTypes.value.has(item.type) || (isLocked && !!item.locked_next_workflow_step_exists);
+
+    if (!isReprocessableType || !item.content_updated_at) return false;
+    if (!item.processed_at) return true;
+
+    return new Date(item.content_updated_at) > new Date(item.processed_at);
 });
 
 /* ---------------------------
@@ -119,8 +141,12 @@ watch(() => page.props.flash, (flash) => {
                 <DocumentSidebar
                     :item="item"
                     :project="project"
+                    :needs-reprocess="needsReprocess"
+                    :is-processing-live="isProcessingLive"
+                    :processing-message="processingMessage"
                     v-model:dueAtProxy="dueAtProxy"
                     @change="(field, val) => updateField(item.id as string, field, val)"
+                    @request-process="isReprocessPromptOpen = true"
                 />
             </template>
         </DocumentLayoutWrapper>
@@ -132,6 +158,18 @@ watch(() => page.props.flash, (flash) => {
             :loading="isDeleting"
             @confirm="confirmDeletion"
             @close="isDeleteModalOpen = false"
+        />
+
+        <ConfirmDeleteModal
+            :open="isReprocessPromptOpen"
+            title="Reprocess Document?"
+            description="Reprocessing will regenerate this document's output from its current content, overwriting anything previously generated. Continue?"
+            confirm-label="Yes"
+            cancel-label="No"
+            confirm-variant="default"
+            :loading="isReprocessing"
+            @confirm="confirmReprocess"
+            @close="isReprocessPromptOpen = false"
         />
     </AppLayout>
 </template>

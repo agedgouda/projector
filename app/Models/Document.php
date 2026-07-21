@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Pgvector\Laravel\HasNeighbors;
 use Pgvector\Laravel\Vector;
 
@@ -14,6 +15,8 @@ use Pgvector\Laravel\Vector;
  * @property User|null $creator
  * @property User|null $editor
  * @property User|null $assignee
+ * @property string|null $locked_project_type_id
+ * @property \Illuminate\Support\Carbon|null $content_updated_at
  */
 class Document extends Model
 {
@@ -30,6 +33,7 @@ class Document extends Model
         'embedding' => Vector::class,
         'metadata' => 'array',
         'processed_at' => 'datetime',
+        'content_updated_at' => 'datetime',
         'creator_id' => 'integer',
         'editor_id' => 'integer',
         'assignee_id' => 'integer',
@@ -46,6 +50,7 @@ class Document extends Model
         'content',
         'metadata',
         'processed_at',
+        'content_updated_at',
         'embedding',
         'creator_id',
         'editor_id',
@@ -54,6 +59,7 @@ class Document extends Model
         'task_status',
         'priority',
         'due_at',
+        'locked_project_type_id',
     ];
 
     /**
@@ -107,6 +113,33 @@ class Document extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Document::class, 'parent_id');
+    }
+
+    /**
+     * The protocol this document's downstream lineage is locked to, once processed via a
+     * user-chosen protocol (as opposed to a raw AI template, or the universal intake step).
+     *
+     * @return BelongsTo<ProjectType, $this>
+     */
+    public function lockedProjectType(): BelongsTo
+    {
+        return $this->belongsTo(ProjectType::class, 'locked_project_type_id');
+    }
+
+    /**
+     * The workflow step (if any) that the locked protocol defines for this document's own
+     * type. Its absence means this document is a terminal deliverable within its locked
+     * protocol — reprocessing it would never produce a new child.
+     *
+     * Relies on a correlated subquery (whereColumn against this table), so it only works
+     * through `withExists()`/`withCount()`/`has()` — never via `load()` or lazy access.
+     *
+     * @return HasOne<WorkflowStep, $this>
+     */
+    public function lockedNextWorkflowStep(): HasOne
+    {
+        return $this->hasOne(WorkflowStep::class, 'project_type_id', 'locked_project_type_id')
+            ->whereColumn('workflow_steps.from_key', 'documents.type');
     }
 
     public function scopeVisibleTo(Builder $query, $user)

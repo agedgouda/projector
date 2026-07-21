@@ -351,6 +351,18 @@ class Organization extends Model implements HasMedia
         return $this->hasMany(ProjectType::class);
     }
 
+    /**
+     * This org's own document type definitions — not the global/shared catalog (organization_id
+     * null), which is queried separately. Not yet read anywhere — the "expand" step of migrating
+     * document_schema off JSON.
+     *
+     * @return HasMany<DocumentTypeDefinition, $this>
+     */
+    public function documentTypeDefinitions(): HasMany
+    {
+        return $this->hasMany(DocumentTypeDefinition::class)->orderBy('order');
+    }
+
     public function invitations(): HasMany
     {
         return $this->hasMany(OrganizationInvitation::class);

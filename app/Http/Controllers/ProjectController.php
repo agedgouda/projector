@@ -107,8 +107,10 @@ class ProjectController extends Controller
         // of lazy-loading documents without eager-loaded relationships.
         $project->loadMissing('type');
         $project->load([
-            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee'])->latest(),
+            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee'])->withExists('lockedNextWorkflowStep')->latest(),
             'media',
+            'lifecycleTemplate.lifecycleSteps',
+            'currentLifecycleStep',
         ]);
 
         $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
@@ -194,7 +196,19 @@ class ProjectController extends Controller
                 return $block;
             }
 
-            $project = Project::create($request->validated());
+            $validated = $request->validated();
+
+            if (! empty($validated['project_type_id']) && is_string($validated['project_type_id'])) {
+                $projectType = ProjectType::find($validated['project_type_id']);
+                if ($projectType) {
+                    $validated['lifecycle_template_id'] = \App\Models\LifecycleTemplate::firstOrCreate([
+                        'organization_id' => $projectType->organization_id,
+                        'name' => $projectType->name,
+                    ])->id;
+                }
+            }
+
+            $project = Project::create($validated);
 
             if ($request->hasFile('logo')) {
                 $project->addMediaFromRequest('logo')->toMediaCollection('logo');
@@ -272,20 +286,6 @@ class ProjectController extends Controller
         $project->client->update(['inactive' => false]);
 
         return back()->with('success', 'Project reactivated.');
-    }
-
-    public function updateLifecycleStep(Request $request, Project $project): RedirectResponse
-    {
-        setPermissionsTeamId($project->organization_id);
-        Gate::authorize('update', $project);
-
-        $validated = $request->validate([
-            'current_lifecycle_step_id' => 'nullable|integer|exists:lifecycle_steps,id',
-        ]);
-
-        $project->update($validated);
-
-        return back();
     }
 
     public function storeDocument(Request $request, Project $project)

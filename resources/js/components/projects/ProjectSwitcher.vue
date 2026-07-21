@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Folder, FolderOpen, Plus } from 'lucide-vue-next';
+import { Folders, FolderOpen, Plus } from 'lucide-vue-next';
 import FlatSwitcherTrigger from '@/components/FlatSwitcherTrigger.vue';
 import IconTile from '@/components/IconTile.vue';
 import {
@@ -47,7 +47,7 @@ const handleSuccess = () => {
                 <FlatSwitcherTrigger
                     :icon-src="currentProject?.logo_url"
                     :icon-alt="currentProject?.name"
-                    :icon-fallback="Folder"
+                    :icon-fallback="Folders"
                     eyebrow="Active Project"
                     :title="currentProject?.name ?? 'Select Project'"
                 />

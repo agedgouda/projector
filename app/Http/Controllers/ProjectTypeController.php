@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AiTemplate;
+use App\Models\LifecycleTemplate;
 use App\Models\Organization;
 use App\Models\ProjectType;
 use Illuminate\Http\Request;
@@ -128,8 +129,15 @@ class ProjectTypeController extends Controller
         $copy->organization_id = $validated['organization_id'];
         $copy->save();
 
+        $lifecycleTemplate = LifecycleTemplate::firstOrCreate([
+            'organization_id' => $copy->organization_id,
+            'name' => $copy->name,
+        ]);
+
         foreach ($projectType->lifecycleSteps as $step) {
-            $copy->lifecycleSteps()->create($step->only(['order', 'label', 'description', 'color']));
+            $copy->lifecycleSteps()->create($step->only(['order', 'label', 'description', 'color']) + [
+                'lifecycle_template_id' => $lifecycleTemplate->id,
+            ]);
         }
 
         return to_route('project-types.edit', $copy->id)->with('success', 'Protocol duplicated.');
@@ -203,12 +211,22 @@ class ProjectTypeController extends Controller
      */
     private function syncLifecycleSteps(ProjectType $projectType, array $steps): void
     {
+        // Lifecycle steps are moving to the independent LifecycleTemplate model (see
+        // LifecycleTemplate/lifecycle_template_id), but this editor is still the only UI for them
+        // today, so keep the matching template (same name/org as this protocol, per the original
+        // 1:1 clone) in sync until a dedicated LifecycleTemplate editor exists.
+        $lifecycleTemplate = LifecycleTemplate::firstOrCreate([
+            'organization_id' => $projectType->organization_id,
+            'name' => $projectType->name,
+        ]);
+
         $stepIds = collect($steps)->pluck('id')->filter()->all();
         $projectType->lifecycleSteps()->whereNotIn('id', $stepIds)->delete();
 
         foreach ($steps as $step) {
             if (! empty($step['id'])) {
                 $projectType->lifecycleSteps()->where('id', $step['id'])->update([
+                    'lifecycle_template_id' => $lifecycleTemplate->id,
                     'order' => $step['order'],
                     'label' => $step['label'],
                     'description' => $step['description'] ?? null,
@@ -216,6 +234,7 @@ class ProjectTypeController extends Controller
                 ]);
             } else {
                 $projectType->lifecycleSteps()->create([
+                    'lifecycle_template_id' => $lifecycleTemplate->id,
                     'order' => $step['order'],
                     'label' => $step['label'],
                     'description' => $step['description'] ?? null,

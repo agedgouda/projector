@@ -1,22 +1,13 @@
 import { computed } from 'vue';
 
-export function useWorkflow(project: any) {
-    // 1. Extract the workflow array from the project type
-    const workflow = computed(() => {
-        // Handle potential naming variations (project.type vs project.project_type)
-        const type = project.project_type || project.type;
-        return type?.workflow || [];
-    });
+// Mirrors config('workflow.intake_key') on the backend — Notes are the only document type ever
+// processed automatically (see DocumentObserver::created()). Every other type's next step is a
+// user-chosen protocol or AI template (see TransformPicker.vue), so there's no single "the
+// transition" to blindly re-run for anything else.
+export const INTAKE_KEY = 'intake';
 
-    // 2. Create a Set of from_keys for O(1) lookup
-    // We use a computed Set so the rows don't re-calculate this for every item
-    const reprocessableTypes = computed(() => {
-        const workflowArr = workflow.value;
-        // Explicitly map to strings and cast the Set
-        return new Set<string>(
-            workflowArr.map((step: any) => String(step.from_key))
-        );
-    });
+export function useWorkflow() {
+    const reprocessableTypes = computed(() => new Set<string>([INTAKE_KEY]));
 
     /**
      * Determines if a specific document can be reprocessed.

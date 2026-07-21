@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\ProjectType;
+use App\Models\LifecycleTemplate;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +18,7 @@ class LifecycleStepFactory extends Factory
     public function definition(): array
     {
         return [
-            'project_type_id' => ProjectType::factory(),
+            'lifecycle_template_id' => LifecycleTemplate::factory(),
             'order' => $this->faker->numberBetween(1, 10),
             'label' => $this->faker->words(2, true),
             'description' => $this->faker->optional()->sentence(),

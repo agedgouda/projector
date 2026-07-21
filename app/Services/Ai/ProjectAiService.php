@@ -6,6 +6,7 @@ use App\Contracts\LlmDriver;
 use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
+use App\Models\WorkflowStep;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use App\Services\VectorService;
 use Illuminate\Support\Facades\Log;
@@ -18,16 +19,74 @@ class ProjectAiService
         protected AiUsageLogger $usageLogger,
     ) {}
 
-    public function process(Document $document)
+    /**
+     * When $overrideStep is given, runs that exact transition — a user-chosen protocol step, or a
+     * raw AI template pick — instead of looking one up automatically. A protocol-driven override
+     * (project_type_id set) locks the document's whole downstream lineage to that protocol; a
+     * template-only override (project_type_id omitted) locks nothing, so its own children still
+     * need an explicit choice.
+     *
+     * Without an override, this either runs the universal, protocol-independent Notes -> Action
+     * Items step (the only transition that's ever automatic — see DocumentObserver::created(),
+     * which relies on this same detection for reprocessing to stay consistent with creation), or,
+     * for a document already locked to a protocol from an earlier transform, that protocol's own
+     * workflow_steps row for this document's current type — propagating the lock to whatever gets
+     * created next. A document that's neither intake, nor locked, nor given an override has
+     * nothing to reprocess into.
+     *
+     * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     */
+    public function process(Document $document, ?array $overrideStep = null)
     {
-        $document->loadMissing('project.type', 'project.client');
-        $typeModel = $document->project->type;
+        $document->loadMissing('project.client');
         $project = $document->project;
 
-        $workflow = collect($typeModel->workflow ?? []);
-        $step = $workflow->firstWhere('from_key', $document->type);
+        if ($overrideStep) {
+            $step = $overrideStep + ['from_key' => $document->type];
+            $lockedProjectTypeId = $overrideStep['project_type_id'] ?? null;
+        } elseif ($document->type === config('workflow.intake_key')) {
+            $actionItemsKey = config('workflow.action_items_key');
+            $templateId = config('workflow.intake_to_action_items_ai_template_id');
 
-        if (! $step || empty($step['ai_template_id'])) {
+            if (! is_string($actionItemsKey) || ! is_int($templateId)) {
+                Log::error('config(workflow.action_items_key)/config(workflow.intake_to_action_items_ai_template_id) is misconfigured.');
+
+                return null;
+            }
+
+            $step = [
+                'from_key' => $document->type,
+                'to_key' => $actionItemsKey,
+                'ai_template_id' => $templateId,
+                'single_output' => false,
+            ];
+            $lockedProjectTypeId = null;
+        } elseif ($document->locked_project_type_id) {
+            $workflowStep = WorkflowStep::query()
+                ->where('project_type_id', $document->locked_project_type_id)
+                ->where('from_key', $document->type)
+                ->first();
+
+            if (! $workflowStep) {
+                Log::warning("No further workflow step defined for the locked protocol on type: {$document->type}. Skipping.");
+
+                return null;
+            }
+
+            $step = [
+                'from_key' => $workflowStep->from_key,
+                'to_key' => $workflowStep->to_key,
+                'ai_template_id' => $workflowStep->ai_template_id,
+                'single_output' => $workflowStep->single_output,
+            ];
+            $lockedProjectTypeId = $document->locked_project_type_id;
+        } else {
+            Log::warning("Document type {$document->type} is not locked to a protocol and no override step was given. Skipping.");
+
+            return null;
+        }
+
+        if (empty($step['ai_template_id'])) {
             Log::warning("No AI transition defined for type: {$document->type}. Skipping.");
 
             return null;
@@ -52,6 +111,7 @@ class ProjectAiService
         if (($result['status'] ?? '') === 'success') {
             $result['output_type'] = $strategy->getOutputDocumentType();
             $result['single_output'] = $singleOutput;
+            $result['locked_project_type_id'] = $lockedProjectTypeId;
         }
 
         return $result;

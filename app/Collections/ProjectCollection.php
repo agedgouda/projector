@@ -27,6 +27,8 @@ class ProjectCollection extends Collection
         return $this->load([
             'client.users',
             'type.lifecycleSteps',
+            'lifecycleTemplate.lifecycleSteps',
+            'currentLifecycleStep',
             'tasks' => fn ($q) => $q->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
             'documents' => fn ($q) => $q->with([
                 'creator', 'editor', 'assignee',
@@ -43,10 +45,11 @@ class ProjectCollection extends Collection
     {
         return $this->load([
             'type.lifecycleSteps',
+            'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'client.users',
             'documents' => function ($q) {
-                $q->with(['assignee', 'creator'])->latest();
+                $q->with(['assignee', 'creator'])->withExists('lockedNextWorkflowStep')->latest();
             },
         ]);
     }

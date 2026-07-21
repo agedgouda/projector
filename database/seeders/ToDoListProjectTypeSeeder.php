@@ -28,17 +28,13 @@ class ToDoListProjectTypeSeeder extends Seeder
                 [
                     'label' => 'Action Items',
                     'key' => 'action_items',
-                    'is_task' => true,
+                    'is_task' => false,
                 ],
             ],
-            'workflow' => [
-                [
-                    'step' => 1,
-                    'from_key' => 'intake',
-                    'to_key' => 'action_items',
-                    'ai_template_id' => null,
-                ],
-            ],
+            // Notes always auto-convert to Action Items via the universal intake step
+            // (see config('workflow.intake_key')), so a protocol's own workflow only needs to
+            // define what happens from Action Items onward.
+            'workflow' => [],
         ]);
 
         $projectType->lifecycleSteps()->createMany([

@@ -3,6 +3,7 @@
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectType;
@@ -25,10 +26,6 @@ function createProjectWithChainedWorkflow(): Project
             ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
             ['label' => 'Task', 'key' => 'task', 'is_task' => true],
         ],
-        'workflow' => [
-            ['from_key' => 'intake', 'to_key' => 'action_items', 'ai_template_id' => null],
-            ['from_key' => 'action_items', 'to_key' => 'task', 'ai_template_id' => null],
-        ],
     ]);
 
     return Project::create([
@@ -38,7 +35,7 @@ function createProjectWithChainedWorkflow(): Project
     ]);
 }
 
-it('dispatches AI processing for a root document whose type starts a workflow step', function () {
+it('dispatches the universal intake -> action_items transition for a root Notes document', function () {
     Queue::fake([ProcessDocumentAI::class]);
 
     $project = createProjectWithChainedWorkflow();
@@ -49,7 +46,9 @@ it('dispatches AI processing for a root document whose type starts a workflow st
         'content' => 'Some notes',
     ]);
 
-    Queue::assertPushed(ProcessDocumentAI::class, fn ($job) => $job->document->is($note));
+    // No override is passed — ProjectAiService::process() detects the intake type itself and
+    // applies the universal step (see the ProjectAiService tests for that behavior directly).
+    Queue::assertPushed(ProcessDocumentAI::class, fn ($job) => $job->document->is($note) && $job->overrideStep === null);
 });
 
 it('does not cascade AI processing to a workflow-generated child document', function () {
@@ -76,4 +75,40 @@ it('does not cascade AI processing to a workflow-generated child document', func
     ]);
 
     Queue::assertNotPushed(ProcessDocumentAI::class, fn ($job) => $job->document->is($actionItems));
+});
+
+it('does not auto-dispatch for a root document of a non-intake type', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $project = createProjectWithChainedWorkflow();
+
+    // A root "action_items" document (e.g. created directly, not via the intake step) — under
+    // the new design nothing past the universal intake step ever fires automatically.
+    $actionItems = $project->documents()->create([
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Follow up with the client',
+    ]);
+
+    Queue::assertNotPushed(ProcessDocumentAI::class, fn ($job) => $job->document->is($actionItems));
+});
+
+it('defaults task_status to todo using the global catalog, even for a type not in the project\'s own protocol', function () {
+    $project = createProjectWithChainedWorkflow();
+
+    DocumentTypeDefinition::create([
+        'organization_id' => null,
+        'key' => 'user_story',
+        'label' => 'User Story',
+        'is_task' => true,
+        'order' => 1,
+    ]);
+
+    $document = $project->documents()->create([
+        'name' => 'A cross-protocol document',
+        'type' => 'user_story',
+        'content' => 'As a user...',
+    ]);
+
+    expect($document->task_status)->toBe('todo');
 });

@@ -55,10 +55,20 @@ declare global {
     export interface LifecycleStep {
         id?: number;
         project_type_id?: string;
+        lifecycle_template_id?: string;
         order: number;
         label: string;
         description?: string | null;
         color?: string | null;
+    }
+
+    export interface LifecycleTemplate {
+        id: string; // UUID
+        name: string;
+        organization_id?: string | null;
+        lifecycle_steps?: LifecycleStep[];
+        created_at: string;
+        updated_at: string;
     }
 
     export interface ProjectType {
@@ -82,6 +92,7 @@ declare global {
         description_quality: 'good' | 'vague' | null;
         client_id: string;
         project_type_id: string | null;
+        lifecycle_template_id?: string | null;
         current_lifecycle_step_id?: number | null;
         logo_url?: string | null;
         inactive: boolean;
@@ -89,6 +100,7 @@ declare global {
         // Relationships
         client: Client;
         type: ProjectType;
+        lifecycle_template?: LifecycleTemplate | null;
         documents?: ProjectDocument[];
         tasks: Task[];
         current_lifecycle_step?: LifecycleStep | null;
@@ -130,6 +142,9 @@ declare global {
         task_status: TaskStatus;
         priority: TaskPriority;
         due_at: string | null;
+        locked_project_type_id?: string | null;
+        locked_next_workflow_step_exists?: boolean;
+        content_updated_at?: string | null;
 
         // Relationships
         creator?: User;
