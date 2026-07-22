@@ -67,19 +67,22 @@ const run = () => {
             </button>
         </div>
 
-        <div v-if="mode === 'template'" class="flex flex-col gap-1 max-h-48 overflow-y-auto">
-            <button
-                v-for="template in aiTemplates"
-                :key="template.id"
-                type="button"
-                class="text-left px-2.5 py-1.5 rounded-md text-[11px] transition-colors"
-                :class="String(template.id) === selectedTemplateId
-                    ? 'bg-projector-primary-50 text-projector-primary-700 font-bold dark:bg-projector-primary-950/30 dark:text-projector-primary-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
-                @click="selectedTemplateId = String(template.id)"
-            >
-                {{ template.name }}
-            </button>
+        <div v-if="mode === 'template'" class="space-y-1.5">
+            <p class="text-[9px] font-black uppercase tracking-wider text-gray-400">Generate:</p>
+            <div class="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                <button
+                    v-for="template in aiTemplates"
+                    :key="template.id"
+                    type="button"
+                    class="text-left px-2.5 py-1.5 rounded-md text-[11px] transition-colors"
+                    :class="String(template.id) === selectedTemplateId
+                        ? 'bg-projector-primary-50 text-projector-primary-700 font-bold dark:bg-projector-primary-950/30 dark:text-projector-primary-400'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                    @click="selectedTemplateId = String(template.id)"
+                >
+                    {{ template.name }}
+                </button>
+            </div>
         </div>
 
         <div v-else class="flex flex-col gap-1 max-h-48 overflow-y-auto">
