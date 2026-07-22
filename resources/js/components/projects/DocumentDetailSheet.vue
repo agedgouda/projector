@@ -71,6 +71,11 @@ const isLocked = computed(() => !!props.document.locked_project_type_id);
 const { isTask: isTaskType } = useDocumentPresenter(currentProject.value ?? undefined);
 const isTask = computed(() => isTaskType(props.document.type));
 
+// Notes always auto-convert to Action Items via one universal, fixed step — there's no
+// protocol/template choice to offer, only Reprocess. reprocessableTypes only ever contains
+// the intake type, so membership here is equivalent to "is this a Notes document".
+const isNotes = computed(() => props.reprocessableTypes.has(props.document.type));
+
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(undefined, {
         month: 'short',
@@ -133,7 +138,7 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.d
                                     <span class="text-[9px] font-black uppercase tracking-wider">{{ processButtonLabel }}</span>
                                 </Button>
 
-                                <Popover v-if="!isLocked && !isTask" v-model:open="isTransformOpen">
+                                <Popover v-if="!isLocked && !isTask && !isNotes" v-model:open="isTransformOpen">
                                     <PopoverTrigger as-child>
                                         <Button
                                             variant="ghost"

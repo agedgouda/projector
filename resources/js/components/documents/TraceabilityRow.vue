@@ -125,7 +125,7 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 <span class="text-[9px] font-black uppercase tracking-widest">{{ processButtonLabel }}</span>
             </button>
 
-            <Popover v-if="!isReadOnly && !isLocked && !isTask" v-model:open="isTransformOpen">
+            <Popover v-if="!isReadOnly && !isLocked && !isTask && !isNotes" v-model:open="isTransformOpen">
                 <PopoverTrigger as-child>
                     <button
                         type="button"
