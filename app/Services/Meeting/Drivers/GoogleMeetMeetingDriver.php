@@ -130,19 +130,36 @@ class GoogleMeetMeetingDriver implements MeetingDriver
 
         $transcripts = $transcriptsResponse->json('transcripts', []);
 
-        if (empty($transcripts)) {
+        if (! is_array($transcripts) || empty($transcripts)) {
             throw new \RuntimeException("No transcripts found for Google Meet recording [{$recordingId}].");
         }
 
-        $entriesResponse = Http::withToken($token)
-            ->get("https://meet.googleapis.com/v2/{$transcripts[0]['name']}/entries");
+        // Stopping and restarting transcription mid-meeting splits it into multiple
+        // separate transcript objects under the same conference record — fetch and
+        // concatenate every segment, in chronological order, instead of only the first.
+        usort($transcripts, function ($a, $b) {
+            $aStart = is_array($a) && is_string($a['startTime'] ?? null) ? $a['startTime'] : '';
+            $bStart = is_array($b) && is_string($b['startTime'] ?? null) ? $b['startTime'] : '';
 
-        if ($entriesResponse->failed()) {
-            throw new \RuntimeException('Failed to fetch Google Meet transcript entries: '.$entriesResponse->body());
-        }
+            return $aStart <=> $bStart;
+        });
 
-        return collect($entriesResponse->json('transcriptEntries', []))
-            ->map(fn ($entry) => trim($entry['text'] ?? ''))
+        return collect($transcripts)
+            ->map(function ($transcript) use ($token) {
+                $transcriptName = is_array($transcript) && is_string($transcript['name'] ?? null) ? $transcript['name'] : '';
+
+                $entriesResponse = Http::withToken($token)
+                    ->get("https://meet.googleapis.com/v2/{$transcriptName}/entries");
+
+                if ($entriesResponse->failed()) {
+                    throw new \RuntimeException('Failed to fetch Google Meet transcript entries: '.$entriesResponse->body());
+                }
+
+                return collect($entriesResponse->json('transcriptEntries', []))
+                    ->map(fn ($entry) => trim($entry['text'] ?? ''))
+                    ->filter()
+                    ->implode("\n");
+            })
             ->filter()
             ->implode("\n");
     }

@@ -51,7 +51,7 @@ PEM;
  * Fake all Google Meet API calls with a happy-path response.
  *
  * @param  array  $conferences  Conference records to return
- * @param  array  $entries  Transcript entries to return
+ * @param  array  $entries  Transcript entries to return for the (single) transcript segment
  */
 function fakeGoogleMeetApi(array $conferences = [], array $entries = []): void
 {
@@ -80,6 +80,40 @@ function fakeGoogleMeetApi(array $conferences = [], array $entries = []): void
         // Conference records list
         'meet.googleapis.com/v2/conferenceRecords*' => Http::response([
             'conferenceRecords' => $conferences,
+        ], 200),
+    ]);
+}
+
+/**
+ * Fake a conference whose transcription was stopped and restarted mid-meeting,
+ * producing multiple separate transcript segments each with their own entries.
+ *
+ * @param  array<int, array{name: string, startTime: string, entries: array}>  $segments
+ */
+function fakeGoogleMeetApiWithSegments(array $conference, array $segments): void
+{
+    $transcripts = array_map(fn ($s) => ['name' => $s['name'], 'startTime' => $s['startTime']], $segments);
+
+    $entryFakes = [];
+    foreach ($segments as $segment) {
+        $entryFakes["meet.googleapis.com/v2/{$segment['name']}/entries*"] = Http::response([
+            'transcriptEntries' => $segment['entries'],
+        ], 200);
+    }
+
+    Http::fake($entryFakes + [
+        'oauth2.googleapis.com/token' => Http::response([
+            'access_token' => 'fake-google-token',
+            'token_type' => 'Bearer',
+            'expires_in' => 3600,
+        ], 200),
+
+        "meet.googleapis.com/v2/{$conference['name']}/transcripts*" => Http::response([
+            'transcripts' => $transcripts,
+        ], 200),
+
+        'meet.googleapis.com/v2/conferenceRecords*' => Http::response([
+            'conferenceRecords' => [$conference],
         ], 200),
     ]);
 }
@@ -324,6 +358,45 @@ it('job fetches transcript and updates the placeholder document', function () {
         ->and($document->metadata['meeting_date'])->toBe('2026-03-01T10:00:00Z');
 
     Queue::assertPushed(ProcessDocumentAI::class);
+});
+
+it('job concatenates all transcript segments when transcription was stopped and restarted', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $conference = ['name' => 'conferenceRecords/split', 'startTime' => '2026-03-01T10:00:00Z'];
+    fakeGoogleMeetApiWithSegments($conference, [
+        [
+            'name' => 'conferenceRecords/split/transcripts/second',
+            'startTime' => '2026-03-01T10:15:00Z',
+            'entries' => [['text' => 'Second half of the meeting.']],
+        ],
+        [
+            'name' => 'conferenceRecords/split/transcripts/first',
+            'startTime' => '2026-03-01T10:00:00Z',
+            'entries' => [['text' => 'First half of the meeting.']],
+        ],
+    ]);
+
+    $document = $this->project->documents()->create([
+        'type' => 'intake',
+        'name' => 'Restarted Meeting',
+        'content' => '',
+        'processed_at' => now(),
+        'metadata' => ['recording_id' => 'conferenceRecords/split', 'provider' => 'google_meet'],
+    ]);
+
+    $job = new ImportMeetingTranscript($document, 'conferenceRecords/split');
+    $job->handle(app(\App\Services\MeetingTranscriptService::class));
+
+    $document->refresh();
+
+    // Segments must be concatenated in chronological order (by startTime), not API
+    // response order — the fake above returns "second" before "first" on purpose.
+    $firstPos = strpos($document->content, 'First half of the meeting.');
+    $secondPos = strpos($document->content, 'Second half of the meeting.');
+    expect($firstPos)->not->toBeFalse()
+        ->and($secondPos)->not->toBeFalse()
+        ->and($firstPos)->toBeLessThan($secondPos);
 });
 
 it('job marks placeholder as processed when transcript is empty', function () {
