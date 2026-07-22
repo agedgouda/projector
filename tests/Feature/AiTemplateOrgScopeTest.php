@@ -75,6 +75,47 @@ it('org-admin sees global and their org templates only', function () {
         ->not->toContain('Org B Template');
 });
 
+it('super-admin sees the universal intake -> action_items template', function () {
+    $universalTemplate = AiTemplate::create([
+        'name' => 'Notes to Action Items',
+        'type' => 'workflow',
+        'system_prompt' => 'sys',
+        'user_prompt' => 'usr',
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $universalTemplate->id]);
+
+    setPermissionsTeamId(null);
+
+    $response = $this->actingAs($this->superAdmin)
+        ->get(route('ai-templates.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->toContain('Notes to Action Items');
+});
+
+it('org-admin does not see the universal intake -> action_items template', function () {
+    $universalTemplate = AiTemplate::create([
+        'name' => 'Notes to Action Items',
+        'type' => 'workflow',
+        'system_prompt' => 'sys',
+        'user_prompt' => 'usr',
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $universalTemplate->id]);
+
+    setPermissionsTeamId($this->orgA->id);
+
+    $response = $this->actingAs($this->orgAAdmin)
+        ->get(route('ai-templates.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->not->toContain('Notes to Action Items')
+        ->toContain('Global Template');
+});
+
 it('org-admin can create a template for their org', function () {
     setPermissionsTeamId($this->orgA->id);
 

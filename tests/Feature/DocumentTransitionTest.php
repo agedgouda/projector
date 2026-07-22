@@ -300,3 +300,21 @@ it('returns protocols with a next step from this document\'s type, and workflow 
     expect($templateIds)->toContain($this->template->id);
     expect($templateIds)->not->toContain($orgTemplate->id);
 });
+
+it('excludes the universal intake -> action_items template from the ai template picker', function () {
+    $universalTemplate = AiTemplate::create([
+        'name' => 'Notes to Action Items',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => 'y',
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $universalTemplate->id]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.documents.transitionOptions', [$this->project, $this->document]))
+        ->assertSuccessful();
+
+    $templateIds = collect($response->json('aiTemplates'))->pluck('id');
+    expect($templateIds)->not->toContain($universalTemplate->id);
+    expect($templateIds)->toContain($this->template->id);
+});

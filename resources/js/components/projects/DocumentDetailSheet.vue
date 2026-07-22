@@ -151,7 +151,7 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.d
                                             <span class="text-[9px] font-black uppercase tracking-wider">Transform</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent align="end" class="p-0" @click.stop>
+                                    <PopoverContent align="center" class="p-0" @click.stop>
                                         <TransformPicker
                                             :project-id="String(currentProject?.id ?? '')"
                                             :document-id="String(document.id)"

@@ -22,7 +22,10 @@ class AiTemplateController extends Controller
             $query->where(function ($q) use ($orgId) {
                 $q->whereNull('organization_id')
                     ->orWhere('organization_id', $orgId);
-            });
+            })
+                // The universal Notes -> Action Items template runs automatically for every
+                // intake document and is never a manual choice — only super-admins need to see it.
+                ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'));
         }
 
         $templates = $query->get()->map(function (AiTemplate $t) use ($user) {

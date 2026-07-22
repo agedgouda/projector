@@ -137,7 +137,7 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                         <span class="text-[9px] font-black uppercase tracking-widest">Transform</span>
                     </button>
                 </PopoverTrigger>
-                <PopoverContent align="end" class="p-0" @click.stop>
+                <PopoverContent align="center" class="p-0" @click.stop>
                     <TransformPicker :project-id="String(item.project_id)" :document-id="String(item.id)" @run="handleRunTransform" />
                 </PopoverContent>
             </Popover>

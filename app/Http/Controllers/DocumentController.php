@@ -280,7 +280,10 @@ class DocumentController extends Controller
             ->filter(fn (array $option) => $option['toKey'] !== null && $option['aiTemplateId'] !== null)
             ->values();
 
+        // The universal Notes -> Action Items template runs automatically for every intake
+        // document (see ProjectAiService::process()) and is never a manual choice.
         $aiTemplates = \App\Models\AiTemplate::where('type', 'workflow')
+            ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'))
             ->orderBy('name')
             ->get(['id', 'name']);
 

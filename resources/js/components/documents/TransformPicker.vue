@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { useTransitionOptions } from '@/composables/useTransitionOptions';
 
 const props = defineProps<{
@@ -19,7 +17,7 @@ const { protocolOptions, aiTemplates, load } = useTransitionOptions(props.projec
 void load();
 
 type Mode = 'protocol' | 'template';
-const mode = ref<Mode>('protocol');
+const mode = ref<Mode>('template');
 
 const selectedProtocolId = ref('');
 const selectedTemplateId = ref('');
@@ -49,60 +47,57 @@ const run = () => {
 </script>
 
 <template>
-    <div class="p-3 space-y-3 w-64">
+    <div class="p-3 space-y-3 w-72">
         <div class="flex rounded-lg bg-gray-100 dark:bg-gray-900 p-0.5 text-[10px] font-black uppercase tracking-wider">
-            <button
-                type="button"
-                class="flex-1 rounded-md py-1.5 transition-colors"
-                :class="mode === 'protocol' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-400'"
-                @click="mode = 'protocol'"
-            >
-                Use Protocol
-            </button>
             <button
                 type="button"
                 class="flex-1 rounded-md py-1.5 transition-colors"
                 :class="mode === 'template' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-400'"
                 @click="mode = 'template'"
             >
-                Pick AI Template
+                Transformation
+            </button>
+            <button
+                type="button"
+                class="flex-1 rounded-md py-1.5 transition-colors"
+                :class="mode === 'protocol' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-400'"
+                @click="mode = 'protocol'"
+            >
+                Pipeline
             </button>
         </div>
 
-        <div v-if="mode === 'protocol'" class="space-y-1">
-            <Label class="text-[9px] font-black uppercase tracking-wider text-gray-400">Protocol</Label>
-            <Select v-model="selectedProtocolId">
-                <SelectTrigger class="h-8 text-[11px]">
-                    <SelectValue placeholder="Choose protocol..." />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem
-                        v-for="protocol in protocolOptions"
-                        :key="protocol.projectTypeId"
-                        :value="protocol.projectTypeId"
-                        class="text-[11px]"
-                    >
-                        {{ protocol.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
-            <p v-if="protocolOptions.length === 0" class="text-[10px] text-gray-400 pt-1">
-                No protocol defines a next step from here.
-            </p>
+        <div v-if="mode === 'template'" class="flex flex-col gap-1 max-h-48 overflow-y-auto">
+            <button
+                v-for="template in aiTemplates"
+                :key="template.id"
+                type="button"
+                class="text-left px-2.5 py-1.5 rounded-md text-[11px] transition-colors"
+                :class="String(template.id) === selectedTemplateId
+                    ? 'bg-projector-primary-50 text-projector-primary-700 font-bold dark:bg-projector-primary-950/30 dark:text-projector-primary-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                @click="selectedTemplateId = String(template.id)"
+            >
+                {{ template.name }}
+            </button>
         </div>
 
-        <div v-else class="space-y-1">
-            <Label class="text-[9px] font-black uppercase tracking-wider text-gray-400">AI Template</Label>
-            <Select v-model="selectedTemplateId">
-                <SelectTrigger class="h-8 text-[11px]">
-                    <SelectValue placeholder="Choose template..." />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem v-for="template in aiTemplates" :key="template.id" :value="String(template.id)" class="text-[11px]">
-                        {{ template.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+        <div v-else class="flex flex-col gap-1 max-h-48 overflow-y-auto">
+            <button
+                v-for="protocol in protocolOptions"
+                :key="protocol.projectTypeId"
+                type="button"
+                class="text-left px-2.5 py-1.5 rounded-md text-[11px] transition-colors"
+                :class="protocol.projectTypeId === selectedProtocolId
+                    ? 'bg-projector-primary-50 text-projector-primary-700 font-bold dark:bg-projector-primary-950/30 dark:text-projector-primary-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                @click="selectedProtocolId = protocol.projectTypeId"
+            >
+                {{ protocol.name }}
+            </button>
+            <p v-if="protocolOptions.length === 0" class="text-[10px] text-gray-400 px-2.5 py-1.5">
+                No protocol defines a next step from here.
+            </p>
         </div>
 
         <Button
