@@ -155,6 +155,47 @@ it('does not reset description_quality when description is unchanged on update',
     expect($this->project->fresh()->description_quality)->toBe('good');
 });
 
+it('uses the frontend-provided description_quality immediately and skips the async job on create', function () {
+    Queue::fake();
+
+    $user = \App\Models\User::factory()->create();
+    $this->org->users()->attach($user->id, ['role' => 'org-admin']);
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($user)
+        ->post(route('projects.store'), [
+            'name' => 'Pre-Evaluated Project',
+            'client_id' => $this->client->id,
+            'project_type_id' => ProjectType::first()->id,
+            'description' => 'A meaningful description already evaluated by the frontend.',
+            'description_quality' => 'vague',
+        ]);
+
+    $project = Project::where('name', 'Pre-Evaluated Project')->firstOrFail();
+    expect($project->description_quality)->toBe('vague');
+
+    Queue::assertNotPushed(EvaluateProjectDescription::class);
+});
+
+it('uses the frontend-provided description_quality immediately and skips the async job on update', function () {
+    Queue::fake();
+
+    $user = \App\Models\User::factory()->create();
+    $this->org->users()->attach($user->id, ['role' => 'org-admin']);
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($user)
+        ->patch(route('projects.update', $this->project), [
+            'name' => $this->project->name,
+            'description' => 'A completely different and updated project description.',
+            'description_quality' => 'good',
+        ]);
+
+    expect($this->project->fresh()->description_quality)->toBe('good');
+
+    Queue::assertNotPushed(EvaluateProjectDescription::class);
+});
+
 // ── /projects/evaluate-description endpoint ───────────────────────────────────
 
 it('evaluate endpoint returns good when LLM says good', function () {

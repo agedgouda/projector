@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { Search, FolderOpen, Trash2, Pencil, Sparkles, AlertTriangle } from 'lucide-vue-next';
+import { Search, Files, Trash2, Pencil, Sparkles, AlertTriangle } from 'lucide-vue-next';
 import { ref } from 'vue';
-import ProjectIcon from '@/components/ProjectIcon.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import {
@@ -54,10 +53,7 @@ const executeDelete = () => {
         <div class="flex items-center gap-4 min-w-0">
             <div class="h-9 w-9 shrink-0 rounded-lg bg-slate-50 dark:bg-zinc-800 flex items-center justify-center border border-slate-100 dark:border-zinc-700 shadow-sm overflow-hidden">
                 <img v-if="project.logo_url" :src="project.logo_url" :alt="project.name" class="size-full object-contain" />
-                <div v-else-if="project.type" class="text-projector-primary-600 dark:text-projector-primary-400">
-                    <ProjectIcon :name="project.type.icon" size="18" />
-                </div>
-                <FolderOpen v-else class="w-4 h-4 text-gray-400" />
+                <Files v-else class="w-4 h-4 text-gray-400" />
             </div>
 
             <div class="flex flex-col min-w-0">
@@ -70,9 +66,6 @@ const executeDelete = () => {
                     </span>
                 </div>
                 <p class="text-[11px] text-slate-500 dark:text-zinc-500 truncate max-w-md">
-                    <span class="font-black uppercase tracking-tighter text-[9px] opacity-70">
-                        {{ project.type?.name || 'General' }}
-                    </span>:
                     {{ project.description || 'No description provided.' }}
                 </p>
                 <div v-if="project.description && project.description_quality" class="flex items-center gap-1 mt-0.5">

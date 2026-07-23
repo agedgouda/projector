@@ -214,7 +214,10 @@ class ProjectController extends Controller
                 $project->addMediaFromRequest('logo')->toMediaCollection('logo');
             }
 
-            if (! empty($project->description)) {
+            // The frontend already evaluates description quality before submitting (see
+            // ProjectEntryForm.vue's pre-submission check) — only fall back to the async
+            // job when that didn't happen, so the badge doesn't need a later page refresh.
+            if (! empty($project->description) && empty($validated['description_quality'])) {
                 EvaluateProjectDescription::dispatch($project);
             }
 
@@ -236,13 +239,24 @@ class ProjectController extends Controller
 
             $validated = $request->validated();
 
-            if (array_key_exists('description', $validated) && $validated['description'] !== $project->description) {
-                $validated['description_quality'] = null;
+            $descriptionChanged = array_key_exists('description', $validated) && $validated['description'] !== $project->description;
+
+            // The frontend already evaluates description quality before submitting (see
+            // ProjectEntryForm.vue's pre-submission check) — only fall back to the async
+            // job when that didn't happen, so the badge doesn't need a later page refresh.
+            $hasFreshQuality = $descriptionChanged && ! empty($validated['description_quality']);
+
+            if ($descriptionChanged) {
+                $validated['description_quality'] = $hasFreshQuality ? $validated['description_quality'] : null;
+            } else {
+                // The form always sends this field, but it's only meaningful when the
+                // description actually changed — otherwise leave the stored value alone.
+                unset($validated['description_quality']);
             }
 
             $project->update($validated);
 
-            if (! empty($project->description)) {
+            if ($descriptionChanged && ! $hasFreshQuality) {
                 EvaluateProjectDescription::dispatch($project);
             }
 

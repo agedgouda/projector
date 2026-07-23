@@ -44,6 +44,10 @@ class ProjectRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            // Set by the frontend's own pre-submission AI evaluation (see
+            // ProjectEntryForm.vue) so the badge is correct immediately, without
+            // waiting on EvaluateProjectDescription's async follow-up job.
+            'description_quality' => 'sometimes|nullable|in:good,vague',
             'inactive' => 'boolean',
             'project_type_id' => 'sometimes|required|exists:project_types,id',
             'client_id' => $this->isMethod('POST') ? 'required|exists:clients,id' : 'sometimes|required|exists:clients,id',

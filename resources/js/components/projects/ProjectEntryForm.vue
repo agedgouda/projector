@@ -42,9 +42,9 @@ const originalDescription = props.editData?.description ?? '';
 const form = useForm({
     name: props.editData?.name || props.initialName || '',
     description: props.editData?.description || '',
+    description_quality: null as 'good' | 'vague' | null,
     inactive: props.editData?.inactive ?? false,
     client_id: props.editData?.client_id || props.client?.id || '',
-    project_type_id: props.editData?.project_type_id || '',
     logo: null as File | null,
 });
 
@@ -86,6 +86,11 @@ const doSubmit = () => {
         : projectRoutes.store.url();
 
     const method = isEditing ? 'patch' : 'post';
+
+    // Carry over the quality verdict from the pre-submission evaluation below, so the
+    // "AI-Enhanced" / "too vague" badge is correct immediately — no need to wait on the
+    // backend's async fallback job and refresh the page to see it.
+    form.description_quality = descriptionQuality.value;
 
     form[method](url, {
         forceFormData: true,
@@ -156,6 +161,42 @@ const submit = async () => {
         />
 
         <div class="space-y-5">
+            <div v-if="!isEditing" class="grid gap-2">
+                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    Client
+                </Label>
+                <div v-if="client" class="h-12 flex items-center px-4 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-800 font-bold text-sm text-projector-primary-600">
+                    {{ client.company_name }}
+                </div>
+                <template v-else-if="showNewClientForm">
+                    <div class="rounded-xl border border-projector-primary-200 dark:border-projector-primary-800 bg-projector-primary-50/50 dark:bg-projector-primary-950/30 p-4">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-projector-primary-500 mb-3">New Client</p>
+                        <ClientEntryForm
+                            :edit-data="null"
+                            @success="handleClientCreated"
+                            @clear-edit="showNewClientForm = false"
+                        />
+                    </div>
+                </template>
+                <Select v-else :model-value="form.client_id" @update:model-value="handleClientSelect">
+                    <SelectTrigger class="h-12 rounded-xl font-bold" :class="form.errors.client_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'">
+                        <SelectValue placeholder="Select a client..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="CREATE_NEW_SENTINEL" class="text-projector-primary-600 font-bold">
+                            + Create New Client
+                        </SelectItem>
+                        <SelectSeparator v-if="clients?.length" />
+                        <SelectItem v-for="c in clients" :key="c.id" :value="c.id.toString()">
+                            {{ c.company_name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <p v-if="form.errors.client_id" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+                    {{ form.errors.client_id }}
+                </p>
+            </div>
+
             <div class="grid gap-2">
                 <Label for="name" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
                     Project Name
@@ -218,72 +259,16 @@ const submit = async () => {
                 </Label>
             </div>
 
-            <template v-if="!isEditing">
-                <LogoFileInput
-                    v-model="form.logo"
-                    label="Project Logo"
-                    :error="form.errors.logo"
-                />
-
-                <div class="grid gap-2">
-                    <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                        Client Assignment
-                    </Label>
-                    <div v-if="client" class="h-12 flex items-center px-4 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-800 font-bold text-sm text-projector-primary-600">
-                        {{ client.company_name }}
-                    </div>
-                    <template v-else-if="showNewClientForm">
-                        <div class="rounded-xl border border-projector-primary-200 dark:border-projector-primary-800 bg-projector-primary-50/50 dark:bg-projector-primary-950/30 p-4">
-                            <p class="text-[10px] font-black uppercase tracking-widest text-projector-primary-500 mb-3">New Client</p>
-                            <ClientEntryForm
-                                :edit-data="null"
-                                @success="handleClientCreated"
-                                @clear-edit="showNewClientForm = false"
-                            />
-                        </div>
-                    </template>
-                    <Select v-else :model-value="form.client_id" @update:model-value="handleClientSelect">
-                        <SelectTrigger class="h-12 rounded-xl font-bold" :class="form.errors.client_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'">
-                            <SelectValue placeholder="Select a client..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem :value="CREATE_NEW_SENTINEL" class="text-projector-primary-600 font-bold">
-                                + Create New Client
-                            </SelectItem>
-                            <SelectSeparator v-if="clients?.length" />
-                            <SelectItem v-for="c in clients" :key="c.id" :value="c.id.toString()">
-                                {{ c.company_name }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <p v-if="form.errors.client_id" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
-                        {{ form.errors.client_id }}
-                    </p>
-                </div>
-
-                <div class="grid gap-2">
-                    <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                        Protocol Type
-                    </Label>
-                    <Select v-model="form.project_type_id">
-                        <SelectTrigger class="h-12 rounded-xl font-bold" :class="form.errors.project_type_id ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'">
-                            <SelectValue placeholder="Choose a protocol..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem v-for="type in projectTypes" :key="type.id" :value="type.id.toString()">
-                                {{ type.name }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <p v-if="form.errors.project_type_id" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
-                        {{ form.errors.project_type_id }}
-                    </p>
-                </div>
-            </template>
+            <LogoFileInput
+                v-if="!isEditing"
+                v-model="form.logo"
+                label="Project Logo"
+                :error="form.errors.logo"
+            />
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
+            <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-black uppercase text-[10px] tracking-widest w-28 h-12 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
                 Cancel
             </Button>
 
@@ -310,10 +295,10 @@ const submit = async () => {
                 v-else
                 type="submit"
                 :disabled="form.processing || evaluating"
-                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl shadow-lg"
+                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-black uppercase text-[10px] tracking-widest w-28 h-12 rounded-xl shadow-lg"
             >
                 <Loader2 v-if="evaluating" class="w-4 h-4 animate-spin" />
-                <template v-else>{{ isEditing ? 'Save Changes' : 'Initialize Project' }}</template>
+                <template v-else>{{ isEditing ? 'Save Changes' : 'Save' }}</template>
             </Button>
         </div>
     </form>
