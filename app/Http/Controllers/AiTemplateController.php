@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\LlmDriver;
 use App\Models\AiTemplate;
+use App\Models\Organization;
+use App\Services\Ai\AiUsageLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use League\CommonMark\GithubFlavoredMarkdownConverter;
 
 class AiTemplateController extends Controller
 {
@@ -32,10 +37,12 @@ class AiTemplateController extends Controller
             return [
                 'id' => $t->id,
                 'name' => $t->name,
+                'description' => $t->description,
                 'type' => $t->type,
                 'organization_id' => $t->organization_id,
                 'system_prompt' => $t->system_prompt,
                 'user_prompt' => $t->user_prompt,
+                'single_output' => $t->single_output,
                 'can_edit' => $user->can('update', $t),
             ];
         });
@@ -53,8 +60,10 @@ class AiTemplateController extends Controller
             'aiTemplate' => [
                 'id' => $aiTemplate->id,
                 'name' => $aiTemplate->name,
+                'description' => $aiTemplate->description,
                 'system_prompt' => $aiTemplate->system_prompt,
                 'user_prompt' => $aiTemplate->user_prompt,
+                'single_output' => $aiTemplate->single_output,
             ],
             'canEdit' => $user->can('update', $aiTemplate),
         ]);
@@ -64,7 +73,9 @@ class AiTemplateController extends Controller
     {
         Gate::authorize('create', AiTemplate::class);
 
-        return inertia('AiTemplates/Manage');
+        return inertia('AiTemplates/Manage', [
+            'aiTemplate' => null,
+        ]);
     }
 
     public function edit(AiTemplate $aiTemplate)
@@ -82,8 +93,11 @@ class AiTemplateController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'generation_brief' => 'nullable|string|max:2000',
             'system_prompt' => 'required|string',
             'user_prompt' => 'required|string',
+            'single_output' => 'sometimes|boolean',
         ]);
 
         $user = auth()->user();
@@ -93,7 +107,7 @@ class AiTemplateController extends Controller
 
         $template = AiTemplate::create($validated);
 
-        return redirect()->to(route('ai-templates.edit', $template->id))
+        return redirect()->route('ai-templates.show', $template)
             ->with('success', 'AI Template created.');
     }
 
@@ -103,14 +117,115 @@ class AiTemplateController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'generation_brief' => 'nullable|string|max:2000',
             'system_prompt' => 'required|string',
             'user_prompt' => 'required|string',
+            'single_output' => 'sometimes|boolean',
         ]);
 
         $aiTemplate->update($validated);
 
         return redirect()->route('ai-templates.show', $aiTemplate)
             ->with('success', 'AI Template updated.');
+    }
+
+    /**
+     * Draft a system_prompt/user_prompt pair from a plain-English brief of what the
+     * transformation should do. Stateless — used for both the create and edit forms,
+     * the caller decides whether/how to apply the result.
+     */
+    public function generatePrompts(Request $request, AiUsageLogger $usageLogger): JsonResponse
+    {
+        Gate::authorize('create', AiTemplate::class);
+
+        $validated = $request->validate([
+            'brief' => 'required|string|max:2000',
+        ]);
+
+        $user = auth()->user();
+        $rawOrgId = $user->hasRole('super-admin') ? null : getPermissionsTeamId();
+        $orgId = is_int($rawOrgId) || is_string($rawOrgId) ? (string) $rawOrgId : null;
+        $organization = $orgId ? Organization::find($orgId) : null;
+        $organization?->applyDriverConfig();
+
+        /** @var LlmDriver $llmDriver */
+        $llmDriver = app(LlmDriver::class);
+
+        $systemPrompt = <<<'PROMPT'
+            You are an expert prompt engineer for a document-transformation system. Given a
+            brief description of what a transformation should do, write a system_prompt and
+            user_prompt pair for it.
+
+            The system_prompt sets the AI's persona and general instructions for the task. It
+            will be rendered in a rich text editor, so format it as Markdown (paragraphs,
+            numbered/bulleted lists, headings where useful) rather than one long run-on
+            paragraph.
+
+            The user_prompt is the per-run template, rendered as plain text. It must contain the
+            literal placeholder {{input}} where the source document's content will be
+            substituted ({{input}} is required; everything else below is optional). It may also
+            use:
+            - {{project}} — the project's name
+            - {{document_name}} — the name of the document being transformed
+            - {{today}} — today's date
+            - {{client_industry}} — the client's industry, when known
+            - {{client_name}} — the name of the client this project is being delivered for
+            - {{vendor_name}} — the name of the organization delivering the work (i.e. "us")
+
+            If the brief implies a client-facing or contractual document (e.g. a proposal,
+            statement of work, or agreement), use {{client_name}} and {{vendor_name}} directly in
+            the user_prompt wherever the document needs to name the client or the vendor, rather
+            than asking the AI to guess or leave a "TBD" placeholder for information the system
+            already knows.
+            PROMPT;
+
+        $userPrompt = "Here is the brief:\n\n{$validated['brief']}";
+
+        $result = $llmDriver->call($systemPrompt, $userPrompt, [
+            'type' => 'object',
+            'properties' => [
+                'system_prompt' => ['type' => 'string', 'description' => "The transformation's system prompt (persona and instructions)."],
+                'user_prompt' => ['type' => 'string', 'description' => 'The transformation\'s user prompt template, containing {{input}}.'],
+            ],
+            'required' => ['system_prompt', 'user_prompt'],
+            'additionalProperties' => false,
+        ]);
+
+        if ($result['status'] !== 'success') {
+            return response()->json(['message' => 'Generation failed. Please try again.'], 422);
+        }
+
+        $driver = $result['driver'] ?? null;
+        $model = $result['model'] ?? null;
+        $inputTokens = $result['input_tokens'] ?? 0;
+        $outputTokens = $result['output_tokens'] ?? 0;
+
+        $fallbackDriver = config('services.llm_driver', 'openai');
+
+        $usageLogger->log(
+            is_string($driver) ? $driver : (is_string($fallbackDriver) ? $fallbackDriver : 'openai'),
+            is_string($model) ? $model : '',
+            'ai_template_generate',
+            is_int($inputTokens) ? $inputTokens : 0,
+            is_int($outputTokens) ? $outputTokens : 0,
+            null,
+            $orgId
+        );
+
+        $content = is_array($result['content'] ?? null) ? $result['content'] : [];
+        $generatedSystemPrompt = $content['system_prompt'] ?? '';
+        $generatedUserPrompt = $content['user_prompt'] ?? '';
+
+        // system_prompt is edited in a rich text editor, so it needs HTML, not raw Markdown.
+        $systemPromptHtml = is_string($generatedSystemPrompt)
+            ? (new GithubFlavoredMarkdownConverter)->convert($generatedSystemPrompt)->getContent()
+            : '';
+
+        return response()->json([
+            'system_prompt' => $systemPromptHtml,
+            'user_prompt' => is_string($generatedUserPrompt) ? $generatedUserPrompt : '',
+        ]);
     }
 
     public function destroy(AiTemplate $aiTemplate)

@@ -31,7 +31,7 @@ const isOrgAdmin = computed(() => page.props.auth.user?.roles?.includes('org-adm
 const canCreate = computed(() => isSuperAdmin.value || isOrgAdmin.value);
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'AI Templates', href: aiTemplateRoutes.index().url },
+    { title: 'Transformations', href: aiTemplateRoutes.index().url },
 ];
 
 const searchQuery = ref('');
@@ -99,13 +99,13 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
 </script>
 
 <template>
-    <Head title="AI Templates" />
+    <Head title="Transformations" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 w-full">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">AI Intelligence Library</h1>
+                    <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">Transformation Library</h1>
                     <p class="text-sm text-gray-500">Select a protocol to view details or execute transformations.</p>
                 </div>
 
@@ -115,7 +115,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                     class="font-bold h-11 px-6"
                 >
                     <PlusIcon class="w-5 h-5 mr-2" />
-                    New Template
+                    New Transformation
                 </Button>
             </div>
 

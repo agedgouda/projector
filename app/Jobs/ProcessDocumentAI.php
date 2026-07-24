@@ -12,7 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use League\CommonMark\CommonMarkConverter;
+use League\CommonMark\GithubFlavoredMarkdownConverter;
 use Throwable;
 
 class ProcessDocumentAI implements ShouldQueue
@@ -81,7 +81,7 @@ class ProcessDocumentAI implements ShouldQueue
                     throw new \Exception("AI Validation Error: Single-output response was missing 'content'.");
                 }
 
-                $html = (new CommonMarkConverter)->convert($markdown)->getContent();
+                $html = (new GithubFlavoredMarkdownConverter)->convert($markdown)->getContent();
 
                 $newDocumentIds[] = $this->document->project->documents()->create([
                     'parent_id' => $this->document->id,

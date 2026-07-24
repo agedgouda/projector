@@ -14,6 +14,7 @@ use App\Http\Controllers\MeetingTranscriptController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationLoginController;
 use App\Http\Controllers\OrganizationLogoController;
+use App\Http\Controllers\OrganizationPdfBrandingController;
 use App\Http\Controllers\OrganizationRegistrationController;
 use App\Http\Controllers\OrganizationSetupController;
 use App\Http\Controllers\ProjectController;
@@ -116,6 +117,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('ai-templates', AiTemplateController::class);
         Route::post('/ai-templates/{aiTemplate}/duplicate', [AiTemplateController::class, 'duplicate'])
             ->name('ai-templates.duplicate');
+        Route::post('/ai-templates/generate-prompts', [AiTemplateController::class, 'generatePrompts'])
+            ->middleware('throttle:20,1')
+            ->name('ai-templates.generate-prompts');
         Route::resource('tasks', TaskController::class);
     });
 
@@ -128,6 +132,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('organizations.logo.store');
     Route::delete('/organizations/{organization}/logo', [OrganizationLogoController::class, 'destroy'])
         ->name('organizations.logo.destroy');
+    Route::post('/organizations/{organization}/pdf-branding/{type}', [OrganizationPdfBrandingController::class, 'store'])
+        ->whereIn('type', ['header', 'footer'])
+        ->name('organizations.pdf-branding.store');
+    Route::delete('/organizations/{organization}/pdf-branding/{type}', [OrganizationPdfBrandingController::class, 'destroy'])
+        ->whereIn('type', ['header', 'footer'])
+        ->name('organizations.pdf-branding.destroy');
     Route::post('/organizations/{organization}/invite', [InvitationController::class, 'store'])
         ->name('organizations.invite');
     Route::post('/organizations/{organization}/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
@@ -200,6 +210,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->name('documents.transitionOptions');
             Route::patch('/documents/{document}/attributes', [DocumentController::class, 'updateAttributes'])
                 ->name('documents.updateAttributes');
+            Route::get('/documents/{document}/export-pdf', [DocumentController::class, 'exportPdf'])
+                ->name('documents.exportPdf');
 
             Route::resource('documents', DocumentController::class);
 

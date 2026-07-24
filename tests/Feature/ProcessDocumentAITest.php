@@ -112,6 +112,29 @@ it('deletes all previously generated children before creating new ones, even whe
     expect($document->refresh()->processed_at)->not->toBeNull();
 });
 
+it('converts a markdown table in single-output content to an HTML table', function () {
+    $document = createReprocessableDocument();
+
+    $markdown = "# Title\n\n| Field | Value |\n|---|---|\n| Name | Acme |\n";
+
+    $this->mock(ProjectAiService::class, function ($mock) use ($markdown) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'software_sow',
+            'single_output' => true,
+            'mock_response' => ['title' => 'SOW', 'content' => $markdown],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->content)->toContain('<table>')
+        ->toContain('<th>Field</th>')
+        ->toContain('<td>Acme</td>')
+        ->not->toContain('|---|---|');
+});
+
 function createActionItemsDocumentWithTemplates(): array
 {
     $org = Organization::create(['name' => 'Acme Inc']);
@@ -183,6 +206,109 @@ it('runs an explicit override step instead of the project type workflow, for any
     ]);
 
     expect($result['output_type'])->toBe('followup');
+});
+
+it('substitutes {{client_name}} and {{vendor_name}} from the project\'s client and its organization', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to SOW',
+        'type' => 'workflow',
+        'system_prompt' => 'Write a SOW.',
+        'user_prompt' => 'Client: {{client_name}}. Vendor: {{vendor_name}}. Notes: {{input}}',
+        'single_output' => true,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(function (string $systemPrompt, string $userPrompt) {
+            return str_contains($userPrompt, 'Client: Client Co.')
+                && str_contains($userPrompt, 'Vendor: Acme Inc.');
+        })
+        ->andReturn([
+            'status' => 'success',
+            'content' => ['title' => 'SOW', 'content' => 'Body'],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'software_sow',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
+it('falls back to "TBD" for {{vendor_name}} when the client has no organization', function () {
+    $client = Client::create([
+        'company_name' => 'Orgless Client',
+        'contact_name' => 'Jane Doe',
+        'contact_phone' => '555-1234',
+    ]);
+    $projectType = ProjectType::factory()->create();
+    $project = Project::create([
+        'name' => 'Orgless Client Project',
+        'client_id' => $client->id,
+        'project_type_id' => $projectType->id,
+    ]);
+    $document = Document::create([
+        'project_id' => $project->id,
+        'name' => 'Source Document',
+        'type' => 'intake',
+        'content' => 'Source content',
+        'processed_at' => now(),
+    ]);
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to SOW',
+        'type' => 'workflow',
+        'system_prompt' => 'Write a SOW.',
+        'user_prompt' => 'Client: {{client_name}}. Vendor: {{vendor_name}}. Notes: {{input}}',
+        'single_output' => true,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(function (string $systemPrompt, string $userPrompt) {
+            return str_contains($userPrompt, 'Client: Orgless Client.')
+                && str_contains($userPrompt, 'Vendor: TBD.');
+        })
+        ->andReturn([
+            'status' => 'success',
+            'content' => ['title' => 'SOW', 'content' => 'Body'],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'software_sow',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
+it('uses the single-document path for a direct override when the template itself is marked single_output, even though the override omits it', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to SOW',
+        'type' => 'workflow',
+        'system_prompt' => 'Write a SOW.',
+        'user_prompt' => '{{input}}',
+        'single_output' => true,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => ['title' => 'Statement of Work', 'content' => "# Scope\n\n- Item one"],
+        ]);
+
+    $result = app(ProjectAiService::class)->process($document, [
+        'to_key' => 'software_sow',
+        'ai_template_id' => $template->id,
+    ]);
+
+    expect($result['single_output'])->toBeTrue();
+    expect($result['mock_response']['content'])->toBe("# Scope\n\n- Item one");
 });
 
 it('returns null when no override is given and the document is not locked to a protocol', function () {

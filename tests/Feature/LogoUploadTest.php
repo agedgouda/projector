@@ -102,6 +102,94 @@ it('blocks a non-admin from uploading a logo for an organization', function () {
         ->assertNotFound();
 });
 
+// ── PDF Branding ──────────────────────────────────────────────────────────────
+
+it('allows an org-admin to upload a pdf header image for an organization', function () {
+    $file = UploadedFile::fake()->image('header.png', 800, 100);
+
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'header']), ['logo' => $file])
+        ->assertRedirect();
+
+    expect($this->org->fresh()->getFirstMedia('pdf_header'))->not->toBeNull();
+});
+
+it('allows an org-admin to upload a pdf footer image for an organization', function () {
+    $file = UploadedFile::fake()->image('footer.png', 800, 60);
+
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'footer']), ['logo' => $file])
+        ->assertRedirect();
+
+    expect($this->org->fresh()->getFirstMedia('pdf_footer'))->not->toBeNull();
+});
+
+it('replaces the old pdf header image when a new one is uploaded', function () {
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'header']), ['logo' => UploadedFile::fake()->image('first.png')]);
+
+    expect($this->org->fresh()->getMedia('pdf_header'))->toHaveCount(1);
+
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'header']), ['logo' => UploadedFile::fake()->image('second.png')]);
+
+    expect($this->org->fresh()->getMedia('pdf_header'))->toHaveCount(1);
+});
+
+it('allows an org-admin to delete a pdf header image from an organization', function () {
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'header']), ['logo' => UploadedFile::fake()->image('header.png')]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('organizations.pdf-branding.destroy', [$this->org, 'header']))
+        ->assertRedirect();
+
+    expect($this->org->fresh()->getFirstMedia('pdf_header'))->toBeNull();
+});
+
+it('allows an org-admin to delete a pdf footer image from an organization', function () {
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'footer']), ['logo' => UploadedFile::fake()->image('footer.png')]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('organizations.pdf-branding.destroy', [$this->org, 'footer']))
+        ->assertRedirect();
+
+    expect($this->org->fresh()->getFirstMedia('pdf_footer'))->toBeNull();
+});
+
+it('rejects non-image files for a pdf header image', function () {
+    $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'header']), ['logo' => $file])
+        ->assertSessionHasErrors('logo');
+});
+
+it('rejects files over 5MB for a pdf footer image', function () {
+    $file = UploadedFile::fake()->image('big.png')->size(6000);
+
+    $this->actingAs($this->admin)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'footer']), ['logo' => $file])
+        ->assertSessionHasErrors('logo');
+});
+
+it('blocks a non-admin from uploading a pdf header image for an organization', function () {
+    $file = UploadedFile::fake()->image('header.png');
+
+    $this->actingAs($this->member)
+        ->post(route('organizations.pdf-branding.store', [$this->org, 'header']), ['logo' => $file])
+        ->assertNotFound();
+});
+
+it('rejects an invalid pdf branding type', function () {
+    $file = UploadedFile::fake()->image('header.png');
+
+    $this->actingAs($this->admin)
+        ->post('/organizations/'.$this->org->id.'/pdf-branding/sidebar', ['logo' => $file])
+        ->assertNotFound();
+});
+
 // ── Client ────────────────────────────────────────────────────────────────────
 
 it('allows an org-admin to upload a logo for a client', function () {

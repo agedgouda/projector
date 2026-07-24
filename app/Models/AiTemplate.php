@@ -12,11 +12,21 @@ class AiTemplate extends Model
 {
     protected $fillable = [
         'name',
+        'description',
+        'generation_brief',
         'type',
         'organization_id',
         'system_prompt',
         'user_prompt',
+        'single_output',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'single_output' => 'boolean',
+        ];
+    }
 
     public function organization(): BelongsTo
     {

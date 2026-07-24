@@ -405,6 +405,9 @@ export interface AiDriverOption {
      export interface AiTemplate {
         id: number;
         name: string;
+        description: string | null;
+        generation_brief: string | null;
+        single_output: boolean;
         type: 'workflow' | 'org_extraction';
         system_prompt: string;
         user_prompt: string;

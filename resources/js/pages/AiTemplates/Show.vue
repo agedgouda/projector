@@ -26,7 +26,7 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'AI Templates', href: aiTemplateRoutes.index().url },
+    { title: 'Transformations', href: aiTemplateRoutes.index().url },
     { title: props.aiTemplate.name, href: '' },
 ];
 

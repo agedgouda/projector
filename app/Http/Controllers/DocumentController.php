@@ -7,8 +7,10 @@ use App\Models\Document;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Services\VectorService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class DocumentController extends Controller
 {
@@ -65,6 +67,39 @@ class DocumentController extends Controller
             'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent'])
                 ->loadExists('lockedNextWorkflowStep'),
         ]);
+    }
+
+    /**
+     * Export the specified document as a branded PDF, suitable for sending to a client.
+     */
+    public function exportPdf(Project $project, Document $document): \Illuminate\Http\Response
+    {
+        Gate::authorize('view', $project);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $project->loadMissing('client.organization');
+
+        $catalogEntry = $project->documentTypeCatalog()->get($document->type);
+        $typeLabel = $catalogEntry instanceof \App\Models\DocumentTypeDefinition ? $catalogEntry->label : $document->type;
+
+        $organization = $project->client?->organization;
+
+        $pdf = Pdf::loadView('pdfs.document', [
+            'document' => $document,
+            'project' => $project,
+            'client' => $project->client,
+            'typeLabel' => $typeLabel,
+            'logoPath' => $project->getFirstMedia('logo')?->getPath('preview'),
+            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath('preview'),
+            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath('preview'),
+        ]);
+
+        $filename = is_string($document->name) ? Str::slug($document->name) : 'document';
+
+        return $pdf->download($filename.'.pdf');
     }
 
     /**

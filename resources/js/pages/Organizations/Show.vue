@@ -27,6 +27,8 @@ const props = defineProps<{
     users: User[];
     currentOrg: Organization & {
         logo_url?: string | null;
+        pdf_header_url?: string | null;
+        pdf_footer_url?: string | null;
         llm_config_form?: { model: string; host: string; has_key: boolean };
         vector_config_form?: { model: string; host: string; has_key: boolean };
         meeting_config_form?: {

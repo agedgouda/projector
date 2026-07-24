@@ -8,6 +8,7 @@ import { toast } from "vue-sonner";
 import { HelpCircle } from 'lucide-vue-next';
 import organizationRoutes from '@/routes/organizations/index';
 import organizationLogoRoutes from '@/routes/organizations/logo/index';
+import organizationPdfBrandingRoutes from '@/routes/organizations/pdf-branding/index';
 import { LLM_DRIVERS, VECTOR_DRIVERS, MEETING_PROVIDERS } from '@/lib/constants';
 import MeetingProviderSetupModal from '@/components/MeetingProviderSetupModal.vue';
 import LogoUpload from '@/components/LogoUpload.vue';
@@ -36,6 +37,8 @@ interface MeetingConfigForm {
 interface Props {
     organization?: Organization & {
         logo_url?: string | null;
+        pdf_header_url?: string | null;
+        pdf_footer_url?: string | null;
         llm_config_form?: AiConfigForm;
         vector_config_form?: AiConfigForm;
         meeting_config_form?: MeetingConfigForm;
@@ -516,6 +519,30 @@ const submit = () => {
                     </div>
                 </template>
             </template>
+        </div>
+
+        <!-- PDF Branding -->
+        <div v-if="isEditing && organization" class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                PDF Branding
+            </p>
+            <p class="text-[10px] text-gray-400 px-1 -mt-2">
+                Custom header and footer images used when exporting documents as branded PDFs. Leave blank to use the default layout.
+            </p>
+
+            <LogoUpload
+                :current-logo-url="organization.pdf_header_url ?? null"
+                :upload-url="organizationPdfBrandingRoutes.store.url({ organization: organization.id, type: 'header' })"
+                :delete-url="organizationPdfBrandingRoutes.destroy.url({ organization: organization.id, type: 'header' })"
+                label="PDF Header Image"
+            />
+
+            <LogoUpload
+                :current-logo-url="organization.pdf_footer_url ?? null"
+                :upload-url="organizationPdfBrandingRoutes.store.url({ organization: organization.id, type: 'footer' })"
+                :delete-url="organizationPdfBrandingRoutes.destroy.url({ organization: organization.id, type: 'footer' })"
+                label="PDF Footer Image"
+            />
         </div>
 
         <MeetingProviderSetupModal

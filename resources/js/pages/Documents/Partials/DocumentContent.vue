@@ -53,7 +53,7 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
                     </h3>
                 </div>
                 <div
-                    class="text-[15px] text-slate-900 dark:text-slate-400 leading-relaxed prose prose-slate dark:prose-invert max-w-none"
+                    class="text-[15px] text-slate-900 dark:text-slate-400 leading-relaxed max-w-none"
                     v-html="sanitize(item.content) || 'No description provided.'"
                 ></div>
             </section>
@@ -96,5 +96,64 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
 :deep(ul) {
     list-style-type: disc !important;
     padding-left: 1.5rem !important;
+}
+
+:deep(p) {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+:deep(h1),
+:deep(h2),
+:deep(h3),
+:deep(h4) {
+    font-weight: 800;
+    color: rgb(15 23 42);
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+}
+:global(html.dark) :deep(h1),
+:global(html.dark) :deep(h2),
+:global(html.dark) :deep(h3),
+:global(html.dark) :deep(h4) {
+    color: rgb(241 245 249);
+}
+
+:deep(h1) { font-size: 1.5rem; }
+:deep(h2) { font-size: 1.25rem; }
+:deep(h3) { font-size: 1.1rem; }
+:deep(h4) { font-size: 1rem; }
+
+:deep(strong) {
+    font-weight: 700;
+}
+
+:deep(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+:deep(th),
+:deep(td) {
+    border: 1px solid rgb(226 232 240);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+:deep(th) {
+    font-weight: 700;
+    background-color: rgb(248 250 252);
+}
+
+:global(html.dark) :deep(th),
+:global(html.dark) :deep(td) {
+    border-color: rgb(51 65 85);
+}
+
+:global(html.dark) :deep(th) {
+    background-color: rgb(30 41 59);
 }
 </style>

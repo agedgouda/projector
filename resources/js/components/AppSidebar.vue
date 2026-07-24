@@ -73,7 +73,7 @@ const mainNavItems: NavItem[] = [
                 href: projectTypeRoutes.index(),
             },
             {
-                title: 'AI Workflows',
+                title: 'Transformations',
                 href: aiRoutes.index(),
             },
         ],

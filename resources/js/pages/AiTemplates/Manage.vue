@@ -11,8 +11,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'AI Templates', href: aiTemplateRoutes.index().url },
-    { title: props.aiTemplate ? 'Edit Template' : 'New Template', href: '#' },
+    { title: 'Transformations', href: aiTemplateRoutes.index().url },
+    { title: props.aiTemplate ? 'Edit Template' : 'New Transformation', href: '#' },
 ];
 
 const handleShow = () => {
@@ -26,8 +26,11 @@ const handleShow = () => {
 
 const form = useForm({
     name: props.aiTemplate?.name ?? '',
+    description: props.aiTemplate?.description ?? '',
+    generation_brief: props.aiTemplate?.generation_brief ?? '',
     system_prompt: props.aiTemplate?.system_prompt ?? '',
     user_prompt: props.aiTemplate?.user_prompt ?? '',
+    single_output: props.aiTemplate?.single_output ?? false,
 });
 
 const submit = () => {
@@ -40,8 +43,7 @@ const submit = () => {
     form[isEdit ? 'put' : 'post'](route.url, {
         preserveScroll: true,
         onSuccess: () => {
-            // If we just created it, the redirect above will hydrate props.aiTemplate
-            // and the UI will automatically switch to "Update" mode.
+            // Both create and update redirect to the template's detail page.
             toast.success(isEdit ? 'Configuration updated' : 'Intelligence protocol activated');
         },
         onError: () => {
@@ -53,7 +55,7 @@ const submit = () => {
 </script>
 
 <template>
-    <Head :title="aiTemplate ? 'Edit Template' : 'New Template'" />
+    <Head :title="aiTemplate ? 'Edit Template' : 'New Transformation'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 w-full">
@@ -62,14 +64,17 @@ const submit = () => {
             </button>
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">{{ aiTemplate ? 'Update Template' : 'Configure AI Logic' }}</h1>
+                    <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">{{ aiTemplate ? 'Update Template' : 'Configure Transformation' }}</h1>
                     <p class="text-sm text-gray-500">Define the instructions and context for this transition protocol.</p>
                 </div>
             </div>
             <AiTemplateForm
                 v-model:name="form.name"
+                v-model:description="form.description"
+                v-model:generation-brief="form.generation_brief"
                 v-model:system-prompt="form.system_prompt"
                 v-model:user-prompt="form.user_prompt"
+                v-model:single-output="form.single_output"
                 :processing="form.processing"
                 :errors="form.errors"
                 :is-editing="!!aiTemplate"

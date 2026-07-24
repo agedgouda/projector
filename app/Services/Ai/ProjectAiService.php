@@ -102,7 +102,10 @@ class ProjectAiService
         }
 
         $strategy = new DynamicWorkflowStrategy($template, $step['from_key'], $outputKey);
-        $singleOutput = (bool) ($step['single_output'] ?? false);
+        // Whether this produces one cohesive document vs a list of items is a property of the
+        // template's own prompt design, not of how it was invoked — the template's own flag is
+        // authoritative regardless of whether this came from a protocol step or a direct pick.
+        $singleOutput = (bool) $template->single_output;
 
         $result = $singleOutput
             ? $this->callLlmSingleDocument($project, $strategy, $document->content, $document)
@@ -117,17 +120,42 @@ class ProjectAiService
         return $result;
     }
 
-    protected function callLlmSingleDocument(Project $project, $strategy, string $context, ?Document $currentDoc = null): array
+    /**
+     * The placeholder set every template's system_prompt/user_prompt can use, aside from
+     * {{input}} (added separately by each caller, since only they know the source context).
+     *
+     * @return array<string, string>
+     */
+    protected function buildReplacements(Project $project, ?Document $currentDoc = null, ?string $outputKey = null): array
     {
-        $userTemplate = $strategy->getUserPromptTemplate();
-        $industry = $project->client?->industry;
+        $client = $project->client;
+        $industry = $client !== null ? $client->industry : null;
+        $clientName = $client !== null ? $client->company_name : null;
+        $organization = $client !== null ? $client->organization : null;
+        $vendorName = $organization !== null ? $organization->name : null;
+
         $replacements = [
-            '{{input}}' => $context,
             '{{project}}' => $project->name,
             '{{document_name}}' => $currentDoc?->name ?? 'Document',
             '{{today}}' => \Illuminate\Support\Carbon::today()->toDateString(),
             '{{client_industry}}' => $industry ? "Client Industry: {$industry}" : '',
+            // The client this project is being delivered for.
+            '{{client_name}}' => $clientName ?? 'TBD',
+            // The organization running Projector — i.e. the vendor/delivery org for this project.
+            '{{vendor_name}}' => $vendorName ?? 'TBD',
         ];
+
+        if ($outputKey !== null) {
+            $replacements['{{output_key}}'] = $outputKey;
+        }
+
+        return $replacements;
+    }
+
+    protected function callLlmSingleDocument(Project $project, $strategy, string $context, ?Document $currentDoc = null): array
+    {
+        $userTemplate = $strategy->getUserPromptTemplate();
+        $replacements = $this->buildReplacements($project, $currentDoc) + ['{{input}}' => $context];
 
         $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
 
@@ -180,16 +208,7 @@ class ProjectAiService
     protected function callLlm(Project $project, $strategy, string $context, ?Document $currentDoc = null, string $outputKey = 'content')
     {
         $userTemplate = $strategy->getUserPromptTemplate();
-        // did this change?
-        $industry = $project->client?->industry;
-        $replacements = [
-            '{{input}}' => $context,
-            '{{project}}' => $project->name,
-            '{{output_key}}' => $outputKey,
-            '{{document_name}}' => $currentDoc?->name ?? 'Document',
-            '{{today}}' => \Illuminate\Support\Carbon::today()->toDateString(),
-            '{{client_industry}}' => $industry ? "Client Industry: {$industry}" : '',
-        ];
+        $replacements = $this->buildReplacements($project, $currentDoc, $outputKey) + ['{{input}}' => $context];
 
         $baseMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
 

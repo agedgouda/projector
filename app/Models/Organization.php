@@ -314,9 +314,31 @@ class Organization extends Model implements HasMedia
         return $url !== '' ? $url : null;
     }
 
+    public function getPdfHeaderUrlAttribute(): ?string
+    {
+        $url = $this->getFirstMediaUrl('pdf_header', 'preview');
+
+        return $url !== '' ? $url : null;
+    }
+
+    public function getPdfFooterUrlAttribute(): ?string
+    {
+        $url = $this->getFirstMediaUrl('pdf_footer', 'preview');
+
+        return $url !== '' ? $url : null;
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('logo')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+        $this->addMediaCollection('pdf_header')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+        $this->addMediaCollection('pdf_footer')
             ->singleFile()
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
     }

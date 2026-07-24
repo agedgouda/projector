@@ -119,6 +119,8 @@ class OrganizationController extends Controller
             'organizations' => $organizations,
             'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
                 'logo_url' => $currentOrg->logo_url,
+                'pdf_header_url' => $currentOrg->pdf_header_url,
+                'pdf_footer_url' => $currentOrg->pdf_footer_url,
                 'users' => $members,
                 'llm_config_form' => $currentOrg->llmConfigForForm(),
                 'vector_config_form' => $currentOrg->vectorConfigForForm(),
@@ -189,6 +191,8 @@ class OrganizationController extends Controller
                 $organization->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(),
                 [
                     'logo_url' => $organization->logo_url,
+                    'pdf_header_url' => $organization->pdf_header_url,
+                    'pdf_footer_url' => $organization->pdf_footer_url,
                     'llm_config_form' => $organization->llmConfigForForm(),
                     'vector_config_form' => $organization->vectorConfigForForm(),
                     'meeting_config_form' => $organization->meetingConfigForForm(),
