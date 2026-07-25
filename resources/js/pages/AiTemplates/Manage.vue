@@ -30,7 +30,7 @@ const form = useForm({
     generation_brief: props.aiTemplate?.generation_brief ?? '',
     system_prompt: props.aiTemplate?.system_prompt ?? '',
     user_prompt: props.aiTemplate?.user_prompt ?? '',
-    single_output: props.aiTemplate?.single_output ?? false,
+    single_output: props.aiTemplate?.single_output ?? true,
 });
 
 const submit = () => {

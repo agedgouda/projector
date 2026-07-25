@@ -166,7 +166,7 @@ class ProjectAiService
         $userMessage .= "\n\nCRITICAL: Return a single JSON object (NOT an array) with exactly two keys: \"title\" (string) and \"content\" (a complete Markdown document).";
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
-        $systemPrompt = $this->htmlToPlainText($rawSystemPrompt);
+        $systemPrompt = $this->withEnglishOnlyConstraint($this->htmlToPlainText($rawSystemPrompt));
 
         $singleDocSchema = [
             'type' => 'object',
@@ -221,7 +221,7 @@ class ProjectAiService
         $userMessage = $baseMessage.$schemaInstruction;
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
-        $systemPrompt = $this->htmlToPlainText($rawSystemPrompt);
+        $systemPrompt = $this->withEnglishOnlyConstraint($this->htmlToPlainText($rawSystemPrompt));
 
         $result = $this->llmDriver->call(
             $systemPrompt,
@@ -284,6 +284,16 @@ class ProjectAiService
 
             return $item;
         }, $items);
+    }
+
+    /**
+     * Every generated document must be in English, regardless of what a template's own
+     * system_prompt says — appended last so it takes precedence over template authors who
+     * didn't think to specify a language.
+     */
+    private function withEnglishOnlyConstraint(string $systemPrompt): string
+    {
+        return $systemPrompt."\n\nRespond only in English. Do not use any non-English words, phrases, or characters, including in headings, labels, or examples.";
     }
 
     private function htmlToPlainText(string $html): string

@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Bold, Italic, List, ListOrdered, Code, Sparkles } from 'lucide-vue-next';
 import { EditorContent } from '@tiptap/vue-3';
 import { useDocumentEditor } from '@/composables/useDocumentEditor';
@@ -77,6 +76,30 @@ const applyGenerated = (payload: { brief: string; systemPrompt: string; userProm
         </div>
 
         <div class="space-y-2">
+            <div class="flex rounded-lg bg-gray-100 dark:bg-gray-900 p-0.5 text-[11px] font-black uppercase tracking-wider">
+                <button
+                    type="button"
+                    class="flex-1 rounded-md py-2 transition-colors"
+                    :class="singleOutput ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-400'"
+                    @click="emit('update:singleOutput', true)"
+                >
+                    Create Single Document
+                </button>
+                <button
+                    type="button"
+                    class="flex-1 rounded-md py-2 transition-colors"
+                    :class="!singleOutput ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-400'"
+                    @click="emit('update:singleOutput', false)"
+                >
+                    Create a Document Set
+                </button>
+            </div>
+            <p class="text-[11px] text-gray-400 px-1">
+                Single Document produces one cohesive document (like a proposal or SOW). Document Set extracts a list of discrete items (like tasks or user stories).
+            </p>
+        </div>
+
+        <div class="space-y-2">
             <div class="flex items-center justify-between gap-2 mb-1">
                 <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">System Instructions (The Persona)</Label>
                 <Button type="button" variant="outline" size="sm" @click="isGenerateModalOpen = true">
@@ -122,22 +145,6 @@ const applyGenerated = (payload: { brief: string; systemPrompt: string; userProm
                 />
             </div>
             <div v-if="errors.user_prompt" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ errors.user_prompt }}</div>
-        </div>
-
-        <div class="space-y-2">
-            <Label class="flex items-start gap-3">
-                <Checkbox
-                    :model-value="singleOutput"
-                    @update:model-value="val => emit('update:singleOutput', val === true)"
-                    class="mt-0.5"
-                />
-                <span>
-                    <span class="block text-sm font-bold text-gray-700 dark:text-gray-300">Produces one cohesive document</span>
-                    <span class="block text-[11px] text-gray-400">
-                        Check this for transformations that output a single document (like a proposal or SOW). Leave unchecked for transformations that extract a list of discrete items (like tasks or user stories).
-                    </span>
-                </span>
-            </Label>
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">

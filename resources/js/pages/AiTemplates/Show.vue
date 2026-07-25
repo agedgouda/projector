@@ -10,6 +10,7 @@ import {
 } from 'lucide-vue-next';
 import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'vue-sonner';
 
 // Wayfinder Routes
@@ -19,8 +20,11 @@ const props = defineProps<{
     aiTemplate: {
         id: number;
         name: string;
+        description: string | null;
+        generation_brief: string | null;
         system_prompt: string;
         user_prompt: string;
+        single_output: boolean;
     };
     canEdit: boolean;
 }>();
@@ -96,7 +100,80 @@ const goBack = () => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-8">
+            <div v-if="aiTemplate.description" class="mb-12">
+                <p class="text-sm text-gray-500 dark:text-gray-400 max-w-2xl">
+                    {{ aiTemplate.description }}
+                </p>
+            </div>
+
+            <Tabs v-if="aiTemplate.generation_brief" default-value="current">
+                <TabsList class="h-12 w-full justify-start gap-6 bg-transparent p-0 border-b border-gray-100 dark:border-gray-800 mb-8">
+                    <TabsTrigger
+                        value="current"
+                        class="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 text-[10px] font-black uppercase tracking-widest text-gray-400 data-[state=active]:border-projector-primary-600 data-[state=active]:text-projector-primary-600 data-[state=active]:shadow-none"
+                    >
+                        Current Configuration
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="generation"
+                        class="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 text-[10px] font-black uppercase tracking-widest text-gray-400 data-[state=active]:border-projector-primary-600 data-[state=active]:text-projector-primary-600 data-[state=active]:shadow-none"
+                    >
+                        Generation Prompt
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="current" class="mt-0 outline-none">
+                    <div class="grid grid-cols-1 gap-8">
+                        <section class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                    System Persona (Instructions)
+                                </div>
+                                <button @click="copyToClipboard(aiTemplate.system_prompt)" class="text-[10px] font-bold text-projector-primary-500 hover:underline flex items-center gap-1">
+                                    <Copy class="w-3 h-3" /> Copy
+                                </button>
+                            </div>
+                            <div class="bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-[2rem] p-8 shadow-sm">
+                                <div
+                                    class="prose-content"
+                                    v-html="renderPrompt(aiTemplate.system_prompt)"
+                                />
+                            </div>
+                        </section>
+
+                        <section class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                    Transformation Logic (Prompt)
+                                </div>
+                                <button @click="copyToClipboard(aiTemplate.user_prompt)" class="text-[10px] font-bold text-projector-primary-500 hover:underline flex items-center gap-1">
+                                    <Copy class="w-3 h-3" /> Copy
+                                </button>
+                            </div>
+                            <div class="bg-gray-900 dark:bg-black rounded-[2rem] p-8 shadow-inner border border-gray-800 relative overflow-hidden">
+                                <div class="absolute -top-24 -right-24 w-64 h-64 bg-projector-primary-500/10 blur-[100px] pointer-events-none"></div>
+
+                                <pre class="text-projector-primary-400 font-mono text-sm leading-7 whitespace-pre-wrap relative z-10">{{ aiTemplate.user_prompt }}</pre>
+                            </div>
+                        </section>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="generation" class="mt-0 outline-none">
+                    <section class="space-y-4">
+                        <div class="flex items-center justify-end">
+                            <button @click="copyToClipboard(aiTemplate.generation_brief)" class="text-[10px] font-bold text-projector-primary-500 hover:underline flex items-center gap-1">
+                                <Copy class="w-3 h-3" /> Copy
+                            </button>
+                        </div>
+                        <div class="bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-[2rem] p-8 shadow-sm">
+                            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{{ aiTemplate.generation_brief }}</p>
+                        </div>
+                    </section>
+                </TabsContent>
+            </Tabs>
+
+            <div v-else class="grid grid-cols-1 gap-8">
 
                 <section class="space-y-4">
                     <div class="flex items-center justify-between">

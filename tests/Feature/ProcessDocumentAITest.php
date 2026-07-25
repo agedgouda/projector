@@ -135,6 +135,57 @@ it('converts a markdown table in single-output content to an HTML table', functi
         ->not->toContain('|---|---|');
 });
 
+it('instructs the model to respond in English only for single-document transformations', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to SOW',
+        'type' => 'workflow',
+        'system_prompt' => 'Write a SOW.',
+        'user_prompt' => '{{input}}',
+        'single_output' => true,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => str_contains($systemPrompt, 'Respond only in English'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => ['title' => 'SOW', 'content' => 'Body'],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'software_sow',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
+it('instructs the model to respond in English only for multi-item transformations', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to Tasks',
+        'type' => 'workflow',
+        'system_prompt' => 'Extract tasks.',
+        'user_prompt' => '{{input}}',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => str_contains($systemPrompt, 'Respond only in English'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Task', 'task' => 'Do the thing', 'criteria' => []]],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
 function createActionItemsDocumentWithTemplates(): array
 {
     $org = Organization::create(['name' => 'Acme Inc']);

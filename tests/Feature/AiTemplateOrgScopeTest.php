@@ -302,6 +302,28 @@ it('generates a system_prompt and user_prompt from a brief', function () {
     expect(AiUsageLog::where('type', 'ai_template_generate')->where('organization_id', $this->orgA->id)->exists())->toBeTrue();
 });
 
+it('instructs the prompt generator to write English-only prompts', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => str_contains($systemPrompt, 'English only'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                'system_prompt' => 'You are an expert.',
+                'user_prompt' => 'Convert: {{input}}',
+            ],
+        ]);
+
+    $this->actingAs($this->orgAAdmin)
+        ->postJson(route('ai-templates.generate-prompts'), [
+            'brief' => 'Anything',
+        ])
+        ->assertOk();
+});
+
 it('converts a markdown system_prompt into HTML for the rich text editor', function () {
     setPermissionsTeamId($this->orgA->id);
 

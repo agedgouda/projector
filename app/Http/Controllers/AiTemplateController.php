@@ -61,6 +61,7 @@ class AiTemplateController extends Controller
                 'id' => $aiTemplate->id,
                 'name' => $aiTemplate->name,
                 'description' => $aiTemplate->description,
+                'generation_brief' => $aiTemplate->generation_brief,
                 'system_prompt' => $aiTemplate->system_prompt,
                 'user_prompt' => $aiTemplate->user_prompt,
                 'single_output' => $aiTemplate->single_output,
@@ -178,6 +179,10 @@ class AiTemplateController extends Controller
             the user_prompt wherever the document needs to name the client or the vendor, rather
             than asking the AI to guess or leave a "TBD" placeholder for information the system
             already knows.
+
+            Write both the system_prompt and user_prompt in English only, and include an explicit
+            instruction in the system_prompt that the AI must respond only in English, with no
+            non-English words, phrases, or characters — even in headings or examples.
             PROMPT;
 
         $userPrompt = "Here is the brief:\n\n{$validated['brief']}";
