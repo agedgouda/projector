@@ -43,15 +43,19 @@ return [
 
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
-        'model'       => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
         'embed_model' => env('GEMINI_EMBED_MODEL', 'text-embedding-004'),
     ],
-
 
     'ollama' => [
         'host' => env('OLLAMA_HOST'),
         'model' => env('OLLAMA_MODEL', 'deepseek-r1:8b'),
         'embedding_model' => env('OLLAMA_EMBED_MODEL', 'nomic-embed-text'),
+    ],
+
+    'assemblyai' => [
+        'key' => env('ASSEMBLYAI_API_KEY'),
+        'retention_days' => env('RECORDING_RETENTION_DAYS', 30),
     ],
 
     'vector_driver' => env('VECTOR_DRIVER', 'gemini'),

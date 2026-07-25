@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Pgvector\Laravel\HasNeighbors;
 use Pgvector\Laravel\Vector;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property Project|null $project
@@ -18,9 +20,9 @@ use Pgvector\Laravel\Vector;
  * @property string|null $locked_project_type_id
  * @property \Illuminate\Support\Carbon|null $content_updated_at
  */
-class Document extends Model
+class Document extends Model implements HasMedia
 {
-    use HasNeighbors, HasUuids;
+    use HasNeighbors, HasUuids, InteractsWithMedia;
 
     protected $keyType = 'string';
 
@@ -161,5 +163,26 @@ class Document extends Model
     public function comments(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(Comment::class, 'commentable')->oldest();
+    }
+
+    /**
+     * Source audio for a mobile-recorded note, pending transcription. Kept on the private
+     * 'local' disk (never public) — recorded meeting audio is sensitive and only ever needs
+     * to be streamed back to its owner via an authenticated route, not linked directly.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('recording')
+            ->useDisk('local')
+            ->singleFile()
+            ->acceptsMimeTypes([
+                'audio/mpeg',
+                'audio/mp4',
+                'audio/x-m4a',
+                'audio/aac',
+                'audio/wav',
+                'audio/x-wav',
+                'audio/webm',
+            ]);
     }
 }

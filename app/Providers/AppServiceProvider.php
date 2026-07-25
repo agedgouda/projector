@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\LlmDriver;
+use App\Contracts\TranscriptionDriver;
 use App\Contracts\VectorDriver;
 use App\Models\Document;
 use App\Models\OrgDocument;
@@ -14,6 +15,7 @@ use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
 use App\Services\Ai\Drivers\OpenAiLlmDriver;
 use App\Services\Ai\ProjectAiService;
+use App\Services\Transcription\Drivers\AssemblyAiTranscriptionDriver;
 use App\Services\Vectors\GeminiDriver;
 use App\Services\Vectors\OllamaDriver;
 use App\Services\VectorService;
@@ -67,6 +69,9 @@ class AppServiceProvider extends ServiceProvider
         // 3. Registering core services with Zero-Config Resolution
         $this->app->scoped(VectorService::class);
         $this->app->scoped(ProjectAiService::class);
+
+        // 4. Transcription Driver Resolution (mobile recording -> text)
+        $this->app->bind(TranscriptionDriver::class, AssemblyAiTranscriptionDriver::class);
     }
 
     /**
