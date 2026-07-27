@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Http\Controllers\Mobile;
+
+use App\Http\Controllers\Controller;
+use App\Models\Project;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+
+class DashboardController extends Controller
+{
+    /**
+     * The mobile app's home screen — the projects the user can access, same underlying
+     * scope as the web dashboard/project list.
+     */
+    public function index(Request $request): \Inertia\Response
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            abort(401);
+        }
+
+        $rawOrgId = getPermissionsTeamId();
+        $orgId = is_int($rawOrgId) || is_string($rawOrgId) ? (string) $rawOrgId : null;
+
+        $projects = Project::visibleTo($user, $orgId)
+            ->whereHas('client', fn ($q) => $q->where('inactive', false))
+            ->with('client:id,company_name')
+            ->latest()
+            ->get(['id', 'name', 'client_id']);
+
+        return Inertia::render('Mobile/Dashboard', [
+            'projects' => $projects->map(fn (Project $project) => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'client_name' => $project->client?->company_name,
+            ]),
+        ]);
+    }
+}

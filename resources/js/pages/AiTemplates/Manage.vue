@@ -31,6 +31,7 @@ const form = useForm({
     system_prompt: props.aiTemplate?.system_prompt ?? '',
     user_prompt: props.aiTemplate?.user_prompt ?? '',
     single_output: props.aiTemplate?.single_output ?? true,
+    output_key: props.aiTemplate?.output_key ?? '',
 });
 
 const submit = () => {
@@ -75,6 +76,7 @@ const submit = () => {
                 v-model:system-prompt="form.system_prompt"
                 v-model:user-prompt="form.user_prompt"
                 v-model:single-output="form.single_output"
+                v-model:output-key="form.output_key"
                 :processing="form.processing"
                 :errors="form.errors"
                 :is-editing="!!aiTemplate"

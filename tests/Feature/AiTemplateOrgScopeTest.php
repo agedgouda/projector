@@ -204,6 +204,37 @@ it('defaults single_output to false when not provided', function () {
     expect($created->single_output)->toBeFalse();
 });
 
+it('saves output_key when creating a template', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('ai-templates.store'), [
+            'name' => 'Keyed Template',
+            'system_prompt' => 'sys',
+            'user_prompt' => 'usr',
+            'output_key' => 'requirement',
+        ])
+        ->assertRedirect();
+
+    $created = AiTemplate::where('name', 'Keyed Template')->firstOrFail();
+    expect($created->output_key)->toBe('requirement');
+});
+
+it('rejects an output_key with characters other than lowercase letters, numbers, and underscores', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('ai-templates.store'), [
+            'name' => 'Bad Key Template',
+            'system_prompt' => 'sys',
+            'user_prompt' => 'usr',
+            'output_key' => 'Not A Slug!',
+        ])
+        ->assertSessionHasErrors('output_key');
+
+    expect(AiTemplate::where('name', 'Bad Key Template')->exists())->toBeFalse();
+});
+
 it('super-admin creates a global template', function () {
     setPermissionsTeamId(null);
 

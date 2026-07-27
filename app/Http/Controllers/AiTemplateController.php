@@ -43,6 +43,7 @@ class AiTemplateController extends Controller
                 'system_prompt' => $t->system_prompt,
                 'user_prompt' => $t->user_prompt,
                 'single_output' => $t->single_output,
+                'output_key' => $t->output_key,
                 'can_edit' => $user->can('update', $t),
             ];
         });
@@ -65,6 +66,7 @@ class AiTemplateController extends Controller
                 'system_prompt' => $aiTemplate->system_prompt,
                 'user_prompt' => $aiTemplate->user_prompt,
                 'single_output' => $aiTemplate->single_output,
+                'output_key' => $aiTemplate->output_key,
             ],
             'canEdit' => $user->can('update', $aiTemplate),
         ]);
@@ -99,6 +101,7 @@ class AiTemplateController extends Controller
             'system_prompt' => 'required|string',
             'user_prompt' => 'required|string',
             'single_output' => 'sometimes|boolean',
+            'output_key' => 'nullable|string|max:255|regex:/^[a-z0-9_]+$/',
         ]);
 
         $user = auth()->user();
@@ -123,6 +126,7 @@ class AiTemplateController extends Controller
             'system_prompt' => 'required|string',
             'user_prompt' => 'required|string',
             'single_output' => 'sometimes|boolean',
+            'output_key' => 'nullable|string|max:255|regex:/^[a-z0-9_]+$/',
         ]);
 
         $aiTemplate->update($validated);

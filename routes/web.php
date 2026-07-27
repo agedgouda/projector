@@ -229,4 +229,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 
+/**
+ * Mobile app page tree — purpose-built screens for the Capacitor-wrapped app (see
+ * capacitor.config.ts), served as regular Inertia pages over the same session auth as the
+ * web app. Login is a distinct screen but submits to Fortify's own POST /login; there's no
+ * separate mobile auth mechanism.
+ */
+Route::get('/app/login', [\App\Http\Controllers\Mobile\LoginController::class, 'create'])
+    ->name('mobile.login');
+
+Route::middleware(['auth', 'verified'])->prefix('app')->name('mobile.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Mobile\DashboardController::class, 'index'])
+        ->name('dashboard');
+
+    Route::middleware(['client.access'])->group(function () {
+        Route::get('/projects/{project}', [\App\Http\Controllers\Mobile\ProjectController::class, 'show'])
+            ->name('projects.show');
+        Route::get('/projects/{project}/documents/{document}', [\App\Http\Controllers\Mobile\DocumentController::class, 'show'])
+            ->name('documents.show');
+    });
+});
+
 require __DIR__.'/settings.php';

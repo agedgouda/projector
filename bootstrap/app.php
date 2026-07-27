@@ -20,7 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
-        $middleware->redirectGuestsTo(fn () => route('login', ['expired' => 1]));
+        // Unauthenticated hits on the mobile page tree land on the mobile app's own login
+        // screen, not the desktop one — everything else keeps the normal behavior.
+        $middleware->redirectGuestsTo(fn ($request) => $request->is('app', 'app/*')
+            ? route('mobile.login')
+            : route('login', ['expired' => 1])
+        );
 
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

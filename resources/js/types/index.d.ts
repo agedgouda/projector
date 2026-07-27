@@ -408,6 +408,7 @@ export interface AiDriverOption {
         description: string | null;
         generation_brief: string | null;
         single_output: boolean;
+        output_key: string | null;
         type: 'workflow' | 'org_extraction';
         system_prompt: string;
         user_prompt: string;

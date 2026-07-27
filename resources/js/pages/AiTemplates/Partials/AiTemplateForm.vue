@@ -15,6 +15,7 @@ const props = defineProps<{
     systemPrompt: string;
     userPrompt: string;
     singleOutput: boolean;
+    outputKey: string | null;
     processing: boolean;
     errors: Record<string, string>;
     isEditing: boolean;
@@ -27,6 +28,7 @@ const emit = defineEmits<{
     (e: 'update:systemPrompt', value: string): void;
     (e: 'update:userPrompt', value: string): void;
     (e: 'update:singleOutput', value: boolean): void;
+    (e: 'update:outputKey', value: string): void;
     (e: 'submit'): void;
     (e: 'cancel'): void;
 }>();
@@ -38,11 +40,25 @@ const { editor } = useDocumentEditor(
 
 const isGenerateModalOpen = ref(false);
 
+// Mirrors the server's fallback (Str::slug($name, '_')) so a template always gets a safe,
+// predictable document type key even if the user never touches the field themselves.
+const slugify = (value: string): string => value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
 const applyGenerated = (payload: { brief: string; systemPrompt: string; userPrompt: string }) => {
     emit('update:generationBrief', payload.brief);
     // setContent triggers the editor's onUpdate, which emits update:systemPrompt itself.
     editor.value?.commands.setContent(payload.systemPrompt);
     emit('update:userPrompt', payload.userPrompt);
+
+    // Only fill it in — never clobber a value the user already set on purpose.
+    if (!props.outputKey?.trim() && props.name.trim()) {
+        emit('update:outputKey', slugify(props.name));
+    }
+
     isGenerateModalOpen.value = false;
 };
 </script>
@@ -97,6 +113,22 @@ const applyGenerated = (payload: { brief: string; systemPrompt: string; userProm
             <p class="text-[11px] text-gray-400 px-1">
                 Single Document produces one cohesive document (like a proposal or SOW). Document Set extracts a list of discrete items (like tasks or user stories).
             </p>
+        </div>
+
+        <div class="space-y-2">
+            <div class="flex items-center gap-2 mb-1">
+                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Output Type Key</Label>
+            </div>
+            <Input
+                :model-value="outputKey ?? ''"
+                @update:model-value="val => emit('update:outputKey', val as string)"
+                placeholder="e.g. task, requirement, user_story"
+                class="h-12 rounded-xl border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 focus:ring-4 focus:ring-projector-primary-500/5 font-mono"
+            />
+            <p class="text-[11px] text-gray-400 px-1">
+                The document type this transformation's output gets tagged with — lowercase letters, numbers, and underscores only. Filled in automatically from the name when you generate with AI; leave it as-is unless you need the output to match an existing type (e.g. "task", so it shows checkboxes and an assignee).
+            </p>
+            <div v-if="errors.output_key" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ errors.output_key }}</div>
         </div>
 
         <div class="space-y-2">

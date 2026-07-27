@@ -2,7 +2,14 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"  @class(['dark' => ($appearance ?? 'system') == 'dark'])>
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        {{--
+            viewport-fit=cover is scoped to the mobile app page tree only (served inside the
+            Capacitor shell) — it makes content extend edge-to-edge under the notch/status
+            bar via env(safe-area-inset-*), which the mobile layout accounts for. Applying it
+            site-wide would also affect the regular desktop-styled pages when viewed on a
+            phone browser, and those aren't built with safe-area padding.
+        --}}
+        <meta name="viewport" content="width=device-width, initial-scale=1{{ request()->is('app', 'app/*') ? ', viewport-fit=cover' : '' }}">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>

@@ -122,6 +122,50 @@ it('derives to_key from the AI template name when to_key is omitted', function (
     );
 });
 
+it('uses the template\'s own output_key when to_key is omitted, instead of slugifying its name', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $templateWithOutputKey = AiTemplate::create([
+        'name' => 'Whatever This Is Called',
+        'type' => 'workflow',
+        'output_key' => 'task',
+        'system_prompt' => 'Extract tasks.',
+        'user_prompt' => '{{input}}',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'ai_template_id' => $templateWithOutputKey->id,
+        ])
+        ->assertSuccessful();
+
+    Queue::assertPushed(
+        ProcessDocumentAI::class,
+        fn ($job) => $job->document->is($this->document)
+            && $job->overrideStep['to_key'] === 'task'
+            && $job->overrideStep['ai_template_id'] === $templateWithOutputKey->id
+    );
+});
+
+it('never consults workflow_steps for a direct pick, even when the template is also used by an unrelated protocol with a different to_key', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    // $this->template has a WorkflowStep mapping it to 'task' for $this->projectType, but no
+    // output_key of its own — a direct pick must not go looking at that workflow_steps row.
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'ai_template_id' => $this->template->id,
+        ])
+        ->assertSuccessful();
+
+    Queue::assertPushed(
+        ProcessDocumentAI::class,
+        fn ($job) => $job->document->is($this->document)
+            && $job->overrideStep['to_key'] === 'action_items_to_task'
+            && $job->overrideStep['ai_template_id'] === $this->template->id
+    );
+});
+
 it('passes project_type_id through to the job when a protocol-driven transition is chosen', function () {
     Queue::fake([ProcessDocumentAI::class]);
 

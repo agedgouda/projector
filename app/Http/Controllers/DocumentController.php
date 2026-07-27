@@ -232,8 +232,9 @@ class DocumentController extends Controller
      *      from a chosen protocol's own workflow_steps row for this document's type — locks the
      *      resulting document's whole downstream lineage to that protocol, so further processing
      *      auto-continues via that protocol with no further choice offered;
-     *  (b) direct: pass only ai_template_id — to_key is derived from the AI template's name since
-     *      no protocol is involved, and nothing gets locked.
+     *  (b) direct: pass only ai_template_id — to_key comes from the template's own output_key
+     *      (falling back to a slug of its name if that's unset), never from workflow_steps, and
+     *      nothing gets locked.
      */
     public function transition(Request $request, Project $project, Document $document)
     {
@@ -263,8 +264,12 @@ class DocumentController extends Controller
 
         $toKey = $validated['to_key'] ?? null;
         if (! is_string($toKey) || $toKey === '') {
+            // Direct pick, no protocol involved: the template's own output_key is
+            // authoritative here. Never consult workflow_steps/project_type for this —
+            // a template's output type must not depend on which protocols happen to
+            // reference it.
             $template = \App\Models\AiTemplate::findOrFail($aiTemplateId);
-            $toKey = \Illuminate\Support\Str::slug($template->name, '_');
+            $toKey = $template->output_key ?: \Illuminate\Support\Str::slug($template->name, '_');
         }
 
         $document->update(['processed_at' => null]);

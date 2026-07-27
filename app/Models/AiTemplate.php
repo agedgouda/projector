@@ -15,6 +15,7 @@ class AiTemplate extends Model
         'description',
         'generation_brief',
         'type',
+        'output_key',
         'organization_id',
         'system_prompt',
         'user_prompt',
