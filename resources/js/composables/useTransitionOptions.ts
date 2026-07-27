@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import axios from 'axios';
 import { transitionOptions as transitionOptionsRoute } from '@/actions/App/Http/Controllers/DocumentController';
+import { redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
 
 export interface ProtocolOption {
     projectTypeId: string;
@@ -55,6 +56,10 @@ export function useTransitionOptions(projectId: string, documentId: string) {
             aiTemplates.value = data.aiTemplates;
             cache.set(cacheKey, data);
             loaded.value = true;
+        } catch (error) {
+            if (redirectIfSessionExpiredError(error)) return;
+
+            throw error;
         } finally {
             loading.value = false;
         }

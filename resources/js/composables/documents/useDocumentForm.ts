@@ -5,6 +5,7 @@ import { toast } from 'vue-sonner';
 import axios from 'axios';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { useWorkflow } from '@/composables/useWorkflow';
+import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
 
 export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const isEditing = ref(false);
@@ -143,10 +144,14 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         // Once dispatched, the live status above takes over until the job's own
         // success/error broadcast arrives — no immediate reload here.
         try {
-            await axios.post(url);
+            const response = await axios.post(url);
+            if (redirectIfLoggedOut(response)) return;
+
             isProcessingLive.value = true;
             processingMessage.value = 'Starting...';
-        } catch {
+        } catch (error) {
+            if (redirectIfSessionExpiredError(error)) return;
+
             toast.error('Failed to start reprocessing');
         } finally {
             isReprocessing.value = false;

@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import axios, { AxiosError } from 'axios';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
 
 
 
@@ -107,12 +108,16 @@ export function useDocumentActions(
         form.processing = true;
         try {
             const url = projectDocumentsRoutes.update.url({ project: props.project.id, document: docId });
-            await axios.post(url, { ...form.data(), _method: 'put' });
+            const response = await axios.post(url, { ...form.data(), _method: 'put' });
+            if (redirectIfLoggedOut(response)) return;
+
             onSuccessCallback?.();
             isEditModalOpen.value = false;
             form.reset();
             router.reload({ only: ['requirementStatus'], onFinish: () => { form.processing = false; } });
         } catch (err) {
+            if (redirectIfSessionExpiredError(err)) return;
+
             const error = err as AxiosError<{ errors: any }>;
             form.processing = false;
             if (error.response?.status === 422) form.errors = error.response.data.errors;
@@ -128,8 +133,11 @@ export function useDocumentActions(
 
         try {
             const projectId = props.project.id;
-            await axios.post(`/projects/${projectId}/documents/${doc.id}/reprocess`);
-        } catch {
+            const response = await axios.post(`/projects/${projectId}/documents/${doc.id}/reprocess`);
+            if (redirectIfLoggedOut(response)) return;
+        } catch (error) {
+            if (redirectIfSessionExpiredError(error)) return;
+
             const rollbackDate = new Date().toISOString();
             doc.processingError = 'Failed to start reprocessing.';
             doc.processed_at = rollbackDate;
@@ -148,13 +156,16 @@ export function useDocumentActions(
 
         try {
             const projectId = props.project.id;
-            await axios.post(`/projects/${projectId}/documents/${doc.id}/transition`, {
+            const response = await axios.post(`/projects/${projectId}/documents/${doc.id}/transition`, {
                 to_key: payload.toKey,
                 ai_template_id: payload.aiTemplateId,
                 single_output: payload.singleOutput,
                 project_type_id: payload.projectTypeId,
             });
-        } catch {
+            if (redirectIfLoggedOut(response)) return;
+        } catch (error) {
+            if (redirectIfSessionExpiredError(error)) return;
+
             const rollbackDate = new Date().toISOString();
             doc.processingError = 'Failed to start transition.';
             doc.processed_at = rollbackDate;

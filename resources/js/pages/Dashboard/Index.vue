@@ -10,6 +10,7 @@ import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 import { STATUS_LABELS } from '@/lib/constants';
+import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useWorkflow } from '@/composables/useWorkflow';
@@ -121,8 +122,11 @@ const handleReprocess = async (id: string | number) => {
     isSheetOpen.value = false;
 
     try {
-        await axios.post(`/projects/${doc.project_id}/documents/${doc.id}/reprocess`);
-    } catch {
+        const response = await axios.post(`/projects/${doc.project_id}/documents/${doc.id}/reprocess`);
+        if (redirectIfLoggedOut(response)) return;
+    } catch (error) {
+        if (redirectIfSessionExpiredError(error)) return;
+
         toast.error('Failed to start reprocessing.');
     }
 };
@@ -137,13 +141,16 @@ const handleTransition = async (
     isSheetOpen.value = false;
 
     try {
-        await axios.post(`/projects/${doc.project_id}/documents/${doc.id}/transition`, {
+        const response = await axios.post(`/projects/${doc.project_id}/documents/${doc.id}/transition`, {
             to_key: payload.toKey,
             ai_template_id: payload.aiTemplateId,
             single_output: payload.singleOutput,
             project_type_id: payload.projectTypeId,
         });
-    } catch {
+        if (redirectIfLoggedOut(response)) return;
+    } catch (error) {
+        if (redirectIfSessionExpiredError(error)) return;
+
         toast.error('Failed to start transition.');
     }
 };
