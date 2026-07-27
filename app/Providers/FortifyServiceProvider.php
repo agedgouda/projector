@@ -37,7 +37,12 @@ class FortifyServiceProvider extends ServiceProvider
         {
             public function toResponse($request): \Symfony\Component\HttpFoundation\Response
             {
-                return Inertia::location('/login');
+                // /logout is a shared Fortify route reached from both the desktop site and
+                // the mobile app tree, so there's no /app-prefixed path to key off of here —
+                // the referring page is the only signal available at this point.
+                $isMobile = Str::startsWith(FortifyServiceProvider::pathOf($request->headers->get('referer')), '/app');
+
+                return Inertia::location($isMobile ? '/app/login' : '/login');
             }
         });
     }
@@ -71,15 +76,48 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/VerifyEmail', [
-            'status' => $request->session()->get('status'),
-        ]));
+        Fortify::verifyEmailView(fn (Request $request) => Inertia::render(
+            $this->isMobileFlow($request) ? 'Mobile/VerifyEmail' : 'auth/VerifyEmail',
+            ['status' => $request->session()->get('status')]
+        ));
 
         Fortify::registerView(fn () => Inertia::render('auth/Register'));
 
-        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
+        Fortify::twoFactorChallengeView(fn (Request $request) => Inertia::render(
+            $this->isMobileFlow($request) ? 'Mobile/TwoFactorChallenge' : 'auth/TwoFactorChallenge'
+        ));
 
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/ConfirmPassword'));
+    }
+
+    /**
+     * Whether the account-flow interstitial about to be rendered (email verification,
+     * two-factor challenge) belongs to the mobile app rather than the desktop site. Both
+     * screens are reached via Fortify's own shared routes (not under /app), so the request
+     * path itself can't tell us — but the session's intended URL (set by the `verified`
+     * middleware, or still pending from the original guest redirect into /app) still points
+     * at the mobile page tree at this point, since redirect()->intended() hasn't consumed it
+     * yet for an in-progress login/verification flow.
+     */
+    private function isMobileFlow(Request $request): bool
+    {
+        return Str::startsWith(self::pathOf($request->session()->get('url.intended')), '/app');
+    }
+
+    /**
+     * The path component of a URL, or '' if it isn't a valid absolute/relative URL. Public
+     * because the anonymous LogoutResponse class above (a separate class, despite being
+     * defined inline) needs it too.
+     */
+    public static function pathOf(mixed $url): string
+    {
+        if (! is_string($url)) {
+            return '';
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+
+        return is_string($path) ? $path : '';
     }
 
     /**

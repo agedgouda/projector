@@ -2,22 +2,40 @@
 import { Head } from '@inertiajs/vue3';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import DOMPurify from 'dompurify';
-import { RefreshCw, ListChecks } from 'lucide-vue-next';
-import mobileProjectRoutes from '@/routes/mobile/projects';
+import { RefreshCw, User as UserIcon, Calendar } from 'lucide-vue-next';
+import mobileNoteRoutes from '@/routes/mobile/notes';
+import { STATUS_LABELS, PRIORITY_LABELS, statusDotClasses, priorityDotClasses } from '@/lib/constants';
+
+interface DocumentItem {
+    id: string;
+    name: string;
+    content: string | null;
+    typeLabel: string;
+    isTask: boolean;
+    priority: string | null;
+    taskStatus: string | null;
+    dueAt: string | null;
+    assignee: { id: number; name: string } | null;
+}
 
 defineProps<{
     project: { id: string; name: string };
-    document: { id: string; name: string; content: string | null; status: 'processing' | 'processed' };
-    children: Array<{ id: string; name: string; type: string; content: string | null }>;
+    noteId: string;
+    document: DocumentItem & { status: 'processing' | 'processed' };
 }>();
 
 const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
+
+const formatDate = (value: string | null) => {
+    if (!value) { return null; }
+    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+};
 </script>
 
 <template>
     <Head :title="document.name" />
 
-    <MobileLayout :title="document.name" :back-href="mobileProjectRoutes.show(project.id).url">
+    <MobileLayout :title="document.name" :back-href="mobileNoteRoutes.show({ project: project.id, document: noteId }).url">
         <div class="p-4 space-y-6">
             <div
                 v-if="document.status === 'processing'"
@@ -27,23 +45,48 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
                 Still processing…
             </div>
 
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-5">
-                <div class="note-content text-[15px] text-slate-900 dark:text-slate-300 leading-relaxed" v-html="sanitize(document.content) || 'No content yet.'"></div>
-            </div>
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-projector-primary-600 bg-projector-primary-50 dark:bg-projector-primary-950/30 dark:text-projector-primary-400 px-2 py-1 rounded border border-projector-primary-100 dark:border-projector-primary-900">
+                        {{ document.typeLabel }}
+                    </span>
+                </div>
 
-            <div v-if="children.length > 0" class="space-y-3">
-                <div class="flex items-center gap-2 px-1">
-                    <ListChecks class="w-4 h-4 text-slate-400" />
-                    <h2 class="text-[11px] font-black uppercase tracking-widest text-slate-400">Action Items</h2>
+                <div v-if="document.isTask" class="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px]">
+                    <div class="flex items-center gap-1.5 text-slate-400">
+                        <UserIcon class="w-3.5 h-3.5" />
+                        <span class="font-bold uppercase tracking-wide text-[10px]">Assignee</span>
+                    </div>
+                    <div class="text-right font-bold text-slate-700 dark:text-slate-300 truncate">
+                        {{ document.assignee?.name ?? 'Unassigned' }}
+                    </div>
+
+                    <div class="flex items-center gap-1.5 text-slate-400">
+                        <Calendar class="w-3.5 h-3.5" />
+                        <span class="font-bold uppercase tracking-wide text-[10px]">Due Date</span>
+                    </div>
+                    <div class="text-right font-bold text-slate-700 dark:text-slate-300">
+                        {{ formatDate(document.dueAt) ?? '—' }}
+                    </div>
+
+                    <div class="flex items-center gap-1.5 text-slate-400">
+                        <span class="font-bold uppercase tracking-wide text-[10px]">Status</span>
+                    </div>
+                    <div class="flex items-center justify-end gap-1.5">
+                        <span class="font-bold text-slate-700 dark:text-slate-300">{{ STATUS_LABELS[document.taskStatus ?? 'todo'] }}</span>
+                        <div :class="[statusDotClasses[document.taskStatus ?? 'todo'], 'w-2 h-2 rounded-full']"></div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 text-slate-400">
+                        <span class="font-bold uppercase tracking-wide text-[10px]">Priority</span>
+                    </div>
+                    <div class="flex items-center justify-end gap-1.5">
+                        <span class="font-bold text-slate-700 dark:text-slate-300">{{ PRIORITY_LABELS[document.priority ?? 'low'] ?? document.priority }}</span>
+                        <div :class="[priorityDotClasses[document.priority ?? 'low'] ?? priorityDotClasses.low, 'w-2 h-2 rounded-full']"></div>
+                    </div>
                 </div>
-                <div
-                    v-for="child in children"
-                    :key="child.id"
-                    class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-4"
-                >
-                    <p class="font-bold text-slate-900 dark:text-white">{{ child.name }}</p>
-                    <div v-if="child.content" class="note-content text-[13px] text-slate-500 mt-1" v-html="sanitize(child.content)"></div>
-                </div>
+
+                <div class="note-content text-[15px] text-slate-900 dark:text-slate-300 leading-relaxed" v-html="sanitize(document.content) || 'No content yet.'"></div>
             </div>
         </div>
     </MobileLayout>

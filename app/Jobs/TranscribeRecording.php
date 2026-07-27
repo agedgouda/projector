@@ -114,7 +114,7 @@ class TranscribeRecording implements ShouldQueue
         $this->document->processed_at = null;
         $this->document->saveQuietly();
 
-        ProcessDocumentAI::dispatch($this->document);
+        ProcessDocumentAI::dispatchUnlessProcessing($this->document);
     }
 
     private function giveUp(string $message): void

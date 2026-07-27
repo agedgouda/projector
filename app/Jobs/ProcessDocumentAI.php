@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
@@ -30,6 +31,32 @@ class ProcessDocumentAI implements ShouldQueue
      */
     public function __construct(public Document $document, public ?array $overrideStep = null) {}
 
+    /**
+     * Dispatch this job unless the same document already has a run in flight — a document
+     * can only ever be processed by one of these at a time. Without this, two transition/
+     * reprocess requests fired moments apart (a double-click, or a retry after no visible
+     * feedback) each fully complete in turn, and the second silently overwrites whatever the
+     * first produced (children are deleted and recreated on every run) with a fresh — and not
+     * necessarily equivalent — AI response.
+     *
+     * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     */
+    public static function dispatchUnlessProcessing(Document $document, ?array $overrideStep = null): bool
+    {
+        if (! Cache::lock(self::lockKey($document->id), 300)->get()) {
+            return false;
+        }
+
+        self::dispatch($document, $overrideStep);
+
+        return true;
+    }
+
+    private static function lockKey(string $documentId): string
+    {
+        return "document-processing:{$documentId}";
+    }
+
     public function handle(): void
     {
         $this->document->loadMissing('project.client.organization');
@@ -46,6 +73,7 @@ class ProcessDocumentAI implements ShouldQueue
         if ($result === null) {
             $this->document->update(['processed_at' => now()]);
             event(new DocumentProcessingUpdate($this->document, 'Skipped: No template', 100));
+            Cache::lock(self::lockKey($this->document->id))->forceRelease();
 
             return;
         }
@@ -118,6 +146,7 @@ class ProcessDocumentAI implements ShouldQueue
             $this->document->update(['processed_at' => now()]);
         });
 
+        Cache::lock(self::lockKey($this->document->id))->forceRelease();
         event(new DocumentProcessingUpdate($this->document, 'Success', 100, $deletedDocumentIds, $newDocumentIds));
     }
 
@@ -156,6 +185,8 @@ class ProcessDocumentAI implements ShouldQueue
         if (! $this->document->processed_at) {
             $this->document->update(['processed_at' => now()]);
         }
+
+        Cache::lock(self::lockKey($this->document->id))->forceRelease();
 
         event(new DocumentProcessingUpdate(
             $this->document,

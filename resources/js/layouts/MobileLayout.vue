@@ -16,7 +16,7 @@ const goBack = () => {
 
 <template>
     <div
-        class="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col"
+        class="h-dvh overflow-hidden bg-slate-50 dark:bg-slate-950 flex flex-col"
         style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);"
     >
         <header

@@ -24,7 +24,7 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         $isIntake = $document->type === config('workflow.intake_key');
 
         if ($isIntake && is_null($document->processed_at) && is_null($document->parent_id)) {
-            ProcessDocumentAI::dispatch($document);
+            ProcessDocumentAI::dispatchUnlessProcessing($document);
 
             return;
         }

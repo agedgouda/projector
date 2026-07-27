@@ -98,6 +98,69 @@ it('runs any chosen document type and AI template for an authorized org-admin', 
     expect($this->document->fresh()->processed_at)->toBeNull();
 });
 
+it('rejects a second transition request for the same document while the first is still processing', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'to_key' => 'task',
+            'ai_template_id' => $this->template->id,
+        ])
+        ->assertSuccessful();
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'to_key' => 'task',
+            'ai_template_id' => $this->template->id,
+        ])
+        ->assertStatus(409);
+
+    Queue::assertPushed(ProcessDocumentAI::class, 1);
+});
+
+it('rejects a second reprocess request for the same document while the first is still processing', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]))
+        ->assertSuccessful();
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]))
+        ->assertStatus(409);
+
+    Queue::assertPushed(ProcessDocumentAI::class, 1);
+});
+
+it('allows a new transition once the previous run has actually finished', function () {
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Do the thing', 'task' => 'Follow up', 'criteria' => []],
+            ],
+        ]);
+
+    // QUEUE_CONNECTION=sync in tests, so this POST runs ProcessDocumentAI::handle() inline,
+    // releasing the lock by the time the response comes back.
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'to_key' => 'task',
+            'ai_template_id' => $this->template->id,
+        ])
+        ->assertSuccessful();
+
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]))
+        ->assertSuccessful();
+
+    Queue::assertPushed(ProcessDocumentAI::class, 1);
+});
+
 it('derives to_key from the AI template name when to_key is omitted', function () {
     Queue::fake([ProcessDocumentAI::class]);
 

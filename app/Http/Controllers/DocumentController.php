@@ -219,8 +219,11 @@ class DocumentController extends Controller
             return $block;
         }
 
+        if (! \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document)) {
+            return response()->json(['message' => 'This document is already being processed.'], 409);
+        }
+
         $document->update(['processed_at' => null]);
-        \App\Jobs\ProcessDocumentAI::dispatch($document);
 
         return response()->json(['message' => 'AI analysis restarted.']);
     }
@@ -272,13 +275,18 @@ class DocumentController extends Controller
             $toKey = $template->output_key ?: \Illuminate\Support\Str::slug($template->name, '_');
         }
 
-        $document->update(['processed_at' => null]);
-        \App\Jobs\ProcessDocumentAI::dispatch($document, [
+        $dispatched = \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document, [
             'to_key' => $toKey,
             'ai_template_id' => $aiTemplateId,
             'single_output' => $validated['single_output'] ?? false,
             'project_type_id' => $validated['project_type_id'] ?? null,
         ]);
+
+        if (! $dispatched) {
+            return response()->json(['message' => 'This document is already being processed.'], 409);
+        }
+
+        $document->update(['processed_at' => null]);
 
         return response()->json(['message' => 'Transition started.']);
     }

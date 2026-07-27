@@ -64,9 +64,9 @@ Route::post('/log-connection-issue', function (Request $request) {
  */
 Route::get('access-pending', function () {
     return Inertia::render('Dashboard/AccessPending');
-})->middleware(['auth', 'verified'])->name('dashboard.pending');
+})->middleware(['auth'])->name('dashboard.pending');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/organization/setup', [OrganizationSetupController::class, 'create'])->name('organization.setup');
     Route::post('/organization/setup', [OrganizationSetupController::class, 'store'])->name('organization.setup.store');
 
@@ -238,13 +238,15 @@ Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 Route::get('/app/login', [\App\Http\Controllers\Mobile\LoginController::class, 'create'])
     ->name('mobile.login');
 
-Route::middleware(['auth', 'verified'])->prefix('app')->name('mobile.')->group(function () {
+Route::middleware(['auth'])->prefix('app')->name('mobile.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Mobile\DashboardController::class, 'index'])
         ->name('dashboard');
 
     Route::middleware(['client.access'])->group(function () {
         Route::get('/projects/{project}', [\App\Http\Controllers\Mobile\ProjectController::class, 'show'])
             ->name('projects.show');
+        Route::get('/projects/{project}/notes/{document}', [\App\Http\Controllers\Mobile\NoteController::class, 'show'])
+            ->name('notes.show');
         Route::get('/projects/{project}/documents/{document}', [\App\Http\Controllers\Mobile\DocumentController::class, 'show'])
             ->name('documents.show');
     });

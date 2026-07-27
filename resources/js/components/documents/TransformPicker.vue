@@ -24,13 +24,20 @@ const selectedTemplateId = ref('');
 
 const selectedProtocol = computed(() => protocolOptions.value.find(p => p.projectTypeId === selectedProtocolId.value));
 
+// Guards against a rapid double-click firing this twice before the parent's own
+// "processing" state has had a chance to propagate back down and disable us.
+const hasRun = ref(false);
+
 const canRun = computed(() => {
+    if (hasRun.value) return false;
     if (mode.value === 'protocol') return !!selectedProtocolId.value;
     return !!selectedTemplateId.value;
 });
 
 const run = () => {
     if (!canRun.value) return;
+
+    hasRun.value = true;
 
     if (mode.value === 'protocol' && selectedProtocol.value) {
         emit('run', {

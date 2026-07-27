@@ -3,7 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import { ChevronRight, FileText, RefreshCw } from 'lucide-vue-next';
 import mobileRoutes from '@/routes/mobile';
-import mobileDocumentRoutes from '@/routes/mobile/documents';
+import mobileNoteRoutes from '@/routes/mobile/notes';
 
 defineProps<{
     project: { id: string; name: string };
@@ -32,7 +32,7 @@ const formatDate = (value: string | null) => {
             <Link
                 v-for="note in notes"
                 :key="note.id"
-                :href="mobileDocumentRoutes.show({ project: project.id, document: note.id }).url"
+                :href="mobileNoteRoutes.show({ project: project.id, document: note.id }).url"
                 class="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-4 active:bg-slate-50 dark:active:bg-white/5"
             >
                 <div class="min-w-0 flex-1">

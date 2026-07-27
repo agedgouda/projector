@@ -57,7 +57,7 @@ class ImportMeetingTranscript implements ShouldQueue
         $this->document->processed_at = null;
         $this->document->saveQuietly();
 
-        ProcessDocumentAI::dispatch($this->document);
+        ProcessDocumentAI::dispatchUnlessProcessing($this->document);
     }
 
     public function failed(Throwable $exception): void
