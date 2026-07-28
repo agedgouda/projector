@@ -19,6 +19,8 @@ class ProjectController extends Controller
     {
         Gate::authorize('view', $project);
 
+        $project->loadMissing('client:id,company_name');
+
         $notes = $project->documents()
             ->whereNull('parent_id')
             ->latest()
@@ -28,6 +30,7 @@ class ProjectController extends Controller
             'project' => [
                 'id' => $project->id,
                 'name' => $project->name,
+                'client_name' => $project->client?->company_name,
             ],
             'notes' => $notes->map(fn (Document $note) => [
                 'id' => $note->id,

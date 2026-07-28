@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft } from 'lucide-vue-next';
 import { router } from '@inertiajs/vue3';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 
 const props = defineProps<{
     title?: string;
@@ -31,11 +32,17 @@ const goBack = () => {
             >
                 <ArrowLeft class="w-5 h-5" />
             </button>
-            <span v-else></span>
+            <!-- No back target means this is a top-level screen (currently just the
+                 dashboard) — show the brand mark in that slot instead of leaving it empty. -->
+            <div v-else class="h-11 w-11 flex items-center justify-center">
+                <AppLogoIcon class="size-7 fill-current text-slate-900 dark:text-white" />
+            </div>
 
             <h1 class="text-lg font-black text-slate-900 dark:text-white truncate text-center">{{ title }}</h1>
 
-            <span></span>
+            <div class="h-11 w-11 flex items-center justify-center">
+                <slot name="actions" />
+            </div>
         </header>
 
         <main class="flex-1 overflow-y-auto">

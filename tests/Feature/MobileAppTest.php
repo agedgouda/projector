@@ -57,9 +57,54 @@ it('lists visible projects on the mobile dashboard', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Mobile/Dashboard')
+            ->where('organizationName', 'Acme Inc')
             ->has('projects', 1)
             ->where('projects.0.name', 'Mobile Redesign')
         );
+});
+
+it('lists projects to pick from on the mobile record entry point', function () {
+    $this->actingAs($this->user)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->get(route('mobile.record.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Mobile/Record/Index')
+            ->has('projects', 1)
+            ->where('projects.0.name', 'Mobile Redesign')
+        );
+});
+
+it('shows the placeholder recording screen for a specific project on mobile', function () {
+    $this->actingAs($this->user)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->get(route('mobile.record.show', $this->project))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Mobile/Record/Show')
+            ->where('project.id', $this->project->id)
+            ->where('project.name', 'Mobile Redesign')
+        );
+});
+
+it('blocks the mobile recording screen for a project from another organization', function () {
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    $otherClient = Client::create([
+        'organization_id' => $otherOrg->id,
+        'company_name' => 'Other Client',
+        'contact_name' => 'John Doe',
+        'contact_phone' => '555-5678',
+    ]);
+    $otherProject = Project::create([
+        'name' => 'Other Project',
+        'client_id' => $otherClient->id,
+        'project_type_id' => $this->projectType->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->get(route('mobile.record.show', $otherProject))
+        ->assertNotFound();
 });
 
 it('shows a project\'s notes on the mobile project page', function () {
@@ -76,6 +121,8 @@ it('shows a project\'s notes on the mobile project page', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Mobile/Projects/Show')
+            ->where('project.name', 'Mobile Redesign')
+            ->where('project.client_name', 'Client Co')
             ->has('notes', 1)
             ->where('notes.0.id', $note->id)
             ->where('notes.0.status', 'processed')

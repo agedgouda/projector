@@ -34,6 +34,10 @@ export function formatPhoneNumber(phoneNumberString: string | null | undefined):
     return phoneNumberString;
 }
 
+export function formatProjectLabel(project: { name: string; client_name?: string | null }): string {
+    return project.client_name ? `${project.client_name}: ${project.name}` : project.name;
+}
+
 export function formatRoleName(role: string): string {
     return role.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }

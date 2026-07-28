@@ -242,6 +242,14 @@ Route::middleware(['auth'])->prefix('app')->name('mobile.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Mobile\DashboardController::class, 'index'])
         ->name('dashboard');
 
+    Route::get('/record', [\App\Http\Controllers\Mobile\RecordController::class, 'index'])
+        ->name('record.index');
+
+    Route::get('/organizations', [\App\Http\Controllers\Mobile\OrganizationController::class, 'index'])
+        ->name('organizations.index');
+    Route::post('/organizations', [\App\Http\Controllers\Mobile\OrganizationController::class, 'store'])
+        ->name('organizations.store');
+
     Route::middleware(['client.access'])->group(function () {
         Route::get('/projects/{project}', [\App\Http\Controllers\Mobile\ProjectController::class, 'show'])
             ->name('projects.show');
@@ -249,6 +257,13 @@ Route::middleware(['auth'])->prefix('app')->name('mobile.')->group(function () {
             ->name('notes.show');
         Route::get('/projects/{project}/documents/{document}', [\App\Http\Controllers\Mobile\DocumentController::class, 'show'])
             ->name('documents.show');
+        Route::get('/record/{project}', [\App\Http\Controllers\Mobile\RecordController::class, 'show'])
+            ->name('record.show');
+        Route::post('/record/{project}', [\App\Http\Controllers\Mobile\RecordController::class, 'store'])
+            ->middleware('throttle:20,1')
+            ->name('record.store');
+        Route::get('/record/{project}/status/{document}', [\App\Http\Controllers\Mobile\RecordController::class, 'status'])
+            ->name('record.status');
     });
 });
 

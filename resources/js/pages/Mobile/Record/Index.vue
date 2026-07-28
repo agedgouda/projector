@@ -1,45 +1,22 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
-import { ChevronRight, ChevronsUpDown, FolderKanban, Mic } from 'lucide-vue-next';
-import mobileProjectRoutes from '@/routes/mobile/projects';
+import { ChevronRight, FolderKanban } from 'lucide-vue-next';
+import mobileRoutes from '@/routes/mobile';
 import mobileRecordRoutes from '@/routes/mobile/record';
-import mobileOrganizationRoutes from '@/routes/mobile/organizations';
 import { formatProjectLabel } from '@/lib/utils';
 
-const props = defineProps<{
-    organizationName: string | null;
-    canSwitchOrganization: boolean;
+defineProps<{
     projects: Array<{ id: string; name: string; client_name: string | null }>;
 }>();
-
-const title = computed(() => props.organizationName ? `Projects for ${props.organizationName}` : 'Projects');
 </script>
 
 <template>
-    <Head title="Projects" />
+    <Head title="Record a Meeting" />
 
-    <MobileLayout :title="title">
-        <template #actions>
-            <Link
-                :href="mobileRecordRoutes.index().url"
-                class="h-11 w-11 flex items-center justify-center text-slate-500 dark:text-slate-400 active:opacity-60"
-                aria-label="Record a new meeting"
-            >
-                <Mic class="w-5 h-5" />
-            </Link>
-        </template>
-
+    <MobileLayout title="Record a Meeting" :back-href="mobileRoutes.dashboard().url">
         <div class="p-4 space-y-3">
-            <Link
-                v-if="canSwitchOrganization"
-                :href="mobileOrganizationRoutes.index().url"
-                class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-400 px-1 pb-1"
-            >
-                Switch Organization
-                <ChevronsUpDown class="w-3 h-3" />
-            </Link>
+            <p class="text-[13px] text-slate-400 px-1 pb-1">Choose which project this recording belongs to.</p>
 
             <div
                 v-if="projects.length === 0"
@@ -52,7 +29,7 @@ const title = computed(() => props.organizationName ? `Projects for ${props.orga
             <Link
                 v-for="project in projects"
                 :key="project.id"
-                :href="mobileProjectRoutes.show(project.id).url"
+                :href="mobileRecordRoutes.show(project.id).url"
                 class="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-4 active:bg-slate-50 dark:active:bg-white/5"
             >
                 <div class="min-w-0">

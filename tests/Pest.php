@@ -45,3 +45,18 @@ function something()
 {
     // ..
 }
+
+/**
+ * UploadedFile::fake()->create() reports a fake size/mime but leaves the underlying temp
+ * file genuinely empty, which MediaLibrary's real content-based mime detection rejects. A
+ * minimal valid WAV header gives it real bytes to actually detect as audio.
+ */
+function fakeWavFile(string $name = 'meeting.wav'): \Illuminate\Http\UploadedFile
+{
+    $dataSize = 100;
+    $header = 'RIFF'.pack('V', 36 + $dataSize).'WAVE'.'fmt '.pack('V', 16).pack('v', 1).pack('v', 1)
+        .pack('V', 8000).pack('V', 8000).pack('v', 1).pack('v', 8).'data'.pack('V', $dataSize)
+        .str_repeat("\x00", $dataSize);
+
+    return \Illuminate\Http\UploadedFile::fake()->createWithContent($name, $header);
+}
