@@ -58,6 +58,11 @@ return [
         'retention_days' => env('RECORDING_RETENTION_DAYS', 30),
     ],
 
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
     'vector_driver' => env('VECTOR_DRIVER', 'gemini'),
     'llm_driver' => env('LLM_DRIVER', 'gemini'),
 

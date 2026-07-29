@@ -8,11 +8,29 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { login } from '@/routes';
 import { Form, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { Eye, EyeOff } from 'lucide-vue-next';
+
+const props = defineProps<{
+    turnstileSiteKey?: string | null;
+}>();
 
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
+
+const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+
+onMounted(() => {
+    if (!props.turnstileSiteKey || document.querySelector(`script[src="${TURNSTILE_SCRIPT_SRC}"]`)) {
+        return;
+    }
+
+    const script = document.createElement('script');
+    script.src = TURNSTILE_SCRIPT_SRC;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+});
 </script>
 
 <template>
@@ -133,6 +151,11 @@ const showPasswordConfirmation = ref(false);
                         </button>
                     </div>
                     <InputError :message="errors.password_confirmation" />
+                </div>
+
+                <div v-if="turnstileSiteKey" class="grid gap-2">
+                    <div class="cf-turnstile" :data-sitekey="turnstileSiteKey"></div>
+                    <InputError :message="errors['cf-turnstile-response']" />
                 </div>
 
                 <Button
