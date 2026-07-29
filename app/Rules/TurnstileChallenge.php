@@ -5,6 +5,7 @@ namespace App\Rules;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TurnstileChallenge implements ValidationRule
 {
@@ -38,6 +39,12 @@ class TurnstileChallenge implements ValidationRule
         ]);
 
         if (! $response->successful() || $response->json('success') !== true) {
+            Log::warning('Turnstile verification failed', [
+                'status' => $response->status(),
+                'error_codes' => $response->json('error-codes'),
+                'remote_ip' => $this->remoteIp,
+            ]);
+
             $fail('Verification failed. Please try again.');
         }
     }

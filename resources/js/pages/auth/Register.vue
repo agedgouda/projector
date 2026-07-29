@@ -31,6 +31,16 @@ onMounted(() => {
     script.defer = true;
     document.head.appendChild(script);
 });
+
+// Turnstile tokens are single-use, and the server validates every field regardless of
+// which one actually fails, so any failed submission (wrong password confirmation, a
+// taken email, etc.) burns the token against Cloudflare even though Turnstile itself
+// passed. Since Inertia's <Form> never reloads the page, the widget would otherwise keep
+// showing "Success!" from the original solve while silently resending that dead token on
+// the next attempt - resetting it here gets the next submit a fresh one.
+const resetTurnstile = (): void => {
+    (window as unknown as { turnstile?: { reset: () => void } }).turnstile?.reset();
+};
 </script>
 
 <template>
@@ -46,6 +56,7 @@ onMounted(() => {
             :reset-on-success="['password', 'password_confirmation']"
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"
+            @error="resetTurnstile"
         >
             <div class="grid gap-6">
                 <!-- Honeypot: invisible and unreachable by keyboard/screen reader for a real
