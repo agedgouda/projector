@@ -29,6 +29,10 @@ class CreateNewUser implements CreatesNewUsers
                 Rule::unique(User::class),
             ],
             'password' => $this->passwordRules(),
+            // Honeypot: a hidden field no real visitor can see or fill in (see
+            // resources/js/pages/auth/Register.vue). A script that blindly fills every
+            // field it finds trips this and fails validation like any other bad input.
+            'website' => ['prohibited'],
         ])->validate();
 
         return User::create([

@@ -6,9 +6,7 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
@@ -39,7 +37,11 @@ class UserController extends Controller
     }
 
     /**
-     * Promote a user to super-admin, removing them from all organizations. Super-admins only.
+     * Promote a user to super-admin. Super-admins only. Existing organization memberships
+     * are left alone — super-admin is an additional global capability layered on top of
+     * whatever orgs a user already belongs to, not a replacement for that membership (see
+     * UserCollection::forInertia(), which already assumes a super-admin can still be a
+     * genuine member of a specific organization).
      */
     public function promote(User $user): \Illuminate\Http\RedirectResponse
     {
@@ -48,11 +50,6 @@ class UserController extends Controller
         if ($user->hasRole('super-admin')) {
             return back()->with('error', 'User is already a super-admin.');
         }
-
-        $user->organizations()->detach();
-
-        DB::table('model_has_roles')->where('model_id', $user->id)->delete();
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user->assignRole('super-admin');
 

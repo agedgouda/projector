@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Search, X } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
+import { Search, X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { router, usePage } from '@inertiajs/vue3';
@@ -9,6 +9,11 @@ import UserInfo from '@/components/UserInfo.vue';
 import UpgradeModal from '@/components/UpgradeModal.vue';
 import { FLAT_ROW_HOVER, FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import type { AppPageProps } from '@/types';
+
+const PER_PAGE = 8;
+const ROW_HEIGHT_REM = 2.25; // h-9
+const ROW_GAP_REM = 0.125; // gap-0.5
+const LIST_MIN_HEIGHT = `${PER_PAGE * ROW_HEIGHT_REM + (PER_PAGE - 1) * ROW_GAP_REM}rem`;
 
 const props = defineProps<{
     users: User[];
@@ -20,6 +25,7 @@ const emit = defineEmits<{
 }>();
 
 const query = ref('');
+const pageNum = ref(1);
 
 const eligible = computed(() =>
     [...props.users]
@@ -39,8 +45,19 @@ const filtered = computed(() => {
     );
 });
 
-const page = usePage<AppPageProps>();
-const atLimit = computed(() => (page.props as any).orgMembership?.at_limit ?? {});
+watch(filtered, () => {
+    pageNum.value = 1;
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PER_PAGE)));
+
+const paginated = computed(() => {
+    const start = (pageNum.value - 1) * PER_PAGE;
+    return filtered.value.slice(start, start + PER_PAGE);
+});
+
+const inertiaPage = usePage<AppPageProps>();
+const atLimit = computed(() => (inertiaPage.props as any).orgMembership?.at_limit ?? {});
 
 const showUpgradeModal = ref(false);
 
@@ -75,19 +92,47 @@ const add = (user: User) => {
             </button>
         </div>
 
-        <div v-if="filtered.length === 0" class="py-8 text-center">
-            <p class="text-[13px] italic text-slate-400">No users found.</p>
+        <div :style="{ minHeight: LIST_MIN_HEIGHT }" class="flex flex-col">
+            <div v-if="filtered.length === 0" class="flex flex-1 items-center justify-center">
+                <p class="text-[13px] italic text-slate-400">No users found.</p>
+            </div>
+
+            <div v-else class="grid gap-0.5 content-start">
+                <div
+                    v-for="user in paginated"
+                    :key="user.id"
+                    :class="['flex items-center justify-between gap-3 h-9 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
+                >
+                    <UserInfo :user="user" :show-email="true" compact />
+                    <Button size="sm" variant="outline" class="h-6 px-2 text-xs shrink-0" @click="add(user)">
+                        Add
+                    </Button>
+                </div>
+            </div>
         </div>
 
-        <div v-else class="grid gap-0.5">
-            <div
-                v-for="user in filtered"
-                :key="user.id"
-                :class="['flex items-center justify-between gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
-            >
-                <UserInfo :user="user" :show-email="true" />
-                <Button size="sm" variant="outline" class="shrink-0" @click="add(user)">
-                    Add
+        <div class="flex items-center justify-between pt-1">
+            <span class="text-[11px] font-medium text-slate-400">
+                Page {{ pageNum }} of {{ totalPages }}
+            </span>
+            <div class="flex items-center gap-1">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    class="h-7 w-7 p-0"
+                    :disabled="pageNum <= 1"
+                    @click="pageNum--"
+                >
+                    <ChevronLeft class="h-4 w-4" />
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    class="h-7 w-7 p-0"
+                    :disabled="pageNum >= totalPages"
+                    @click="pageNum++"
+                >
+                    <ChevronRight class="h-4 w-4" />
                 </Button>
             </div>
         </div>

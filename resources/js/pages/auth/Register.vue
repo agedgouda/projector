@@ -30,6 +30,14 @@ const showPasswordConfirmation = ref(false);
             class="flex flex-col gap-6"
         >
             <div class="grid gap-6">
+                <!-- Honeypot: invisible and unreachable by keyboard/screen reader for a real
+                     visitor, but a bot that blindly fills every field it finds will trip the
+                     "prohibited" rule in CreateNewUser and fail like any other bad input. -->
+                <div class="absolute left-[-9999px] top-auto w-px h-px overflow-hidden" aria-hidden="true">
+                    <label for="website">Website</label>
+                    <input id="website" type="text" name="website" tabindex="-1" autocomplete="off" />
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div class="grid gap-2">
                         <Label for="first_name">First name</Label>
