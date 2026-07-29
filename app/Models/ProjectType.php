@@ -61,14 +61,6 @@ class ProjectType extends Model
     }
 
     /**
-     * Get all projects associated with this type.
-     */
-    public function projects(): HasMany
-    {
-        return $this->hasMany(Project::class);
-    }
-
-    /**
      * Get lifecycle steps for this project type, ordered by position.
      */
     public function lifecycleSteps(): HasMany

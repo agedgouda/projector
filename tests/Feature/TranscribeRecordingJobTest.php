@@ -7,7 +7,6 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -26,7 +25,6 @@ function createPlaceholderRecording(bool $withMedia = true): Document
     $project = Project::create([
         'name' => 'Test Project',
         'client_id' => $client->id,
-        'project_type_id' => ProjectType::factory()->create()->id,
     ]);
 
     $document = $project->documents()->create([

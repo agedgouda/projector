@@ -5,7 +5,6 @@ use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -49,7 +48,6 @@ beforeEach(function () {
     ];
     $this->org->save();
 
-    $projectType = ProjectType::create(['name' => 'General', 'document_schema' => []]);
     $this->client = Client::create([
         'organization_id' => $this->org->id,
         'company_name' => 'Test Client',
@@ -59,7 +57,6 @@ beforeEach(function () {
     $this->project = Project::create([
         'name' => 'Test Project',
         'client_id' => $this->client->id,
-        'project_type_id' => $projectType->id,
     ]);
 
     $this->admin = User::factory()->create();

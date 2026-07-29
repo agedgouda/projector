@@ -59,35 +59,6 @@ it('creates a matching LifecycleTemplate when duplicating a project type', funct
         ->and($template->lifecycleSteps->first()->label)->toBe('Backlog');
 });
 
-it('auto-assigns a matching lifecycle_template_id when creating a project', function () {
-    $projectType = ProjectType::factory()->create(['organization_id' => $this->org->id, 'name' => 'Support Protocol']);
-    LifecycleStep::create(['project_type_id' => $projectType->id, 'lifecycle_template_id' => null, 'order' => 1, 'label' => 'Open', 'color' => 'blue']);
-
-    // Simulate the template already existing (as it would from the protocol editor).
-    $template = LifecycleTemplate::create(['organization_id' => $this->org->id, 'name' => 'Support Protocol']);
-    LifecycleStep::where('project_type_id', $projectType->id)->update(['lifecycle_template_id' => $template->id]);
-
-    $client = Client::create([
-        'organization_id' => $this->org->id,
-        'company_name' => 'Client Co',
-        'contact_name' => 'Jane Doe',
-        'contact_phone' => '555-1234',
-    ]);
-    $this->org->users()->attach($this->superAdmin->id, ['role' => 'org-admin']);
-    setPermissionsTeamId($this->org->id);
-
-    $this->actingAs($this->superAdmin)
-        ->post(route('projects.store'), [
-            'name' => 'New Project',
-            'client_id' => $client->id,
-            'project_type_id' => $projectType->id,
-        ])
-        ->assertRedirect();
-
-    $project = Project::where('name', 'New Project')->firstOrFail();
-    expect($project->lifecycle_template_id)->toBe($template->id);
-});
-
 it('nulls the project\'s current lifecycle step when that step is deleted', function () {
     $template = LifecycleTemplate::factory()->create();
     $step = LifecycleStep::create(['lifecycle_template_id' => $template->id, 'order' => 1, 'label' => 'Intake', 'color' => 'indigo']);

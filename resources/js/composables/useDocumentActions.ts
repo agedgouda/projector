@@ -86,15 +86,7 @@ export function useDocumentActions(
             preserveState: true,
             forceFormData: true,
             onBefore: () => {
-                const workflow = props.project?.type?.workflow || [];
-                const step = workflow.find((s: any) => s.from_key === form.type);
-                if (step) {
-                    targetBeingCreated.value = step.to_key;
-                    const targetReq = props.documentSchema?.find((r: any) => r.key === step.to_key);
-                    internalAiMessage.value = `Creating ${targetReq?.plural_label || 'Deliverables'}...`;
-                } else {
-                    internalAiMessage.value = 'Establishing Secure Uplink...';
-                }
+                internalAiMessage.value = 'Establishing Secure Uplink...';
             },
             onSuccess: () => { isUploadModalOpen.value = false; form.reset(); },
             onError: () => { internalAiMessage.value = ''; targetBeingCreated.value = null; isUploadModalOpen.value = true; }

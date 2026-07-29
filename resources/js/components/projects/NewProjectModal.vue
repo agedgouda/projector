@@ -17,7 +17,6 @@ import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
     clients: Client[];
-    projectTypes: ProjectType[];
     initialName?: string;
     triggerLabel?: string;
 }>();
@@ -70,7 +69,6 @@ const handleSuccess = (clientId: string) => {
                 </DialogHeader>
                 <ProjectEntryForm
                     :clients="clients"
-                    :project-types="projectTypes"
                     :initial-name="initialName"
                     @success="handleSuccess"
                     @cancel="isOpen = false"

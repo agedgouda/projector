@@ -49,7 +49,6 @@ class ProjectRequest extends FormRequest
             // waiting on EvaluateProjectDescription's async follow-up job.
             'description_quality' => 'sometimes|nullable|in:good,vague',
             'inactive' => 'boolean',
-            'project_type_id' => 'sometimes|required|exists:project_types,id',
             'client_id' => $this->isMethod('POST') ? 'required|exists:clients,id' : 'sometimes|required|exists:clients,id',
         ];
     }
@@ -60,8 +59,6 @@ class ProjectRequest extends FormRequest
             'name.required' => 'Project Name Missing',
             'client_id.required' => 'You must select a client for this project.',
             'client_id.exists' => 'You must select a client for this project.',
-            'project_type_id.required' => 'You must select a protocol for this project.',
-            'project_type_id.exists' => 'You must select a protocol for this project.',
         ];
     }
 

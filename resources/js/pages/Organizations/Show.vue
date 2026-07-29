@@ -46,7 +46,6 @@ const props = defineProps<{
     allRoles: string[];
     invitations: OrganizationInvitation[];
     clients: Client[];
-    projectTypes: ProjectType[];
     usageTotals: { documents_processed: number; cost_usd: number };
     usageByClient: Record<string, {
         documents_processed: number;
@@ -331,7 +330,7 @@ const submitInvite = (orgId: string) => {
 
                 <!-- Clients Tab -->
                 <div v-if="activeTab === 'clients'" class="pt-6">
-                    <ClientList :clients="clients" :project-types="projectTypes" redirect-to="/organizations" />
+                    <ClientList :clients="clients" redirect-to="/organizations" />
                 </div>
 
                 <!-- Configuration Tab -->

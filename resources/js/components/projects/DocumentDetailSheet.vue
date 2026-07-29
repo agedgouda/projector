@@ -49,9 +49,10 @@ const emit = defineEmits<{
 const page = usePage<AppPageProps>();
 
 const currentProject = computed(() => (page.props as any).currentProject as Project | null);
+const documentTypeCatalog = computed(() => (page.props as any).documentTypeCatalog as DocumentSchemaItem[] | undefined);
 
 const labelForType = (key: string) => {
-    const schemaItem = currentProject.value?.type?.document_schema?.find(s => s.key === key);
+    const schemaItem = documentTypeCatalog.value?.find(s => s.key === key);
     return schemaItem?.label || key;
 };
 
@@ -68,7 +69,7 @@ const handleRunTransform = (payload: { toKey?: string; aiTemplateId: number; sin
 const isLocked = computed(() => !!props.document.locked_project_type_id);
 
 // Tasks are terminal work items, not source documents to transform into something else.
-const { isTask: isTaskType } = useDocumentPresenter(currentProject.value ?? undefined);
+const { isTask: isTaskType } = useDocumentPresenter(documentTypeCatalog.value);
 const isTask = computed(() => isTaskType(props.document.type));
 
 // Notes always auto-convert to Action Items via one universal, fixed step — there's no

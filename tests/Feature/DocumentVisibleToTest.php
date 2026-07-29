@@ -4,7 +4,6 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 
@@ -22,8 +21,7 @@ function createDocumentForUser(User $user): Document
     $org = Organization::create(['name' => 'Acme Inc']);
     $client = Client::create(['organization_id' => $org->id, 'company_name' => 'Client Co', 'contact_name' => 'Jane Doe', 'contact_phone' => '555-1234']);
     $client->users()->attach($user->id);
-    $projectType = ProjectType::create(['name' => 'General', 'document_schema' => []]);
-    $project = Project::create(['name' => 'Test Project', 'client_id' => $client->id, 'project_type_id' => $projectType->id]);
+    $project = Project::create(['name' => 'Test Project', 'client_id' => $client->id]);
 
     return Document::create([
         'project_id' => $project->id,

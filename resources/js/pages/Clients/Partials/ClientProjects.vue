@@ -18,7 +18,6 @@ import {
 const props = defineProps<{
     client: { id: string | number, company_name: string };
     projects: Project[];
-    projectTypes: ProjectType[];
 }>();
 
 // --- State ---
@@ -77,7 +76,6 @@ const filteredProjects = computed(() => {
                         </DialogHeader>
                         <ProjectEntryForm
                             :client="(client as Client)"
-                            :projectTypes="projectTypes"
                             @success="handleSuccess"
                         />
                     </DialogContent>

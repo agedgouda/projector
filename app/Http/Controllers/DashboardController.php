@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -72,9 +71,6 @@ class DashboardController extends Controller
             'clients' => $clients,
             'currentOrganization' => $orgId ? Organization::find($orgId, ['id', 'name']) : null,
             'organizations' => $isSuperAdmin ? Organization::orderBy('name')->get(['id', 'name']) : [],
-            'projectTypes' => $isSuperAdmin
-                ? ProjectType::all(['id', 'name'])
-                : ProjectType::where('organization_id', $orgId)->get(['id', 'name']),
         ]);
     }
 }

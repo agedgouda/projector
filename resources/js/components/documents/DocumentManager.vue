@@ -16,9 +16,11 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 const props = withDefaults(defineProps<{
     project: Project;
     liveDocuments?: ProjectDocument[]; // The '?' makes it optional
+    documentTypeCatalog?: DocumentSchemaItem[];
     isGenerating: boolean;
 }>(), {
     liveDocuments: () => [], // Provides a default empty array
+    documentTypeCatalog: () => [],
     isGenerating: false
 });
 
@@ -31,7 +33,7 @@ const emit = defineEmits(['confirmDelete', 'generate']);
  * We define the schema here at the top level so it is reactive
  * and available to both the State composable and our local helpers.
  */
-const schema = computed(() => props.project.type.document_schema || []);
+const schema = computed(() => props.documentTypeCatalog);
 
 const {
     documentsMap,

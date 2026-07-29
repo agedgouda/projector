@@ -91,7 +91,6 @@ declare global {
         description: string | null;
         description_quality: 'good' | 'vague' | null;
         client_id: string;
-        project_type_id: string | null;
         lifecycle_template_id?: string | null;
         current_lifecycle_step_id?: number | null;
         logo_url?: string | null;
@@ -99,7 +98,6 @@ declare global {
 
         // Relationships
         client: Client;
-        type: ProjectType;
         lifecycle_template?: LifecycleTemplate | null;
         documents?: ProjectDocument[];
         tasks: Task[];

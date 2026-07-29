@@ -52,7 +52,6 @@ beforeEach(function () {
     $this->project = Project::create([
         'name' => 'Test Project',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 
     setPermissionsTeamId($this->org->id);

@@ -22,7 +22,6 @@ import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
     clients: Client[];
-    projectTypes: ProjectType[];
     redirectTo?: string;
 }>();
 
@@ -216,7 +215,6 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                 <ProjectEntryForm
                     v-if="targetClientForProject"
                     :client="targetClientForProject"
-                    :project-types="projectTypes"
                     @success="handleProjectSuccess"
                     @cancel="isProjectFormOpen = false"
                 />

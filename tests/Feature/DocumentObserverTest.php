@@ -20,7 +20,10 @@ function createProjectWithChainedWorkflow(): Project
         'contact_name' => 'Jane Doe',
         'contact_phone' => '555-1234',
     ]);
-    $projectType = ProjectType::factory()->create([
+    // Seeds the global document type catalog (via ProjectTypeObserver) with the types this
+    // test exercises - unrelated to any specific project's protocol, since projects no longer
+    // have one.
+    ProjectType::factory()->create([
         'document_schema' => [
             ['label' => 'Notes', 'key' => 'intake', 'is_task' => false],
             ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
@@ -31,7 +34,6 @@ function createProjectWithChainedWorkflow(): Project
     return Project::create([
         'name' => 'Test Project',
         'client_id' => $client->id,
-        'project_type_id' => $projectType->id,
     ]);
 }
 

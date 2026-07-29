@@ -22,11 +22,9 @@ function createReprocessableDocument(): Document
         'contact_name' => 'Jane Doe',
         'contact_phone' => '555-1234',
     ]);
-    $projectType = ProjectType::factory()->create();
     $project = Project::create([
         'name' => 'Test Project',
         'client_id' => $client->id,
-        'project_type_id' => $projectType->id,
     ]);
 
     return Document::create([
@@ -224,7 +222,6 @@ function createActionItemsDocumentWithTemplates(): array
     $project = Project::create([
         'name' => 'Test Project',
         'client_id' => $client->id,
-        'project_type_id' => $projectType->id,
     ]);
 
     $document = Document::create([
@@ -235,7 +232,7 @@ function createActionItemsDocumentWithTemplates(): array
         'processed_at' => now(),
     ]);
 
-    return [$document, $templateA, $templateB];
+    return [$document, $templateA, $templateB, $projectType];
 }
 
 it('runs an explicit override step instead of the project type workflow, for any target type/template', function () {
@@ -294,11 +291,9 @@ it('falls back to "TBD" for {{vendor_name}} when the client has no organization'
         'contact_name' => 'Jane Doe',
         'contact_phone' => '555-1234',
     ]);
-    $projectType = ProjectType::factory()->create();
     $project = Project::create([
         'name' => 'Orgless Client Project',
         'client_id' => $client->id,
-        'project_type_id' => $projectType->id,
     ]);
     $document = Document::create([
         'project_id' => $project->id,
@@ -371,16 +366,16 @@ it('returns null when no override is given and the document is not locked to a p
 });
 
 it('uses the locked protocol\'s own workflow step when no override is given, and propagates the lock', function () {
-    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+    [$document, $templateA, , $projectType] = createActionItemsDocumentWithTemplates();
 
     WorkflowStep::create([
-        'project_type_id' => $document->project->project_type_id,
+        'project_type_id' => $projectType->id,
         'from_key' => 'action_items',
         'to_key' => 'task',
         'ai_template_id' => $templateA->id,
         'order' => 1,
     ]);
-    $document->update(['locked_project_type_id' => $document->project->project_type_id]);
+    $document->update(['locked_project_type_id' => $projectType->id]);
 
     $this->mock(LlmDriver::class)
         ->shouldReceive('call')
@@ -395,5 +390,5 @@ it('uses the locked protocol\'s own workflow step when no override is given, and
     $result = app(ProjectAiService::class)->process($document);
 
     expect($result['output_type'])->toBe('task');
-    expect($result['locked_project_type_id'])->toBe($document->project->project_type_id);
+    expect($result['locked_project_type_id'])->toBe($projectType->id);
 });

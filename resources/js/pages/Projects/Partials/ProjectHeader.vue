@@ -28,7 +28,7 @@ const emit = defineEmits<{
             <div class="flex items-start md:items-center gap-5">
                 <div class="w-16 h-16 rounded-xl bg-projector-primary-50 dark:bg-projector-primary-900/20 flex items-center justify-center text-projector-primary-600 overflow-hidden shrink-0">
                     <img v-if="project.logo_url" :src="project.logo_url" :alt="project.name" class="size-full object-contain" />
-                    <ProjectIcon v-else :name="project.type?.icon" class="w-9 h-9" />
+                    <ProjectIcon v-else :name="null" class="w-9 h-9" />
                 </div>
                 <div>
                     <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{{ project.name }}</h1>

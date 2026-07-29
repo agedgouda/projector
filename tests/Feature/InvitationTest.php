@@ -6,7 +6,6 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Role;
@@ -329,9 +328,8 @@ it('falls back to team-member when invitation has no role', function () {
 
 function makeDocument(Organization $org): array
 {
-    $projectType = ProjectType::create(['name' => 'Test Type', 'icon' => 'Briefcase', 'organization_id' => null]);
     $client = Client::create(['organization_id' => $org->id, 'company_name' => 'Corp', 'contact_name' => 'Alice', 'contact_phone' => null]);
-    $project = Project::create(['name' => 'Project', 'client_id' => $client->id, 'project_type_id' => $projectType->id]);
+    $project = Project::create(['name' => 'Project', 'client_id' => $client->id]);
     $document = Document::create(['project_id' => $project->id, 'name' => 'Task', 'type' => 'action_items', 'content' => 'Do something']);
 
     return [$project, $document];

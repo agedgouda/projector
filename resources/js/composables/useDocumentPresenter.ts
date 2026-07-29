@@ -1,18 +1,16 @@
-export function useDocumentPresenter(project?: Project) {
+export function useDocumentPresenter(catalog?: DocumentSchemaItem[]) {
     const getDocLabel = (typeKey: string | null | undefined): string => {
         if (!typeKey) return '';
 
-        const schema = project?.type?.document_schema || [];
-        const found = schema.find((s) => s.key === typeKey);
+        const found = catalog?.find((s) => s.key === typeKey);
 
-        // Return the schema label if it exists, otherwise the formatted key
+        // Return the catalog label if it exists, otherwise the formatted key
         return found?.label || typeKey.replace(/_/g, ' ');
     };
 
     const isTask = (typeKey: string | null | undefined): boolean => {
         if (!typeKey) return false;
-        const schema = project?.type?.document_schema || [];
-        const found = schema.find((s) => s.key === typeKey);
+        const found = catalog?.find((s) => s.key === typeKey);
         return !!found?.is_task;
     };
 

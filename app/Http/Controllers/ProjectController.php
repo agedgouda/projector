@@ -9,7 +9,6 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Services\MeetingTranscriptService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +26,6 @@ class ProjectController extends Controller
         $orgId = $request->cookie('last_org_id') ?? getPermissionsTeamId();
 
         $clients = $user->newCollection([$user])->availableClients($orgId);
-        $projectTypes = ProjectType::all(['id', 'name']);
 
         $clientName = $request->query('client', '');
         $preselectedClient = $clientName
@@ -36,7 +34,6 @@ class ProjectController extends Controller
 
         return inertia('Projects/Create', [
             'clients' => $clients,
-            'projectTypes' => $projectTypes,
             'initialName' => $request->query('name', ''),
             'preselectedClient' => $preselectedClient?->only('id', 'company_name'),
             'backUrl' => $request->query('back', ''),
@@ -65,7 +62,6 @@ class ProjectController extends Controller
         return inertia('Projects/Index', [
             'projects' => $projects,
             'clients' => $user->newCollection([$user])->availableClients($orgId),
-            'projectTypes' => ProjectType::all(['id', 'name']),
         ]);
     }
 
@@ -102,10 +98,9 @@ class ProjectController extends Controller
         $orgRole = $user->roleInOrganization($organization->id);
         $canManageTranscripts = $isSuperAdmin || in_array($orgRole, ['org-admin', 'project-lead']);
 
-        // Load type and documents (with all needed relationships) before calling
+        // Load documents (with all needed relationships) before calling
         // getKanbanDocuments(), so it uses the already-loaded collection instead
         // of lazy-loading documents without eager-loaded relationships.
-        $project->loadMissing('type');
         $project->load([
             'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee'])->withExists('lockedNextWorkflowStep')->latest(),
             'media',
@@ -125,9 +120,7 @@ class ProjectController extends Controller
             'kanbanData' => $kanbanData,
             'activeTab' => $tab,
             'clients' => $clients,
-            'projectTypes' => $user->hasRole('super-admin')
-                ? \App\Models\ProjectType::all(['id', 'name'])
-                : \App\Models\ProjectType::where('organization_id', getPermissionsTeamId())->get(['id', 'name']),
+            'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'canManageTranscripts' => $canManageTranscripts,
             'meetingProvider' => $organization->meeting_provider,
             'recordingsData' => Inertia::defer(function () use ($project, $service, $organization, $canManageTranscripts) {
@@ -197,16 +190,6 @@ class ProjectController extends Controller
             }
 
             $validated = $request->validated();
-
-            if (! empty($validated['project_type_id']) && is_string($validated['project_type_id'])) {
-                $projectType = ProjectType::find($validated['project_type_id']);
-                if ($projectType) {
-                    $validated['lifecycle_template_id'] = \App\Models\LifecycleTemplate::firstOrCreate([
-                        'organization_id' => $projectType->organization_id,
-                        'name' => $projectType->name,
-                    ])->id;
-                }
-            }
 
             $project = Project::create($validated);
 

@@ -3,7 +3,6 @@
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
@@ -25,12 +24,9 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
 
-    $projectType = ProjectType::factory()->create();
-
     $this->project = Project::create([
         'name' => 'Mobile Redesign',
         'client_id' => $this->client->id,
-        'project_type_id' => $projectType->id,
     ]);
 });
 
@@ -56,7 +52,6 @@ it('does not list projects from another organization', function () {
     Project::create([
         'name' => 'Other Project',
         'client_id' => $otherClient->id,
-        'project_type_id' => ProjectType::factory()->create()->id,
     ]);
 
     Sanctum::actingAs($this->user);

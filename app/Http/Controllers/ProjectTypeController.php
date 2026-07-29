@@ -17,7 +17,7 @@ class ProjectTypeController extends Controller
         Gate::authorize('viewAny', ProjectType::class);
 
         $user = auth()->user();
-        $query = ProjectType::withCount('projects')->orderBy('name');
+        $query = ProjectType::orderBy('name');
 
         $query->with('organization');
 
@@ -64,7 +64,7 @@ class ProjectTypeController extends Controller
         $user = auth()->user();
 
         return inertia('ProjectTypes/Show', [
-            'projectType' => $projectType->load('lifecycleSteps')->loadCount('projects'),
+            'projectType' => $projectType->load('lifecycleSteps'),
             'aiTemplates' => AiTemplate::select('id', 'name')->orderBy('name')->get(),
             'organizations' => $user->hasRole('super-admin')
                 ? Organization::orderBy('name')->get(['id', 'name'])

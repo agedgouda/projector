@@ -22,7 +22,8 @@ class DocumentController extends Controller
         Gate::authorize('create', [Document::class, $project]);
 
         return inertia('Documents/Create', [
-            'project' => $project->load(['type', 'client.organization.users', 'client.organization.invitations']),
+            'project' => $project->load(['client.organization.users', 'client.organization.invitations']),
+            'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'redirectUrl' => $request->query('redirect'),
         ]);
     }
@@ -63,7 +64,8 @@ class DocumentController extends Controller
         }
 
         return inertia('Documents/Show', [
-            'project' => $project->load(['type', 'client.organization.users', 'client.organization.invitations']),
+            'project' => $project->load(['client.organization.users', 'client.organization.invitations']),
+            'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent'])
                 ->loadExists('lockedNextWorkflowStep'),
         ]);

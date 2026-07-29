@@ -34,7 +34,6 @@ const props = defineProps<{
     canManage: boolean;
     activeProjects: ActiveProject[];
     clients: Client[];
-    projectTypes: ProjectType[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -154,7 +153,6 @@ watch(() => page.props.flash, (flash) => {
                                 <NewProjectModal
                                     v-if="canManage"
                                     :clients="clients"
-                                    :project-types="projectTypes"
                                     :initial-name="localGroup.project_name"
                                     trigger-label="Create Project"
                                     @success="handleProjectCreated"

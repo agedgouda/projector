@@ -8,7 +8,6 @@ import { Building2 } from 'lucide-vue-next';
 
 const props = defineProps<{
     clients: Client[];
-    projectTypes: ProjectType[];
     activeOrg: Organization;
 }>();
 
@@ -28,7 +27,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Clients', href: clientRoutes.in
                 <p class="text-sm text-gray-500 mt-1">Manage client relationships and project history.</p>
             </div>
 
-            <ClientList :clients="props.clients" :project-types="props.projectTypes" />
+            <ClientList :clients="props.clients" />
         </div>
     </AppLayout>
 </template>

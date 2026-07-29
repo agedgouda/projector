@@ -27,6 +27,7 @@ import { useWorkflow } from '@/composables/useWorkflow';
 const props = defineProps<{
     project: Project;
     item: ExtendedDocument;
+    documentTypeCatalog?: DocumentSchemaItem[];
 }>();
 
 /* ---------------------------
@@ -116,6 +117,7 @@ watch(() => page.props.flash, (flash) => {
                 <DocumentContent
                     :item="item"
                     :project="project"
+                    :document-type-catalog="documentTypeCatalog"
                     :is-editing="isEditing"
                     :metadata="form.metadata"
                     :form="form"
@@ -141,6 +143,7 @@ watch(() => page.props.flash, (flash) => {
                 <DocumentSidebar
                     :item="item"
                     :project="project"
+                    :document-type-catalog="documentTypeCatalog"
                     :needs-reprocess="needsReprocess"
                     :is-processing-live="isProcessingLive"
                     :processing-message="processingMessage"

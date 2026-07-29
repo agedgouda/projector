@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 const props = defineProps<{
     projects: Project[];
     clients: Client[];
-    projectTypes: ProjectType[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -106,7 +105,6 @@ watch(searchQuery, (newVal) => {
 
                 <NewProjectModal
                     :clients="clients"
-                    :project-types="projectTypes"
                     @success="handleSuccess"
                 />
             </div>

@@ -56,9 +56,8 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
      */
     private function formatDocument(Document $document): array
     {
-        $document->loadMissing(['assignee', 'project.type']);
-        $schema = collect($document->project?->type?->document_schema ?? [])->keyBy('key');
-        $typeLabel = $schema->get($document->type)['label'] ?? $document->type;
+        $document->loadMissing(['assignee', 'project']);
+        $typeLabel = $document->project?->documentTypeCatalog()->get($document->type)?->label ?? $document->type;
 
         return array_merge(
             $document->makeHidden('content')->toArray(),

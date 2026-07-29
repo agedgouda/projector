@@ -24,6 +24,7 @@ import projectDocumentsRoutes from '@/routes/projects/documents/';
 ---------------------------- */
 const props = defineProps<{
     project: Project;
+    documentTypeCatalog?: DocumentSchemaItem[];
     redirectUrl: string | null;
 }>();
 
@@ -53,6 +54,13 @@ const { breadcrumbs, handleBack } = useDocumentNavigation(props.project, form);
 const draftItem = computed(() => ({
     name: form.name || 'New Document'
 }));
+
+// Every project starts with these document types; everything else in the catalog is
+// produced by transformations, not picked by hand at creation time.
+const MANUALLY_CREATABLE_TYPE_KEYS = ['intake', 'action_items', 'task'];
+const creatableDocumentTypes = computed(() =>
+    (props.documentTypeCatalog ?? []).filter((item) => MANUALLY_CREATABLE_TYPE_KEYS.includes(item.key))
+);
 /* ---------------------------
    5. Action Handlers
 ---------------------------- */
@@ -103,7 +111,7 @@ const updateFormValue = (field: string, val: any) => {
                     <InlineDocumentForm
                         mode="create"
                         :form="form"
-                        :document_schema="project.type.document_schema"
+                        :document_schema="creatableDocumentTypes"
                         @submit="handleFormSubmit"
                         @cancel="handleCancel"
                     />
@@ -114,6 +122,7 @@ const updateFormValue = (field: string, val: any) => {
                 <DocumentSidebar
                     :item="(form as any)"
                     :project="project"
+                    :document-type-catalog="documentTypeCatalog"
                     :dueAtProxy="form.due_at ?? ''"
                     @update:dueAtProxy="(val) => form.due_at = val"
                     @change="updateFormValue"

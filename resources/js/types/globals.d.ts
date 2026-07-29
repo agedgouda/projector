@@ -75,13 +75,11 @@ declare global {
         name: string;
         description: string | null;
         client_id: string;
-        project_type_id: string | null;
         lifecycle_template_id?: string | null;
         inactive: boolean;
 
         // --- Relationships ---
         client: Client;
-        type: ProjectType; // Matches Laravel naming convention
         lifecycle_template?: LifecycleTemplate | null;
         documents?: ProjectDocument[];
 

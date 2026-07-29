@@ -15,7 +15,7 @@ class ProjectCollection extends Collection
      */
     public function withSummary(): self
     {
-        return $this->load(['client', 'type', 'documents']);
+        return $this->load(['client', 'documents']);
     }
 
     /**
@@ -26,7 +26,6 @@ class ProjectCollection extends Collection
     {
         return $this->load([
             'client.users',
-            'type.lifecycleSteps',
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'tasks' => fn ($q) => $q->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
@@ -44,7 +43,6 @@ class ProjectCollection extends Collection
     public function withDashboardContext(): self
     {
         return $this->load([
-            'type.lifecycleSteps',
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'client.users',

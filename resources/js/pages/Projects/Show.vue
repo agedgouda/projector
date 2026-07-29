@@ -42,7 +42,7 @@ const props = defineProps<{
     kanbanData: Record<string, ProjectDocument[]>;
     activeTab: string;
     clients: Client[];
-    projectTypes: ProjectType[];
+    documentTypeCatalog: DocumentSchemaItem[];
     canManageTranscripts: boolean;
     meetingProvider: string | null;
     recordingsData?: {
@@ -84,7 +84,7 @@ const workflowRows = computed(() =>
     })
 );
 const currentProjectDocumentSchema = computed(() =>
-    props.currentProject?.type?.document_schema?.filter((s: any) => s.is_task) ?? []
+    props.documentTypeCatalog.filter((s) => s.is_task)
 );
 
 const {
@@ -284,7 +284,6 @@ watch(() => props.currentProject, (newProject) => {
                         :projects="projects"
                         :current-project="currentProject"
                         :clients="clients"
-                        :project-types="projectTypes"
                         @switch="(id) => router.get('/projects/' + id)"
                     />
                 </div>
@@ -358,6 +357,7 @@ watch(() => props.currentProject, (newProject) => {
                 <DocumentManager
                     :project="currentProject"
                     :live-documents="currentProject.documents"
+                    :document-type-catalog="documentTypeCatalog"
                     :is-generating="isGenerating"
                     @confirm-delete="confirmDelete"
                     @generate="generateDeliverables"

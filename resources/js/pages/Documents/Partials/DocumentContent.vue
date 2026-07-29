@@ -15,6 +15,7 @@ const props = defineProps<{
     isEditing: boolean;
     metadata: DocumentMetadata | null;
     project: Project;
+    documentTypeCatalog?: DocumentSchemaItem[];
     form: InertiaForm<DocumentFields>;
 }>();
 
@@ -26,7 +27,7 @@ const emit = defineEmits<{
 const handleFormSubmit = () => emit('submit');
 const handleCancel = () => emit('cancel');
 
-const { getDocLabel } = useDocumentPresenter(props.project);
+const { getDocLabel } = useDocumentPresenter(props.documentTypeCatalog);
 
 const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
 </script>

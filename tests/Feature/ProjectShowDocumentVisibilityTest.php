@@ -4,7 +4,6 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 
@@ -16,7 +15,6 @@ beforeEach(function () {
     Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->org = Organization::create(['name' => 'Test Org']);
-    $projectType = ProjectType::create(['name' => 'General', 'document_schema' => []]);
     $this->client = Client::create([
         'organization_id' => $this->org->id,
         'company_name' => 'Test Client',
@@ -26,7 +24,6 @@ beforeEach(function () {
     $this->project = Project::create([
         'name' => 'Test Project',
         'client_id' => $this->client->id,
-        'project_type_id' => $projectType->id,
     ]);
     $this->document = Document::create([
         'project_id' => $this->project->id,

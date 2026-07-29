@@ -5,7 +5,6 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -31,12 +30,9 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
 
-    $this->projectType = ProjectType::factory()->create();
-
     $this->project = Project::create([
         'name' => 'Mobile Redesign',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 });
 
@@ -73,7 +69,6 @@ it('rejects a mobile recording upload for a project outside the user\'s organiza
     $otherProject = Project::create([
         'name' => 'Other Project',
         'client_id' => $otherClient->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 
     $this->actingAs($this->user)
@@ -149,7 +144,6 @@ it('404s a status check when the document does not belong to the given project',
     $otherProject = Project::create([
         'name' => 'Other Project In Same Org',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
     $document = $otherProject->documents()->create([
         'type' => config('workflow.intake_key'),

@@ -13,7 +13,6 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property Client|null $client
- * @property ProjectType|null $type
  * @property LifecycleTemplate|null $lifecycleTemplate
  * @property string|null $organization_id
  * @property string $id
@@ -30,7 +29,6 @@ class Project extends Model implements HasMedia
         'description',
         'description_quality',
         'inactive',
-        'project_type_id',
         'lifecycle_template_id',
         'client_id',
         'document_id',
@@ -133,17 +131,7 @@ class Project extends Model implements HasMedia
     }
 
     /**
-     * Get the type that this project belongs to.
-     */
-    public function type(): BelongsTo
-    {
-        return $this->belongsTo(ProjectType::class, 'project_type_id');
-    }
-
-    /**
-     * Get the lifecycle (stage) template this project follows — independent of `type`/
-     * `project_type_id`, since which document-processing protocol a project uses and which stage
-     * sequence it follows are unrelated concerns.
+     * Get the lifecycle (stage) template this project follows.
      *
      * @return BelongsTo<LifecycleTemplate, $this>
      */

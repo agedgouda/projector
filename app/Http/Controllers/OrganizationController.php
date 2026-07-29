@@ -9,7 +9,6 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -90,7 +89,6 @@ class OrganizationController extends Controller
                 'logo_url' => $c->logo_url,
                 'projects' => $c->projects->map(fn ($p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]))->all(),
             ]));
-        $projectTypes = ProjectType::all();
 
         $usageByProject = AiUsageLog::query()
             ->where('organization_id', $currentOrg->id)
@@ -136,7 +134,6 @@ class OrganizationController extends Controller
             'allRoles' => ['org-admin', 'project-lead', 'team-member'],
             'invitations' => $invitations,
             'clients' => $clients,
-            'projectTypes' => $projectTypes,
             'usageTotals' => $usageTotals,
             'usageByClient' => $usageByClient,
         ]);

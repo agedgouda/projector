@@ -363,10 +363,6 @@ class OrgDocumentController extends Controller
             ->where('inactive', false)
             ->get(['id', 'company_name']);
 
-        $projectTypes = \App\Models\ProjectType::where(function ($q) use ($organization) {
-            $q->whereNull('organization_id')->orWhere('organization_id', $organization->id);
-        })->get(['id', 'name']);
-
         return inertia('Organizations/Documents/DraftGroup', [
             'organization' => $organization->only('id', 'name'),
             'orgDocument' => $orgDocument->only('id', 'name'),
@@ -374,7 +370,6 @@ class OrgDocumentController extends Controller
             'canManage' => $user->can('update', $orgDocument),
             'activeProjects' => $activeProjects,
             'clients' => $clients,
-            'projectTypes' => $projectTypes,
         ]);
     }
 

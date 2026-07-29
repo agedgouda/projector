@@ -24,9 +24,8 @@ import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 defineProps<{
     projects: Project[];
     currentProject: Project | null;
-    // We pass these through so the Switcher stays self-contained
+    // We pass this through so the Switcher stays self-contained
     clients: Client[];
-    projectTypes: ProjectType[];
 }>();
 
 const emit = defineEmits<{
@@ -85,7 +84,6 @@ const handleSuccess = () => {
 
                 <ProjectEntryForm
                     :clients="clients"
-                    :project-types="projectTypes"
                     @success="handleSuccess"
                     @cancel="isModalOpen = false"
                 />

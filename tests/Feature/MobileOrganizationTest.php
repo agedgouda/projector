@@ -3,7 +3,6 @@
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 
@@ -24,12 +23,9 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
 
-    $this->projectType = ProjectType::factory()->create();
-
     $this->project = Project::create([
         'name' => 'Mobile Redesign',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 });
 

@@ -14,7 +14,6 @@ interface PreselectedClient {
 
 const props = defineProps<{
     clients: Client[];
-    projectTypes: ProjectType[];
     initialName: string;
     preselectedClient: PreselectedClient | null;
     backUrl: string;
@@ -67,7 +66,6 @@ const handleSuccess = () => {
                 <ProjectEntryForm
                     :clients="clients"
                     :client="preselectedClient as any"
-                    :project-types="projectTypes"
                     :initial-name="initialName"
                     @success="handleSuccess"
                     @cancel="goBack"

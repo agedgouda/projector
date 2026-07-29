@@ -5,7 +5,6 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -32,12 +31,9 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
 
-    $this->projectType = ProjectType::factory()->create();
-
     $this->project = Project::create([
         'name' => 'Mobile Redesign',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 
     Sanctum::actingAs($this->user);
@@ -161,7 +157,6 @@ it('blocks viewing a recording from another organization', function () {
     $otherProject = Project::create([
         'name' => 'Other Project',
         'client_id' => $otherClient->id,
-        'project_type_id' => $this->projectType->id,
     ]);
     $otherDocument = $otherProject->documents()->create([
         'type' => config('workflow.intake_key'),

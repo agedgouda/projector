@@ -25,7 +25,6 @@ import LogoUpload from '@/components/LogoUpload.vue';
 interface Props {
     clients?: Client[];
     client?: Client;
-    projectTypes?: ProjectType[];
     editData?: Project & { logo_url?: string | null };
     initialName?: string;
 }

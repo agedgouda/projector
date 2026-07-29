@@ -4,7 +4,6 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 
@@ -25,12 +24,9 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
 
-    $this->projectType = ProjectType::factory()->create();
-
     $this->project = Project::create([
         'name' => 'Mobile Redesign',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 });
 
@@ -98,7 +94,6 @@ it('blocks the mobile recording screen for a project from another organization',
     $otherProject = Project::create([
         'name' => 'Other Project',
         'client_id' => $otherClient->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 
     $this->actingAs($this->user)
@@ -179,7 +174,6 @@ it('blocks viewing a project from another organization on mobile', function () {
     $otherProject = Project::create([
         'name' => 'Other Project',
         'client_id' => $otherClient->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 
     $this->actingAs($this->user)
@@ -367,7 +361,6 @@ it('returns 404 when the note does not belong to the given project on mobile', f
     $otherProject = Project::create([
         'name' => 'Other Project In Same Org',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
     $note = $otherProject->documents()->create([
         'type' => config('workflow.intake_key'),

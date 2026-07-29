@@ -25,7 +25,6 @@ const props = defineProps<{
     projects: Project[];
     kanbanData: Record<string, ProjectDocument[]>;
     clients: Client[];
-    projectTypes: ProjectType[];
     currentOrganization: { id: string; name: string } | null;
     organizations: { id: string; name: string }[];
     canViewProjectDetails: boolean;

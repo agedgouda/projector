@@ -5,7 +5,6 @@ use App\Jobs\EvaluateProjectDescription;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Support\Facades\Queue;
 
@@ -14,7 +13,6 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 beforeEach(function () {
     // friends_family tier avoids the project limit unrelated to what this file tests.
     $this->org = Organization::factory()->create(['membership_tier' => 'friends_family']);
-    $projectType = ProjectType::create(['name' => 'General', 'document_schema' => []]);
     $this->client = Client::create([
         'organization_id' => $this->org->id,
         'company_name' => 'Test Client',
@@ -24,7 +22,6 @@ beforeEach(function () {
     $this->project = Project::create([
         'name' => 'Test Project',
         'client_id' => $this->client->id,
-        'project_type_id' => $projectType->id,
         'description' => 'This platform manages HR workflows including onboarding, payroll integration, and compliance reporting for mid-sized companies.',
     ]);
 });
@@ -93,7 +90,6 @@ it('dispatches the job when a project with a description is created via controll
         ->post(route('projects.store'), [
             'name' => 'New Project',
             'client_id' => $this->client->id,
-            'project_type_id' => ProjectType::first()->id,
             'description' => 'A meaningful description that should trigger evaluation.',
         ]);
 
@@ -111,7 +107,6 @@ it('does not dispatch the job when a project is created without a description vi
         ->post(route('projects.store'), [
             'name' => 'No Description Project',
             'client_id' => $this->client->id,
-            'project_type_id' => ProjectType::first()->id,
         ]);
 
     Queue::assertNotPushed(EvaluateProjectDescription::class);
@@ -166,7 +161,6 @@ it('uses the frontend-provided description_quality immediately and skips the asy
         ->post(route('projects.store'), [
             'name' => 'Pre-Evaluated Project',
             'client_id' => $this->client->id,
-            'project_type_id' => ProjectType::first()->id,
             'description' => 'A meaningful description already evaluated by the frontend.',
             'description_quality' => 'vague',
         ]);

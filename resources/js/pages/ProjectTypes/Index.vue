@@ -130,9 +130,6 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                     <IconTile :icon="getIcon(type.icon)" size="md" />
                                     <div class="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
                                         <h4 class="text-[13px] font-bold text-slate-900 dark:text-slate-100 truncate">{{ type.name }}</h4>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-900/40 dark:text-projector-primary-300">
-                                            {{ type.projects_count || 0 }} Projects
-                                        </span>
                                         <!-- Super-admin sees org name badge since they see all orgs -->
                                         <span v-if="isSuperAdmin && type.organization" class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-projector-primary-50 dark:bg-projector-primary-500/10 text-projector-primary-600 dark:text-projector-primary-400 border border-projector-primary-100 dark:border-projector-primary-500/20">
                                             {{ type.organization.name }}
@@ -207,9 +204,6 @@ const duplicateType = (typeId: string, orgId?: string) => {
                                     <IconTile :icon="getIcon(type.icon)" size="md" />
                                     <div class="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
                                         <h4 class="text-[13px] font-bold text-slate-900 dark:text-slate-100 truncate">{{ type.name }}</h4>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-projector-primary-100 text-projector-primary-700 dark:bg-projector-primary-900/40 dark:text-projector-primary-300">
-                                            {{ type.projects_count || 0 }} Projects
-                                        </span>
                                     </div>
                                     <Link v-if="canEditType(type)" :href="`/project-types/${type.id}/edit`" class="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 transition-colors shrink-0" title="Edit project type">
                                         <Edit2 class="w-3.5 h-3.5" />

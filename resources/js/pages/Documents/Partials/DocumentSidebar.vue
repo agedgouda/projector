@@ -22,6 +22,7 @@ import { exportPdf } from '@/actions/App/Http/Controllers/DocumentController';
 const props = defineProps<{
     project: Project;
     item: ExtendedDocument | any;
+    documentTypeCatalog?: DocumentSchemaItem[];
     dueAtProxy: string;
     needsReprocess?: boolean;
     isProcessingLive?: boolean;
@@ -34,8 +35,7 @@ defineEmits<{
     (e: 'request-process'): void;
 }>();
 
-const { getDocLabel } = useDocumentPresenter(props.project);
-const { isTask } = useDocumentPresenter(props.project);
+const { getDocLabel, isTask } = useDocumentPresenter(props.documentTypeCatalog);
 const shouldShowTask = computed(() => isTask(props.item.type));
 
 const assigneeValue = computed(() => {

@@ -20,7 +20,10 @@ beforeEach(function () {
     $this->admin = User::factory()->create();
     $this->admin->assignRole('super-admin');
 
-    $this->projectType = ProjectType::factory()->create([
+    // Seeds the global document type catalog (via ProjectTypeObserver) with the type this
+    // test exercises - unrelated to any specific project's protocol, since projects no longer
+    // have one.
+    ProjectType::factory()->create([
         'document_schema' => [
             ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => false],
         ],
@@ -36,7 +39,6 @@ beforeEach(function () {
     $this->project = Project::create([
         'name' => 'Test Project',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 
     setPermissionsTeamId($this->org->id);
@@ -79,7 +81,6 @@ it('returns 404 when the document does not belong to the given project', functio
     $otherProject = Project::create([
         'name' => 'Other Project',
         'client_id' => $this->client->id,
-        'project_type_id' => $this->projectType->id,
     ]);
 
     $document = Document::create([

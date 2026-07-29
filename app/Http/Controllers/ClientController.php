@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ClientRequest;
 use App\Models\Client;
 use App\Models\Organization;
-use App\Models\ProjectType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -30,7 +29,7 @@ class ClientController extends Controller
         // 3. Fetch clients strictly for this organization
         $clients = Client::where('organization_id', $organization->id)
             ->latest()
-            ->with(['projects.type', 'projects.media', 'media'])
+            ->with(['projects.media', 'media'])
             ->get()
             ->map(fn (Client $c) => array_merge($c->toArray(), [
                 'logo_url' => $c->logo_url,
@@ -40,7 +39,6 @@ class ClientController extends Controller
         return inertia('Clients/Index', [
             'clients' => $clients,
             'projects' => [],
-            'projectTypes' => ProjectType::all(),
             'activeOrg' => $organization,
         ]);
     }
@@ -53,15 +51,14 @@ class ClientController extends Controller
 
         $clients = Client::where('organization_id', $client->organization_id)
             ->latest()
-            ->with(['projects.type', 'media'])
+            ->with('media')
             ->get()
             ->map(fn (Client $c) => array_merge($c->toArray(), ['logo_url' => $c->logo_url]));
 
         return inertia('Clients/Index', [
             'clients' => $clients,
-            'projects' => $client->projects()->with('type')->get(),
+            'projects' => $client->projects()->get(),
             'activeClientId' => $client->id,
-            'projectTypes' => ProjectType::all(),
         ]);
     }
 

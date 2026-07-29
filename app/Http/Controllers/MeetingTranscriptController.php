@@ -66,7 +66,7 @@ class MeetingTranscriptController extends Controller
         }
 
         return inertia('Projects/Transcripts', [
-            'project' => $project->load(['type', 'client.organization']),
+            'project' => $project->load(['client.organization']),
             'recordings' => $recordings,
             'importedIds' => $importedIds,
             'crossProjectImportedIds' => $crossProjectImportedIds,
