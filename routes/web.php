@@ -40,9 +40,16 @@ Route::get('/register/{organization}', [OrganizationRegistrationController::clas
 Route::post('/register/{organization}', [OrganizationRegistrationController::class, 'store'])
     ->name('organization.register.store');
 
-Route::get('/', function () {
-    return auth()->check()
-        ? redirect()->route('dashboard')
+Route::get('/', function (Request $request) {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    // The marketing site has no way to log in — on the local Herd domain specifically,
+    // send guests straight to the login form instead. Every other host (production,
+    // staging, etc.) keeps redirecting to the marketing site.
+    return $request->getHost() === 'projector.test'
+        ? redirect()->route('login')
         : redirect()->away('https://about.projecthq.app/');
 })->name('home');
 
