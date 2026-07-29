@@ -49,6 +49,7 @@ class OrganizationController extends Controller
         // 6. Get members formatted for Inertia (using your existing macro/method)
         $usersRecord = User::query()
             ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $currentOrg->id))
+            ->with('organizations')
             ->get()
             ->forInertia();
 

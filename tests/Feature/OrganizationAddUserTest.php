@@ -68,3 +68,31 @@ it('forbids a regular user from adding users to an organization', function () {
         ->post(route('organizations.users.store', $this->org), ['user_id' => $this->target->id])
         ->assertNotFound();
 });
+
+it('shows a super-admin in the organization\'s own team list once added, not only under System Administration', function () {
+    $this->org->users()->attach($this->superAdmin->id, ['role' => 'team-member']);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->get(route('organizations.index', ['org' => $this->org->id]));
+
+    $response->assertOk();
+
+    $memberIds = collect($response->original->getData()['page']['props']['currentOrg']['users'])->pluck('id')->all();
+    expect($memberIds)->toContain($this->superAdmin->id);
+
+    $superAdminRow = collect($response->original->getData()['page']['props']['currentOrg']['users'])
+        ->firstWhere('id', $this->superAdmin->id);
+    expect($superAdminRow['is_super'])->toBeTrue();
+});
+
+it('still buckets a super-admin with no organization memberships under System Administration, not any specific org', function () {
+    $response = $this->actingAs($this->orgAdmin)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->get(route('organizations.index', ['org' => $this->org->id]));
+
+    $response->assertOk();
+
+    $memberIds = collect($response->original->getData()['page']['props']['currentOrg']['users'])->pluck('id')->all();
+    expect($memberIds)->not->toContain($this->superAdmin->id);
+});

@@ -22,6 +22,66 @@ beforeEach(function () {
     $this->org->users()->attach($this->orgAdmin->id, ['role' => 'org-admin']);
 });
 
+it('forbids a regular member from sending an invitation for the organization', function () {
+    Mail::fake();
+
+    $regularMember = User::factory()->create();
+    $this->org->users()->attach($regularMember->id, ['role' => 'team-member']);
+
+    $this->actingAs($regularMember)
+        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->assertNotFound();
+
+    Mail::assertNothingSent();
+});
+
+it('forbids a user unrelated to the organization from sending an invitation for it', function () {
+    Mail::fake();
+
+    $outsider = User::factory()->create();
+
+    $this->actingAs($outsider)
+        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->assertNotFound();
+
+    Mail::assertNothingSent();
+});
+
+it('allows a super-admin to send an invitation for any organization', function () {
+    Mail::fake();
+
+    Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
+    $superAdmin = User::factory()->create();
+    $superAdmin->assignRole('super-admin');
+
+    $this->actingAs($superAdmin)
+        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->assertRedirect();
+
+    Mail::assertSent(OrganizationInvitationMail::class);
+});
+
+it('forbids a regular member from resending an invitation for the organization', function () {
+    Mail::fake();
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'invitee@example.com',
+        'role' => 'team-member',
+        'token' => 'test-token',
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $regularMember = User::factory()->create();
+    $this->org->users()->attach($regularMember->id, ['role' => 'team-member']);
+
+    $this->actingAs($regularMember)
+        ->post(route('organizations.invitations.resend', [$this->org, $invitation]))
+        ->assertNotFound();
+
+    Mail::assertNothingSent();
+});
+
 it('sends a registration link for a new email', function () {
     Mail::fake();
 

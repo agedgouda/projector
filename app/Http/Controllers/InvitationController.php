@@ -8,6 +8,7 @@ use App\Models\OrganizationInvitation;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -15,6 +16,11 @@ class InvitationController extends Controller
 {
     public function store(Request $request, Organization $organization): RedirectResponse
     {
+        // Same ability as OrganizationController::addUser — only an org-admin (of this
+        // specific organization) or a super-admin (via the policy's before() bypass) may
+        // send an invitation for it.
+        Gate::authorize('manageUsers', $organization);
+
         $validated = $request->validate([
             'email' => ['required', 'string', 'email', 'max:255'],
             'role' => ['required', 'string', 'in:team-member,project-lead,org-admin'],
@@ -50,6 +56,8 @@ class InvitationController extends Controller
 
     public function resend(Request $request, Organization $organization, OrganizationInvitation $invitation): RedirectResponse
     {
+        Gate::authorize('manageUsers', $organization);
+
         if ($invitation->organization_id !== $organization->id) {
             abort(404);
         }

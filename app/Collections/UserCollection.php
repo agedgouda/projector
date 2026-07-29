@@ -29,20 +29,20 @@ class UserCollection extends Collection
         foreach ($this as $user) {
             $isSuper = isset($superAdminIds[$user->id]);
 
-            if ($isSuper) {
-                $grouped['System Administration'][] = $this->transformUser($user, null, null, true);
-
-                continue;
-            }
-
+            // A super-admin who's also been explicitly added to an organization (see
+            // OrganizationController::addUser) should still show up under that
+            // organization's own member list — same as anyone else — with the "Super"
+            // badge (see OrgUserTable.vue) marking their global status inline. Only a
+            // super-admin with no explicit organization memberships falls back to the
+            // dedicated bucket, mirroring "Unassigned / External" for regular users.
             if ($user->organizations->isEmpty()) {
-                $grouped['Unassigned / External'][] = $this->transformUser($user, null, null, false);
+                $grouped[$isSuper ? 'System Administration' : 'Unassigned / External'][] = $this->transformUser($user, null, null, $isSuper);
 
                 continue;
             }
 
             foreach ($user->organizations as $org) {
-                $grouped[$org->name][] = $this->transformUser($user, $org->pivot->role, $org->id, false, $org->name);
+                $grouped[$org->name][] = $this->transformUser($user, $org->pivot->role, $org->id, $isSuper, $org->name);
             }
         }
 
