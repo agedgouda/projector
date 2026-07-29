@@ -216,7 +216,7 @@ class ProjectAiService
             $baseMessage .= "\n\nProject Context:\n{$project->description}";
         }
 
-        $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", and \"criteria\". Also include \"due_date\" (an ISO 8601 date string YYYY-MM-DD, or null if no date is mentioned).";
+        $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", \"criteria\", and \"priority\" (one of \"low\", \"medium\", or \"high\"). Also include \"due_date\" (an ISO 8601 date string YYYY-MM-DD, or null if no date is mentioned).";
 
         $userMessage = $baseMessage.$schemaInstruction;
 

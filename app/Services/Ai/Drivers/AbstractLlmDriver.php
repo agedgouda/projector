@@ -25,8 +25,9 @@ abstract class AbstractLlmDriver implements LlmDriver
                             // Use the dynamic key here!
                             $outputType => ['type' => 'string'],
                             'criteria' => ['type' => 'array', 'items' => ['type' => 'string']],
+                            'priority' => ['type' => 'string', 'enum' => ['low', 'medium', 'high']],
                         ],
-                        'required' => ['title', $outputType, 'criteria'],
+                        'required' => ['title', $outputType, 'criteria', 'priority'],
                         'additionalProperties' => false,
                     ],
                 ],

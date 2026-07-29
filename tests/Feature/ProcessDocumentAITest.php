@@ -110,6 +110,54 @@ it('deletes all previously generated children before creating new ones, even whe
     expect($document->refresh()->processed_at)->not->toBeNull();
 });
 
+it('persists the priority the AI assigns to each generated task', function () {
+    $document = createReprocessableDocument();
+
+    $this->mock(ProjectAiService::class, function ($mock) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'task',
+            'single_output' => false,
+            'mock_response' => [
+                ['title' => 'Urgent Fix', 'task' => 'Fix the bug', 'priority' => 'high'],
+                ['title' => 'Routine Cleanup', 'task' => 'Tidy up', 'priority' => 'low'],
+            ],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $children = Document::where('parent_id', $document->id)->orderBy('name')->get();
+    expect($children->firstWhere('name', 'Urgent Fix')->priority)->toBe('high');
+    expect($children->firstWhere('name', 'Routine Cleanup')->priority)->toBe('low');
+});
+
+it('defaults priority to medium when the AI omits it or returns an unrecognized value', function (mixed $priority) {
+    $document = createReprocessableDocument();
+
+    $this->mock(ProjectAiService::class, function ($mock) use ($priority) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'task',
+            'single_output' => false,
+            'mock_response' => [
+                array_filter([
+                    'title' => 'Some Task',
+                    'task' => 'Do it',
+                    'priority' => $priority,
+                ], fn ($value) => $value !== null),
+            ],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    expect(Document::where('parent_id', $document->id)->firstOrFail()->priority)->toBe('medium');
+})->with([
+    'omitted' => [null],
+    'invalid string' => ['urgent'],
+]);
+
 it('converts a markdown table in single-output content to an HTML table', function () {
     $document = createReprocessableDocument();
 

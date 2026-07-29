@@ -128,12 +128,20 @@ class ProcessDocumentAI implements ShouldQueue
 
                     $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;
 
+                    // The AI is free to omit priority (e.g. templates that don't produce
+                    // per-item tasks) or hallucinate an out-of-range value, so anything
+                    // other than the three known levels falls back to the column default.
+                    $priority = in_array($data['priority'] ?? null, ['low', 'medium', 'high'], true)
+                        ? $data['priority']
+                        : 'medium';
+
                     $newDocumentIds[] = $this->document->project->documents()->create([
                         'parent_id' => $this->document->id,
                         'type' => $outputType,
                         'name' => $data['title'] ?? 'Untitled Deliverable',
                         'content' => $content,
                         'due_at' => $dueAt,
+                        'priority' => $priority,
                         'locked_project_type_id' => $lockedProjectTypeId,
                         'metadata' => [
                             'criteria' => $data['criteria'] ?? [],
