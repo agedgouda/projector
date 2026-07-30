@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { Search, Files, Trash2, Pencil, Sparkles, AlertTriangle } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { Search, Files, Trash2, Pencil, Sparkles, AlertTriangle, FolderTree } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import {
@@ -12,15 +12,18 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import projectRoutes from '@/routes/projects/index';
-
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = defineProps<{
     project: Project
     showClient?: boolean;
     redirectTo?: string;
+    isSubProject?: boolean;
+    projects?: { id: string; name: string; client_id: string; parent_id?: string | null }[];
 }>();
 
-//const page = usePage();
+const { hasRole } = usePermissions();
+const canAddSubProject = computed(() => !props.isSubProject && (hasRole('super-admin') || hasRole('org-admin')));
 
 // --- EDIT STATE ---
 const isEditModalOpen = ref(false);
@@ -48,7 +51,7 @@ const executeDelete = () => {
 </script>
 
 <template>
-    <div v-bind="$attrs" class="group/folio grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 py-3 px-4 transition-colors hover:bg-gray-50/50 dark:hover:bg-zinc-800/30">
+    <div v-bind="$attrs" class="group/folio grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 py-3 px-4 transition-colors hover:bg-gray-50/50 dark:hover:bg-zinc-800/30" :class="{ 'pl-10': isSubProject }">
 
         <div class="flex items-center gap-4 min-w-0">
             <div class="h-9 w-9 shrink-0 rounded-lg bg-slate-50 dark:bg-zinc-800 flex items-center justify-center border border-slate-100 dark:border-zinc-700 shadow-sm overflow-hidden">
@@ -92,6 +95,17 @@ const executeDelete = () => {
         </div>
 
         <div class="flex justify-end w-10">
+            <Link
+                v-if="canAddSubProject"
+                :href="projectRoutes.create.url({ query: { client: project.client.company_name, parent_project: project.id } })"
+                class="flex items-center justify-center p-2 rounded-lg text-projector-primary-600 dark:text-projector-primary-400 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-500/10 transition-all"
+                title="Add Sub-project"
+            >
+                <FolderTree class="w-3.5 h-3.5" />
+            </Link>
+        </div>
+
+        <div class="flex justify-end w-10">
             <button
                 @click="isEditModalOpen = true"
                 class="p-2 text-slate-300 hover:text-projector-primary-500 transition-colors opacity-0 group-hover/folio:opacity-100"
@@ -122,6 +136,7 @@ const executeDelete = () => {
 
                 <ProjectEntryForm
                     :edit-data="project"
+                    :projects="projects"
                     @success="handleEditSuccess"
                     @cancel="isEditModalOpen = false"
                 />

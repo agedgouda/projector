@@ -199,6 +199,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                         v-for="project in client.projects"
                         :key="`proj-${project.id}`"
                         :project="project"
+                        :projects="client.projects"
                         :redirect-to="redirectTo ?? '/clients'"
                         class="w-full"
                     />
@@ -215,6 +216,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                 <ProjectEntryForm
                     v-if="targetClientForProject"
                     :client="targetClientForProject"
+                    :projects="targetClientForProject.projects"
                     @success="handleProjectSuccess"
                     @cancel="isProjectFormOpen = false"
                 />

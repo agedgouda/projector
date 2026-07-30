@@ -23,19 +23,33 @@ class ProjectController extends Controller
         Gate::authorize('create', Project::class);
 
         $user = $request->user();
+        abort_unless($user instanceof \App\Models\User, 403);
+
         $orgId = $request->cookie('last_org_id') ?? getPermissionsTeamId();
+        $orgId = is_string($orgId) ? $orgId : null;
 
         $clients = $user->newCollection([$user])->availableClients($orgId);
 
-        $clientName = $request->query('client', '');
-        $preselectedClient = $clientName
-            ? $clients->first(fn ($c) => strcasecmp($c->company_name, $clientName) === 0)
+        $visibleProjects = Project::visibleTo($user, $orgId)->get();
+
+        $parentProjectId = $request->query('parent_project', '');
+        $parentProject = $parentProjectId
+            ? $visibleProjects->firstWhere('id', $parentProjectId)
             : null;
+
+        $clientName = $request->query('client', '');
+        $preselectedClient = $parentProject
+            ? $clients->first(fn ($c) => $c->id === $parentProject->client_id)
+            : ($clientName
+                ? $clients->first(fn ($c) => strcasecmp($c->company_name, $clientName) === 0)
+                : null);
 
         return inertia('Projects/Create', [
             'clients' => $clients,
             'initialName' => $request->query('name', ''),
             'preselectedClient' => $preselectedClient?->only('id', 'company_name'),
+            'parentProject' => $parentProject?->only('id', 'name', 'client_id'),
+            'projects' => $parentProject ? [] : $visibleProjects->map->only('id', 'name', 'client_id', 'parent_id')->values(),
             'backUrl' => $request->query('back', ''),
         ]);
     }
@@ -263,6 +277,10 @@ class ProjectController extends Controller
         setPermissionsTeamId($project->organization_id);
 
         Gate::authorize('delete', $project);
+
+        if ($project->children()->exists()) {
+            return back()->with('error', 'This project has sub-projects and cannot be deleted. Remove or reassign its sub-projects first.');
+        }
 
         $project->delete();
         $message = 'Project was successfully deleted.';

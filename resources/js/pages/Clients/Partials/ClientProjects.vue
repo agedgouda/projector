@@ -76,6 +76,7 @@ const filteredProjects = computed(() => {
                         </DialogHeader>
                         <ProjectEntryForm
                             :client="(client as Client)"
+                            :projects="projects"
                             @success="handleSuccess"
                         />
                     </DialogContent>
@@ -94,7 +95,7 @@ const filteredProjects = computed(() => {
                 class="space-y-3 relative w-full"
             >
                 <div v-for="project in filteredProjects" :key="project.id" class="w-full">
-                    <ProjectFolio :project="project" class="w-full" />
+                    <ProjectFolio :project="project" :projects="projects" class="w-full" />
                 </div>
             </TransitionGroup>
         </div>

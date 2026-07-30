@@ -12,10 +12,18 @@ interface PreselectedClient {
     company_name: string;
 }
 
+interface ParentProject {
+    id: string;
+    name: string;
+    client_id: string;
+}
+
 const props = defineProps<{
     clients: Client[];
     initialName: string;
     preselectedClient: PreselectedClient | null;
+    parentProject: ParentProject | null;
+    projects: { id: string; name: string; client_id: string; parent_id?: string | null }[];
     backUrl: string;
 }>();
 
@@ -56,8 +64,13 @@ const handleSuccess = () => {
                     {{ backUrl ? 'Back' : 'Projects' }}
                 </button>
 
-                <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">New Project</h1>
-                <p v-if="initialName" class="text-sm text-gray-500 mt-1">
+                <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
+                    {{ parentProject ? 'New Sub-project' : 'New Project' }}
+                </h1>
+                <p v-if="parentProject" class="text-sm text-gray-500 mt-1">
+                    Creating a sub-project of <strong>{{ parentProject.name }}</strong>
+                </p>
+                <p v-else-if="initialName" class="text-sm text-gray-500 mt-1">
                     Creating project for <strong>{{ initialName }}</strong>
                 </p>
             </div>
@@ -67,6 +80,8 @@ const handleSuccess = () => {
                     :clients="clients"
                     :client="preselectedClient as any"
                     :initial-name="initialName"
+                    :parent-project="parentProject"
+                    :projects="projects"
                     @success="handleSuccess"
                     @cancel="goBack"
                 />

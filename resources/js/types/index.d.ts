@@ -96,6 +96,7 @@ declare global {
         current_lifecycle_step_id?: number | null;
         logo_url?: string | null;
         inactive: boolean;
+        parent_id?: string | null;
 
         // Relationships
         client: Client;

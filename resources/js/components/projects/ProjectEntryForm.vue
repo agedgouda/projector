@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +27,8 @@ interface Props {
     client?: Client;
     editData?: Project & { logo_url?: string | null };
     initialName?: string;
+    parentProject?: { id: string; name: string; client_id: string } | null;
+    projects?: { id: string; name: string; client_id: string; parent_id?: string | null }[];
 }
 
 const props = defineProps<Props>();
@@ -43,9 +45,35 @@ const form = useForm({
     description: props.editData?.description || '',
     description_quality: null as 'good' | 'vague' | null,
     inactive: props.editData?.inactive ?? false,
-    client_id: props.editData?.client_id || props.client?.id || '',
+    client_id: props.editData?.client_id || props.client?.id || props.parentProject?.client_id || '',
     logo: null as File | null,
+    parent_id: props.editData?.parent_id || props.parentProject?.id || null,
 });
+
+// Only offered when a `projects` candidate list is supplied — same-client, top-level
+// projects only, matching the 2-level nesting cap.
+const availableParentProjects = computed(() =>
+    (props.projects ?? []).filter(p => p.client_id === form.client_id && !p.parent_id && p.id !== props.editData?.id)
+);
+
+// A project that already has sub-projects can't become a sub-project itself (would
+// create a 3rd level) — hide the field entirely in that case rather than let the
+// user pick something the backend will reject.
+const editingHasChildren = computed(() =>
+    isEditing && (props.projects ?? []).some(p => p.parent_id === props.editData?.id)
+);
+
+watch(() => form.client_id, () => {
+    if (props.parentProject) return;
+    if (form.parent_id && !availableParentProjects.value.some(p => p.id === form.parent_id)) {
+        form.parent_id = null;
+    }
+});
+
+const NO_PARENT_SENTINEL = '__no_parent__';
+const handleParentSelect = (value: unknown) => {
+    form.parent_id = value === NO_PARENT_SENTINEL ? null : (value as string);
+};
 
 const evaluating = ref(false);
 const descriptionQuality = ref<'good' | 'vague' | null>(
@@ -195,6 +223,40 @@ const submit = async () => {
                     {{ form.errors.client_id }}
                 </p>
             </div>
+
+            <div v-if="!isEditing && parentProject" class="grid gap-2">
+                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    Sub-project of
+                </Label>
+                <div class="h-12 flex items-center px-4 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-800 font-bold text-sm text-projector-primary-600">
+                    {{ parentProject.name }}
+                </div>
+            </div>
+
+            <div v-else-if="!editingHasChildren && projects?.length" class="grid gap-2">
+                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    Parent Project (optional)
+                </Label>
+                <Select :model-value="form.parent_id ?? NO_PARENT_SENTINEL" @update:model-value="handleParentSelect">
+                    <SelectTrigger class="h-12 rounded-xl font-bold border-gray-200 dark:border-gray-800">
+                        <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="NO_PARENT_SENTINEL">None</SelectItem>
+                        <SelectSeparator v-if="availableParentProjects.length" />
+                        <SelectItem v-for="p in availableParentProjects" :key="p.id" :value="p.id">
+                            {{ p.name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <p v-if="form.errors.parent_id" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+                    {{ form.errors.parent_id }}
+                </p>
+            </div>
+
+            <p v-else-if="editingHasChildren" class="text-[11px] text-slate-400 px-1">
+                This project has sub-projects, so it can't become one itself.
+            </p>
 
             <div class="grid gap-2">
                 <Label for="name" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">

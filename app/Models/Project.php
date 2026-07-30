@@ -33,6 +33,7 @@ class Project extends Model implements HasMedia
         'client_id',
         'document_id',
         'current_lifecycle_step_id',
+        'parent_id',
     ];
 
     protected function casts(): array
@@ -164,6 +165,26 @@ class Project extends Model implements HasMedia
     public function kanbanColumns(): HasMany
     {
         return $this->hasMany(KanbanColumn::class)->orderBy('order');
+    }
+
+    /**
+     * Get the parent project, if this is a sub-project.
+     *
+     * @return BelongsTo<Project, $this>
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'parent_id');
+    }
+
+    /**
+     * Get this project's sub-projects.
+     *
+     * @return HasMany<Project, $this>
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(Project::class, 'parent_id');
     }
 
     /**
