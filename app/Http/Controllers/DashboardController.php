@@ -70,7 +70,6 @@ class DashboardController extends Controller
             'canViewProjectDetails' => ! $isTeamMemberOnly,
             'clients' => $clients,
             'currentOrganization' => $orgId ? Organization::find($orgId, ['id', 'name']) : null,
-            'organizations' => $isSuperAdmin ? Organization::orderBy('name')->get(['id', 'name']) : [],
         ]);
     }
 }

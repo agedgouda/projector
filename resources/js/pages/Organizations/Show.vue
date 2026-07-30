@@ -22,7 +22,6 @@ import UpgradeModal from '@/components/UpgradeModal.vue';
 
 
 const props = defineProps<{
-    organizations: Organization[];
     users: User[];
     currentOrg: Organization & {
         logo_url?: string | null;

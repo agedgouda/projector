@@ -119,7 +119,6 @@ class OrganizationController extends Controller
         cookie()->queue(cookie()->forever('last_org_id', (string) $currentOrg->id));
 
         return Inertia::render('Organizations/Show', [
-            'organizations' => $organizations,
             'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
                 'logo_url' => $currentOrg->logo_url,
                 'pdf_header_url' => $currentOrg->pdf_header_url,
