@@ -8,7 +8,6 @@ import axios from 'axios';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
-import { mergeProjectColumns } from '@/lib/kanbanColumns';
 import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
@@ -41,15 +40,12 @@ watch(() => page.props.flash, (flash) => {
     if (flash?.error) toast.error(flash.error);
 }, { deep: true });
 
-const columns = computed(() => mergeProjectColumns(props.projects));
-
 // --- 1. KANBAN BASE LOGIC ---
 const {
     selectedDocument,
     isSheetOpen,
     handleCreateNew,
     getTasksByRowAndStatus,
-    getColumnTaskCount,
     updateAttribute,
     onDragChange,
     openDetail,
@@ -63,7 +59,12 @@ const {
 const workflowRows = computed(() =>
     Object.keys(props.kanbanData).map(projectId => {
         const project = props.projects.find(p => p.id === projectId);
-        return { key: projectId, label: project?.name ?? projectId, is_task: true };
+        return {
+            key: projectId,
+            label: project?.name ?? projectId,
+            is_task: true,
+            columns: project?.kanban_columns ?? [],
+        };
     })
 );
 
@@ -100,9 +101,10 @@ const breadcrumbs = computed(() => [
     { title: props.currentOrganization ? `Dashboard ${props.currentOrganization.name}` : 'Dashboard', href: '/dashboard' },
 ]);
 
-const hasVisibleTasks = computed(() => {
-    return columns.value.some(column => getColumnTaskCount(column.key) > 0);
-});
+// Whether there's at least one project row to render — not whether any task within it
+// currently matches the search/priority filter. Columns should stay visible (and editable)
+// even when empty, rather than the whole board disappearing behind a "no results" state.
+const hasRows = computed(() => workflowRows.value.length > 0);
 
 // Reprocess: look up the doc's project inline — no currentProject needed
 const handleReprocess = async (id: string | number) => {
@@ -188,10 +190,8 @@ const aiProcessedParentIds = computed(() => {
             <KanbanBoard
                 v-model:searchQuery="searchQuery"
                 v-model:selectedPriorities="selectedPriorities"
-                :has-visible-tasks="hasVisibleTasks"
-                :columns="columns"
+                :has-rows="hasRows"
                 :workflow-rows="workflowRows"
-                :get-column-task-count="getColumnTaskCount"
                 :get-tasks-by-row-and-status="getTasksByRowAndStatus"
                 :on-drag-change="onDragChange"
                 :open-detail="openDetail"

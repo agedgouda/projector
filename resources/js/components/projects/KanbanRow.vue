@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import KanbanColumn from './KanbanColumn.vue';
+import KanbanHeader from './KanbanHeader.vue';
 import { KANBAN_UI } from '@/lib/kanban-theme';
 import { Link } from '@inertiajs/vue3';
 import { ExternalLink } from 'lucide-vue-next';
 import projectRoutes from '@/routes/projects/index';
 
-defineProps<{
+const props = defineProps<{
     row: any;
     columns: KanbanColumnDef[];
-    gridStyle: Record<string, string>;
     getTasks: (rowKey: string, status: TaskStatus) => ProjectDocument[];
     onDrag: (evt: any, column: KanbanColumnDef) => void;
     onOpen: (doc: ProjectDocument) => void;
     onCreate: (rowKey: string) => void;
     canViewProjectDetails?: boolean;
+    currentProject?: Project | null;
+    canManage?: boolean;
 }>();
+
+const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status).length;
 </script>
 
 <template>
@@ -33,6 +37,13 @@ defineProps<{
                 View Details
             </Link>
         </div>
+
+        <KanbanHeader
+            :columns="columns"
+            :get-count="getRowCount"
+            :current-project="currentProject"
+            :can-manage="canManage"
+        />
 
         <div class="grid gap-8" :style="KANBAN_UI.gridContainer(columns.length)">
             <template v-for="column in columns" :key="column.key">

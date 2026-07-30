@@ -54,8 +54,6 @@ const props = defineProps<{
     };
 }>();
 
-const columns = computed(() => props.currentProject?.kanban_columns ?? []);
-
 useEchoWatchdog(() => props.currentProject?.id);
 
 // --- 1. KANBAN BASE LOGIC ---
@@ -64,7 +62,6 @@ const {
     isSheetOpen,
     handleCreateNew,
     getTasksByRowAndStatus,
-    getColumnTaskCount,
     updateAttribute,
     onDragChange,
     openDetail,
@@ -78,11 +75,13 @@ const {
 // --- 2. AI PROCESSING (OBSERVER MODE) ---
 const aiStatusMessageRef = ref('');
 const activeTab = ref(props.activeTab);
-const workflowRows = computed(() =>
-    Object.keys(props.kanbanData).map(projectId => {
-        return { key: projectId, label: '', is_task: true };
-    })
-);
+const workflowRows = computed(() => {
+    const columns = props.currentProject?.kanban_columns ?? [];
+
+    return Object.keys(props.kanbanData).map(projectId => {
+        return { key: projectId, label: '', is_task: true, columns };
+    });
+});
 const currentProjectDocumentSchema = computed(() =>
     props.documentTypeCatalog.filter((s) => s.is_task)
 );
@@ -137,9 +136,10 @@ const breadcrumbs = computed(() => [
     { title: props.currentProject?.name ?? 'Select Project', href: '' }
 ]);
 
-const hasVisibleTasks = computed(() => {
-    return columns.value.some(column => getColumnTaskCount(column.key) > 0);
-});
+// Whether there's a project row to render — not whether any task within it currently
+// matches the search/priority filter. Columns should stay visible (and editable) even when
+// empty, rather than the whole board disappearing behind a "no results" state.
+const hasRows = computed(() => workflowRows.value.length > 0);
 
 const { reprocessableTypes } = useWorkflow();
 
@@ -341,10 +341,8 @@ watch(() => props.currentProject, (newProject) => {
                     v-model:searchQuery="searchQuery"
                     v-model:selectedPriorities="selectedPriorities"
                     :current-project="currentProject"
-                    :has-visible-tasks="hasVisibleTasks"
-                    :columns="columns"
+                    :has-rows="hasRows"
                     :workflow-rows="workflowRows"
-                    :get-column-task-count="getColumnTaskCount"
                     :get-tasks-by-row-and-status="getTasksByRowAndStatus"
                     :on-drag-change="onDragChange"
                     :open-detail="openDetail"

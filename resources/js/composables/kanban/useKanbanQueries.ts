@@ -61,24 +61,9 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
         return sortTasks(taskMap.value[`${rowKey}|${status}`] || []);
     };
 
-    /**
-     * Totals tasks across rows for a header count
-     */
-    const getColumnTaskCount = (status: TaskStatus) => {
-        let count = 0;
-        // We sum up all keys in our map that end with our target status
-        Object.keys(taskMap.value).forEach(key => {
-            if (key.endsWith(`|${status}`)) {
-                count += taskMap.value[key].length;
-            }
-        });
-        return count;
-    };
-
     return {
         searchQuery,
         selectedPriorities,
-        getTasksByRowAndStatus,
-        getColumnTaskCount
+        getTasksByRowAndStatus
     };
 }

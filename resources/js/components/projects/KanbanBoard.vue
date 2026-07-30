@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Search, ListFilter } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
-import KanbanHeader from './KanbanHeader.vue';
 import KanbanRow from './KanbanRow.vue';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { ALL_PRIORITIES, type Priority } from '@/composables/kanban/useKanbanQueries';
@@ -9,10 +8,8 @@ import { getPriorityStyles } from '@/lib/kanban-theme';
 
 defineProps<{
     currentProject?: Project | null;
-    hasVisibleTasks: boolean;
-    columns: KanbanColumnDef[];
-    workflowRows: DocumentSchemaItem[];
-    getColumnTaskCount: (status: TaskStatus) => number;
+    hasRows: boolean;
+    workflowRows: (DocumentSchemaItem & { columns: KanbanColumnDef[] })[];
     getTasksByRowAndStatus: (rowKey: string, status: TaskStatus) => ProjectDocument[];
     onDragChange: (event: any, column: KanbanColumnDef, rowKey: string) => void;
     openDetail: (doc: ProjectDocument) => void;
@@ -68,28 +65,20 @@ const togglePriority = (priority: Priority) => {
             </div>
         </div>
 
-        <div v-if="hasVisibleTasks" class="block w-full min-w-0">
-            <KanbanHeader
-                :columns="columns"
-                :get-count="getColumnTaskCount"
-                :current-project="currentProject"
-                :can-manage="canManageColumns"
-            />
-
-            <div class="space-y-1 w-full block">
+        <div v-if="hasRows" class="block w-full min-w-0">
+            <div class="space-y-8 w-full block">
                 <KanbanRow
                     v-for="row in workflowRows"
                     :key="row.key"
                     :row="row"
-                    :columns="columns"
+                    :columns="row.columns"
                     :get-tasks="(rowKey, status) => getTasksByRowAndStatus(rowKey, status)"
                     :on-drag="(evt, column) => onDragChange(evt, column, row.key)"
                     :on-open="openDetail"
                     :on-create="(key) => handleCreateNew(key)"
                     :can-view-project-details="canViewProjectDetails"
-                    :grid-style="{
-                        gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
-                    }"
+                    :current-project="currentProject"
+                    :can-manage="canManageColumns"
                 />
             </div>
         </div>
@@ -98,7 +87,7 @@ const togglePriority = (priority: Priority) => {
             <div class="p-4 bg-white rounded-2xl shadow-sm mb-4">
                 <Search class="w-8 h-8 text-gray-300" />
             </div>
-            <p class="text-gray-900 font-bold">No tasks found</p>
+            <p class="text-gray-900 font-bold">No projects to show</p>
             <p class="text-gray-500 text-sm">Try adjusting your search or filters.</p>
         </div>
     </div>
