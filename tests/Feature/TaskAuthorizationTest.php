@@ -129,6 +129,34 @@ it('allows a super-admin to update a task', function () {
     expect($task->fresh()->title)->toBe('Updated Title');
 });
 
+it('rejects a status that is not one of the project\'s kanban columns on create', function () {
+    $this->actingAs($this->superAdmin)
+        ->post(route('tasks.store'), [
+            'project_id' => $this->project->id,
+            'title' => 'Test Task',
+            'status' => 'not_a_real_column',
+            'priority' => 'low',
+        ])
+        ->assertSessionHasErrors('status');
+
+    expect(Task::count())->toBe(0);
+});
+
+it('rejects a status that is not one of the project\'s kanban columns on update', function () {
+    $task = Task::create([
+        'project_id' => $this->project->id,
+        'title' => 'Original Title',
+        'status' => 'todo',
+        'priority' => 'low',
+    ]);
+
+    $this->actingAs($this->superAdmin)
+        ->put(route('tasks.update', $task), ['status' => 'not_a_real_column'])
+        ->assertSessionHasErrors('status');
+
+    expect($task->fresh()->status)->toBe('todo');
+});
+
 it('blocks a user without admin role from updating a task', function () {
     $task = Task::create([
         'project_id' => $this->project->id,

@@ -28,6 +28,7 @@ class ProjectCollection extends Collection
             'client.users',
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
+            'kanbanColumns',
             'tasks' => fn ($q) => $q->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
             'documents' => fn ($q) => $q->with([
                 'creator', 'editor', 'assignee',
@@ -46,6 +47,7 @@ class ProjectCollection extends Collection
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'client.users',
+            'kanbanColumns',
             'documents' => function ($q) {
                 $q->with(['assignee', 'creator'])->withExists('lockedNextWorkflowStep')->latest();
             },

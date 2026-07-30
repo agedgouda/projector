@@ -7,10 +7,10 @@ import projectRoutes from '@/routes/projects/index';
 
 defineProps<{
     row: any;
-    columnStatuses: TaskStatus[];
+    columns: KanbanColumnDef[];
     gridStyle: Record<string, string>;
     getTasks: (rowKey: string, status: TaskStatus) => ProjectDocument[];
-    onDrag: (evt: any, status: TaskStatus) => void;
+    onDrag: (evt: any, column: KanbanColumnDef) => void;
     onOpen: (doc: ProjectDocument) => void;
     onCreate: (rowKey: string) => void;
     canViewProjectDetails?: boolean;
@@ -34,13 +34,13 @@ defineProps<{
             </Link>
         </div>
 
-        <div class="grid gap-8" :style="KANBAN_UI.gridContainer(columnStatuses.length)">
-            <template v-for="status in columnStatuses" :key="status">
+        <div class="grid gap-8" :style="KANBAN_UI.gridContainer(columns.length)">
+            <template v-for="column in columns" :key="column.key">
                 <KanbanColumn
-                    :status="status"
-                    :tasks="getTasks(row.key, status)"
+                    :column="column"
+                    :tasks="getTasks(row.key, column.key)"
                     :row-label="row.label"
-                    @drag="(evt) => onDrag(evt, status)"
+                    @drag="(evt) => onDrag(evt, column)"
                     @open="onOpen"
                     @create="onCreate(row.key)"
                 />

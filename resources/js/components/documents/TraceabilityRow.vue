@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { ChevronRight, FileText, Folder, CheckSquare, Eye, Sparkles, RefreshCw, GitBranch } from 'lucide-vue-next';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
-import { statusDotClasses, priorityDotClasses, STATUS_LABELS, PRIORITY_LABELS } from '@/lib/constants';
+import { kanbanDotClasses, priorityDotClasses, PRIORITY_LABELS } from '@/lib/constants';
 import { getAvatarAppearance } from '@/lib/kanban-theme';
 import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED, FLAT_ROW_ACCENT_BAR } from '@/lib/flat-ui';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -23,7 +23,10 @@ const props = defineProps<{
     users: any[];
     form: any;
     isReadOnly?: boolean;
+    columns: KanbanColumnDef[];
 }>();
+
+const currentColumn = computed(() => props.columns.find(c => c.key === (props.item.task_status ?? 'todo')));
 
 const emit = defineEmits<{
     (e: 'toggleRoot', id: string | number): void;
@@ -162,8 +165,8 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                         <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ PRIORITY_LABELS[item.priority] ?? item.priority }}</span>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span :class="['w-1.5 h-1.5 rounded-full shrink-0', statusDotClasses[item.task_status ?? 'todo']]"></span>
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ STATUS_LABELS[item.task_status ?? 'todo'] }}</span>
+                        <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[currentColumn?.color ?? 'slate']]"></span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ currentColumn?.label ?? item.task_status ?? 'todo' }}</span>
                     </div>
                 </template>
             </div>
@@ -198,6 +201,7 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 :users="users"
                 :form="form"
                 :is-read-only="isReadOnly"
+                :columns="columns"
                 @toggle-root="id => emit('toggleRoot', id)"
                 @handle-reprocess="id => emit('handleReprocess', id)"
                 @handle-transition="(id, payload) => emit('handleTransition', id, payload)"

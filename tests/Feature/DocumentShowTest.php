@@ -141,3 +141,49 @@ it('does not stamp content_updated_at when only sidebar attributes are patched',
         ->task_status->toBe('done')
         ->content_updated_at->toBeNull();
 });
+
+it('rejects a task_status that is not one of the project\'s kanban columns', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Original content',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'task_status' => 'not_a_real_column',
+        ])
+        ->assertSessionHasErrors('task_status');
+
+    expect($document->fresh()->task_status)->toBe('todo');
+});
+
+it('accepts a project\'s custom kanban column as task_status', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Original content',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+    $this->project->kanbanColumns()->create([
+        'key' => 'blocked',
+        'label' => 'Blocked',
+        'color' => 'red',
+        'order' => 5,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'task_status' => 'blocked',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->task_status)->toBe('blocked');
+});

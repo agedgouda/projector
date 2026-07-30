@@ -9,7 +9,7 @@ import { useKanbanPermissions } from '@/composables/kanban/useKanbanPermissions'
 const { isCreator } = useKanbanPermissions();
 
 defineProps<{
-    status: TaskStatus;
+    column: KanbanColumnDef;
     tasks: ProjectDocument[];
     rowLabel: string;
 }>();
@@ -35,7 +35,7 @@ const emit = defineEmits(['drag', 'open', 'create']);
         >
             <template #item="{ element: doc }">
                 <div class="kanban-item">
-                    <KanbanCard :doc="doc" :status="status" @click="emit('open', doc)" />
+                    <KanbanCard :doc="doc" :column="column" @click="emit('open', doc)" />
                 </div>
             </template>
         </draggable>

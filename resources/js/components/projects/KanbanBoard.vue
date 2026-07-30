@@ -10,14 +10,15 @@ import { getPriorityStyles } from '@/lib/kanban-theme';
 defineProps<{
     currentProject?: Project | null;
     hasVisibleTasks: boolean;
-    columnStatuses: TaskStatus[];
+    columns: KanbanColumnDef[];
     workflowRows: DocumentSchemaItem[];
     getColumnTaskCount: (status: TaskStatus) => number;
     getTasksByRowAndStatus: (rowKey: string, status: TaskStatus) => ProjectDocument[];
-    onDragChange: (event: any, status: TaskStatus, rowKey: string) => void;
+    onDragChange: (event: any, column: KanbanColumnDef, rowKey: string) => void;
     openDetail: (doc: ProjectDocument) => void;
     handleCreateNew: (rowKey: string) => void;
     canViewProjectDetails?: boolean;
+    canManageColumns?: boolean;
 }>();
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' });
@@ -69,8 +70,10 @@ const togglePriority = (priority: Priority) => {
 
         <div v-if="hasVisibleTasks" class="block w-full min-w-0">
             <KanbanHeader
-                :column-statuses="columnStatuses"
+                :columns="columns"
                 :get-count="getColumnTaskCount"
+                :current-project="currentProject"
+                :can-manage="canManageColumns"
             />
 
             <div class="space-y-1 w-full block">
@@ -78,14 +81,14 @@ const togglePriority = (priority: Priority) => {
                     v-for="row in workflowRows"
                     :key="row.key"
                     :row="row"
-                    :column-statuses="columnStatuses"
+                    :columns="columns"
                     :get-tasks="(rowKey, status) => getTasksByRowAndStatus(rowKey, status)"
-                    :on-drag="(evt, status) => onDragChange(evt, status, row.key)"
+                    :on-drag="(evt, column) => onDragChange(evt, column, row.key)"
                     :on-open="openDetail"
                     :on-create="(key) => handleCreateNew(key)"
                     :can-view-project-details="canViewProjectDetails"
                     :grid-style="{
-                        gridTemplateColumns: `repeat(${columnStatuses.length}, minmax(0, 1fr))`
+                        gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
                     }"
                 />
             </div>

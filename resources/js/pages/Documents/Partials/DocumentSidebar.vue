@@ -2,9 +2,8 @@
 import { formatDate } from '@/lib/utils';
 import { computed } from 'vue';
 import {
-    STATUS_LABELS,
     PRIORITY_LABELS,
-    statusDotClasses,
+    kanbanDotClasses,
     priorityDotClasses
 } from '@/lib/constants';
 import {
@@ -46,6 +45,7 @@ const assigneeValue = computed(() => {
 });
 
 const invitations = computed(() => props.project.client.organization?.invitations ?? []);
+const columns = computed(() => props.project.kanban_columns ?? []);
 
 </script>
 
@@ -151,15 +151,15 @@ const invitations = computed(() => props.project.client.organization?.invitation
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
                                                 <SelectValue />
-                                                <div :class="[statusDotClasses[item.task_status ?? 'todo'], 'w-2 h-2 rounded-full ml-2 flex-shrink-0']"></div>
+                                                <div :class="[kanbanDotClasses[columns.find(c => c.key === (item.task_status ?? 'todo'))?.color ?? 'slate'], 'w-2 h-2 rounded-full ml-2 flex-shrink-0']"></div>
                                             </span>
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[160px]">
-                                        <SelectItem v-for="(label, key) in STATUS_LABELS" :key="key" :value="key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer">
+                                        <SelectItem v-for="column in columns" :key="column.key" :value="column.key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer">
                                             <div class="flex items-center justify-between w-full min-w-[120px]">
-                                                <span>{{ label }}</span>
-                                                <div :class="[statusDotClasses[key], 'w-2 h-2 rounded-full ml-4 flex-shrink-0']"></div>
+                                                <span>{{ column.label }}</span>
+                                                <div :class="[kanbanDotClasses[column.color ?? 'slate'], 'w-2 h-2 rounded-full ml-4 flex-shrink-0']"></div>
                                             </div>
                                         </SelectItem>
                                     </SelectContent>

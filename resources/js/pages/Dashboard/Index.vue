@@ -9,7 +9,7 @@ import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
-import { STATUS_LABELS } from '@/lib/constants';
+import { mergeProjectColumns } from '@/lib/kanbanColumns';
 import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
@@ -48,7 +48,7 @@ const handleOrgSwitch = (orgId: string) => {
     router.get(window.location.pathname, { org: orgId }, { preserveState: false });
 };
 
-const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
+const columns = computed(() => mergeProjectColumns(props.projects));
 
 // --- 1. KANBAN BASE LOGIC ---
 const {
@@ -108,7 +108,7 @@ const breadcrumbs = computed(() => [
 ]);
 
 const hasVisibleTasks = computed(() => {
-    return columnStatuses.some(status => getColumnTaskCount(status) > 0);
+    return columns.value.some(column => getColumnTaskCount(column.key) > 0);
 });
 
 // Reprocess: look up the doc's project inline — no currentProject needed
@@ -208,7 +208,7 @@ const aiProcessedParentIds = computed(() => {
                 v-model:searchQuery="searchQuery"
                 v-model:selectedPriorities="selectedPriorities"
                 :has-visible-tasks="hasVisibleTasks"
-                :column-statuses="columnStatuses"
+                :columns="columns"
                 :workflow-rows="workflowRows"
                 :get-column-task-count="getColumnTaskCount"
                 :get-tasks-by-row-and-status="getTasksByRowAndStatus"

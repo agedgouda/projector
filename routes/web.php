@@ -9,7 +9,9 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\KanbanColumnController;
 use App\Http\Controllers\MeetingTranscriptController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationLoginController;
@@ -87,6 +89,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');
 
+    // Must be reachable regardless of role — by the time this runs, the session's current
+    // user is the impersonated target (not the admin who started it), not necessarily a
+    // super-admin.
+    Route::delete('/impersonate', [ImpersonationController::class, 'destroy'])
+        ->name('impersonate.destroy');
+
     Route::middleware(['role:super-admin'])->group(function () {
         Route::post('/faq', [FaqController::class, 'store'])->name('faq.store');
         Route::put('/faq/{faq}', [FaqController::class, 'update'])->name('faq.update');
@@ -95,6 +103,8 @@ Route::middleware(['auth'])->group(function () {
             ->name('users.list');
         Route::post('/users/{user}/promote', [UserController::class, 'promote'])
             ->name('users.promote');
+        Route::post('/users/{user}/impersonate', [ImpersonationController::class, 'store'])
+            ->name('users.impersonate');
         Route::get('/bug-reports', [BugReportController::class, 'index'])
             ->name('bug-reports.index');
         Route::patch('/bug-reports/{bugReport}', [BugReportController::class, 'update'])
@@ -221,6 +231,13 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.exportPdf');
 
             Route::resource('documents', DocumentController::class);
+
+            Route::post('/kanban-columns', [KanbanColumnController::class, 'store'])
+                ->name('kanban-columns.store');
+            Route::patch('/kanban-columns/{kanbanColumn}', [KanbanColumnController::class, 'update'])
+                ->name('kanban-columns.update');
+            Route::delete('/kanban-columns/{kanbanColumn}', [KanbanColumnController::class, 'destroy'])
+                ->name('kanban-columns.destroy');
 
             Route::get('/transcripts', [MeetingTranscriptController::class, 'index'])
                 ->name('transcripts.index');

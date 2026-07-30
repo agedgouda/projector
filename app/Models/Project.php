@@ -157,6 +157,16 @@ class Project extends Model implements HasMedia
     }
 
     /**
+     * Get the Kanban board columns for this project.
+     *
+     * @return HasMany<KanbanColumn, $this>
+     */
+    public function kanbanColumns(): HasMany
+    {
+        return $this->hasMany(KanbanColumn::class)->orderBy('order');
+    }
+
+    /**
      * Multi-tenant visibility scope.
      */
     public function scopeVisibleTo($query, User $user, ?string $orgId = null)

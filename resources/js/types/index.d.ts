@@ -25,6 +25,7 @@ declare global {
     export interface Auth {
         user: User;
         active_org_id: string | null;
+        impersonating?: { id: number; name: string } | null;
         [key: string]: any;
     }
 
@@ -102,6 +103,7 @@ declare global {
         documents?: ProjectDocument[];
         tasks: Task[];
         current_lifecycle_step?: LifecycleStep | null;
+        kanban_columns?: KanbanColumnDef[];
 
         // Meta
         documents_count?: number;
@@ -110,8 +112,19 @@ declare global {
     }
 
     // --- TASKS, DISCUSSIONS & FLAT TYPES ---
-    export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done' ;
+    // A project's Kanban columns are user-defined per project (see KanbanColumn on the
+    // backend), so this is just an opaque key into that project's own column list now,
+    // not a fixed set of values.
+    export type TaskStatus = string;
     export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+    export interface KanbanColumnDef {
+        id: number;
+        key: string;
+        label: string;
+        color: string | null;
+        order: number;
+    }
 
     export interface DocumentMetadata {
     criteria: string[];

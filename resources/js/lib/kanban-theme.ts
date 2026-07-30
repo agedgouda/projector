@@ -43,11 +43,21 @@ export const KANBAN_UI = {
 
 };
 
-export const statusCardBg: Record<string, string> = {
-    todo: 'bg-slate-500/10',
-    in_progress: 'bg-red-500/10',
-    review: 'bg-amber-400/10',
-    done: 'bg-emerald-500/10',
+/**
+ * Keyed by a Kanban column's stored `color` name (see KanbanColumnDef), not by status —
+ * columns are per-project and user-defined now.
+ */
+export const kanbanCardBg: Record<string, string> = {
+    slate: 'bg-slate-500/10',
+    red: 'bg-red-500/10',
+    amber: 'bg-amber-400/10',
+    emerald: 'bg-emerald-500/10',
+    blue: 'bg-blue-500/10',
+    purple: 'bg-purple-500/10',
+    pink: 'bg-pink-500/10',
+    orange: 'bg-orange-500/10',
+    indigo: 'bg-indigo-500/10',
+    teal: 'bg-teal-500/10',
 };
 
 /**

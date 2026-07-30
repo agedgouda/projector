@@ -17,7 +17,6 @@ import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.v
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
-import { STATUS_LABELS } from '@/lib/constants';
 import { setPersistentCookie } from '@/lib/utils';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
@@ -44,6 +43,7 @@ const props = defineProps<{
     clients: Client[];
     documentTypeCatalog: DocumentSchemaItem[];
     canManageTranscripts: boolean;
+    canManageProject: boolean;
     meetingProvider: string | null;
     recordingsData?: {
         recordings: Recording[];
@@ -54,7 +54,7 @@ const props = defineProps<{
     };
 }>();
 
-const columnStatuses = Object.keys(STATUS_LABELS) as TaskStatus[];
+const columns = computed(() => props.currentProject?.kanban_columns ?? []);
 
 useEchoWatchdog(() => props.currentProject?.id);
 
@@ -138,7 +138,7 @@ const breadcrumbs = computed(() => [
 ]);
 
 const hasVisibleTasks = computed(() => {
-    return columnStatuses.some(status => getColumnTaskCount(status) > 0);
+    return columns.value.some(column => getColumnTaskCount(column.key) > 0);
 });
 
 const { reprocessableTypes } = useWorkflow();
@@ -342,13 +342,14 @@ watch(() => props.currentProject, (newProject) => {
                     v-model:selectedPriorities="selectedPriorities"
                     :current-project="currentProject"
                     :has-visible-tasks="hasVisibleTasks"
-                    :column-statuses="columnStatuses"
+                    :columns="columns"
                     :workflow-rows="workflowRows"
                     :get-column-task-count="getColumnTaskCount"
                     :get-tasks-by-row-and-status="getTasksByRowAndStatus"
                     :on-drag-change="onDragChange"
                     :open-detail="openDetail"
                     :handle-create-new="handleCreateNew"
+                    :can-manage-columns="canManageProject"
                 />
             </div>
 

@@ -4,6 +4,7 @@ import { ShieldAlert } from 'lucide-vue-next';
 import { router, usePage, Link } from '@inertiajs/vue3';
 import userRoutes from '@/routes/users/index';
 import { promote } from '@/actions/App/Http/Controllers/UserController';
+import { store as impersonate } from '@/actions/App/Http/Controllers/ImpersonationController';
 
 import {
     Select,
@@ -61,7 +62,7 @@ const updateUserRole = (user: User, role: string) => {
                 </div>
             </div>
 
-            <div v-if="viewerIsSuperAdmin" class="px-4 flex justify-center">
+            <div v-if="viewerIsSuperAdmin" class="px-4 flex justify-center gap-2">
                 <Link
                     v-if="!user.is_super"
                     :href="promote(user.id).url"
@@ -71,6 +72,16 @@ const updateUserRole = (user: User, role: string) => {
                     class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-highlight-200 text-projector-highlight-700 hover:bg-projector-highlight-50 dark:border-projector-highlight-900/50 dark:text-projector-highlight-400 dark:hover:bg-projector-highlight-950/30 transition-colors"
                 >
                     Make Super Admin
+                </Link>
+                <Link
+                    v-if="user.id !== page.props.auth.user.id"
+                    :href="impersonate(user.id).url"
+                    method="post"
+                    as="button"
+                    :preserve-scroll="true"
+                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/30 transition-colors"
+                >
+                    Impersonate
                 </Link>
             </div>
 

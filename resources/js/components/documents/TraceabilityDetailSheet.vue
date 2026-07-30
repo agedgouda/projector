@@ -12,7 +12,7 @@ import { toast } from 'vue-sonner';
 import TaskFormSheet from '@/components/tasks/TaskFormSheet.vue';
 import InlineDocumentForm from './InlineDocumentForm.vue';
 import { formatDate } from '@/lib/utils'
-import { STATUS_LABELS, PRIORITY_LABELS,priorityClasses, statusClasses,priorityDotClasses } from '@/lib/constants'
+import { PRIORITY_LABELS, priorityClasses, kanbanClasses, priorityDotClasses } from '@/lib/constants'
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 
 const props = defineProps<{
@@ -181,8 +181,8 @@ watch(() => props.item, (newItem) => {
 
                                     <div class="flex items-center gap-4 ml-4 shrink-0">
                                         <div class="hidden md:flex items-center gap-2">
-                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter" :class="statusClasses[task.status]">
-                                                {{ STATUS_LABELS[task.status] }}
+                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter" :class="kanbanClasses.slate">
+                                                {{ task.status }}
                                             </span>
 
                                             <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter" :class="priorityClasses[task.priority]">

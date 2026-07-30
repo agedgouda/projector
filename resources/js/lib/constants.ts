@@ -1,22 +1,33 @@
-export const STATUS_LABELS: Record<string, string> = {
-    todo: 'To Do',
-    in_progress: 'In Progress',
-    review: 'In Review',
-    done: 'Done'
+/**
+ * Kanban columns are per-project now (see KanbanColumnDef), so label/color lookups are
+ * keyed by each column's stored `color` name rather than by a fixed status string.
+ */
+export const KANBAN_COLOR_PALETTE = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'] as const;
+
+export const kanbanClasses: Record<string, string> = {
+    slate: 'bg-slate-100 text-slate-500',
+    red: 'bg-red-50 text-red-600',
+    amber: 'bg-amber-50 text-amber-600',
+    emerald: 'bg-emerald-50 text-emerald-600',
+    blue: 'bg-blue-50 text-blue-600',
+    purple: 'bg-purple-50 text-purple-600',
+    pink: 'bg-pink-50 text-pink-600',
+    orange: 'bg-orange-50 text-orange-600',
+    indigo: 'bg-indigo-50 text-indigo-600',
+    teal: 'bg-teal-50 text-teal-600'
 };
 
-export const statusClasses: Record<string, string> = {
-    todo: 'bg-slate-100 text-slate-500',
-    in_progress: 'bg-red-50 text-red-600',
-    review: 'bg-amber-50 text-amber-600',
-    done: 'bg-emerald-50 text-emerald-600'
-};
-
-export const statusDotClasses: Record<string, string> = {
-    todo: 'bg-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.4)]',
-    in_progress: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]',
-    review: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]',
-    done: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+export const kanbanDotClasses: Record<string, string> = {
+    slate: 'bg-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.4)]',
+    red: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]',
+    amber: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]',
+    emerald: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]',
+    blue: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]',
+    purple: 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]',
+    pink: 'bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.4)]',
+    orange: 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]',
+    indigo: 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]',
+    teal: 'bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.4)]'
 };
 
 export const PRIORITY_LABELS: Record<string, string> = {

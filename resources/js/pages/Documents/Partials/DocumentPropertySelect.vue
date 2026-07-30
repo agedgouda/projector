@@ -8,9 +8,8 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import {
-    STATUS_LABELS,
     PRIORITY_LABELS,
-    statusDotClasses,
+    kanbanDotClasses,
     priorityDotClasses
 } from '@/lib/constants';
 
@@ -49,13 +48,12 @@ const onUpdate = (val: any) => {
  * Helpers for dot indicators
  */
 const getDotClass = (val: string) => {
-    if (props.type === 'status') return statusDotClasses[val] || '';
+    if (props.type === 'status') return kanbanDotClasses[val] || kanbanDotClasses.slate;
     if (props.type === 'priority') return priorityDotClasses[val] || '';
     return '';
 };
 
 const labels = computed(() => {
-    if (props.type === 'status') return STATUS_LABELS;
     if (props.type === 'priority') return PRIORITY_LABELS;
     return {};
 });

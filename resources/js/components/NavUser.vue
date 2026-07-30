@@ -13,11 +13,14 @@ import {
 } from '@/components/ui/sidebar';
 import { usePage } from '@inertiajs/vue3';
 import { ChevronsUpDown } from 'lucide-vue-next';
+import { computed } from 'vue';
 import UserMenuContent from './UserMenuContent.vue';
 
 // Use the global AppPageProps we defined in types/index.d.ts
 const page = usePage<AppPageProps>();
-const user = page.props.auth.user;
+// Computed, not a plain snapshot — auth.user can change mid-session (e.g. impersonation),
+// and a one-time destructure here would go stale until a full page reload.
+const user = computed(() => page.props.auth.user);
 const { isMobile, state } = useSidebar();
 </script>
 

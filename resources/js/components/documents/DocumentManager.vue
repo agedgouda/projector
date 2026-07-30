@@ -283,6 +283,7 @@ onMounted(() => {
                 :users="project.client?.users || []"
                 :form="form"
                 :is-read-only="project.inactive"
+                :columns="project.kanban_columns ?? []"
                 @toggle-root="toggleRoot"
                 @prepare-edit="handlePrepareEdit"
                 @handle-reprocess="handleReprocess"

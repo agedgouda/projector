@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Rules\ValidKanbanColumn;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -21,7 +22,7 @@ class TaskController extends Controller
             'assignee_id' => ['nullable', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'status' => ['required', 'string', 'in:todo,in_progress,review,done'],
+            'status' => ['required', 'string', new ValidKanbanColumn($request->input('project_id'))],
             'priority' => ['required', 'string', 'in:low,medium,high'],
             'due_at' => ['nullable', 'date'],
         ]);
@@ -53,7 +54,7 @@ class TaskController extends Controller
         $validated = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'status' => ['sometimes', 'required', 'string'],
+            'status' => ['sometimes', 'required', 'string', new ValidKanbanColumn($task->project_id)],
             'priority' => ['sometimes', 'required', 'string'],
             'assignee_id' => ['nullable', 'exists:users,id'],
             'due_at' => ['nullable', 'date'],

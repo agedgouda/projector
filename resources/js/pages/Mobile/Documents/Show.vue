@@ -4,7 +4,7 @@ import MobileLayout from '@/layouts/MobileLayout.vue';
 import DOMPurify from 'dompurify';
 import { RefreshCw, User as UserIcon, Calendar } from 'lucide-vue-next';
 import mobileNoteRoutes from '@/routes/mobile/notes';
-import { STATUS_LABELS, PRIORITY_LABELS, statusDotClasses, priorityDotClasses } from '@/lib/constants';
+import { PRIORITY_LABELS, kanbanDotClasses, priorityDotClasses } from '@/lib/constants';
 
 interface DocumentItem {
     id: string;
@@ -73,8 +73,8 @@ const formatDate = (value: string | null) => {
                         <span class="font-bold uppercase tracking-wide text-[10px]">Status</span>
                     </div>
                     <div class="flex items-center justify-end gap-1.5">
-                        <span class="font-bold text-slate-700 dark:text-slate-300">{{ STATUS_LABELS[document.taskStatus ?? 'todo'] }}</span>
-                        <div :class="[statusDotClasses[document.taskStatus ?? 'todo'], 'w-2 h-2 rounded-full']"></div>
+                        <span class="font-bold text-slate-700 dark:text-slate-300">{{ document.taskStatus ?? 'todo' }}</span>
+                        <div :class="[kanbanDotClasses.slate, 'w-2 h-2 rounded-full']"></div>
                     </div>
 
                     <div class="flex items-center gap-1.5 text-slate-400">

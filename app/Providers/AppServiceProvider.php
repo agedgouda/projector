@@ -7,9 +7,11 @@ use App\Contracts\TranscriptionDriver;
 use App\Contracts\VectorDriver;
 use App\Models\Document;
 use App\Models\OrgDocument;
+use App\Models\Project;
 use App\Models\ProjectType;
 use App\Observers\DocumentObserver;
 use App\Observers\OrgDocumentObserver;
+use App\Observers\ProjectObserver;
 use App\Observers\ProjectTypeObserver;
 use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
@@ -88,5 +90,6 @@ class AppServiceProvider extends ServiceProvider
         Document::observe(DocumentObserver::class);
         OrgDocument::observe(OrgDocumentObserver::class);
         ProjectType::observe(ProjectTypeObserver::class);
+        Project::observe(ProjectObserver::class);
     }
 }

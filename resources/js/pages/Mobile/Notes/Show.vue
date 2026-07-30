@@ -4,7 +4,7 @@ import MobileLayout from '@/layouts/MobileLayout.vue';
 import { ChevronRight } from 'lucide-vue-next';
 import mobileProjectRoutes from '@/routes/mobile/projects';
 import mobileDocumentRoutes from '@/routes/mobile/documents';
-import { statusDotClasses, priorityDotClasses } from '@/lib/constants';
+import { kanbanDotClasses, priorityDotClasses } from '@/lib/constants';
 
 interface IndexItem {
     id: string;
@@ -40,7 +40,7 @@ defineProps<{
                     <div class="flex items-center gap-2 mb-1">
                         <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">{{ item.typeLabel }}</span>
                         <template v-if="item.isTask">
-                            <div :class="[statusDotClasses[item.taskStatus ?? 'todo'], 'w-1.5 h-1.5 rounded-full shrink-0']"></div>
+                            <div :class="[kanbanDotClasses.slate, 'w-1.5 h-1.5 rounded-full shrink-0']"></div>
                             <div :class="[priorityDotClasses[item.priority ?? 'low'] ?? priorityDotClasses.low, 'w-1.5 h-1.5 rounded-full shrink-0']"></div>
                         </template>
                     </div>

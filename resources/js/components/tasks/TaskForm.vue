@@ -3,17 +3,20 @@ import { computed } from 'vue';
 import type { InertiaForm } from '@inertiajs/vue3';
 import { User2, Activity, Calendar as CalendarIcon, Flag } from 'lucide-vue-next';
 // Import labels from your utils or types file
-import { PRIORITY_LABELS, STATUS_LABELS } from '@/lib/constants';
+import { PRIORITY_LABELS } from '@/lib/constants';
 
 // UI Components
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     form: InertiaForm<FlatTask>;
     users: User[];
-}>();
+    columns?: KanbanColumnDef[];
+}>(), {
+    columns: () => [],
+});
 
 const updateField = <K extends keyof FlatTask>(field: K, value: any) => {
     (props.form as any)[field] = value;
@@ -82,8 +85,8 @@ const dateProxy = computed({
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem v-for="(label, key) in STATUS_LABELS" :key="key" :value="key">
-                            {{ label }}
+                        <SelectItem v-for="column in columns" :key="column.key" :value="column.key">
+                            {{ column.label }}
                         </SelectItem>
                     </SelectContent>
                 </Select>

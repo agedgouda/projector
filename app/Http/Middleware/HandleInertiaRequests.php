@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Organization;
+use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -60,6 +61,9 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        $impersonatorId = $request->session()->get('impersonator_id');
+        $impersonator = is_int($impersonatorId) ? User::find($impersonatorId) : null;
+
         $activeOrgId = getPermissionsTeamId();
         $orgMembership = null;
 
@@ -109,6 +113,7 @@ class HandleInertiaRequests extends Middleware
                     'clients' => $user->clients->pluck('id')->map(fn ($id) => (string) $id),
                 ] : null,
                 'active_org_id' => $activeOrgId,
+                'impersonating' => $impersonator ? ['id' => $impersonator->id, 'name' => $impersonator->name] : null,
             ],
             'orgMembership' => $orgMembership,
             'flash' => [

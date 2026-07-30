@@ -163,7 +163,9 @@ declare global {
         [key: string]: unknown;
     };
 
-    export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
+    // Kept in sync with the same alias in index.d.ts — a project's Kanban columns are
+    // user-defined per project now, not a fixed set of values.
+    export type TaskStatus = string;
     export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
     export interface Task {

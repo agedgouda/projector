@@ -106,6 +106,7 @@ class ProjectController extends Controller
             'media',
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
+            'kanbanColumns',
         ]);
 
         $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
@@ -122,6 +123,7 @@ class ProjectController extends Controller
             'clients' => $clients,
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'canManageTranscripts' => $canManageTranscripts,
+            'canManageProject' => Gate::allows('update', $project),
             'meetingProvider' => $organization->meeting_provider,
             'recordingsData' => Inertia::defer(function () use ($project, $service, $organization, $canManageTranscripts) {
                 $importedIds = $project->documents()

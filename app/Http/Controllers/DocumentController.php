@@ -6,6 +6,7 @@ use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
+use App\Rules\ValidKanbanColumn;
 use App\Services\VectorService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -64,7 +65,7 @@ class DocumentController extends Controller
         }
 
         return inertia('Documents/Show', [
-            'project' => $project->load(['client.organization.users', 'client.organization.invitations']),
+            'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'kanbanColumns']),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent'])
                 ->loadExists('lockedNextWorkflowStep'),
@@ -139,7 +140,7 @@ class DocumentController extends Controller
         }
 
         $otherValidated = $request->validate([
-            'task_status' => ['nullable', 'string'],
+            'task_status' => ['nullable', 'string', new ValidKanbanColumn($project->id)],
             'priority' => ['nullable', 'string'],
             'due_at' => ['nullable', 'date'],
         ]);

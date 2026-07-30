@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\ValidKanbanColumn;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
@@ -39,7 +40,7 @@ class StoreDocumentRequest extends FormRequest
             'type' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
             'content' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
             'priority' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
-            'task_status' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
+            'task_status' => [($isUpdate ? 'sometimes' : 'required'), 'string', new ValidKanbanColumn($this->route('project')?->id)],
             'due_at' => ['nullable', 'date'],
             'assignee_id' => ['nullable', 'exists:users,id'],
             'metadata' => ['nullable', 'array'],

@@ -18,9 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import TransformPicker from '@/components/documents/TransformPicker.vue';
 import {
-    STATUS_LABELS,
     PRIORITY_LABELS,
-    statusDotClasses,
+    kanbanDotClasses,
     priorityDotClasses
 } from '@/lib/constants';
 import { Clock, User as UserIcon, Calendar, Activity, ShieldAlert, Sparkles, GitBranch } from 'lucide-vue-next';
@@ -50,6 +49,16 @@ const page = usePage<AppPageProps>();
 
 const currentProject = computed(() => (page.props as any).currentProject as Project | null);
 const documentTypeCatalog = computed(() => (page.props as any).documentTypeCatalog as DocumentSchemaItem[] | undefined);
+
+// currentProject is only set on the single-project page — on the Dashboard, tasks from
+// many projects share this same sheet, so resolve the owning project (and its columns)
+// from the document itself instead.
+const allProjects = computed(() => (page.props as any).projects as Project[] | undefined);
+const documentProject = computed(() =>
+    allProjects.value?.find(p => p.id === props.document.project_id) ?? currentProject.value
+);
+const columns = computed(() => documentProject.value?.kanban_columns ?? []);
+const currentColumn = computed(() => columns.value.find(c => c.key === (props.document.task_status ?? 'todo')));
 
 const labelForType = (key: string) => {
     const schemaItem = documentTypeCatalog.value?.find(s => s.key === key);
@@ -217,14 +226,14 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.d
                                     <SelectTrigger class="h-auto p-0 border-none bg-transparent hover:bg-gray-200/50 px-2 py-1 rounded-md transition-all shadow-none w-auto outline-none">
                                         <div class="flex items-center gap-2">
                                             <span class="font-black uppercase tracking-wider text-gray-700 text-[10px]"><SelectValue /></span>
-                                            <div :class="[statusDotClasses[document.task_status ?? 'todo'], 'w-2 h-2 rounded-full']"></div>
+                                            <div :class="[kanbanDotClasses[currentColumn?.color ?? 'slate'], 'w-2 h-2 rounded-full']"></div>
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent align="end">
-                                        <SelectItem v-for="(label, key) in STATUS_LABELS" :key="key" :value="key" class="text-[10px] font-black uppercase">
+                                        <SelectItem v-for="column in columns" :key="column.key" :value="column.key" class="text-[10px] font-black uppercase">
                                             <div class="flex items-center justify-between w-24">
-                                                {{ label }}
-                                                <div :class="[statusDotClasses[key], 'w-2 h-2 rounded-full']"></div>
+                                                {{ column.label }}
+                                                <div :class="[kanbanDotClasses[column.color ?? 'slate'], 'w-2 h-2 rounded-full']"></div>
                                             </div>
                                         </SelectItem>
                                     </SelectContent>

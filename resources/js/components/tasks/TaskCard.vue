@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, MessageSquare, User2 } from 'lucide-vue-next';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from '@/components/ui/tooltip';
-import { PRIORITY_LABELS, STATUS_LABELS, priorityClasses, statusClasses, statusDotClasses } from '@/lib/constants';
+import { PRIORITY_LABELS, priorityClasses, kanbanClasses, kanbanDotClasses } from '@/lib/constants';
 import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED } from '@/lib/flat-ui';
 import { Badge } from '@/components/ui/badge';
 
@@ -37,7 +37,7 @@ const { navigateToDetails } = useDocumentActions({
             <div class="flex items-center gap-3 flex-1 min-w-0">
                 <div
                     class="w-1.5 h-1.5 rounded-full shrink-0"
-                    :class="statusDotClasses[task.task_status]"
+                    :class="kanbanDotClasses.slate"
                 />
 
                 <TooltipProvider v-if="task.assignee">
@@ -75,9 +75,9 @@ const { navigateToDetails } = useDocumentActions({
                 <div class="w-[120px] hidden md:flex justify-end">
                     <Badge variant="secondary"
                         class="uppercase text-[9px] tracking-tighter font-bold px-2 py-0"
-                        :class="statusClasses[task.task_status]"
+                        :class="kanbanClasses.slate"
                     >
-                        {{ STATUS_LABELS[task.task_status] || task.task_status }}
+                        {{ task.task_status }}
                     </Badge>
                 </div>
 
