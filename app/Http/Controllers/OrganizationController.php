@@ -34,8 +34,12 @@ class OrganizationController extends Controller
                 : Inertia::render('Organizations/AccessPending');
         }
 
-        // 3. Resolve the Current Org (Query > Cookie > First Available)
-        $orgId = $request->query('org', $request->cookie('last_org_id'));
+        // 3. Resolve the Current Org (Query > Session > Cookie > First Available) — same
+        // priority order as HandleInertiaRequests, so the header org picker and this page
+        // never disagree about which org is "current."
+        $orgId = $request->query('org')
+            ?? $request->session()->get('active_org_id')
+            ?? $request->cookie('last_org_id');
         $currentOrg = $organizations->firstWhere('id', $orgId) ?? $organizations->first();
         $currentOrg->load('media');
 

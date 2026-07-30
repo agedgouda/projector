@@ -33,12 +33,25 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $isSuperAdmin = false;
         $roles = [];
+        $organizations = [];
 
         if ($user) {
-            $activeOrgId = $request->query('org')
+            $rawQueryOrgId = $request->query('org');
+            $queryOrgId = is_string($rawQueryOrgId) ? $rawQueryOrgId : null;
+
+            $activeOrgId = $queryOrgId
                            ?? $request->session()->get('active_org_id')
                            ?? $request->cookie('last_org_id')
                            ?? $user->organizations->first()?->id;
+
+            // An explicit ?org= switch (e.g. the header org picker) needs to persist beyond
+            // this one request — otherwise session('active_org_id'), which outranks the
+            // cookie, keeps whatever org was active before and the switch appears to "undo
+            // itself" the moment you navigate to a page that doesn't also pass ?org=.
+            if ($queryOrgId) {
+                $request->session()->put('active_org_id', $queryOrgId);
+                cookie()->queue(cookie()->forever('last_org_id', $queryOrgId));
+            }
 
             setPermissionsTeamId($activeOrgId);
 
@@ -59,6 +72,10 @@ class HandleInertiaRequests extends Middleware
                     $roles = [$orgRole];
                 }
             }
+
+            // Kept lean (no logo) — this loads on every request, unlike the fuller org list
+            // the Organizations page itself fetches, so it stays a single cheap query.
+            $organizations = Organization::accessibleBy($user)->orderBy('name')->get(['id', 'name'])->toArray();
         }
 
         $impersonatorId = $request->session()->get('impersonator_id');
@@ -115,6 +132,7 @@ class HandleInertiaRequests extends Middleware
                 'active_org_id' => $activeOrgId,
                 'impersonating' => $impersonator ? ['id' => $impersonator->id, 'name' => $impersonator->name] : null,
             ],
+            'organizations' => $organizations,
             'orgMembership' => $orgMembership,
             'flash' => [
                 'success' => $request->session()->get('success'),

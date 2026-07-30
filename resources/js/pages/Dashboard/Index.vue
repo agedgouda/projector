@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast } from 'vue-sonner';
 import { Coffee } from 'lucide-vue-next';
 import axios from 'axios';
-import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -31,7 +30,6 @@ const props = defineProps<{
 }>();
 
 const page = usePage<{ flash?: { success?: string; error?: string } }>();
-const isSuperAdmin = computed(() => (page.props.auth as any).user?.is_super === true);
 
 onMounted(() => {
     const flash = page.props.flash;
@@ -43,10 +41,6 @@ watch(() => page.props.flash, (flash) => {
     if (flash?.success) toast.success(flash.success);
     if (flash?.error) toast.error(flash.error);
 }, { deep: true });
-
-const handleOrgSwitch = (orgId: string) => {
-    router.get(window.location.pathname, { org: orgId }, { preserveState: false });
-};
 
 const columns = computed(() => mergeProjectColumns(props.projects));
 
@@ -173,18 +167,6 @@ const aiProcessedParentIds = computed(() => {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 space-y-8 w-full">
-            <div class="w-full flex items-center gap-3">
-                <OrgSwitcher
-                    v-if="isSuperAdmin"
-                    :organizations="organizations"
-                    :current-org="currentOrganization"
-                    @switch="handleOrgSwitch"
-                />
-                <span v-else-if="currentOrganization" class="text-lg font-bold text-gray-900 dark:text-gray-100">
-                    {{ currentOrganization.name }}
-                </span>
-            </div>
-
             <div v-if="!projects.length" class="flex flex-col items-center justify-center min-h-[40vh]">
                 <div class="p-4 bg-gray-100 rounded-full mb-4">
                     <Coffee class="w-12 h-12 text-gray-400" />

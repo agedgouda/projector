@@ -4,10 +4,9 @@ import { ref, computed } from 'vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import OrgInvitationTable from '@/components/user/OrgInvitationTable.vue';
-import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 import ClientList from '@/components/clients/ClientList.vue';
 import OrganizationForm from './Partials/OrganizationForm.vue';
-import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
+import { Head, Link, usePage, useForm } from '@inertiajs/vue3';
 import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase, Cpu, AlertTriangle } from 'lucide-vue-next';
 import type { BreadcrumbItem, AppPageProps } from '@/types';
 import organizationRoutes from '@/routes/organizations/index';
@@ -63,13 +62,6 @@ const isOrgAdmin = page.props.auth.user.roles?.includes('org-admin');
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Organization Profile', href: '' }
 ];
-
-const handleOrgSwitch = (id: string) => {
-    router.get(organizationRoutes.index.url(), { org: id }, {
-        preserveState: false,
-        preserveScroll: true
-    });
-};
 
 const activeTab = ref<'team' | 'clients' | 'configuration' | 'usage'>('team');
 
@@ -195,12 +187,6 @@ const submitInvite = (orgId: string) => {
                         <Plus class="w-4 h-4 mr-2" />
                         <span class="text-[10px] font-black uppercase tracking-widest">New Org</span>
                     </Link>
-
-                    <OrgSwitcher
-                        :organizations="organizations"
-                        :current-org="currentOrg"
-                        @switch="handleOrgSwitch"
-                    />
                 </div>
             </div>
 
