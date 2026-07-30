@@ -12,6 +12,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { kanbanDotClasses } from '@/lib/constants';
 import { KANBAN_UI } from '@/lib/kanban-theme';
 import projectRoutes from '@/routes/projects';
@@ -78,16 +79,31 @@ const submitAdd = () => {
     );
 };
 
-const deleteColumn = (column: KanbanColumnDef) => {
-    if (!props.currentProject) return;
-    if (!confirm(`Delete the "${column.label}" column?`)) return;
+const pendingDeleteColumn = ref<KanbanColumnDef | null>(null);
+const isDeleting = ref(false);
+
+const confirmDeleteColumn = (column: KanbanColumnDef) => {
+    pendingDeleteColumn.value = column;
+};
+
+const cancelDeleteColumn = () => {
+    pendingDeleteColumn.value = null;
+};
+
+const executeDeleteColumn = () => {
+    if (!props.currentProject || !pendingDeleteColumn.value) return;
+    const column = pendingDeleteColumn.value;
+
+    isDeleting.value = true;
 
     router.delete(
         projectRoutes.kanbanColumns.destroy.url({ project: props.currentProject.id, kanbanColumn: column.id }),
         {
             preserveScroll: true,
             preserveState: true,
+            onSuccess: () => { pendingDeleteColumn.value = null; },
             onError: (errors) => toast.error(errors.kanban_column ?? 'Failed to delete column.'),
+            onFinish: () => { isDeleting.value = false; },
         }
     );
 };
@@ -135,7 +151,7 @@ const deleteColumn = (column: KanbanColumnDef) => {
                                 <Pencil class="w-3.5 h-3.5 mr-2" />
                                 Rename
                             </DropdownMenuItem>
-                            <DropdownMenuItem @click="deleteColumn(column)" class="text-red-600 focus:text-red-600">
+                            <DropdownMenuItem @click="confirmDeleteColumn(column)" class="text-red-600 focus:text-red-600">
                                 <Trash2 class="w-3.5 h-3.5 mr-2" />
                                 Delete
                             </DropdownMenuItem>
@@ -158,5 +174,14 @@ const deleteColumn = (column: KanbanColumnDef) => {
                 </form>
             </PopoverContent>
         </Popover>
+
+        <ConfirmDeleteModal
+            :open="!!pendingDeleteColumn"
+            :title="`Delete '${pendingDeleteColumn?.label}' Column`"
+            description="This can't be undone. Move or clear any tasks in this column first, or the deletion will be rejected."
+            :loading="isDeleting"
+            @close="cancelDeleteColumn"
+            @confirm="executeDeleteColumn"
+        />
     </div>
 </template>
