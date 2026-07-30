@@ -69,3 +69,42 @@ it('denies access to members of a different org', function () {
         ->get(route('projects.show', $this->project))
         ->assertNotFound();
 });
+
+it('allows a member of the project\'s org to view it even when a different org they also belong to is active in the session', function () {
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    $user = User::factory()->create();
+    $this->org->users()->attach($user->id, ['role' => 'team-member']);
+    $otherOrg->users()->attach($user->id, ['role' => 'org-admin']);
+
+    $this->actingAs($user)
+        ->withSession(['active_org_id' => $otherOrg->id])
+        ->get(route('projects.show', $this->project))
+        ->assertOk();
+});
+
+it('allows a member of the project\'s org to view it even when a different org is active via the last_org_id cookie', function () {
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    $user = User::factory()->create();
+    $this->org->users()->attach($user->id, ['role' => 'team-member']);
+    $otherOrg->users()->attach($user->id, ['role' => 'org-admin']);
+
+    $this->actingAs($user)
+        ->withCookie('last_org_id', (string) $otherOrg->id)
+        ->get(route('projects.show', $this->project))
+        ->assertOk();
+});
+
+it('switches the active org to the project\'s own org when visited from a different active org', function () {
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    $user = User::factory()->create();
+    $this->org->users()->attach($user->id, ['role' => 'team-member']);
+    $otherOrg->users()->attach($user->id, ['role' => 'org-admin']);
+
+    $response = $this->actingAs($user)
+        ->withSession(['active_org_id' => $otherOrg->id])
+        ->get(route('projects.show', $this->project));
+
+    $response->assertOk();
+    expect(session('active_org_id'))->toBe($this->org->id);
+    $response->assertCookie('last_org_id', $this->org->id);
+});
