@@ -1,46 +1,48 @@
 // @/lib/kanban-theme.ts
 
-import { CSSProperties } from "vue";
+import { CSSProperties } from 'vue';
 
 export const KANBAN_UI = {
     // Labels & Typography
-    label: "text-[10px] font-black uppercase tracking-widest",
-    subtleLabel: "text-[9px] font-black uppercase tracking-widest text-gray-400",
+    label: 'text-[10px] font-black uppercase tracking-widest',
+    subtleLabel:
+        'text-[9px] font-black uppercase tracking-widest text-gray-400',
 
     // Card Styles
     // Added focus-visible and ring-offset for Keyboard Nav support
-    card: "rounded-xl border border-gray-100 dark:border-gray-500 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-projector-primary-500 focus-visible:ring-offset-2",
-    cardTitle: "text-xs font-bold text-gray-900 dark:text-gray-300 leading-tight line-clamp-2",
+    card: 'rounded-xl border border-gray-100 dark:border-gray-500 shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-projector-primary-500 focus-visible:ring-offset-2',
+    cardTitle:
+        'text-xs font-bold text-gray-900 dark:text-gray-300 leading-tight line-clamp-2',
 
     // Ghost/Placeholder Card (for when dragging)
     ghostCard: [
-        "bg-projector-primary-50/50",
-        "border-2",
-        "border-dashed",
-        "border-projector-primary-200",
-        "rounded-xl",
-        "opacity-50"
+        'bg-projector-primary-50/50',
+        'border-2',
+        'border-dashed',
+        'border-projector-primary-200',
+        'rounded-xl',
+        'opacity-50',
     ],
 
     // Header Styles
-    columnHeader: "flex items-center justify-center gap-3 py-4",
-    headerTitle: "text-[11px] font-black uppercase tracking-[0.15em] text-gray-500",
+    columnHeader: 'flex items-center justify-center gap-3 py-4',
+    headerTitle:
+        'text-[11px] font-black uppercase tracking-[0.15em] text-gray-500',
 
     // Avatar & Metadata
-    avatar: "rounded-full border-2 border-white flex items-center justify-center overflow-hidden shadow-sm transition-transform duration-200 hover:scale-110",
-    badge: "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border",
+    avatar: 'rounded-full border-2 border-white flex items-center justify-center overflow-hidden shadow-sm transition-transform duration-200 hover:scale-110',
+    badge: 'px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border',
 
     // Column Styles
-    columnWrapper: "flex flex-col gap-4 min-h-[160px] bg-transparent rounded-[2rem] p-4 relative",
+    columnWrapper:
+        'flex flex-col gap-4 min-h-[160px] bg-transparent rounded-[2rem] p-4 relative',
 
     gridContainer: (columnCount: number): CSSProperties => ({
         display: 'grid',
         gap: '2rem', // gap-8
         gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
         width: '100%',
-    })
-
-
+    }),
 };
 
 /**
@@ -61,13 +63,80 @@ export const kanbanCardBg: Record<string, string> = {
 };
 
 /**
+ * Card background driven by due-date urgency rather than column color: green when the
+ * due date is more than 2 days out, sliding through yellow as it approaches, red once
+ * the due date has arrived (or passed). Cards in the "done" column are always green,
+ * and cards with no due date fall back to the column's own color (`kanbanCardBg`).
+ */
+const DUE_DATE_RED: [number, number, number] = [239, 68, 68]; // red-500
+const DUE_DATE_YELLOW: [number, number, number] = [251, 191, 36]; // amber-400
+const DUE_DATE_GREEN: [number, number, number] = [16, 185, 129]; // emerald-500
+const DUE_DATE_BG_OPACITY = 0.14;
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+const lerpRgb = (
+    a: [number, number, number],
+    b: [number, number, number],
+    t: number,
+): [number, number, number] => [
+    lerp(a[0], b[0], t),
+    lerp(a[1], b[1], t),
+    lerp(a[2], b[2], t),
+];
+
+const toRgba = (rgb: [number, number, number], opacity: number): string =>
+    `rgba(${Math.round(rgb[0])}, ${Math.round(rgb[1])}, ${Math.round(rgb[2])}, ${opacity})`;
+
+const daysUntil = (dueAt: string): number => {
+    const due = new Date(dueAt);
+    const dueMidnight = new Date(
+        due.getFullYear(),
+        due.getMonth(),
+        due.getDate(),
+    );
+    const now = new Date();
+    const todayMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+    );
+    return Math.round(
+        (dueMidnight.getTime() - todayMidnight.getTime()) / 86_400_000,
+    );
+};
+
+export const dueDateCardBackground = (
+    doc: { due_at: string | null },
+    column: { key: string },
+): string | null => {
+    if (column.key === 'done') {
+        return toRgba(DUE_DATE_GREEN, DUE_DATE_BG_OPACITY);
+    }
+
+    if (!doc.due_at) {
+        return null;
+    }
+
+    const days = daysUntil(doc.due_at);
+    const rgb =
+        days <= 0
+            ? DUE_DATE_RED
+            : days > 2
+              ? DUE_DATE_GREEN
+              : lerpRgb(DUE_DATE_RED, DUE_DATE_YELLOW, days / 2);
+
+    return toRgba(rgb, DUE_DATE_BG_OPACITY);
+};
+
+/**
  * Functional class compositions for Priority
  */
 export const getPriorityStyles = (priority: string) => {
     const map: Record<string, string> = {
-        high: "bg-red-50 text-red-600 border-red-100",
-        medium: "bg-amber-50 text-amber-600 border-amber-100",
-        low: "bg-emerald-50 text-emerald-600 border-emerald-100",
+        high: 'bg-red-50 text-red-600 border-red-100',
+        medium: 'bg-amber-50 text-amber-600 border-amber-100',
+        low: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     };
     return map[priority?.toLowerCase()] || map.low;
 };
@@ -78,13 +147,11 @@ export const getPriorityStyles = (priority: string) => {
  */
 export const getAvatarAppearance = (id: number = 0) => {
     const variants = [
-        "bg-projector-primary-50 text-projector-primary-700 border-projector-primary-100",
-        "bg-emerald-50 text-emerald-700 border-emerald-100",
-        "bg-amber-50 text-amber-700 border-amber-100",
-        "bg-rose-50 text-rose-700 border-rose-100",
-        "bg-sky-50 text-sky-700 border-sky-100",
+        'bg-projector-primary-50 text-projector-primary-700 border-projector-primary-100',
+        'bg-emerald-50 text-emerald-700 border-emerald-100',
+        'bg-amber-50 text-amber-700 border-amber-100',
+        'bg-rose-50 text-rose-700 border-rose-100',
+        'bg-sky-50 text-sky-700 border-sky-100',
     ];
     return variants[id % variants.length];
 };
-
-
