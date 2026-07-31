@@ -67,6 +67,8 @@ const dueAtProxy = computed<string>({
     set: (val) => updateField(props.item.id as string, 'due_at', val)
 });
 
+const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
+
 // Derived from the live `props.item` (not a one-time snapshot) so it stays accurate across
 // saves within the same page visit — a document has something to reprocess once its content
 // has been edited more recently than the last successful AI run, and its type is actually
@@ -144,6 +146,7 @@ watch(() => page.props.flash, (flash) => {
                     :item="item"
                     :project="project"
                     :document-type-catalog="documentTypeCatalog"
+                    :uses-external-due-dates="usesExternalDueDates"
                     :needs-reprocess="needsReprocess"
                     :is-processing-live="isProcessingLive"
                     :processing-message="processingMessage"

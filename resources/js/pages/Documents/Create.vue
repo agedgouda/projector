@@ -3,7 +3,7 @@
    1. Imports & Types
 ---------------------------- */
 import { computed } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 
 // Layouts & Components
@@ -37,6 +37,7 @@ const form = useForm<DocumentForm & { project_id: string }>({
     type: '',
     assignee_id: null,
     due_at: null,
+    external_due_at: null,
     priority: 'low',
     task_status: 'todo',
     project_id: props.project.id,
@@ -49,6 +50,9 @@ const form = useForm<DocumentForm & { project_id: string }>({
    4. Reactive & Computed State
 ---------------------------- */
 const { breadcrumbs, handleBack } = useDocumentNavigation(props.project, form);
+
+const page = usePage();
+const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
 
 // This computed property now perfectly matches the simplified Header prop
 const draftItem = computed(() => ({
@@ -123,6 +127,7 @@ const updateFormValue = (field: string, val: any) => {
                     :item="(form as any)"
                     :project="project"
                     :document-type-catalog="documentTypeCatalog"
+                    :uses-external-due-dates="usesExternalDueDates"
                     :dueAtProxy="form.due_at ?? ''"
                     @update:dueAtProxy="(val) => form.due_at = val"
                     @change="updateFormValue"

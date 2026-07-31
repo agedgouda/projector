@@ -61,6 +61,7 @@ class Document extends Model implements HasMedia
         'task_status',
         'priority',
         'due_at',
+        'external_due_at',
         'locked_project_type_id',
     ];
 

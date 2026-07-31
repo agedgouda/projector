@@ -60,6 +60,8 @@ const documentProject = computed(() =>
 const columns = computed(() => documentProject.value?.kanban_columns ?? []);
 const currentColumn = computed(() => columns.value.find(c => c.key === (props.document.task_status ?? 'todo')));
 
+const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
+
 const labelForType = (key: string) => {
     const schemaItem = documentTypeCatalog.value?.find(s => s.key === key);
     return schemaItem?.label || key;
@@ -107,7 +109,7 @@ const handleUpdate = (field: string, value: any) => {
     }
 
     // Ensure that if a date is cleared, we send null, otherwise send the string
-    if (field === 'due_at') {
+    if (field === 'due_at' || field === 'external_due_at') {
         finalValue = value === '' ? null : value;
     }
 
@@ -204,12 +206,24 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.d
 
                             <div class="flex justify-between items-center h-8 border-b border-gray-200/50 pb-2">
                                 <span class="text-gray-500 text-[11px] font-medium flex items-center gap-2">
-                                    <Calendar class="w-3.5 h-3.5" /> Due Date
+                                    <Calendar class="w-3.5 h-3.5" /> {{ usesExternalDueDates ? 'Internal Due Date' : 'Due Date' }}
                                 </span>
                                 <input
                                     type="date"
                                     :value="document.due_at ? document.due_at.slice(0, 10) : ''"
                                     @change="e => handleUpdate('due_at', (e.target as HTMLInputElement).value)"
+                                    class="bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-wider text-gray-700 focus:ring-0 cursor-pointer text-right w-[100px]"
+                                />
+                            </div>
+
+                            <div v-if="usesExternalDueDates" class="flex justify-between items-center h-8 border-b border-gray-200/50 pb-2">
+                                <span class="text-gray-500 text-[11px] font-medium flex items-center gap-2">
+                                    <Calendar class="w-3.5 h-3.5" /> External Due Date
+                                </span>
+                                <input
+                                    type="date"
+                                    :value="document.external_due_at ? document.external_due_at.slice(0, 10) : ''"
+                                    @change="e => handleUpdate('external_due_at', (e.target as HTMLInputElement).value)"
                                     class="bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-wider text-gray-700 focus:ring-0 cursor-pointer text-right w-[100px]"
                                 />
                             </div>

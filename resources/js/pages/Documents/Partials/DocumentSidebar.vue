@@ -23,6 +23,7 @@ const props = defineProps<{
     item: ExtendedDocument | any;
     documentTypeCatalog?: DocumentSchemaItem[];
     dueAtProxy: string;
+    usesExternalDueDates?: boolean;
     needsReprocess?: boolean;
     isProcessingLive?: boolean;
     processingMessage?: string | null;
@@ -106,7 +107,7 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                             </div>
 
                             <div class="flex justify-between items-center min-h-[24px]">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Due Date</span>
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">{{ usesExternalDueDates ? 'Internal Due Date' : 'Due Date' }}</span>
                                 <div class="flex items-center hover:bg-slate-100 dark:hover:bg-white/10 pl-2 pr-1 rounded transition-colors cursor-pointer mr-[-3px]">
                                     <input
                                         type="date"
@@ -117,6 +118,23 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                                             'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0',
                                             project.inactive ? 'opacity-50 cursor-default' : 'cursor-pointer',
                                             !dueAtProxy ? 'w-[112px] is-empty text-left' : 'w-[112px] text-right'
+                                        ]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div v-if="usesExternalDueDates" class="flex justify-between items-center min-h-[24px]">
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">External Due Date</span>
+                                <div class="flex items-center hover:bg-slate-100 dark:hover:bg-white/10 pl-2 pr-1 rounded transition-colors cursor-pointer mr-[-3px]">
+                                    <input
+                                        type="date"
+                                        :value="item.external_due_at ? item.external_due_at.substring(0, 10) : ''"
+                                        :disabled="project.inactive"
+                                        @input="$emit('change', 'external_due_at', ($event.target as HTMLInputElement).value)"
+                                        :class="[
+                                            'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0',
+                                            project.inactive ? 'opacity-50 cursor-default' : 'cursor-pointer',
+                                            !item.external_due_at ? 'w-[112px] is-empty text-left' : 'w-[112px] text-right'
                                         ]"
                                     />
                                 </div>

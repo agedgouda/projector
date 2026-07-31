@@ -154,6 +154,7 @@ declare global {
         task_status: TaskStatus;
         priority: TaskPriority;
         due_at: string | null;
+        external_due_at: string | null;
         locked_project_type_id?: string | null;
         locked_next_workflow_step_exists?: boolean;
         content_updated_at?: string | null;
@@ -204,6 +205,7 @@ declare global {
         priority: TaskPriority;
         task_status: TaskStatus;
         due_at: string | null;
+        external_due_at: string | null;
         metadata: DocumentMetadata;
     }
 
@@ -286,6 +288,7 @@ export interface AiDriverOption {
         vector_config?: string;
         llm_config?: string;
         meeting_provider?: string;
+        uses_external_due_dates?: boolean;
         meeting_config_form?: {
             account_id: string;
             tenant_id: string;

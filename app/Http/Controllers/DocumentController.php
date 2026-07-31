@@ -143,6 +143,7 @@ class DocumentController extends Controller
             'task_status' => ['nullable', 'string', new ValidKanbanColumn($project->id)],
             'priority' => ['nullable', 'string'],
             'due_at' => ['nullable', 'date'],
+            'external_due_at' => ['nullable', 'date'],
         ]);
 
         $assigneeData = $request->has('assignee_id')

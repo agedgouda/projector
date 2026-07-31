@@ -65,6 +65,7 @@ const form = useForm({
         model: props.organization?.vector_config_form?.model || '',
         host:  props.organization?.vector_config_form?.host  || '',
     },
+    uses_external_due_dates: props.organization?.uses_external_due_dates ?? false,
     meeting_provider: props.organization?.meeting_provider || '',
     meeting_config: {
         account_id:            props.organization?.meeting_config_form?.account_id            || '',
@@ -209,6 +210,18 @@ const submit = () => {
             <div v-if="form.errors.name" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
                 {{ form.errors.name }}
             </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <input
+                id="uses_external_due_dates"
+                type="checkbox"
+                v-model="form.uses_external_due_dates"
+                class="w-4 h-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
+            />
+            <Label for="uses_external_due_dates" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                Track separate internal and external due dates on tasks
+            </Label>
         </div>
 
         <!-- AI Driver Overrides -->

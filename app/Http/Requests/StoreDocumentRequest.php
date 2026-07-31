@@ -42,6 +42,7 @@ class StoreDocumentRequest extends FormRequest
             'priority' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
             'task_status' => [($isUpdate ? 'sometimes' : 'required'), 'string', new ValidKanbanColumn($this->route('project')?->id)],
             'due_at' => ['nullable', 'date'],
+            'external_due_at' => ['nullable', 'date'],
             'assignee_id' => ['nullable', 'exists:users,id'],
             'metadata' => ['nullable', 'array'],
         ];
