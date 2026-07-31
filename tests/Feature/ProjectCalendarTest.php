@@ -120,7 +120,7 @@ it('downloads a calendar pdf with a 200 response', function () {
     ]);
 
     $this->actingAs($this->admin)
-        ->get(route('projects.calendar.exportPdf', $this->project))
+        ->get(route('projects.calendar.exportPdf', $this->project).'?month=2026-09')
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
 });
@@ -143,7 +143,7 @@ it('downloads a calendar csv including sub-project items by default', function (
     ]);
 
     $response = $this->actingAs($this->admin)
-        ->get(route('projects.calendar.exportCsv', $this->project))
+        ->get(route('projects.calendar.exportCsv', $this->project).'?month=2026-09')
         ->assertOk()
         ->assertHeader('content-type', 'text/csv; charset=UTF-8');
 
@@ -172,11 +172,58 @@ it('excludes a hidden sub-project from the calendar csv export', function () {
     ]);
 
     $response = $this->actingAs($this->admin)
-        ->get(route('projects.calendar.exportCsv', $this->project).'?hidden_subprojects[]='.$this->child->id)
+        ->get(route('projects.calendar.exportCsv', $this->project).'?month=2026-09&hidden_subprojects[]='.$this->child->id)
         ->assertOk();
 
     $csv = $response->streamedContent();
 
     expect($csv)->toContain('Own Task')
         ->not->toContain('Sub Task');
+});
+
+it('only includes items due in the requested month', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'September Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'October Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-10-01',
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportCsv', $this->project).'?month=2026-09')
+        ->assertOk();
+
+    $csv = $response->streamedContent();
+
+    expect($csv)->toContain('September Task')
+        ->toContain('September 2026')
+        ->not->toContain('October Task');
+});
+
+it('defaults to the current month when none is requested', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Today Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => now()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportCsv', $this->project))
+        ->assertOk();
+
+    $csv = $response->streamedContent();
+
+    expect($csv)->toContain('Today Task')
+        ->toContain(now()->format('F Y'));
 });

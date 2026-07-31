@@ -143,6 +143,10 @@
             background: #f8fafc;
         }
 
+        table.calendar-grid td.out-of-month .day-number {
+            color: #cbd5e1;
+        }
+
         .day-number {
             font-size: 9px;
             font-weight: bold;
@@ -235,49 +239,43 @@
         @endif
     </div>
 
-    @forelse ($months as $month)
-        <div class="month" @if (! $loop->first) style="page-break-before: always;" @endif>
-            <div class="month-label">{{ $month['label'] }}</div>
-            <table class="calendar-grid">
-                <thead>
+    <div class="month">
+        <div class="month-label">{{ $month['label'] }}</div>
+        <table class="calendar-grid">
+            <thead>
+                <tr>
+                    <th>Sun</th>
+                    <th>Mon</th>
+                    <th>Tue</th>
+                    <th>Wed</th>
+                    <th>Thu</th>
+                    <th>Fri</th>
+                    <th>Sat</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($month['weeks'] as $week)
                     <tr>
-                        <th>Sun</th>
-                        <th>Mon</th>
-                        <th>Tue</th>
-                        <th>Wed</th>
-                        <th>Thu</th>
-                        <th>Fri</th>
-                        <th>Sat</th>
+                        @foreach ($week as $cell)
+                            <td class="{{ $cell['inMonth'] ? '' : 'out-of-month' }}">
+                                <div class="day-number">{{ $cell['day'] }}</div>
+                                @foreach ($cell['markers'] as $marker)
+                                    <div class="marker color-{{ $marker['color'] }}">
+                                        {{ $marker['name'] }}
+                                        @if ($marker['isExternal'])
+                                            <span class="ext-tag">Ext</span>
+                                        @endif
+                                        @if ($marker['isSubproject'])
+                                            <div class="sub-tag">{{ $marker['projectName'] }}</div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </td>
+                        @endforeach
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach ($month['weeks'] as $week)
-                        <tr>
-                            @foreach ($week as $cell)
-                                <td class="{{ $cell['inMonth'] ? '' : 'out-of-month' }}">
-                                    @if ($cell['inMonth'])
-                                        <div class="day-number">{{ $cell['day'] }}</div>
-                                        @foreach ($cell['markers'] as $marker)
-                                            <div class="marker color-{{ $marker['color'] }}">
-                                                {{ $marker['name'] }}
-                                                @if ($marker['isExternal'])
-                                                    <span class="ext-tag">Ext</span>
-                                                @endif
-                                                @if ($marker['isSubproject'])
-                                                    <div class="sub-tag">{{ $marker['projectName'] }}</div>
-                                                @endif
-                                            </div>
-                                        @endforeach
-                                    @endif
-                                </td>
-                            @endforeach
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @empty
-        <p class="empty">No items with due dates.</p>
-    @endforelse
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>

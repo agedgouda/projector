@@ -71,17 +71,20 @@ const toggleSubproject = (id: string) => {
     }
 };
 
-// Exports mirror whatever sub-projects are currently hidden on screen, so the
-// downloaded file matches what the user is actually looking at.
-const exportQuery = computed(() => ({ hidden_subprojects: Array.from(hiddenSubprojectIds) }));
-const exportPdfUrl = computed(() => projectCalendarRoutes.exportPdf.url({ project: props.projectId }, { query: exportQuery.value }));
-const exportCsvUrl = computed(() => projectCalendarRoutes.exportCsv.url({ project: props.projectId }, { query: exportQuery.value }));
-
 const currentMonth = ref(new Date());
 
 const monthLabel = computed(() =>
     currentMonth.value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 );
+
+// Exports mirror whatever's currently on screen — the visible month, and whichever
+// sub-projects are currently hidden — so the downloaded file matches the view.
+const exportQuery = computed(() => ({
+    month: `${currentMonth.value.getFullYear()}-${String(currentMonth.value.getMonth() + 1).padStart(2, '0')}`,
+    hidden_subprojects: Array.from(hiddenSubprojectIds),
+}));
+const exportPdfUrl = computed(() => projectCalendarRoutes.exportPdf.url({ project: props.projectId }, { query: exportQuery.value }));
+const exportCsvUrl = computed(() => projectCalendarRoutes.exportCsv.url({ project: props.projectId }, { query: exportQuery.value }));
 
 const goToPrevMonth = () => {
     currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() - 1, 1);
