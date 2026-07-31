@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowUpRight, FileDown, FileSpreadsheet } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowUpRight, FileDown, FileSpreadsheet, Sheet } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { KANBAN_COLOR_PALETTE, kanbanClasses, kanbanDotClasses, priorityDotClasses } from '@/lib/constants';
@@ -85,6 +85,7 @@ const exportQuery = computed(() => ({
 }));
 const exportPdfUrl = computed(() => projectCalendarRoutes.exportPdf.url({ project: props.projectId }, { query: exportQuery.value }));
 const exportCsvUrl = computed(() => projectCalendarRoutes.exportCsv.url({ project: props.projectId }, { query: exportQuery.value }));
+const exportExcelUrl = computed(() => projectCalendarRoutes.exportExcel.url({ project: props.projectId }, { query: exportQuery.value }));
 
 const goToPrevMonth = () => {
     currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() - 1, 1);
@@ -241,6 +242,12 @@ const cancelCloseMarkerCard = () => {
                         <a :href="exportCsvUrl">
                             <FileSpreadsheet class="w-3.5 h-3.5" />
                             CSV
+                        </a>
+                    </Button>
+                    <Button as-child variant="outline" size="sm" class="h-8 px-3 text-[10px] font-black uppercase tracking-widest">
+                        <a :href="exportExcelUrl">
+                            <Sheet class="w-3.5 h-3.5" />
+                            Excel
                         </a>
                     </Button>
                     <Button variant="outline" size="sm" class="h-8 px-3 text-[10px] font-black uppercase tracking-widest" @click="goToToday">

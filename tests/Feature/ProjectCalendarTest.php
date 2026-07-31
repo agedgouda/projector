@@ -125,6 +125,21 @@ it('downloads a calendar pdf with a 200 response', function () {
         ->assertHeader('content-type', 'application/pdf');
 });
 
+it('downloads a calendar excel workbook with a 200 response', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Own Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportExcel', $this->project).'?month=2026-09')
+        ->assertOk()
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+});
+
 it('downloads a calendar csv including sub-project items by default', function () {
     Document::create([
         'project_id' => $this->project->id,

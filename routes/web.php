@@ -234,6 +234,8 @@ Route::middleware(['auth'])->group(function () {
                 ->name('calendar.exportPdf');
             Route::get('/calendar/export-csv', [ProjectController::class, 'exportCalendarCsv'])
                 ->name('calendar.exportCsv');
+            Route::get('/calendar/export-excel', [ProjectController::class, 'exportCalendarExcel'])
+                ->name('calendar.exportExcel');
 
             Route::resource('documents', DocumentController::class);
 

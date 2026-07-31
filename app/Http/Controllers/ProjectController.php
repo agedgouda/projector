@@ -17,6 +17,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\RichText\RichText;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProjectController extends Controller
@@ -409,6 +416,114 @@ class ProjectController extends Controller
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
+    }
+
+    /**
+     * Export the project's calendar (due-date items, including visible sub-projects)
+     * for the currently-viewed month as a formatted Excel workbook laid out like the
+     * on-screen calendar — colored per sub-project, bordered day cells — rather than
+     * a flat row-per-item dump.
+     */
+    public function exportCalendarExcel(Request $request, Project $project): StreamedResponse
+    {
+        Gate::authorize('view', $project);
+
+        $items = $this->resolveCalendarExportItems($request, $project);
+        $month = $this->resolveTargetMonth($request);
+
+        $project->loadMissing('client.organization');
+        $organization = $project->client?->organization;
+        $usesExternalDueDates = $organization !== null && $organization->uses_external_due_dates;
+
+        $grid = $this->buildCalendarGrid($items, $usesExternalDueDates, $month);
+
+        $spreadsheet = $this->buildCalendarSpreadsheet($project, $grid);
+        $writer = new Xlsx($spreadsheet);
+
+        $filename = Str::slug($project->name).'-calendar-'.$month->format('Y-m').'.xlsx';
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Build a styled Excel worksheet from a calendar grid — a bolded title row, a
+     * weekday header row, then one row per calendar week with each day cell holding
+     * the day number plus its due-date markers as separate colored text runs (color
+     * matching the sub-project, matching the PDF/on-screen calendar).
+     *
+     * @param  array{label: string, weeks: array<int, array<int, array{
+     *     day: int, inMonth: bool,
+     *     markers: array<int, array{name: string, isExternal: bool, isSubproject: bool, projectName: string, color: string}>
+     * }>>}  $grid
+     */
+    private function buildCalendarSpreadsheet(Project $project, array $grid): Spreadsheet
+    {
+        $colorHex = [
+            'slate' => '475569', 'red' => 'DC2626', 'amber' => 'D97706', 'emerald' => '059669',
+            'blue' => '2563EB', 'purple' => '7C3AED', 'pink' => 'DB2777', 'orange' => 'EA580C',
+            'indigo' => '4F46E5', 'teal' => '0D9488',
+        ];
+        $columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+        $weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle(Str::limit($grid['label'], 31, ''));
+
+        $sheet->setCellValue('A1', $project->name.' — '.$grid['label']);
+        $sheet->mergeCells('A1:G1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getRowDimension(1)->setRowHeight(24);
+
+        foreach ($columns as $i => $col) {
+            $cell = $col.'2';
+            $sheet->setCellValue($cell, $weekdayLabels[$i]);
+            $style = $sheet->getStyle($cell);
+            $style->getFont()->setBold(true);
+            $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F1F5F9');
+            $style->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+
+        $rowIndex = 3;
+        foreach ($grid['weeks'] as $week) {
+            foreach ($week as $i => $cellData) {
+                $coord = $columns[$i].$rowIndex;
+                $style = $sheet->getStyle($coord);
+                $style->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+
+                if (! $cellData['inMonth']) {
+                    $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+                }
+
+                $richText = new RichText;
+                $dayRun = $richText->createTextRun((string) $cellData['day']);
+                $dayRun->getFontOrThrow()->setBold(true)->setColor(new Color($cellData['inMonth'] ? '334155' : 'CBD5E1'));
+
+                foreach ($cellData['markers'] as $marker) {
+                    $label = ($marker['isSubproject'] ? '['.$marker['projectName'].'] ' : '').$marker['name'].($marker['isExternal'] ? ' (Ext)' : '');
+                    $run = $richText->createTextRun("\n".$label);
+                    $hex = $marker['isSubproject'] ? ($colorHex[$marker['color']] ?? '475569') : '1E293B';
+                    $run->getFontOrThrow()->setSize(9)->setColor(new Color($hex));
+                }
+
+                $sheet->getCell($coord)->setValue($richText);
+            }
+            $sheet->getRowDimension($rowIndex)->setRowHeight(70);
+            $rowIndex++;
+        }
+
+        foreach ($columns as $col) {
+            $sheet->getColumnDimension($col)->setWidth(22);
+        }
+
+        $sheet->getStyle('A2:G'.($rowIndex - 1))->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('E2E8F0'));
+
+        return $spreadsheet;
     }
 
     /**
