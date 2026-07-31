@@ -31,6 +31,7 @@ import projectDocumentsRoutes from '@/routes/projects/documents/index';
 // UI Components
 import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
+import ProjectCalendar from '@/components/projects/ProjectCalendar.vue';
 import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
 import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
@@ -39,6 +40,7 @@ const props = defineProps<{
     projects: Project[];
     currentProject: (Project & { logo_url?: string | null }) | null;
     kanbanData: Record<string, ProjectDocument[]>;
+    calendarItems: CalendarItem[];
     activeTab: string;
     clients: Client[];
     documentTypeCatalog: DocumentSchemaItem[];
@@ -327,11 +329,11 @@ watch(() => props.currentProject, (newProject) => {
             </div>
 
             <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
-                <button v-for="tab in ['tasks', 'hierarchy', 'recordings']" :key="tab"
+                <button v-for="tab in ['tasks', 'calendar', 'hierarchy', 'recordings']" :key="tab"
                     @click="updateTab(tab)"
                     :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
                         activeTab === tab ? 'border-projector-primary-500 text-projector-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
-                    {{ tab === 'hierarchy' ? 'Documentation' : tab === 'recordings' ? 'Recordings' : 'Tasks' }}
+                    {{ tab === 'hierarchy' ? 'Documentation' : tab === 'recordings' ? 'Recordings' : tab === 'calendar' ? 'Calendar' : 'Tasks' }}
                 </button>
             </div>
 
@@ -349,6 +351,10 @@ watch(() => props.currentProject, (newProject) => {
                     :handle-create-new="handleCreateNew"
                     :can-manage-columns="canManageProject"
                 />
+            </div>
+
+            <div v-show="activeTab === 'calendar'">
+                <ProjectCalendar :items="calendarItems" />
             </div>
 
             <div v-show="activeTab === 'hierarchy'">

@@ -180,6 +180,20 @@ declare global {
         currentStatus?: string;
     };
 
+    export interface CalendarItem {
+        id: string;
+        name: string;
+        content: string | null;
+        type: string;
+        project_id: string;
+        project_name: string;
+        is_subproject: boolean;
+        due_at: string | null;
+        external_due_at: string | null;
+        priority: TaskPriority;
+        task_status: TaskStatus;
+    }
+
     export interface DocumentFields extends DocumentForm {
         id: string;
         project_id: string;

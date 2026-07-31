@@ -121,6 +121,7 @@ class ProjectController extends Controller
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'kanbanColumns',
+            'children.documents',
         ]);
 
         $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
@@ -133,6 +134,7 @@ class ProjectController extends Controller
             'projects' => $projects,
             'currentProject' => array_merge($project->toArray(), ['logo_url' => $project->logo_url]),
             'kanbanData' => $kanbanData,
+            'calendarItems' => $project->calendarItems(),
             'activeTab' => $tab,
             'clients' => $clients,
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),

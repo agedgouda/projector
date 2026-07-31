@@ -297,4 +297,46 @@ class Project extends Model implements HasMedia
             ]))
             ->values();
     }
+
+    /**
+     * Flattened due-date items for the calendar: this project's own documents plus
+     * its direct sub-projects' documents (2-level cap — no grandchildren exist),
+     * limited to documents that have at least one due date set.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    public function calendarItems(): \Illuminate\Support\Collection
+    {
+        /** @var array<int, array<string, mixed>> $items */
+        $items = [];
+
+        /** @var array<int, array{project: Project, is_subproject: bool}> $sources */
+        $sources = [['project' => $this, 'is_subproject' => false]];
+
+        foreach ($this->children as $child) {
+            $sources[] = ['project' => $child, 'is_subproject' => true];
+        }
+
+        foreach ($sources as $source) {
+            foreach ($source['project']->documents as $doc) {
+                $items[] = [
+                    'id' => $doc->id,
+                    'name' => $doc->name,
+                    'content' => $doc->content,
+                    'type' => $doc->type,
+                    'project_id' => $doc->project_id,
+                    'project_name' => $source['project']->name,
+                    'is_subproject' => $source['is_subproject'],
+                    'due_at' => $doc->due_at,
+                    'external_due_at' => $doc->external_due_at,
+                    'priority' => $doc->priority,
+                    'task_status' => $doc->task_status,
+                ];
+            }
+        }
+
+        return collect($items)
+            ->filter(fn (array $item) => $item['due_at'] || $item['external_due_at'])
+            ->values();
+    }
 }
