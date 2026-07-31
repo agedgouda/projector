@@ -229,6 +229,8 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.updateAttributes');
             Route::get('/documents/{document}/export-pdf', [DocumentController::class, 'exportPdf'])
                 ->name('documents.exportPdf');
+            Route::get('/documents/{document}/export-word', [DocumentController::class, 'exportWord'])
+                ->name('documents.exportWord');
 
             Route::get('/calendar/export-pdf', [ProjectController::class, 'exportCalendarPdf'])
                 ->name('calendar.exportPdf');

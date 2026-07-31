@@ -14,9 +14,9 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, FileDown } from 'lucide-vue-next';
+import { Sparkles, RefreshCw, FileDown, FileType } from 'lucide-vue-next';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
-import { exportPdf } from '@/actions/App/Http/Controllers/DocumentController';
+import { exportPdf, exportWord } from '@/actions/App/Http/Controllers/DocumentController';
 
 const props = defineProps<{
     project: Project;
@@ -209,11 +209,17 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                     </div>
                 </div>
 
-                <div v-if="item.id" class="pt-6 border-t border-slate-200 dark:border-white/10">
+                <div v-if="item.id" class="pt-6 border-t border-slate-200 dark:border-white/10 space-y-2">
                     <Button as-child variant="outline" size="sm" class="w-full">
                         <a :href="exportPdf.url({ project: project.id, document: String(item.id) })">
                             <FileDown class="h-3.5 w-3.5" />
-                            Export as PDF
+                            Save As PDF
+                        </a>
+                    </Button>
+                    <Button as-child variant="outline" size="sm" class="w-full">
+                        <a :href="exportWord.url({ project: project.id, document: String(item.id) })">
+                            <FileType class="h-3.5 w-3.5" />
+                            Save As Word
                         </a>
                     </Button>
                 </div>

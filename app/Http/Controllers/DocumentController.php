@@ -12,6 +12,9 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Shared\Html as PhpWordHtml;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
@@ -103,6 +106,73 @@ class DocumentController extends Controller
         $filename = is_string($document->name) ? Str::slug($document->name) : 'document';
 
         return $pdf->download($filename.'.pdf');
+    }
+
+    /**
+     * Export the specified document as a Word (.docx) file, suitable for sending to a client.
+     */
+    public function exportWord(Project $project, Document $document): StreamedResponse
+    {
+        Gate::authorize('view', $project);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $catalogEntry = $project->documentTypeCatalog()->get($document->type);
+        $typeLabel = $catalogEntry instanceof \App\Models\DocumentTypeDefinition ? $catalogEntry->label : $document->type;
+
+        $documentName = is_string($document->name) ? $document->name : 'Untitled';
+
+        $phpWord = new PhpWord;
+        $section = $phpWord->addSection();
+
+        $section->addText($documentName, ['bold' => true, 'size' => 20, 'color' => '0F172A']);
+        $section->addText($typeLabel, ['size' => 9, 'bold' => true, 'allCaps' => true, 'color' => '6366F1']);
+        $section->addTextBreak();
+
+        PhpWordHtml::addHtml($section, $this->normalizeHtmlForWord($document->content), false, false);
+
+        $filename = Str::slug($documentName);
+
+        return response()->streamDownload(function () use ($phpWord) {
+            $phpWord->save('php://output', 'Word2007');
+        }, $filename.'.docx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]);
+    }
+
+    /**
+     * PhpWord's HTML importer parses its input as strict XML, but this app's rich-text
+     * editor produces ordinary (not always self-closing) HTML — e.g. bare `<br>` tags —
+     * which fails XML parsing. Round-tripping through DOMDocument's lenient HTML parser
+     * first normalizes it into well-formed XML PhpWord can consume.
+     */
+    private function normalizeHtmlForWord(string $html): string
+    {
+        if (trim($html) === '') {
+            return '<p>No content provided.</p>';
+        }
+
+        $dom = new \DOMDocument;
+        libxml_use_internal_errors(true);
+        $dom->loadHTML(
+            '<?xml encoding="utf-8"?><html><body>'.$html.'</body></html>',
+            LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+        );
+        libxml_clear_errors();
+
+        $body = $dom->getElementsByTagName('body')->item(0);
+        if ($body === null) {
+            return '<p>No content provided.</p>';
+        }
+
+        $normalized = '';
+        foreach (iterator_to_array($body->childNodes) as $child) {
+            $normalized .= $dom->saveXML($child);
+        }
+
+        return $normalized !== '' ? $normalized : '<p>No content provided.</p>';
     }
 
     /**
