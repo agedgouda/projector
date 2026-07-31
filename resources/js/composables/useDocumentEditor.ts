@@ -1,20 +1,26 @@
-import { onBeforeUnmount, watch, type Ref } from 'vue';
-import { useEditor } from '@tiptap/vue-3';
-import { mergeAttributes } from '@tiptap/core';
-import StarterKit from '@tiptap/starter-kit';
-import Mention from '@tiptap/extension-mention';
-import tippy, { type Instance as TippyInstance } from 'tippy.js';
-import { createApp, h } from 'vue';
 import MentionList from '@/components/comments/MentionList.vue';
+import { mergeAttributes } from '@tiptap/core';
+import Mention from '@tiptap/extension-mention';
+import StarterKit from '@tiptap/starter-kit';
+import { useEditor } from '@tiptap/vue-3';
+import tippy, { type Instance as TippyInstance } from 'tippy.js';
+import { createApp, h, onBeforeUnmount, watch, type Ref } from 'vue';
 
-type MentionUser = { id: number; name: string; first_name: string; last_name: string };
+type MentionUser = {
+    id: number;
+    name: string;
+    first_name: string;
+    last_name: string;
+};
 
 function buildMentionSuggestion(users: MentionUser[] | Ref<MentionUser[]>) {
     return {
         items: ({ query }: { query: string }) => {
-            const list = Array.isArray(users) ? users : users.value ?? [];
+            const list = Array.isArray(users) ? users : (users.value ?? []);
             return list
-                .filter(u => u.name.toLowerCase().includes(query.toLowerCase()))
+                .filter((u) =>
+                    u.name.toLowerCase().includes(query.toLowerCase()),
+                )
                 .slice(0, 8);
         },
 
@@ -47,7 +53,9 @@ function buildMentionSuggestion(users: MentionUser[] | Ref<MentionUser[]>) {
 
                 onUpdate: (props: any) => {
                     component?.provide('props', props);
-                    popup?.[0]?.setProps({ getReferenceClientRect: props.clientRect });
+                    popup?.[0]?.setProps({
+                        getReferenceClientRect: props.clientRect,
+                    });
                 },
 
                 onKeyDown: (props: any) => {
@@ -70,18 +78,34 @@ function buildMentionSuggestion(users: MentionUser[] | Ref<MentionUser[]>) {
 }
 
 export function useDocumentEditor(
-    content: string | null | undefined,
+    content: string | null | undefined | (() => string | null | undefined),
     onUpdate: (html: string) => void,
     users?: MentionUser[] | Ref<MentionUser[]>,
 ) {
+    // Accepting a getter (rather than only a plain string) lets the watch below track the
+    // live source value — e.g. a reactive form field — instead of a one-off snapshot taken
+    // when this composable was called. Without that, external resets (like `form.reset()`
+    // after "Save and New", where the same component instance is reused rather than
+    // remounted) never reach the editor's actual displayed content.
+    const getContent = () =>
+        typeof content === 'function' ? content() : content;
+
     const extensions: any[] = [StarterKit];
 
     if (users) {
         extensions.push(
             Mention.extend({
                 renderHTML({ node, HTMLAttributes }) {
-                    const name = String(node.attrs.label ?? node.attrs.id ?? '');
-                    const initials = name.trim().split(' ').map((p: string) => p[0] ?? '').join('').toUpperCase().slice(0, 2);
+                    const name = String(
+                        node.attrs.label ?? node.attrs.id ?? '',
+                    );
+                    const initials = name
+                        .trim()
+                        .split(' ')
+                        .map((p: string) => p[0] ?? '')
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2);
                     return [
                         'span',
                         mergeAttributes({ class: 'mention' }, HTMLAttributes),
@@ -97,7 +121,7 @@ export function useDocumentEditor(
     }
 
     const editor = useEditor({
-        content: content || '',
+        content: getContent() || '',
         extensions,
         editorProps: {
             attributes: {
@@ -109,9 +133,11 @@ export function useDocumentEditor(
         },
     });
 
-    watch(() => content, (newContent) => {
+    watch(getContent, (newContent) => {
         if (editor.value && newContent !== editor.value.getHTML()) {
-            editor.value.commands.setContent(newContent || '', { emitUpdate: false });
+            editor.value.commands.setContent(newContent || '', {
+                emitUpdate: false,
+            });
         }
     });
 

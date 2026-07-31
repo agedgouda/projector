@@ -2,22 +2,22 @@
 /* ---------------------------
    1. Imports & Types
 ---------------------------- */
-import { computed } from 'vue';
-import { Head, useForm, router, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { CopyPlus, FilePlus2 } from 'lucide-vue-next';
+import { computed, onMounted } from 'vue';
 import { toast } from 'vue-sonner';
 
 // Layouts & Components
-import AppLayout from '@/layouts/AppLayout.vue';
-import DocumentSidebar from './Partials/DocumentSidebar.vue';
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
+import { Button } from '@/components/ui/button';
+import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
+import AppLayout from '@/layouts/AppLayout.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
-import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
+import DocumentSidebar from './Partials/DocumentSidebar.vue';
 
 // Routes & Logic
 import projectDocumentsRoutes from '@/routes/projects/documents/';
-
-
 
 /* ---------------------------
    2. Props
@@ -42,8 +42,8 @@ const form = useForm<DocumentForm & { project_id: string }>({
     task_status: 'todo',
     project_id: props.project.id,
     metadata: {
-        criteria: [] as string[]
-    }
+        criteria: [] as string[],
+    },
 });
 
 /* ---------------------------
@@ -52,33 +52,93 @@ const form = useForm<DocumentForm & { project_id: string }>({
 const { breadcrumbs, handleBack } = useDocumentNavigation(props.project, form);
 
 const page = usePage();
-const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
+const usesExternalDueDates = computed(
+    () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
+);
 
 // This computed property now perfectly matches the simplified Header prop
 const draftItem = computed(() => ({
-    name: form.name || 'New Document'
+    name: form.name || 'New Document',
 }));
 
 // Every project starts with these document types; everything else in the catalog is
 // produced by transformations, not picked by hand at creation time.
 const MANUALLY_CREATABLE_TYPE_KEYS = ['intake', 'action_items', 'task'];
 const creatableDocumentTypes = computed(() =>
-    (props.documentTypeCatalog ?? []).filter((item) => MANUALLY_CREATABLE_TYPE_KEYS.includes(item.key))
+    (props.documentTypeCatalog ?? []).filter((item) =>
+        MANUALLY_CREATABLE_TYPE_KEYS.includes(item.key),
+    ),
 );
+
+const isTaskType = computed(() => form.type === 'task');
+
 /* ---------------------------
    5. Action Handlers
 ---------------------------- */
 const handleFormSubmit = () => {
-    const baseUrl = projectDocumentsRoutes.store({ project: props.project.id }).url;
+    const baseUrl = projectDocumentsRoutes.store({
+        project: props.project.id,
+    }).url;
     const finalUrl = props.redirectUrl
         ? `${baseUrl}?${new URLSearchParams({ redirect: props.redirectUrl }).toString()}`
         : baseUrl;
 
     form.post(finalUrl, {
         onSuccess: () => toast.success('Document created successfully'),
-        onError: () => toast.error('Please correct the errors.')
+        onError: () => toast.error('Please correct the errors.'),
     });
 };
+
+// "Save and New" / "Save and Copy" (task type only): save the current task, then land back
+// on this create-task form instead of the tasks board — store()'s existing `redirect` query
+// param is reused to send the post-save visit straight back here. Inertia reuses this page's
+// component instance across that round-trip rather than remounting it, so `form` still holds
+// the just-submitted values once `onSuccess` fires: "Save and Copy" leaves them in place,
+// "Save and New" explicitly clears them back to blank.
+const buildCreateTaskUrl = (): string => {
+    const baseUrl = projectDocumentsRoutes.create({
+        project: props.project.id,
+    }).url;
+    return `${baseUrl}?${new URLSearchParams({ type: 'task' }).toString()}`;
+};
+
+const saveAndRedirectToCreateTask = () => {
+    const storeUrl = projectDocumentsRoutes.store({
+        project: props.project.id,
+    }).url;
+    const finalUrl = `${storeUrl}?${new URLSearchParams({ redirect: buildCreateTaskUrl() }).toString()}`;
+
+    return finalUrl;
+};
+
+const handleSaveAndNew = () => {
+    form.post(saveAndRedirectToCreateTask(), {
+        onSuccess: () => {
+            toast.success('Task created — ready for the next one.');
+            form.reset();
+            form.clearErrors();
+            form.type = 'task';
+        },
+        onError: () => toast.error('Please correct the errors.'),
+    });
+};
+
+const handleSaveAndCopy = () => {
+    form.post(saveAndRedirectToCreateTask(), {
+        onSuccess: () => {
+            toast.success('Task created — copy ready to edit.');
+            form.clearErrors();
+        },
+        onError: () => toast.error('Please correct the errors.'),
+    });
+};
+
+onMounted(() => {
+    const typeParam = new URLSearchParams(window.location.search).get('type');
+    if (typeParam) {
+        form.type = typeParam;
+    }
+});
 
 const handleCancel = () => {
     if (props.redirectUrl) {
@@ -107,11 +167,36 @@ const updateFormValue = (field: string, val: any) => {
                     @back="handleCancel"
                     @toggle-edit="handleCancel"
                     @save="handleFormSubmit"
-                />
+                >
+                    <template v-if="isTaskType" #extra-actions>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            :disabled="form.processing"
+                            @click="handleSaveAndNew"
+                            class="h-8 px-4 text-[10px] font-black tracking-widest uppercase"
+                        >
+                            <FilePlus2 class="mr-1.5 h-3 w-3" />
+                            Save and New
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            :disabled="form.processing"
+                            @click="handleSaveAndCopy"
+                            class="h-8 px-4 text-[10px] font-black tracking-widest uppercase"
+                        >
+                            <CopyPlus class="mr-1.5 h-3 w-3" />
+                            Save and Copy
+                        </Button>
+                    </template>
+                </DocumentHeader>
             </template>
 
             <template #content>
-                <div class="bg-slate-50 dark:bg-white/5 rounded-2xl p-8 border border-slate-200 dark:border-white/10">
+                <div
+                    class="rounded-2xl border border-slate-200 bg-slate-50 p-8 dark:border-white/10 dark:bg-white/5"
+                >
                     <InlineDocumentForm
                         mode="create"
                         :form="form"
@@ -124,12 +209,12 @@ const updateFormValue = (field: string, val: any) => {
 
             <template #sidebar>
                 <DocumentSidebar
-                    :item="(form as any)"
+                    :item="form as any"
                     :project="project"
                     :document-type-catalog="documentTypeCatalog"
                     :uses-external-due-dates="usesExternalDueDates"
                     :dueAtProxy="form.due_at ?? ''"
-                    @update:dueAtProxy="(val) => form.due_at = val"
+                    @update:dueAtProxy="(val) => (form.due_at = val)"
                     @change="updateFormValue"
                 />
             </template>
