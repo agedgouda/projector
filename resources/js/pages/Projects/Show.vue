@@ -1,9 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { router, Deferred } from '@inertiajs/vue3';
-import { onKeyStroke } from '@vueuse/core';
-import { toast } from 'vue-sonner';
-import { PlusIcon, ShieldAlert, RefreshCw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -14,27 +9,31 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
+import { Deferred, router } from '@inertiajs/vue3';
+import { onKeyStroke } from '@vueuse/core';
+import { PlusIcon, RefreshCw, ShieldAlert } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
-import { setPersistentCookie } from '@/lib/utils';
-import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
+import DocumentManager from '@/components/documents/DocumentManager.vue';
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useDocumentActions } from '@/composables/useDocumentActions';
+import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
 import { useWorkflow } from '@/composables/useWorkflow';
-import DocumentManager from '@/components/documents/DocumentManager.vue';
-import projectRoutes from '@/routes/projects/index';
+import { setPersistentCookie } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-
+import projectRoutes from '@/routes/projects/index';
 
 // UI Components
-import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
+import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
+import AiProgressBar from '@/components/AiProgressBar.vue';
+import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
 import ProjectCalendar from '@/components/projects/ProjectCalendar.vue';
-import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
-import AiProgressBar from '@/components/AiProgressBar.vue';
-import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
+import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
 
 const props = defineProps<{
     projects: Project[];
@@ -69,9 +68,10 @@ const {
     openDetail,
     searchQuery,
     selectedPriorities,
+    sortBy,
     applyLocalUpdate,
     removeLocalDocuments,
-    localKanbanData
+    localKanbanData,
 } = useKanbanBoard(props);
 
 // --- 2. AI PROCESSING (OBSERVER MODE) ---
@@ -80,24 +80,21 @@ const activeTab = ref(props.activeTab);
 const workflowRows = computed(() => {
     const columns = props.currentProject?.kanban_columns ?? [];
 
-    return Object.keys(props.kanbanData).map(projectId => {
+    return Object.keys(props.kanbanData).map((projectId) => {
         return { key: projectId, label: '', is_task: true, columns };
     });
 });
 const currentProjectDocumentSchema = computed(() =>
-    props.documentTypeCatalog.filter((s) => s.is_task)
+    props.documentTypeCatalog.filter((s) => s.is_task),
 );
 
-const {
-    setDocToProcessing,
-    setDocToTransitioning,
-} = useDocumentActions(
+const { setDocToProcessing, setDocToTransitioning } = useDocumentActions(
     {
         project: props.currentProject as Project,
-        documentSchema: currentProjectDocumentSchema.value
+        documentSchema: currentProjectDocumentSchema.value,
     },
     aiStatusMessageRef,
-    applyLocalUpdate
+    applyLocalUpdate,
 );
 
 const targetBeingCreated = ref<string | null>(null);
@@ -107,7 +104,9 @@ const allDocs = computed(() => {
     return Object.values(localKanbanData.value).flat() as ProjectDocument[];
 });
 
-const projectIdForEcho = computed(() => props.currentProject?.id?.toString() ?? null);
+const projectIdForEcho = computed(
+    () => props.currentProject?.id?.toString() ?? null,
+);
 
 const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
     projectIdForEcho.value ?? 'NO_PROJECT',
@@ -117,13 +116,15 @@ const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
         applyLocalUpdate(incomingDoc.id, incomingDoc);
     },
     () => {
-        toast.success('Project Synced', { description: 'AI processing task completed.' });
+        toast.success('Project Synced', {
+            description: 'AI processing task completed.',
+        });
     },
     (errorMessage) => {
         toast.error('AI Sync Error', { description: errorMessage });
     },
     removeLocalDocuments,
-    ['currentProject', 'kanbanData']
+    ['currentProject', 'kanbanData'],
 );
 
 // --- 3. UI METHODS & BREADCRUMBS ---
@@ -131,11 +132,11 @@ onKeyStroke('Escape', () => {
     searchQuery.value = '';
 });
 
-watch(aiStatusMessage, (val) => aiStatusMessageRef.value = val);
+watch(aiStatusMessage, (val) => (aiStatusMessageRef.value = val));
 
 const breadcrumbs = computed(() => [
     { title: 'Projects', href: '/projects' },
-    { title: props.currentProject?.name ?? 'Select Project', href: '' }
+    { title: props.currentProject?.name ?? 'Select Project', href: '' },
 ]);
 
 // Whether there's a project row to render — not whether any task within it currently
@@ -153,7 +154,6 @@ const aiProcessedParentIds = computed(() => {
     return ids;
 });
 
-
 const onImportQueued = () => {
     targetBeingCreated.value = 'transcript';
     aiProgress.value = 5;
@@ -163,7 +163,9 @@ const onImportQueued = () => {
 
 const handleReprocess = (id: string | number) => {
     const stringId = id.toString();
-    const doc = allDocs.value.find(d => d.id.toString() === stringId) as UIProjectDocument | undefined;
+    const doc = allDocs.value.find((d) => d.id.toString() === stringId) as
+        | UIProjectDocument
+        | undefined;
 
     if (!doc) return;
 
@@ -174,10 +176,17 @@ const handleReprocess = (id: string | number) => {
 
 const handleTransition = (
     id: string | number,
-    payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string },
+    payload: {
+        toKey?: string;
+        aiTemplateId: number;
+        singleOutput?: boolean;
+        projectTypeId?: string;
+    },
 ) => {
     const stringId = id.toString();
-    const doc = allDocs.value.find(d => d.id.toString() === stringId) as UIProjectDocument | undefined;
+    const doc = allDocs.value.find((d) => d.id.toString() === stringId) as
+        | UIProjectDocument
+        | undefined;
 
     if (!doc) return;
 
@@ -190,26 +199,35 @@ const updateTab = (tab: string) => {
     activeTab.value = tab;
     setPersistentCookie('last_active_tab', tab);
 
-    router.get(window.location.pathname,
+    router.get(
+        window.location.pathname,
         {
             project: props.currentProject?.id,
-            tab: tab
+            tab: tab,
         },
         {
             preserveState: true,
             preserveScroll: true,
             replace: true,
             except: ['recordingsData'],
-        }
+        },
     );
 };
 
 const generateDeliverables = () => {
     if (!props.currentProject) return;
-    router.post(projectRoutes.generate.url(props.currentProject.id), {}, {
-        onBefore: () => { isGenerating.value = true; },
-        onFinish: () => { isGenerating.value = false; }
-    });
+    router.post(
+        projectRoutes.generate.url(props.currentProject.id),
+        {},
+        {
+            onBefore: () => {
+                isGenerating.value = true;
+            },
+            onFinish: () => {
+                isGenerating.value = false;
+            },
+        },
+    );
 };
 
 // --- 4. DOCUMENT MANAGER ACTIONS ---
@@ -217,21 +235,24 @@ const confirmDelete = (doc: ProjectDocument) => {
     if (!props.currentProject) return;
 
     if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
-        router.delete(projectDocumentsRoutes.destroy({
-            project: props.currentProject.id,
-            document: doc.id
-        }).url, {
-            onSuccess: () => toast.success('Document deleted'),
-            onError: () => toast.error('Failed to delete document')
-        });
+        router.delete(
+            projectDocumentsRoutes.destroy({
+                project: props.currentProject.id,
+                document: doc.id,
+            }).url,
+            {
+                onSuccess: () => toast.success('Document deleted'),
+                onError: () => toast.error('Failed to delete document'),
+            },
+        );
     }
 };
 
 const handleCreateNavigation = (projectId: string) => {
     router.visit(projectDocumentsRoutes.create({ project: projectId }).url, {
         data: {
-            redirect: window.location.href
-        }
+            redirect: window.location.href,
+        },
     });
 };
 
@@ -241,38 +262,54 @@ const isReactivating = ref(false);
 const reactivateProject = () => {
     if (!props.currentProject) return;
     isReactivating.value = true;
-    router.patch(projectRoutes.reactivate.url(String(props.currentProject.id)), {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            isReactivateModalOpen.value = false;
-            toast.success('Project reactivated');
+    router.patch(
+        projectRoutes.reactivate.url(String(props.currentProject.id)),
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                isReactivateModalOpen.value = false;
+                toast.success('Project reactivated');
+            },
+            onFinish: () => {
+                isReactivating.value = false;
+            },
         },
-        onFinish: () => { isReactivating.value = false; },
-    });
+    );
 };
 
-watch(() => props.currentProject, (newProject) => {
-    if (newProject?.id) {
-        localStorage.setItem('last_project_id', newProject.id.toString());
-    }
-}, { immediate: true });
-
+watch(
+    () => props.currentProject,
+    (newProject) => {
+        if (newProject?.id) {
+            localStorage.setItem('last_project_id', newProject.id.toString());
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div v-if="!currentProject" class="p-6 flex flex-col items-center justify-center min-h-[60vh]">
-            <div class="p-4 bg-gray-100 rounded-full mb-4">
-                <ShieldAlert class="w-12 h-12 text-gray-400" />
+        <div
+            v-if="!currentProject"
+            class="flex min-h-[60vh] flex-col items-center justify-center p-6"
+        >
+            <div class="mb-4 rounded-full bg-gray-100 p-4">
+                <ShieldAlert class="h-12 w-12 text-gray-400" />
             </div>
             <h2 class="text-xl font-bold text-gray-900">No Projects Found</h2>
-            <p class="text-gray-500 max-w-xs text-center">
-                You haven't been assigned to any projects yet. Please contact your administrator.
+            <p class="max-w-xs text-center text-gray-500">
+                You haven't been assigned to any projects yet. Please contact
+                your administrator.
             </p>
         </div>
 
-        <div v-else class="p-6 space-y-8 w-full">
-            <AiProgressBar :is-processing="isAiProcessing" :progress="aiProgress" />
+        <div v-else class="w-full space-y-8 p-6">
+            <AiProgressBar
+                :is-processing="isAiProcessing"
+                :progress="aiProgress"
+            />
 
             <AiProcessingHeader
                 :is-processing="isAiProcessing"
@@ -280,8 +317,10 @@ watch(() => props.currentProject, (newProject) => {
                 :message="aiStatusMessage"
             />
 
-            <div class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div
+                class="flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"
+            >
+                <div class="flex w-full items-center gap-3 sm:w-auto">
                     <ProjectSwitcher
                         :projects="projects"
                         :current-project="currentProject"
@@ -290,37 +329,52 @@ watch(() => props.currentProject, (newProject) => {
                     />
                 </div>
 
-                <div class="flex items-center gap-2 w-full sm:w-auto">
+                <div class="flex w-full items-center gap-2 sm:w-auto">
                     <Button
                         v-if="!currentProject.inactive"
                         @click="handleCreateNavigation(currentProject.id)"
-                        class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
+                        class="h-11 rounded-xl bg-projector-primary-600 px-6 font-bold whitespace-nowrap text-white hover:bg-projector-primary-700"
                     >
-                        <PlusIcon class="h-4 w-4 mr-2" /> New Document
+                        <PlusIcon class="mr-2 h-4 w-4" /> New Document
                     </Button>
                     <Button
                         v-else
                         @click="isReactivateModalOpen = true"
-                        class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-6 h-11 font-bold whitespace-nowrap"
+                        class="h-11 rounded-xl bg-emerald-600 px-6 font-bold whitespace-nowrap text-white hover:bg-emerald-700"
                     >
-                        <RefreshCw class="h-4 w-4 mr-2" /> Reactivate Project
+                        <RefreshCw class="mr-2 h-4 w-4" /> Reactivate Project
                     </Button>
                 </div>
 
-                <Dialog :open="isReactivateModalOpen" @update:open="isReactivateModalOpen = false">
+                <Dialog
+                    :open="isReactivateModalOpen"
+                    @update:open="isReactivateModalOpen = false"
+                >
                     <DialogContent class="sm:max-w-[425px]">
                         <DialogHeader>
                             <DialogTitle>Reactivate Project</DialogTitle>
                             <DialogDescription>
-                                Are you sure you would like to reactivate this project?
+                                Are you sure you would like to reactivate this
+                                project?
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter class="gap-2 sm:gap-4">
-                            <Button variant="outline" @click="isReactivateModalOpen = false" :disabled="isReactivating">
+                            <Button
+                                variant="outline"
+                                @click="isReactivateModalOpen = false"
+                                :disabled="isReactivating"
+                            >
                                 Cancel
                             </Button>
-                            <Button @click="reactivateProject" :disabled="isReactivating" class="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                <RefreshCw v-if="isReactivating" class="h-4 w-4 mr-2 animate-spin" />
+                            <Button
+                                @click="reactivateProject"
+                                :disabled="isReactivating"
+                                class="bg-emerald-600 text-white hover:bg-emerald-700"
+                            >
+                                <RefreshCw
+                                    v-if="isReactivating"
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                />
                                 Reactivate
                             </Button>
                         </DialogFooter>
@@ -328,20 +382,42 @@ watch(() => props.currentProject, (newProject) => {
                 </Dialog>
             </div>
 
-            <div class="flex items-center border-b border-gray-200 dark:border-gray-700 mb-6">
-                <button v-for="tab in ['tasks', 'calendar', 'hierarchy', 'recordings']" :key="tab"
+            <div
+                class="mb-6 flex items-center border-b border-gray-200 dark:border-gray-700"
+            >
+                <button
+                    v-for="tab in [
+                        'tasks',
+                        'calendar',
+                        'hierarchy',
+                        'recordings',
+                    ]"
+                    :key="tab"
                     @click="updateTab(tab)"
-                    :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
-                        activeTab === tab ? 'border-projector-primary-500 text-projector-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
-                    {{ tab === 'hierarchy' ? 'Documentation' : tab === 'recordings' ? 'Recordings' : tab === 'calendar' ? 'Calendar' : 'Tasks' }}
+                    :class="[
+                        '-mb-[1px] border-b-2 px-8 py-4 text-[10px] font-black tracking-[0.2em] uppercase transition-all',
+                        activeTab === tab
+                            ? 'border-projector-primary-500 text-projector-primary-600'
+                            : 'border-transparent text-gray-400 hover:text-gray-600',
+                    ]"
+                >
+                    {{
+                        tab === 'hierarchy'
+                            ? 'Documentation'
+                            : tab === 'recordings'
+                              ? 'Recordings'
+                              : tab === 'calendar'
+                                ? 'Calendar'
+                                : 'Tasks'
+                    }}
                 </button>
             </div>
 
             <div v-show="activeTab === 'tasks'">
-
                 <KanbanBoard
                     v-model:searchQuery="searchQuery"
                     v-model:selectedPriorities="selectedPriorities"
+                    v-model:sortBy="sortBy"
                     :current-project="currentProject"
                     :has-rows="hasRows"
                     :workflow-rows="workflowRows"
@@ -354,11 +430,13 @@ watch(() => props.currentProject, (newProject) => {
             </div>
 
             <div v-show="activeTab === 'calendar'">
-                <ProjectCalendar :project-id="currentProject.id" :items="calendarItems" />
+                <ProjectCalendar
+                    :project-id="currentProject.id"
+                    :items="calendarItems"
+                />
             </div>
 
             <div v-show="activeTab === 'hierarchy'">
-
                 <DocumentManager
                     :project="currentProject"
                     :live-documents="currentProject.documents"
@@ -370,21 +448,41 @@ watch(() => props.currentProject, (newProject) => {
             </div>
 
             <div v-show="activeTab === 'recordings'">
-                <div v-if="!meetingProvider" class="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-                    <p class="text-sm font-bold text-gray-500">No meeting provider configured</p>
-                    <p class="text-xs text-gray-400 mt-1">Configure a provider in Organization Settings to import recordings.</p>
+                <div
+                    v-if="!meetingProvider"
+                    class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 py-16 dark:border-gray-700"
+                >
+                    <p class="text-sm font-bold text-gray-500">
+                        No meeting provider configured
+                    </p>
+                    <p class="mt-1 text-xs text-gray-400">
+                        Configure a provider in Organization Settings to import
+                        recordings.
+                    </p>
                 </div>
 
                 <Deferred v-else data="recordingsData">
                     <template #fallback>
                         <div class="grid gap-0.5">
-                            <div v-for="i in 4" :key="i" class="flex items-center gap-3 h-12 px-2 animate-pulse">
-                                <div class="w-3.5 h-3.5 rounded bg-gray-100 dark:bg-gray-800 shrink-0" />
-                                <div class="flex-1 flex items-center gap-3">
-                                    <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded w-40" />
-                                    <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-24" />
+                            <div
+                                v-for="i in 4"
+                                :key="i"
+                                class="flex h-12 animate-pulse items-center gap-3 px-2"
+                            >
+                                <div
+                                    class="h-3.5 w-3.5 shrink-0 rounded bg-gray-100 dark:bg-gray-800"
+                                />
+                                <div class="flex flex-1 items-center gap-3">
+                                    <div
+                                        class="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800"
+                                    />
+                                    <div
+                                        class="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800"
+                                    />
                                 </div>
-                                <div class="h-8 w-20 bg-gray-100 dark:bg-gray-800 rounded-md" />
+                                <div
+                                    class="h-8 w-20 rounded-md bg-gray-100 dark:bg-gray-800"
+                                />
                             </div>
                         </div>
                     </template>
@@ -393,7 +491,9 @@ watch(() => props.currentProject, (newProject) => {
                         :project-id="currentProject.id"
                         :recordings="recordingsData!.recordings"
                         :imported-ids="recordingsData!.importedIds"
-                        :cross-project-imported-ids="recordingsData!.crossProjectImportedIds"
+                        :cross-project-imported-ids="
+                            recordingsData!.crossProjectImportedIds
+                        "
                         :can-manage="recordingsData!.canManage"
                         :provider-error="recordingsData!.providerError"
                         @import-queued="onImportQueued"
@@ -409,13 +509,16 @@ watch(() => props.currentProject, (newProject) => {
             :ai-processed-parent-ids="aiProcessedParentIds"
             v-model:open="isSheetOpen"
             :document="selectedDocument as ProjectDocument"
-             @handle-reprocess="handleReprocess"
-             @handle-transition="handleTransition"
-            @update-attribute="(attr, val) => updateAttribute(
-                selectedDocument!.id,
-                { [attr]: val },
-                'Changes saved'
-            )"
+            @handle-reprocess="handleReprocess"
+            @handle-transition="handleTransition"
+            @update-attribute="
+                (attr, val) =>
+                    updateAttribute(
+                        selectedDocument!.id,
+                        { [attr]: val },
+                        'Changes saved',
+                    )
+            "
         />
     </AppLayout>
 </template>

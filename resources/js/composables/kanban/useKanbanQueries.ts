@@ -1,15 +1,42 @@
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { KanbanProps } from './useKanbanBoard';
 
-const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 export const ALL_PRIORITIES = ['high', 'medium', 'low'] as const;
-export type Priority = typeof ALL_PRIORITIES[number];
+export type Priority = (typeof ALL_PRIORITIES)[number];
 
-const sortTasks = (tasks: ProjectDocument[]): ProjectDocument[] =>
+export type SortOption = 'due_date' | 'priority' | 'created_at';
+export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+    { value: 'due_date', label: 'Due Date' },
+    { value: 'priority', label: 'Priority' },
+    { value: 'created_at', label: 'Created Date' },
+];
+
+const PRIORITY_WEIGHT: Record<string, number> = {
+    urgent: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+};
+
+const sortTasks = (
+    tasks: ProjectDocument[],
+    sortBy: SortOption,
+): ProjectDocument[] =>
     [...tasks].sort((a, b) => {
-        const pa = PRIORITY_ORDER[a.priority?.toLowerCase() ?? ''] ?? 3;
-        const pb = PRIORITY_ORDER[b.priority?.toLowerCase() ?? ''] ?? 3;
-        if (pa !== pb) return pa - pb;
+        if (sortBy === 'priority') {
+            const wa = PRIORITY_WEIGHT[a.priority?.toLowerCase() ?? ''] ?? 0;
+            const wb = PRIORITY_WEIGHT[b.priority?.toLowerCase() ?? ''] ?? 0;
+            return wb - wa;
+        }
+
+        if (sortBy === 'created_at') {
+            return (
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime()
+            );
+        }
+
+        // due_date (default): soonest due date first, undated tasks last
         if (!a.due_at && !b.due_at) return 0;
         if (!a.due_at) return 1;
         if (!b.due_at) return -1;
@@ -19,6 +46,7 @@ const sortTasks = (tasks: ProjectDocument[]): ProjectDocument[] =>
 export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
     const searchQuery = ref('');
     const selectedPriorities = ref<Priority[]>([...ALL_PRIORITIES]);
+    const sortBy = ref<SortOption>('due_date');
 
     /**
      * MEMOIZED TASK MAP
@@ -30,19 +58,27 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
         const query = searchQuery.value.toLowerCase().trim();
         const priorities = new Set(selectedPriorities.value);
 
-        Object.entries(localKanbanData.value as Record<string, ProjectDocument[]>).forEach(([rowKey, tasks]) => {
-            tasks.forEach(doc => {
+        Object.entries(
+            localKanbanData.value as Record<string, ProjectDocument[]>,
+        ).forEach(([rowKey, tasks]) => {
+            tasks.forEach((doc) => {
                 // 1. Calculate status (with fallback)
-                const status = (doc.task_status || doc.status || 'todo') as TaskStatus;
+                const status = (doc.task_status ||
+                    doc.status ||
+                    'todo') as TaskStatus;
 
                 // 2. Apply search filter
-                const matchesSearch = !query ||
+                const matchesSearch =
+                    !query ||
                     doc.name.toLowerCase().includes(query) ||
                     doc.assignee?.name.toLowerCase().includes(query);
 
                 // 3. Apply priority filter (tasks with no priority pass through when any priority is selected)
-                const docPriority = doc.priority?.toLowerCase() as Priority | undefined;
-                const matchesPriority = !docPriority || priorities.has(docPriority);
+                const docPriority = doc.priority?.toLowerCase() as
+                    | Priority
+                    | undefined;
+                const matchesPriority =
+                    !docPriority || priorities.has(docPriority);
 
                 if (matchesSearch && matchesPriority) {
                     const compositeKey = `${rowKey}|${status}`;
@@ -58,12 +94,16 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
      * O(1) Lookup - Super fast
      */
     const getTasksByRowAndStatus = (rowKey: string, status: TaskStatus) => {
-        return sortTasks(taskMap.value[`${rowKey}|${status}`] || []);
+        return sortTasks(
+            taskMap.value[`${rowKey}|${status}`] || [],
+            sortBy.value,
+        );
     };
 
     return {
         searchQuery,
         selectedPriorities,
-        getTasksByRowAndStatus
+        sortBy,
+        getTasksByRowAndStatus,
     };
 }
