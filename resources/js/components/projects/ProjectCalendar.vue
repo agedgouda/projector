@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowUpRight } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowUpRight, FileDown, FileSpreadsheet } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { KANBAN_COLOR_PALETTE, kanbanClasses, kanbanDotClasses, priorityDotClasses } from '@/lib/constants';
 import { kanbanCardBg } from '@/lib/kanban-theme';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import projectCalendarRoutes from '@/routes/projects/calendar';
 
 const props = defineProps<{
+    projectId: string;
     items: CalendarItem[];
 }>();
 
@@ -68,6 +70,12 @@ const toggleSubproject = (id: string) => {
         hiddenSubprojectIds.add(id);
     }
 };
+
+// Exports mirror whatever sub-projects are currently hidden on screen, so the
+// downloaded file matches what the user is actually looking at.
+const exportQuery = computed(() => ({ hidden_subprojects: Array.from(hiddenSubprojectIds) }));
+const exportPdfUrl = computed(() => projectCalendarRoutes.exportPdf.url({ project: props.projectId }, { query: exportQuery.value }));
+const exportCsvUrl = computed(() => projectCalendarRoutes.exportCsv.url({ project: props.projectId }, { query: exportQuery.value }));
 
 const currentMonth = ref(new Date());
 
@@ -160,6 +168,12 @@ const openItem = (item: CalendarItem) => {
     router.visit(projectDocumentsRoutes.show({ project: item.project_id, document: item.id }).url);
 };
 
+const formatMarkerDate = (marker: Marker): string => {
+    const raw = marker.field === 'external_due_at' ? marker.item.external_due_at : marker.item.due_at;
+    if (!raw) return '';
+    return new Date(raw).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 // Strips the document's rich-text HTML down to plain text for a short preview —
 // off-DOM only (never inserted into the page), so this is safe for untrusted content.
 const previewText = (html: string | null): string => {
@@ -214,6 +228,18 @@ const cancelCloseMarkerCard = () => {
             <div class="flex items-center justify-between flex-wrap gap-3">
                 <h3 class="text-lg font-black text-gray-900 dark:text-white">{{ monthLabel }}</h3>
                 <div class="flex items-center gap-2">
+                    <Button as-child variant="outline" size="sm" class="h-8 px-3 text-[10px] font-black uppercase tracking-widest">
+                        <a :href="exportPdfUrl">
+                            <FileDown class="w-3.5 h-3.5" />
+                            PDF
+                        </a>
+                    </Button>
+                    <Button as-child variant="outline" size="sm" class="h-8 px-3 text-[10px] font-black uppercase tracking-widest">
+                        <a :href="exportCsvUrl">
+                            <FileSpreadsheet class="w-3.5 h-3.5" />
+                            CSV
+                        </a>
+                    </Button>
                     <Button variant="outline" size="sm" class="h-8 px-3 text-[10px] font-black uppercase tracking-widest" @click="goToToday">
                         Today
                     </Button>
@@ -227,7 +253,6 @@ const cancelCloseMarkerCard = () => {
             </div>
 
             <div v-if="subprojects.length" class="flex flex-wrap items-center gap-2">
-                <span class="text-[9px] font-black uppercase tracking-widest text-gray-400 mr-1">Sub-projects:</span>
                 <button
                     v-for="sp in subprojects"
                     :key="sp.id"
@@ -307,7 +332,7 @@ const cancelCloseMarkerCard = () => {
                                     @open-auto-focus.prevent
                                 >
                                     <div class="space-y-1">
-                                        <div class="flex items-center gap-1.5">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
                                             <span v-if="marker.item.is_subproject" :class="['text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded', kanbanClasses[subprojectColors[marker.item.project_id] ?? 'slate']]">
                                                 {{ marker.item.project_name }}
                                             </span>
@@ -316,6 +341,10 @@ const cancelCloseMarkerCard = () => {
                                             </span>
                                             <span v-else class="text-[8px] font-black uppercase tracking-widest text-gray-400">
                                                 {{ usesExternalDueDates ? 'Internal Due Date' : 'Due Date' }}
+                                            </span>
+                                            <span class="text-[8px] font-black uppercase tracking-widest text-gray-300">·</span>
+                                            <span class="text-[8px] font-black uppercase tracking-widest text-gray-400">
+                                                {{ formatMarkerDate(marker) }}
                                             </span>
                                         </div>
                                         <p class="text-sm font-bold text-gray-900 dark:text-white leading-snug">

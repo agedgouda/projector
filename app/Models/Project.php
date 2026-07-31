@@ -303,11 +303,21 @@ class Project extends Model implements HasMedia
      * its direct sub-projects' documents (2-level cap — no grandchildren exist),
      * limited to documents that have at least one due date set.
      *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return \Illuminate\Support\Collection<int, array{
+     *     id: string, name: string|null, content: string|null, type: string,
+     *     project_id: string, project_name: string, is_subproject: bool,
+     *     due_at: string|null, external_due_at: string|null, priority: string, task_status: string
+     * }>
      */
     public function calendarItems(): \Illuminate\Support\Collection
     {
-        /** @var array<int, array<string, mixed>> $items */
+        /**
+         * @var array<int, array{
+         *     id: string, name: string|null, content: string|null, type: string,
+         *     project_id: string, project_name: string, is_subproject: bool,
+         *     due_at: string|null, external_due_at: string|null, priority: string, task_status: string
+         * }> $items
+         */
         $items = [];
 
         /** @var array<int, array{project: Project, is_subproject: bool}> $sources */

@@ -109,3 +109,74 @@ it('exposes calendarItems on the project show page, including sub-project items'
             ->has('calendarItems', 2)
         );
 });
+
+it('downloads a calendar pdf with a 200 response', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Own Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportPdf', $this->project))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
+it('downloads a calendar csv including sub-project items by default', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Own Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    Document::create([
+        'project_id' => $this->child->id,
+        'name' => 'Sub Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-05',
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportCsv', $this->project))
+        ->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+    $csv = $response->streamedContent();
+
+    expect($csv)->toContain('Own Task')
+        ->toContain('Sub Task')
+        ->toContain('Sub Project');
+});
+
+it('excludes a hidden sub-project from the calendar csv export', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Own Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    Document::create([
+        'project_id' => $this->child->id,
+        'name' => 'Sub Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-05',
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportCsv', $this->project).'?hidden_subprojects[]='.$this->child->id)
+        ->assertOk();
+
+    $csv = $response->streamedContent();
+
+    expect($csv)->toContain('Own Task')
+        ->not->toContain('Sub Task');
+});

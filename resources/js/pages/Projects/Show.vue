@@ -354,7 +354,7 @@ watch(() => props.currentProject, (newProject) => {
             </div>
 
             <div v-show="activeTab === 'calendar'">
-                <ProjectCalendar :items="calendarItems" />
+                <ProjectCalendar :project-id="currentProject.id" :items="calendarItems" />
             </div>
 
             <div v-show="activeTab === 'hierarchy'">

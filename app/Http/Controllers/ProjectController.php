@@ -10,11 +10,14 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Services\MeetingTranscriptService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProjectController extends Controller
 {
@@ -182,6 +185,236 @@ class ProjectController extends Controller
                     'canManage' => $canManageTranscripts,
                 ];
             })->once(),
+        ]);
+    }
+
+    /**
+     * Resolve this project's calendar items for export, respecting the sub-project
+     * filter currently applied on screen (passed as ?hidden_subprojects[]=...) and
+     * sorted chronologically.
+     *
+     * @return \Illuminate\Support\Collection<int, array{
+     *     id: string, name: string|null, content: string|null, type: string,
+     *     project_id: string, project_name: string, is_subproject: bool,
+     *     due_at: string|null, external_due_at: string|null, priority: string, task_status: string
+     * }>
+     */
+    private function resolveCalendarExportItems(Request $request, Project $project): \Illuminate\Support\Collection
+    {
+        $project->load(['documents', 'children.documents']);
+
+        $hidden = array_map('strval', (array) $request->query('hidden_subprojects', []));
+
+        return $project->calendarItems()
+            ->reject(fn (array $item) => $item['is_subproject'] && in_array($item['project_id'], $hidden, true))
+            ->sortBy(fn (array $item) => $item['due_at'] ?? $item['external_due_at'] ?? '')
+            ->values();
+    }
+
+    /**
+     * Build a month-by-month calendar grid (weeks of day cells, each holding the
+     * due-date markers that fall on it) from resolved export items, so the PDF/CSV
+     * exports can visually match the on-screen calendar instead of being a flat list.
+     *
+     * @param  \Illuminate\Support\Collection<int, array{
+     *     id: string, name: string|null, content: string|null, type: string,
+     *     project_id: string, project_name: string, is_subproject: bool,
+     *     due_at: string|null, external_due_at: string|null, priority: string, task_status: string
+     * }>  $items
+     * @return array{
+     *     months: array<int, array{label: string, weeks: array<int, array<int, array{
+     *         day: int, inMonth: bool,
+     *         markers: array<int, array{name: string, isExternal: bool, isSubproject: bool, projectName: string, color: string}>
+     *     }>>}>,
+     * }
+     */
+    private function buildCalendarGrid(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
+    {
+        $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+
+        /** @var array<string, string> $subprojectColors */
+        $subprojectColors = [];
+        foreach ($items as $item) {
+            if ($item['is_subproject'] && ! isset($subprojectColors[$item['project_id']])) {
+                $subprojectColors[$item['project_id']] = $palette[count($subprojectColors) % count($palette)];
+            }
+        }
+
+        /** @var array<string, array<int, array{name: string, isExternal: bool, isSubproject: bool, projectName: string, color: string}>> $markersByDate */
+        $markersByDate = [];
+        /** @var \Illuminate\Support\Carbon|null $minMonth */
+        $minMonth = null;
+        /** @var \Illuminate\Support\Carbon|null $maxMonth */
+        $maxMonth = null;
+
+        foreach ($items as $item) {
+            $fields = $usesExternalDueDates
+                ? ['due_at' => false, 'external_due_at' => true]
+                : ['due_at' => false];
+
+            foreach ($fields as $field => $isExternal) {
+                $raw = $item[$field];
+                if ($raw === null) {
+                    continue;
+                }
+
+                $date = \Illuminate\Support\Carbon::parse(substr($raw, 0, 10));
+                $key = $date->toDateString();
+
+                $markersByDate[$key][] = [
+                    'name' => $item['name'] ?? 'Untitled',
+                    'isExternal' => $isExternal,
+                    'isSubproject' => $item['is_subproject'],
+                    'projectName' => $item['project_name'],
+                    'color' => $item['is_subproject'] ? ($subprojectColors[$item['project_id']] ?? 'slate') : 'primary',
+                ];
+
+                $monthStart = $date->copy()->startOfMonth();
+                $minMonth = $minMonth === null || $monthStart->lt($minMonth) ? $monthStart : $minMonth;
+                $maxMonth = $maxMonth === null || $monthStart->gt($maxMonth) ? $monthStart : $maxMonth;
+            }
+        }
+
+        if ($minMonth === null || $maxMonth === null) {
+            return ['months' => []];
+        }
+
+        $months = [];
+        $cursor = $minMonth->copy();
+        while ($cursor->lte($maxMonth)) {
+            $months[] = $this->buildMonthGrid($cursor->copy(), $markersByDate);
+            $cursor->addMonthNoOverflow();
+        }
+
+        return ['months' => $months];
+    }
+
+    /**
+     * @param  array<string, array<int, array{name: string, isExternal: bool, isSubproject: bool, projectName: string, color: string}>>  $markersByDate
+     * @return array{label: string, weeks: array<int, array<int, array{
+     *     day: int, inMonth: bool,
+     *     markers: array<int, array{name: string, isExternal: bool, isSubproject: bool, projectName: string, color: string}>
+     * }>>}
+     */
+    private function buildMonthGrid(\Illuminate\Support\Carbon $monthStart, array $markersByDate): array
+    {
+        $firstOfMonth = $monthStart->copy()->startOfMonth();
+        $startOffset = $firstOfMonth->dayOfWeek;
+        $daysInMonth = $firstOfMonth->daysInMonth;
+        $totalCells = (int) ceil(($startOffset + $daysInMonth) / 7) * 7;
+
+        $cells = [];
+        $date = $firstOfMonth->copy()->subDays($startOffset);
+
+        for ($i = 0; $i < $totalCells; $i++) {
+            $cells[] = [
+                'day' => $date->day,
+                'inMonth' => $date->month === $firstOfMonth->month,
+                'markers' => $markersByDate[$date->toDateString()] ?? [],
+            ];
+            $date->addDay();
+        }
+
+        return [
+            'label' => $firstOfMonth->format('F Y'),
+            'weeks' => array_chunk($cells, 7),
+        ];
+    }
+
+    /**
+     * Export the project's calendar (due-date items, including visible sub-projects)
+     * as a branded, calendar-styled PDF — one month-grid per page, matching the
+     * on-screen calendar.
+     */
+    public function exportCalendarPdf(Request $request, Project $project): \Illuminate\Http\Response
+    {
+        Gate::authorize('view', $project);
+
+        $items = $this->resolveCalendarExportItems($request, $project);
+
+        $project->loadMissing('client.organization');
+        $organization = $project->client?->organization;
+        $usesExternalDueDates = $organization !== null && $organization->uses_external_due_dates;
+
+        $grid = $this->buildCalendarGrid($items, $usesExternalDueDates);
+
+        $pdf = Pdf::loadView('pdfs.calendar', [
+            'project' => $project,
+            'client' => $project->client,
+            'months' => $grid['months'],
+            'usesExternalDueDates' => $usesExternalDueDates,
+            'logoPath' => $project->getFirstMedia('logo')?->getPath('preview'),
+            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath('preview'),
+            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath('preview'),
+        ])->setPaper('a4', 'landscape');
+
+        $filename = Str::slug($project->name).'-calendar';
+
+        return $pdf->download($filename.'.pdf');
+    }
+
+    /**
+     * Export the project's calendar (due-date items, including visible sub-projects)
+     * as a CSV laid out like the on-screen calendar — one month-grid (weekday
+     * columns, week rows) per block, rather than a flat row-per-item dump.
+     */
+    public function exportCalendarCsv(Request $request, Project $project): StreamedResponse
+    {
+        Gate::authorize('view', $project);
+
+        $items = $this->resolveCalendarExportItems($request, $project);
+
+        $project->loadMissing('client.organization');
+        $organization = $project->client?->organization;
+        $usesExternalDueDates = $organization !== null && $organization->uses_external_due_dates;
+
+        $grid = $this->buildCalendarGrid($items, $usesExternalDueDates);
+
+        $filename = Str::slug($project->name).'-calendar.csv';
+
+        $callback = function () use ($grid) {
+            $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
+
+            if (empty($grid['months'])) {
+                fputcsv($handle, ['No items with due dates.'], ',', '"', '\\');
+            }
+
+            foreach ($grid['months'] as $month) {
+                fputcsv($handle, [$month['label']], ',', '"', '\\');
+                fputcsv($handle, ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], ',', '"', '\\');
+
+                foreach ($month['weeks'] as $week) {
+                    $row = [];
+                    foreach ($week as $cell) {
+                        if (! $cell['inMonth']) {
+                            $row[] = '';
+
+                            continue;
+                        }
+
+                        $lines = [(string) $cell['day']];
+                        foreach ($cell['markers'] as $marker) {
+                            $prefix = $marker['isSubproject'] ? '['.$marker['projectName'].'] ' : '';
+                            $suffix = $marker['isExternal'] ? ' (Ext)' : '';
+                            $lines[] = $prefix.$marker['name'].$suffix;
+                        }
+                        $row[] = implode("\n", $lines);
+                    }
+                    fputcsv($handle, $row, ',', '"', '\\');
+                }
+
+                fputcsv($handle, [], ',', '"', '\\');
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
 

@@ -230,6 +230,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/documents/{document}/export-pdf', [DocumentController::class, 'exportPdf'])
                 ->name('documents.exportPdf');
 
+            Route::get('/calendar/export-pdf', [ProjectController::class, 'exportCalendarPdf'])
+                ->name('calendar.exportPdf');
+            Route::get('/calendar/export-csv', [ProjectController::class, 'exportCalendarCsv'])
+                ->name('calendar.exportCsv');
+
             Route::resource('documents', DocumentController::class);
 
             Route::post('/kanban-columns', [KanbanColumnController::class, 'store'])
