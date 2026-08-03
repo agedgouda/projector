@@ -1,68 +1,54 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Plus, X, ArrowRight } from 'lucide-vue-next';
-import { usePage } from '@inertiajs/vue3';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useProjectTypeForm } from '@/composables/useProjectTypeForm';
+import { usePage } from '@inertiajs/vue3';
+import { ArrowRight, Plus, X } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 const props = defineProps<{
     editData: any | null;
     template?: any;
     iconLibrary: { name: string; component: any }[];
-    aiTemplates: { id: string, name: string }[];
+    aiTemplates: { id: string; name: string }[];
     organizations: { id: string; name: string }[];
 }>();
 
 const emit = defineEmits(['success', 'cancel']);
 
 const page = usePage<AppPageProps>();
-const isSuperAdmin = computed(() => page.props.auth.user?.roles?.includes('super-admin') ?? false);
-
-// Use the new composable
-const {
-    form,
-    submit,
-    addSchemaItem,
-    addWorkflowStep,
-    suggestKey,
-    addLifecycleStep,
-} = useProjectTypeForm(
-    props.editData,
-    () => emit('success'),
-    props.template
+const isSuperAdmin = computed(
+    () => page.props.auth.user?.roles?.includes('super-admin') ?? false,
 );
 
-const colorPalette = [
-    { key: 'indigo', class: 'bg-projector-primary-500' },
-    { key: 'blue', class: 'bg-blue-500' },
-    { key: 'green', class: 'bg-green-500' },
-    { key: 'amber', class: 'bg-amber-500' },
-    { key: 'orange', class: 'bg-orange-500' },
-    { key: 'red', class: 'bg-red-500' },
-    { key: 'purple', class: 'bg-purple-500' },
-    { key: 'pink', class: 'bg-pink-500' },
-    { key: 'slate', class: 'bg-slate-500' },
-];
-
-const removeLifecycleStep = (index: number) => {
-    form.lifecycle_steps.splice(index, 1);
-    form.lifecycle_steps.forEach((step, i) => { step.order = i + 1; });
-};
+// Use the new composable
+const { form, submit, addSchemaItem, addWorkflowStep, suggestKey } =
+    useProjectTypeForm(props.editData, () => emit('success'), props.template);
 </script>
 
 <template>
     <form @submit.prevent="submit" class="space-y-10 px-10">
-        <div class="space-y-10 max-w-2xl">
+        <div class="max-w-2xl space-y-10">
             <div v-if="isSuperAdmin" class="space-y-4">
-                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Organization</Label>
+                <Label
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >Organization</Label
+                >
                 <select
                     v-model="form.organization_id"
-                    class="w-full h-12 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-projector-primary-500/5 transition-all outline-none"
+                    class="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 transition-all outline-none focus:ring-4 focus:ring-projector-primary-500/5 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100"
                 >
-                    <option value="">— No Organization (super-admin only) —</option>
-                    <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
+                    <option value="">
+                        — No Organization (super-admin only) —
+                    </option>
+                    <option
+                        v-for="org in organizations"
+                        :key="org.id"
+                        :value="org.id"
+                    >
+                        {{ org.name }}
+                    </option>
                 </select>
             </div>
 
@@ -71,165 +57,256 @@ const removeLifecycleStep = (index: number) => {
                     id="is_template"
                     type="checkbox"
                     v-model="form.is_template"
-                    class="w-4 h-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
+                    class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
                 />
-                <Label for="is_template" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                <Label
+                    for="is_template"
+                    class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
                     Use as default template for new protocols
                 </Label>
             </div>
 
             <div class="space-y-4">
-                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Name</Label>
-                <Input v-model="form.name" placeholder="e.g. Enterprise SaaS Workflow" class="rounded-xl h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-lg font-bold focus:ring-4 focus:ring-projector-primary-500/5 transition-all" />
+                <Label
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >Name</Label
+                >
+                <Input
+                    v-model="form.name"
+                    placeholder="e.g. Enterprise SaaS Workflow"
+                    class="h-12 rounded-xl border-gray-200 bg-white text-lg font-bold transition-all focus:ring-4 focus:ring-projector-primary-500/5 dark:border-gray-800 dark:bg-gray-950"
+                />
             </div>
 
             <div class="space-y-4">
-                <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Icon</Label>
-                <div class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-2 p-3 border border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-950 w-full">
-                    <button v-for="icon in iconLibrary" :key="icon.name" type="button"
+                <Label
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >Icon</Label
+                >
+                <div
+                    class="grid w-full grid-cols-5 gap-2 rounded-xl border border-gray-200 bg-white p-3 sm:grid-cols-8 lg:grid-cols-10 dark:border-gray-800 dark:bg-gray-950"
+                >
+                    <button
+                        v-for="icon in iconLibrary"
+                        :key="icon.name"
+                        type="button"
                         @click="form.icon = icon.name"
-                        :class="['p-3 rounded-lg transition-all flex items-center justify-center', form.icon === icon.name ? 'bg-projector-primary-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800']"
+                        :class="[
+                            'flex items-center justify-center rounded-lg p-3 transition-all',
+                            form.icon === icon.name
+                                ? 'bg-projector-primary-600 text-white shadow-md'
+                                : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800',
+                        ]"
                     >
-                        <component :is="icon.component" class="w-4 h-4" />
+                        <component :is="icon.component" class="h-4 w-4" />
                     </button>
                 </div>
             </div>
         </div>
 
-        <div class="flex items-center justify-between px-1 max-w-2xl">
-            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Document Definitions</h3>
+        <div class="flex max-w-2xl items-center justify-between px-1">
+            <h3
+                class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+            >
+                Document Definitions
+            </h3>
             <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 @click="addSchemaItem"
-                class="h-6 px-2 text-[9px] font-black rounded uppercase text-projector-primary-600 hover:bg-projector-primary-50"
+                class="h-6 rounded px-2 text-[9px] font-black text-projector-primary-600 uppercase hover:bg-projector-primary-50"
             >
-                <Plus class="w-3 h-3 mr-1" /> Add Definition
+                <Plus class="mr-1 h-3 w-3" /> Add Definition
             </Button>
         </div>
 
-        <div class="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-950">
-            <div class="flex items-center px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
-                <div class="w-12 shrink-0 text-[9px] font-black uppercase text-gray-400 flex justify-center">Task</div>
-                <div class="w-72 shrink-0 px-4 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">Label</div>
-                <div class="flex-1 px-6 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">System Key</div>
+        <div
+            class="overflow-hidden rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950"
+        >
+            <div
+                class="flex items-center border-b border-gray-100 bg-gray-50/50 px-4 py-2 dark:border-gray-800 dark:bg-gray-900/50"
+            >
+                <div
+                    class="flex w-12 shrink-0 justify-center text-[9px] font-black text-gray-400 uppercase"
+                >
+                    Task
+                </div>
+                <div
+                    class="w-72 shrink-0 border-l border-gray-200/50 px-4 text-[9px] font-black text-gray-400 uppercase dark:border-gray-700/50"
+                >
+                    Label
+                </div>
+                <div
+                    class="flex-1 border-l border-gray-200/50 px-6 text-[9px] font-black text-gray-400 uppercase dark:border-gray-700/50"
+                >
+                    System Key
+                </div>
                 <div class="w-8 shrink-0"></div>
             </div>
 
-            <div v-for="(doc, index) in form.document_schema" :key="index" class="flex items-center px-4 py-1 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
-                <div class="w-12 shrink-0 flex justify-center">
-                    <input type="checkbox" v-model="doc.is_task" class="w-3.5 h-3.5 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer" />
+            <div
+                v-for="(doc, index) in form.document_schema"
+                :key="index"
+                class="flex items-center border-b border-gray-100 px-4 py-1 transition-colors last:border-0 hover:bg-gray-50/50 dark:border-gray-800 dark:hover:bg-gray-900/50"
+            >
+                <div class="flex w-12 shrink-0 justify-center">
+                    <input
+                        type="checkbox"
+                        v-model="doc.is_task"
+                        class="h-3.5 w-3.5 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
+                    />
                 </div>
-                <div class="w-72 shrink-0 border-l border-gray-100 dark:border-gray-800 px-4">
-                    <Input v-model="doc.label" @input="suggestKey(index)" placeholder="e.g. Technical Specification" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-900 dark:text-gray-100" />
+                <div
+                    class="w-72 shrink-0 border-l border-gray-100 px-4 dark:border-gray-800"
+                >
+                    <Input
+                        v-model="doc.label"
+                        @input="suggestKey(index)"
+                        placeholder="e.g. Technical Specification"
+                        class="h-9 border-none bg-transparent px-0 text-sm text-gray-900 shadow-none focus-visible:ring-0 dark:text-gray-100"
+                    />
                 </div>
-                <div class="flex-1 border-l border-gray-100 dark:border-gray-800 px-1 flex items-center">
-                    <Input v-model="doc.key" class="h-9 pl-5 border-none shadow-none focus-visible:ring-0 bg-transparent font-mono text-[11px] text-gray-900 dark:text-gray-100" :disabled="doc.key === 'intake'" />
+                <div
+                    class="flex flex-1 items-center border-l border-gray-100 px-1 dark:border-gray-800"
+                >
+                    <Input
+                        v-model="doc.key"
+                        class="h-9 border-none bg-transparent pl-5 font-mono text-[11px] text-gray-900 shadow-none focus-visible:ring-0 dark:text-gray-100"
+                        :disabled="doc.key === 'intake'"
+                    />
                 </div>
                 <div class="shrink-0">
-                    <Button v-if="doc.key !== 'intake'" type="button" variant="ghost" size="icon" @click="form.document_schema.splice(index, 1)" class="h-8 w-8 text-gray-300 hover:text-red-500 transition-colors">
-                        <X class="w-4 h-4" />
+                    <Button
+                        v-if="doc.key !== 'intake'"
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        @click="form.document_schema.splice(index, 1)"
+                        class="h-8 w-8 text-gray-300 transition-colors hover:text-red-500"
+                    >
+                        <X class="h-4 w-4" />
                     </Button>
-                    <div v-else class="w-8 h-8"></div>
+                    <div v-else class="h-8 w-8"></div>
                 </div>
             </div>
         </div>
 
-        <div class="flex items-center justify-between px-1 max-w-2xl">
-            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">AI Pipelines</h3>
-            <Button type="button" variant="ghost" size="sm" @click="addWorkflowStep" class="h-6 px-2 text-[9px] font-black rounded uppercase text-projector-primary-600 hover:bg-projector-primary-50">
-                <Plus class="w-3 h-3 mr-1" /> Add Step
+        <div class="flex max-w-2xl items-center justify-between px-1">
+            <h3
+                class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+            >
+                AI Pipelines
+            </h3>
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                @click="addWorkflowStep"
+                class="h-6 rounded px-2 text-[9px] font-black text-projector-primary-600 uppercase hover:bg-projector-primary-50"
+            >
+                <Plus class="mr-1 h-3 w-3" /> Add Step
             </Button>
         </div>
 
-        <div class="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-950">
-            <div v-for="(step, index) in form.workflow" :key="index" class="flex items-center px-4 py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors gap-4">
-                <div class="w-48 shrink-0 flex items-center gap-2">
-                    <Label class="text-[9px] font-black uppercase text-gray-400 w-8 shrink-0">From</Label>
-                    <select v-model="step.from_key" class="h-8 w-full bg-transparent border-none shadow-none text-[11px] outline-none text-gray-900 dark:text-gray-100 appearance-none cursor-pointer">
+        <div
+            class="overflow-hidden rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950"
+        >
+            <div
+                v-for="(step, index) in form.workflow"
+                :key="index"
+                class="flex items-center gap-4 border-b border-gray-100 px-4 py-1.5 transition-colors last:border-0 hover:bg-gray-50/50 dark:border-gray-800 dark:hover:bg-gray-900/50"
+            >
+                <div class="flex w-48 shrink-0 items-center gap-2">
+                    <Label
+                        class="w-8 shrink-0 text-[9px] font-black text-gray-400 uppercase"
+                        >From</Label
+                    >
+                    <select
+                        v-model="step.from_key"
+                        class="h-8 w-full cursor-pointer appearance-none border-none bg-transparent text-[11px] text-gray-900 shadow-none outline-none dark:text-gray-100"
+                    >
                         <option value="" disabled>Select</option>
-                        <option v-for="s in form.document_schema" :key="s.key" :value="s.key">{{ s.label }}</option>
+                        <option
+                            v-for="s in form.document_schema"
+                            :key="s.key"
+                            :value="s.key"
+                        >
+                            {{ s.label }}
+                        </option>
                     </select>
                 </div>
-                <ArrowRight class="w-3 h-3 text-projector-primary-400 shrink-0" />
-                <div class="w-48 shrink-0 flex items-center gap-2">
-                    <Label class="text-[9px] font-black uppercase text-gray-400 w-6 shrink-0">To</Label>
-                    <select v-model="step.to_key" class="h-8 w-full bg-transparent border-none shadow-none text-[11px] outline-none text-gray-900 dark:text-gray-100 appearance-none cursor-pointer">
+                <ArrowRight
+                    class="h-3 w-3 shrink-0 text-projector-primary-400"
+                />
+                <div class="flex w-48 shrink-0 items-center gap-2">
+                    <Label
+                        class="w-6 shrink-0 text-[9px] font-black text-gray-400 uppercase"
+                        >To</Label
+                    >
+                    <select
+                        v-model="step.to_key"
+                        class="h-8 w-full cursor-pointer appearance-none border-none bg-transparent text-[11px] text-gray-900 shadow-none outline-none dark:text-gray-100"
+                    >
                         <option value="" disabled>Select</option>
-                        <option v-for="s in form.document_schema" :key="s.key" :value="s.key">{{ s.label }}</option>
+                        <option
+                            v-for="s in form.document_schema"
+                            :key="s.key"
+                            :value="s.key"
+                        >
+                            {{ s.label }}
+                        </option>
                     </select>
                 </div>
-                <div class="flex-1 flex items-center gap-3 border-l border-gray-100 dark:border-gray-800 pl-4">
-                    <select v-model="step.ai_template_id" class="h-8 w-full bg-transparent border-none shadow-none text-[11px] outline-none text-gray-600 dark:text-gray-400 appearance-none cursor-pointer">
+                <div
+                    class="flex flex-1 items-center gap-3 border-l border-gray-100 pl-4 dark:border-gray-800"
+                >
+                    <select
+                        v-model="step.ai_template_id"
+                        class="h-8 w-full cursor-pointer appearance-none border-none bg-transparent text-[11px] text-gray-600 shadow-none outline-none dark:text-gray-400"
+                    >
                         <option :value="null">Manual Processing</option>
-                        <option v-for="temp in aiTemplates" :key="temp.id" :value="temp.id">{{ temp.name }}</option>
+                        <option
+                            v-for="temp in aiTemplates"
+                            :key="temp.id"
+                            :value="temp.id"
+                        >
+                            {{ temp.name }}
+                        </option>
                     </select>
                 </div>
-                <Button type="button" variant="ghost" size="icon" @click="form.workflow.splice(index, 1)" class="h-8 w-8 text-gray-300 hover:text-red-500 transition-colors shrink-0">
-                    <X class="w-4 h-4" />
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    @click="form.workflow.splice(index, 1)"
+                    class="h-8 w-8 shrink-0 text-gray-300 transition-colors hover:text-red-500"
+                >
+                    <X class="h-4 w-4" />
                 </Button>
             </div>
         </div>
 
-        <div class="flex items-center justify-between px-1 max-w-2xl">
-            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Lifecycle Steps</h3>
-            <Button type="button" variant="ghost" size="sm" @click="addLifecycleStep" class="h-6 px-2 text-[9px] font-black rounded uppercase text-projector-primary-600 hover:bg-projector-primary-50">
-                <Plus class="w-3 h-3 mr-1" /> Add Step
-            </Button>
-        </div>
-
-        <div class="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-950">
-            <div class="flex items-center px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
-                <div class="w-10 shrink-0 text-[9px] font-black uppercase text-gray-400 flex justify-center">#</div>
-                <div class="w-48 shrink-0 px-4 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">Label</div>
-                <div class="flex-1 px-4 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">Description</div>
-                <div class="w-40 shrink-0 px-4 text-[9px] font-black uppercase text-gray-400 border-l border-gray-200/50 dark:border-gray-700/50">Color</div>
-                <div class="w-8 shrink-0"></div>
-            </div>
-
-            <div v-if="form.lifecycle_steps.length === 0" class="px-4 py-6 text-center text-[11px] text-gray-400">
-                No lifecycle steps defined. Add steps to track project progress.
-            </div>
-
-            <div v-for="(step, index) in form.lifecycle_steps" :key="index" class="flex items-center px-4 py-1 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
-                <div class="w-10 shrink-0 flex justify-center text-[11px] text-gray-400 font-mono">{{ step.order }}</div>
-                <div class="w-48 shrink-0 border-l border-gray-100 dark:border-gray-800 px-4">
-                    <Input v-model="step.label" placeholder="e.g. Intake" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-900 dark:text-gray-100" />
-                </div>
-                <div class="flex-1 border-l border-gray-100 dark:border-gray-800 px-4">
-                    <Input :model-value="step.description ?? ''" @update:model-value="step.description = $event as string" placeholder="Optional description" class="h-9 border-none shadow-none focus-visible:ring-0 px-0 bg-transparent text-sm text-gray-500 dark:text-gray-400" />
-                </div>
-                <div class="w-40 shrink-0 border-l border-gray-100 dark:border-gray-800 px-4 flex items-center gap-1">
-                    <button
-                        v-for="color in colorPalette"
-                        :key="color.key"
-                        type="button"
-                        @click="step.color = color.key"
-                        :class="['w-4 h-4 rounded-full transition-all', color.class, step.color === color.key ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'opacity-60 hover:opacity-100']"
-                    />
-                </div>
-                <div class="shrink-0">
-                    <Button type="button" variant="ghost" size="icon" @click="removeLifecycleStep(index)" class="h-8 w-8 text-gray-300 hover:text-red-500 transition-colors">
-                        <X class="w-4 h-4" />
-                    </Button>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800  max-w-2xl">
+        <div
+            class="flex max-w-2xl items-center justify-between border-t border-gray-100 pt-6 dark:border-gray-800"
+        >
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 h-9 px-6 rounded-lg font-black uppercase text-[9px] tracking-widest hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
+                <Button
+                    type="button"
+                    @click="emit('cancel')"
+                    class="h-9 rounded-lg border border-projector-primary-600 bg-white px-6 text-[9px] font-black tracking-widest text-projector-primary-600 uppercase hover:bg-projector-primary-50 dark:border-projector-primary-400 dark:bg-transparent dark:text-projector-primary-400 dark:hover:bg-projector-primary-950/30"
+                >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     :disabled="form.processing"
-                    class="px-6 h-9 text-[9px]"
+                    class="h-9 px-6 text-[9px]"
                 >
-                    {{ form.processing ? 'Saving...' : (editData ? 'Save Changes' : 'Create Protocol') }}
+                    {{ form.processing ? 'Saving...' : 'Save' }}
                 </Button>
             </div>
         </div>

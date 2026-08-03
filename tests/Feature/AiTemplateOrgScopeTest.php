@@ -53,7 +53,7 @@ it('super-admin sees all templates', function () {
     setPermissionsTeamId(null);
 
     $response = $this->actingAs($this->superAdmin)
-        ->get(route('ai-templates.index'));
+        ->get(route('transformation-library.index'));
 
     $response->assertOk();
 
@@ -67,7 +67,7 @@ it('org-admin sees global and their org templates only', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->get(route('ai-templates.index'));
+        ->get(route('transformation-library.index'));
 
     $response->assertOk();
 
@@ -89,7 +89,7 @@ it('super-admin sees the universal intake -> action_items template', function ()
     setPermissionsTeamId(null);
 
     $response = $this->actingAs($this->superAdmin)
-        ->get(route('ai-templates.index'));
+        ->get(route('transformation-library.index'));
 
     $response->assertOk();
 
@@ -109,7 +109,7 @@ it('org-admin does not see the universal intake -> action_items template', funct
     setPermissionsTeamId($this->orgA->id);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->get(route('ai-templates.index'));
+        ->get(route('transformation-library.index'));
 
     $response->assertOk();
 
@@ -122,7 +122,7 @@ it('org-admin can create a template for their org', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'New Org A Template',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -137,21 +137,21 @@ it('redirects to the detail page after creating a template', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'Redirect Target Template',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
         ]);
 
     $created = AiTemplate::where('name', 'Redirect Target Template')->firstOrFail();
-    $response->assertRedirect(route('ai-templates.show', $created));
+    $response->assertRedirect(route('transformation-library.show', $created));
 });
 
 it('renders the create form with a null aiTemplate prop', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->get(route('ai-templates.create'));
+        ->get(route('transformation-library.create'));
 
     $response->assertOk();
     expect($response->original->getData()['page']['props']['aiTemplate'])->toBeNull();
@@ -161,7 +161,7 @@ it('saves a description when creating a template', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'Described Template',
             'description' => 'Turns raw meeting notes into a polished user story',
             'system_prompt' => 'sys',
@@ -177,7 +177,7 @@ it('saves single_output when creating a template', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'Single Output Template',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -193,7 +193,7 @@ it('defaults single_output to false when not provided', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'Default Output Template',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -208,7 +208,7 @@ it('saves output_key when creating a template', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'Keyed Template',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -224,7 +224,7 @@ it('rejects an output_key with characters other than lowercase letters, numbers,
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'Bad Key Template',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -239,7 +239,7 @@ it('super-admin creates a global template', function () {
     setPermissionsTeamId(null);
 
     $this->actingAs($this->superAdmin)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'New Global Template',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -254,7 +254,7 @@ it('org-admin can update their own org template', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->put(route('ai-templates.update', $this->orgATemplate), [
+        ->put(route('transformation-library.update', $this->orgATemplate), [
             'name' => 'Updated',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -268,7 +268,7 @@ it('updates a template description', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->put(route('ai-templates.update', $this->orgATemplate), [
+        ->put(route('transformation-library.update', $this->orgATemplate), [
             'name' => 'Updated',
             'description' => 'New description',
             'system_prompt' => 'sys',
@@ -283,7 +283,7 @@ it('org-admin cannot update a global template', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->put(route('ai-templates.update', $this->globalTemplate), [
+        ->put(route('transformation-library.update', $this->globalTemplate), [
             'name' => 'Hacked',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -295,7 +295,7 @@ it('org-admin cannot update another org template', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $this->actingAs($this->orgAAdmin)
-        ->put(route('ai-templates.update', $this->orgBTemplate), [
+        ->put(route('transformation-library.update', $this->orgBTemplate), [
             'name' => 'Hacked',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',
@@ -322,7 +322,7 @@ it('generates a system_prompt and user_prompt from a brief', function () {
         ]);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->postJson(route('ai-templates.generate-prompts'), [
+        ->postJson(route('transformation-library.generate-prompts'), [
             'brief' => 'Turn raw meeting notes into a polished user story',
         ]);
 
@@ -349,7 +349,7 @@ it('instructs the prompt generator to write English-only prompts', function () {
         ]);
 
     $this->actingAs($this->orgAAdmin)
-        ->postJson(route('ai-templates.generate-prompts'), [
+        ->postJson(route('transformation-library.generate-prompts'), [
             'brief' => 'Anything',
         ])
         ->assertOk();
@@ -374,7 +374,7 @@ it('converts a markdown system_prompt into HTML for the rich text editor', funct
         ]);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->postJson(route('ai-templates.generate-prompts'), [
+        ->postJson(route('transformation-library.generate-prompts'), [
             'brief' => 'Anything',
         ]);
 
@@ -404,7 +404,7 @@ it('converts a markdown table in a generated system_prompt to an HTML table', fu
         ]);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->postJson(route('ai-templates.generate-prompts'), [
+        ->postJson(route('transformation-library.generate-prompts'), [
             'brief' => 'Anything',
         ]);
 
@@ -422,7 +422,7 @@ it('returns an error response when generation fails', function () {
         ->andReturn(['status' => 'error', 'message' => 'Upstream failure']);
 
     $this->actingAs($this->orgAAdmin)
-        ->postJson(route('ai-templates.generate-prompts'), [
+        ->postJson(route('transformation-library.generate-prompts'), [
             'brief' => 'Turn raw meeting notes into a polished user story',
         ])
         ->assertStatus(422);
@@ -432,7 +432,7 @@ it('blocks a team member from generating prompts', function () {
     setPermissionsTeamId($this->orgB->id);
 
     $this->actingAs($this->orgBMember)
-        ->postJson(route('ai-templates.generate-prompts'), [
+        ->postJson(route('transformation-library.generate-prompts'), [
             'brief' => 'Unauthorized attempt',
         ])
         ->assertNotFound();
@@ -442,7 +442,7 @@ it('team member cannot create a template', function () {
     setPermissionsTeamId($this->orgB->id);
 
     $this->actingAs($this->orgBMember)
-        ->post(route('ai-templates.store'), [
+        ->post(route('transformation-library.store'), [
             'name' => 'Unauthorized',
             'system_prompt' => 'sys',
             'user_prompt' => 'usr',

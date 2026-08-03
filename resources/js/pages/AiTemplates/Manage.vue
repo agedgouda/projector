@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Head, useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
-import AiTemplateForm from './Partials/AiTemplateForm.vue';
+import aiTemplateRoutes from '@/routes/transformation-library';
 import { type BreadcrumbItem } from '@/types';
-import aiTemplateRoutes from '@/routes/ai-templates';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
+import AiTemplateForm from './Partials/AiTemplateForm.vue';
 
 const props = defineProps<{
     aiTemplate: AiTemplate | null;
@@ -12,17 +12,21 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Transformations', href: aiTemplateRoutes.index().url },
-    { title: props.aiTemplate ? 'Edit Template' : 'New Transformation', href: '#' },
+    {
+        title: props.aiTemplate ? 'Edit Template' : 'New Transformation',
+        href: '#',
+    },
 ];
 
 const handleShow = () => {
     if (props.aiTemplate) {
-        router.visit(aiTemplateRoutes.show({ ai_template: props.aiTemplate.id }).url);
+        router.visit(
+            aiTemplateRoutes.show({ aiTemplate: props.aiTemplate.id }).url,
+        );
     } else {
         router.visit(aiTemplateRoutes.index().url);
     }
 };
-
 
 const form = useForm({
     name: props.aiTemplate?.name ?? '',
@@ -38,35 +42,54 @@ const submit = () => {
     const isEdit = !!props.aiTemplate;
 
     const route = isEdit
-        ? aiTemplateRoutes.update({ ai_template: props.aiTemplate.id })
+        ? aiTemplateRoutes.update({ aiTemplate: props.aiTemplate.id })
         : aiTemplateRoutes.store();
 
     form[isEdit ? 'put' : 'post'](route.url, {
         preserveScroll: true,
         onSuccess: () => {
             // Both create and update redirect to the template's detail page.
-            toast.success(isEdit ? 'Configuration updated' : 'Intelligence protocol activated');
+            toast.success(
+                isEdit
+                    ? 'Configuration updated'
+                    : 'Intelligence protocol activated',
+            );
         },
         onError: () => {
             toast.error('Validation failed. Please check your inputs.');
-        }
+        },
     });
 };
-
 </script>
 
 <template>
     <Head :title="aiTemplate ? 'Edit Template' : 'New Transformation'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 w-full">
-            <button @click="handleShow()" class="text-projector-primary-600 hover:text-projector-primary-800 dark:text-projector-primary-400 dark:hover:text-projector-primary-300 text-sm font-medium mb-4">
+        <div class="w-full p-6">
+            <button
+                @click="handleShow()"
+                class="mb-4 text-sm font-medium text-projector-primary-600 hover:text-projector-primary-800 dark:text-projector-primary-400 dark:hover:text-projector-primary-300"
+            >
                 &larr; Back
             </button>
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div
+                class="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"
+            >
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">{{ aiTemplate ? 'Update Template' : 'Configure Transformation' }}</h1>
-                    <p class="text-sm text-gray-500">Define the instructions and context for this transition protocol.</p>
+                    <h1
+                        class="text-2xl font-black tracking-tight text-gray-900 dark:text-white"
+                    >
+                        {{
+                            aiTemplate
+                                ? 'Update Template'
+                                : 'Configure Transformation'
+                        }}
+                    </h1>
+                    <p class="text-sm text-gray-500">
+                        Define the instructions and context for this transition
+                        protocol.
+                    </p>
                 </div>
             </div>
             <AiTemplateForm

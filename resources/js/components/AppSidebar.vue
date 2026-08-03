@@ -15,34 +15,46 @@ import {
 
 // 1. Import your Wayfinder routes
 import { dashboard } from '@/routes';
-import userRoutes from '@/routes/users/index';
-import projectRoutes from '@/routes/projects/index';
-import projectTypeRoutes from '@/routes/project-types/index';
 import organizationRoutes from '@/routes/organizations/index';
-import statusMeetingsRoutes from '@/routes/status-meetings/index';
+import projectRoutes from '@/routes/projects/index';
 import roleRoutes from '@/routes/roles/index';
-import aiRoutes from '@/routes/ai-templates/index';
+import statusMeetingsRoutes from '@/routes/status-meetings/index';
+import transformationLibraryRoutes from '@/routes/transformation-library/index';
+import userRoutes from '@/routes/users/index';
 
+import { usePermissions } from '@/composables/usePermissions';
+import adminOrgRoutes from '@/routes/admin/organizations/index';
+import bugReportsRoutes from '@/routes/bug-reports/index';
+import faqRoutes from '@/routes/faq/index';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import bugReportsRoutes from '@/routes/bug-reports/index';
-import adminOrgRoutes from '@/routes/admin/organizations/index';
-import faqRoutes from '@/routes/faq/index';
-import { usePermissions } from '@/composables/usePermissions';
 
-import { Bug, LayoutGrid, Users, User, Workflow, Settings2, Building2, CalendarDays, TriangleAlert, HelpCircle, Newspaper } from 'lucide-vue-next';
+import {
+    Bug,
+    Building2,
+    CalendarDays,
+    HelpCircle,
+    LayoutGrid,
+    Newspaper,
+    Settings2,
+    TriangleAlert,
+    User,
+    Users,
+    Workflow,
+} from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();
 const { hasRole } = usePermissions();
 const isSuperAdmin = computed(() => hasRole('super-admin'));
 const isOrgAdmin = computed(() => hasRole('org-admin'));
-const hasOrganizations = computed(() => (page.props.auth.user.organizations?.length ?? 0) > 0);
+const hasOrganizations = computed(
+    () => (page.props.auth.user.organizations?.length ?? 0) > 0,
+);
 
-
-const canSeeStatusMeetings = computed(() =>
-    isSuperAdmin.value || hasRole('org-admin') || hasRole('project-lead')
+const canSeeStatusMeetings = computed(
+    () => isSuperAdmin.value || hasRole('org-admin') || hasRole('project-lead'),
 );
 
 const mainNavItems: NavItem[] = [
@@ -63,20 +75,10 @@ const mainNavItems: NavItem[] = [
         icon: Users,
     },
     {
-        title: 'Workflows',
-        href: projectTypeRoutes.index(),
+        title: 'Transformations',
+        href: transformationLibraryRoutes.index(),
         icon: Workflow,
         hidden: !isSuperAdmin.value && !isOrgAdmin.value,
-        children: [
-            {
-                title: 'Project Types',
-                href: projectTypeRoutes.index(),
-            },
-            {
-                title: 'Transformations',
-                href: aiRoutes.index(),
-            },
-        ],
     },
     {
         title: 'Users',
@@ -110,8 +112,9 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-const filteredNavItems = computed(() => mainNavItems.filter(item => !item.hidden));
-
+const filteredNavItems = computed(() =>
+    mainNavItems.filter((item) => !item.hidden),
+);
 </script>
 
 <template>

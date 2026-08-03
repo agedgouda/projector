@@ -111,7 +111,7 @@ class AiTemplateController extends Controller
 
         $template = AiTemplate::create($validated);
 
-        return redirect()->route('ai-templates.show', $template)
+        return redirect()->route('transformation-library.show', $template)
             ->with('success', 'AI Template created.');
     }
 
@@ -131,7 +131,7 @@ class AiTemplateController extends Controller
 
         $aiTemplate->update($validated);
 
-        return redirect()->route('ai-templates.show', $aiTemplate)
+        return redirect()->route('transformation-library.show', $aiTemplate)
             ->with('success', 'AI Template updated.');
     }
 
@@ -257,7 +257,7 @@ class AiTemplateController extends Controller
         $copy->organization_id = $user->hasRole('super-admin') ? null : getPermissionsTeamId();
         $copy->save();
 
-        return redirect()->route('ai-templates.edit', $copy->id)
+        return redirect()->route('transformation-library.edit', $copy->id)
             ->with('success', 'AI Template copied.');
     }
 }

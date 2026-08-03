@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -8,11 +8,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Loader2 } from 'lucide-vue-next';
-import { generatePrompts } from '@/routes/ai-templates';
+import { generatePrompts } from '@/routes/transformation-library';
+import { Loader2, Sparkles } from 'lucide-vue-next';
+import { ref, watch } from 'vue';
 
 const props = defineProps<{
     open: boolean;
@@ -22,7 +22,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'close'): void;
-    (e: 'apply', payload: { brief: string; systemPrompt: string; userPrompt: string }): void;
+    (
+        e: 'apply',
+        payload: { brief: string; systemPrompt: string; userPrompt: string },
+    ): void;
 }>();
 
 const brief = ref(props.initialBrief ?? '');
@@ -30,16 +33,21 @@ const generating = ref(false);
 const error = ref<string | null>(null);
 const result = ref<{ systemPrompt: string; userPrompt: string } | null>(null);
 
-watch(() => props.open, (isOpen) => {
-    if (isOpen) {
-        brief.value = props.initialBrief ?? '';
-        result.value = null;
-        error.value = null;
-    }
-});
+watch(
+    () => props.open,
+    (isOpen) => {
+        if (isOpen) {
+            brief.value = props.initialBrief ?? '';
+            result.value = null;
+            error.value = null;
+        }
+    },
+);
 
 const getCsrfToken = (): string => {
-    const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+    const match = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('XSRF-TOKEN='));
     return match ? decodeURIComponent(match.split('=')[1]) : '';
 };
 
@@ -52,7 +60,7 @@ const generate = async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                Accept: 'application/json',
                 'X-XSRF-TOKEN': getCsrfToken(),
             },
             body: JSON.stringify({ brief: brief.value }),
@@ -60,12 +68,16 @@ const generate = async () => {
 
         if (!response.ok) {
             const data = await response.json().catch(() => null);
-            error.value = data?.message ?? 'Generation failed. Please try again.';
+            error.value =
+                data?.message ?? 'Generation failed. Please try again.';
             return;
         }
 
         const data = await response.json();
-        result.value = { systemPrompt: data.system_prompt ?? '', userPrompt: data.user_prompt ?? '' };
+        result.value = {
+            systemPrompt: data.system_prompt ?? '',
+            userPrompt: data.user_prompt ?? '',
+        };
     } catch {
         error.value = 'Generation failed. Please try again.';
     } finally {
@@ -74,7 +86,9 @@ const generate = async () => {
 };
 
 const apply = () => {
-    if (!result.value) { return; }
+    if (!result.value) {
+        return;
+    }
 
     emit('apply', {
         brief: brief.value,
@@ -93,13 +107,17 @@ const apply = () => {
                     Generate with AI
                 </DialogTitle>
                 <DialogDescription>
-                    Describe what this transformation should do, and AI will draft the system instructions and user prompt for you.
+                    Describe what this transformation should do, and AI will
+                    draft the system instructions and user prompt for you.
                 </DialogDescription>
             </DialogHeader>
 
             <div class="space-y-4">
                 <div class="space-y-2">
-                    <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">What should this transformation do?</Label>
+                    <Label
+                        class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >What should this transformation do?</Label
+                    >
                     <Textarea
                         v-model="brief"
                         placeholder="e.g. Turn raw meeting notes into a polished user story with acceptance criteria"
@@ -108,25 +126,56 @@ const apply = () => {
                     />
                 </div>
 
-                <div v-if="error" class="text-[10px] font-bold text-red-500 uppercase px-1">{{ error }}</div>
+                <div
+                    v-if="error"
+                    class="px-1 text-[10px] font-bold text-red-500 uppercase"
+                >
+                    {{ error }}
+                </div>
 
-                <div v-if="result" class="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+                <div
+                    v-if="result"
+                    class="space-y-4 border-t border-gray-100 pt-2 dark:border-gray-800"
+                >
                     <div class="space-y-2">
-                        <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Drafted System Instructions</Label>
-                        <div class="max-h-32 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 p-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ result.systemPrompt }}</div>
+                        <Label
+                            class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Drafted System Instructions</Label
+                        >
+                        <div
+                            class="max-h-32 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50/50 p-3 text-sm whitespace-pre-wrap text-gray-700 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-300"
+                        >
+                            {{ result.systemPrompt }}
+                        </div>
                     </div>
                     <div class="space-y-2">
-                        <Label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Drafted User Prompt</Label>
-                        <div class="max-h-32 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 p-3 text-sm font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ result.userPrompt }}</div>
+                        <Label
+                            class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Drafted User Prompt</Label
+                        >
+                        <div
+                            class="max-h-32 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50/50 p-3 font-mono text-sm whitespace-pre-wrap text-gray-700 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-300"
+                        >
+                            {{ result.userPrompt }}
+                        </div>
                     </div>
-                    <p v-if="hasExistingPrompts" class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide px-1">
-                        Applying will replace your current System Instructions and User Prompt.
+                    <p
+                        v-if="hasExistingPrompts"
+                        class="px-1 text-[10px] font-bold tracking-wide text-amber-600 uppercase dark:text-amber-400"
+                    >
+                        Applying will replace your current System Instructions
+                        and User Prompt.
                     </p>
                 </div>
             </div>
 
             <DialogFooter class="gap-2 sm:gap-4">
-                <Button type="button" variant="outline" @click="emit('close')" :disabled="generating">
+                <Button
+                    type="button"
+                    variant="outline"
+                    @click="emit('close')"
+                    :disabled="generating"
+                >
                     Cancel
                 </Button>
                 <Button
@@ -139,12 +188,15 @@ const apply = () => {
                     {{ generating ? 'Generating…' : 'Generate' }}
                 </Button>
                 <template v-else>
-                    <Button type="button" variant="outline" :disabled="generating" @click="generate">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        :disabled="generating"
+                        @click="generate"
+                    >
                         Regenerate
                     </Button>
-                    <Button type="button" @click="apply">
-                        Apply
-                    </Button>
+                    <Button type="button" @click="apply"> Apply </Button>
                 </template>
             </DialogFooter>
         </DialogContent>

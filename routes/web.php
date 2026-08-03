@@ -131,12 +131,13 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('project-types', ProjectTypeController::class);
         Route::post('/project-types/{projectType}/duplicate', [ProjectTypeController::class, 'duplicate'])
             ->name('project-types.duplicate');
-        Route::resource('ai-templates', AiTemplateController::class);
-        Route::post('/ai-templates/{aiTemplate}/duplicate', [AiTemplateController::class, 'duplicate'])
-            ->name('ai-templates.duplicate');
-        Route::post('/ai-templates/generate-prompts', [AiTemplateController::class, 'generatePrompts'])
+        Route::resource('transformation-library', AiTemplateController::class)
+            ->parameters(['transformation-library' => 'aiTemplate']);
+        Route::post('/transformation-library/{aiTemplate}/duplicate', [AiTemplateController::class, 'duplicate'])
+            ->name('transformation-library.duplicate');
+        Route::post('/transformation-library/generate-prompts', [AiTemplateController::class, 'generatePrompts'])
             ->middleware('throttle:20,1')
-            ->name('ai-templates.generate-prompts');
+            ->name('transformation-library.generate-prompts');
         Route::resource('tasks', TaskController::class);
     });
 
