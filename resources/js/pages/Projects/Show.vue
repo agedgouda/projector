@@ -12,7 +12,7 @@ import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.v
 import { Deferred, router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { PlusIcon, RefreshCw, ShieldAlert } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -77,6 +77,21 @@ const {
 // --- 2. AI PROCESSING (OBSERVER MODE) ---
 const aiStatusMessageRef = ref('');
 const activeTab = ref(props.activeTab);
+
+// The URL only gains an explicit `?tab=` when the user clicks a tab button (see updateTab()
+// below) — on first load it can be absent even though `activeTab` (server-resolved from the
+// query param, then a cookie, then a 'tasks' default) is already showing a specific tab. Various
+// "open document" flows capture `window.location.href` as a `from` param so a document's "back"
+// button returns to the exact tab the user was on; without this normalization, that capture can
+// silently omit `?tab=`, so returning from a document would fall back to a stale cached tab
+// instead of the one actually being viewed.
+onMounted(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') !== activeTab.value) {
+        url.searchParams.set('tab', activeTab.value);
+        window.history.replaceState({}, '', url);
+    }
+});
 const workflowRows = computed(() => {
     const columns = props.currentProject?.kanban_columns ?? [];
 

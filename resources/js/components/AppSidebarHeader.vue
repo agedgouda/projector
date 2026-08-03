@@ -2,8 +2,9 @@
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
+import { dashboard } from '@/routes';
 import type { BreadcrumbItemType } from '@/types';
-import { usePage, router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 withDefaults(
@@ -17,15 +18,27 @@ withDefaults(
 
 const page = usePage<AppPageProps>();
 const organizations = computed(() => (page.props as any).organizations ?? []);
-const currentOrg = computed(() =>
-    organizations.value.find((org: any) => org.id === page.props.auth.active_org_id) ?? null
+const currentOrg = computed(
+    () =>
+        organizations.value.find(
+            (org: any) => org.id === page.props.auth.active_org_id,
+        ) ?? null,
 );
 
+// Switching orgs always lands on the Dashboard rather than reloading the current URL: the page
+// being viewed (a project, a client, a document...) belongs to whichever org was active before
+// the switch, so staying on it either keeps showing that org's content or 403s outright. A
+// middleware (EnsureUserCanAccessClient) also auto-activates whatever org owns the resource in
+// the current URL, which would silently override an explicit switch if we stayed put.
 const handleOrgSwitch = (orgId: string | number) => {
-    router.get(window.location.pathname, { org: orgId }, {
-        preserveState: false,
-        preserveScroll: true,
-    });
+    router.get(
+        dashboard().url,
+        { org: orgId },
+        {
+            preserveState: false,
+            preserveScroll: true,
+        },
+    );
 };
 </script>
 

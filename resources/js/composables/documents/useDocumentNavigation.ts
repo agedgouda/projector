@@ -1,12 +1,23 @@
-import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
-import projectRoutes from '@/routes/projects/index';
-import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { dashboard } from '@/routes';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import projectRoutes from '@/routes/projects/index';
+import { router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-type AncestorDoc = { id: string | number; name: string; parent?: AncestorDoc | null };
+type AncestorDoc = {
+    id: string | number;
+    name: string;
+    parent?: AncestorDoc | null;
+};
 
-export function useDocumentNavigation(project: Project, item?: (Partial<ExtendedDocument> & { parent?: AncestorDoc | null }) | null) {
+export function useDocumentNavigation(
+    project: Project,
+    item?: (Partial<ExtendedDocument> & { parent?: AncestorDoc | null }) | null,
+) {
+    // "Back" from a document returns to wherever the user actually came from — whichever
+    // project tab (Tasks, Calendar, Documentation, Recordings) was active, or the Dashboard.
+    // The exact origin travels in the `from` query param (see the various "open document"
+    // call sites); the `tab` fallback below only matters if `from` is somehow missing.
     const getReturnUrl = () => {
         const params = new URLSearchParams(window.location.search);
         const from = params.get('from');
@@ -37,10 +48,11 @@ export function useDocumentNavigation(project: Project, item?: (Partial<Extended
     const breadcrumbs = computed(() => {
         const returnUrl = getReturnUrl();
         const fromUrl = new URLSearchParams(window.location.search).get('from');
-        const isDashboard = fromUrl && new URL(fromUrl).pathname === dashboard().url;
+        const isDashboard =
+            fromUrl && new URL(fromUrl).pathname === dashboard().url;
         const ancestors = buildAncestors();
 
-        const ancestorCrumbs = ancestors.map(a => ({
+        const ancestorCrumbs = ancestors.map((a) => ({
             title: a.name,
             href: getAncestorUrl(a.id),
         }));
@@ -67,6 +79,6 @@ export function useDocumentNavigation(project: Project, item?: (Partial<Extended
 
     return {
         breadcrumbs,
-        handleBack
+        handleBack,
     };
 }
