@@ -96,6 +96,57 @@ class OllamaLlmDriver implements LlmDriver
         }
     }
 
+    public function completeFreeform(string $systemPrompt, string $userPrompt): array
+    {
+        $host = config('services.ollama.host', 'http://localhost:11434');
+        $model = config('services.ollama.model', 'deepseek-r1:8b');
+
+        try {
+            $response = Http::timeout(300)->post("{$host}/api/generate", [
+                'model' => $model,
+                'system' => $systemPrompt,
+                'prompt' => $userPrompt,
+                'stream' => false,
+                'options' => [
+                    'temperature' => 0.7,
+                ],
+            ]);
+
+            if ($response->failed()) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Ollama API returned status '.$response->status(),
+                ];
+            }
+
+            $rawText = $response->json('response');
+
+            if (empty($rawText)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Ollama returned an empty response string.',
+                ];
+            }
+
+            return [
+                'status' => 'success',
+                'content' => trim((string) preg_replace('/<think>.*?<\/think>/s', '', $rawText)),
+                'driver' => 'ollama',
+                'model' => $model,
+            ];
+        } catch (ConnectionException $e) {
+            return [
+                'status' => 'error',
+                'message' => "Could not reach Ollama at {$host}. Is the service running?",
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
     /**
      * Generate vectors locally using Ollama.
      */

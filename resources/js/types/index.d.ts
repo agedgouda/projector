@@ -157,6 +157,7 @@ declare global {
         locked_project_type_id?: string | null;
         locked_next_workflow_step_exists?: boolean;
         content_updated_at?: string | null;
+        custom_prompt?: string | null;
 
         // Relationships
         creator?: User;
@@ -219,6 +220,7 @@ declare global {
         due_at: string | null;
         external_due_at: string | null;
         metadata: DocumentMetadata;
+        custom_prompt: string | null;
     }
 
     export interface Task {

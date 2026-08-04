@@ -102,6 +102,7 @@ class MeetingTranscriptController extends Controller
             'title' => 'required|string|max:255',
             'started_at' => 'required|string',
             'document_type' => 'sometimes|string|in:intake,requirements',
+            'custom_prompt' => 'nullable|string',
         ]);
 
         // Prevent duplicate imports — block if imported by this or any other project
@@ -124,6 +125,7 @@ class MeetingTranscriptController extends Controller
                 'provider' => $project->client->organization->meeting_provider,
                 'meeting_date' => $validated['started_at'],
             ],
+            'custom_prompt' => $validated['custom_prompt'] ?? null,
         ]);
 
         ImportMeetingTranscript::dispatch($document, $validated['recording_id']);

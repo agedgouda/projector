@@ -45,6 +45,7 @@ class StoreDocumentRequest extends FormRequest
             'external_due_at' => ['nullable', 'date'],
             'assignee_id' => ['nullable', 'exists:users,id'],
             'metadata' => ['nullable', 'array'],
+            'custom_prompt' => ['nullable', 'string'],
         ];
     }
 }

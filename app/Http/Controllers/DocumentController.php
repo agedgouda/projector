@@ -29,6 +29,7 @@ class DocumentController extends Controller
             'project' => $project->load(['client.organization.users', 'client.organization.invitations']),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'redirectUrl' => $request->query('redirect'),
+            'defaultType' => $request->query('type'),
         ]);
     }
 

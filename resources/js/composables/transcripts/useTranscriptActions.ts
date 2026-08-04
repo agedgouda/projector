@@ -12,7 +12,7 @@ export function useTranscriptActions(projectId: string, callbacks?: {
     const importing = ref<string | null>(null);
     const importingAsRequirements = ref<string | null>(null);
 
-    const importRecording = (recording: Recording, documentType: 'intake' | 'requirements' = 'intake') => {
+    const importRecording = (recording: Recording, documentType: 'intake' | 'requirements' = 'intake', customPrompt?: string | null) => {
         const loadingRef = documentType === 'requirements' ? importingAsRequirements : importing;
         loadingRef.value = recording.id;
         callbacks?.onImportQueued?.();
@@ -22,6 +22,7 @@ export function useTranscriptActions(projectId: string, callbacks?: {
             title: recording.title,
             started_at: recording.started_at,
             document_type: documentType,
+            custom_prompt: customPrompt || null,
         }, {
             preserveScroll: true,
             onError: (errors) => {

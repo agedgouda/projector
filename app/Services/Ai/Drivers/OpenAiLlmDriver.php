@@ -117,6 +117,35 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
         ];
     }
 
+    public function completeFreeform(string $systemPrompt, string $userPrompt): array
+    {
+        $response = Http::withToken(config('services.openai.key'))
+            ->timeout(240)
+            ->post('https://api.openai.com/v1/chat/completions', [
+                'model' => config('services.openai.model', 'gpt-4o-mini'),
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $userPrompt],
+                ],
+                'temperature' => 0.7,
+            ]);
+
+        if ($response->failed()) {
+            return ['status' => 'error', 'message' => $response->body()];
+        }
+
+        $usage = $response->json('usage') ?? [];
+
+        return [
+            'status' => 'success',
+            'content' => (string) $response->json('choices.0.message.content'),
+            'input_tokens' => $usage['prompt_tokens'] ?? 0,
+            'output_tokens' => $usage['completion_tokens'] ?? 0,
+            'driver' => 'openai',
+            'model' => config('services.openai.model', 'gpt-4o-mini'),
+        ];
+    }
+
     public function getEmbedding(string $text): array
     {
         $response = Http::withToken(config('services.openai.key'))

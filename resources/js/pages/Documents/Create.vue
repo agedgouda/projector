@@ -26,6 +26,7 @@ const props = defineProps<{
     project: Project;
     documentTypeCatalog?: DocumentSchemaItem[];
     redirectUrl: string | null;
+    defaultType?: string | null;
 }>();
 
 /* ---------------------------
@@ -34,7 +35,7 @@ const props = defineProps<{
 const form = useForm<DocumentForm & { project_id: string }>({
     name: '',
     content: '',
-    type: '',
+    type: props.defaultType ?? '',
     assignee_id: null,
     due_at: null,
     external_due_at: null,
@@ -44,6 +45,7 @@ const form = useForm<DocumentForm & { project_id: string }>({
     metadata: {
         criteria: [] as string[],
     },
+    custom_prompt: null,
 });
 
 /* ---------------------------

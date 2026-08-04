@@ -287,6 +287,22 @@ it('dispatches import job for a recording', function () {
     });
 });
 
+it('persists an optional custom_prompt on the placeholder document', function () {
+    Queue::fake();
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.store', $this->project), [
+            'recording_id' => 'conferenceRecords/abc123',
+            'title' => 'Weekly Sync — 2026-03-01',
+            'started_at' => '2026-03-01T10:00:00Z',
+            'custom_prompt' => 'Clean this up into full meeting notes, eliminating anything personal.',
+        ])
+        ->assertRedirect();
+
+    $document = $this->project->documents()->where('type', 'intake')->first();
+    expect($document->custom_prompt)->toBe('Clean this up into full meeting notes, eliminating anything personal.');
+});
+
 it('prevents duplicate imports of the same recording', function () {
     Queue::fake();
 

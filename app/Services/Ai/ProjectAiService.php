@@ -44,6 +44,8 @@ class ProjectAiService
         if ($overrideStep) {
             $step = $overrideStep + ['from_key' => $document->type];
             $lockedProjectTypeId = $overrideStep['project_type_id'] ?? null;
+        } elseif (! empty($document->custom_prompt) && $project instanceof Project) {
+            return $this->processCustomPrompt($project, $document);
         } elseif ($document->type === config('workflow.intake_key')) {
             $actionItemsKey = config('workflow.action_items_key');
             $templateId = config('workflow.intake_to_action_items_ai_template_id');
@@ -118,6 +120,94 @@ class ProjectAiService
         }
 
         return $result;
+    }
+
+    /**
+     * A document's own stored `custom_prompt` fully replaces the default template lookup for the
+     * automatic Notes -> Action Items step: same output type, same child-document creation
+     * mechanism (handled by the normal single_output branch in ProcessDocumentAI — nothing
+     * document-persistence-related is special-cased here), same untouched source document — only
+     * the instructions driving the LLM call differ.
+     *
+     * Unlike every template-driven transition, this sends the instructions and the document's
+     * content together as a single free-form message — the same shape as pasting a prompt and a
+     * transcript into a chat UI — and asks for a plain-text completion rather than constraining
+     * the model to a JSON schema. Structured-output mode measurably pushes models toward safe,
+     * generic boilerplate (extra "Action Items"/"Open Questions" sections nobody asked for)
+     * instead of following the prompt's own framing, which defeats the point of a custom prompt.
+     * Every other transition still goes through callLlm()/callLlmSingleDocument() and the normal
+     * schema-constrained call() unchanged.
+     *
+     * @return array{project_name: string, mock_response: array{title: string, content: string}, status: string, output_type: string|null, single_output: bool, locked_project_type_id: null}
+     */
+    protected function processCustomPrompt(Project $project, Document $document): array
+    {
+        $replacements = $this->buildReplacements($project, $document);
+
+        $instructions = str_replace(array_keys($replacements), array_values($replacements), (string) $document->custom_prompt);
+        $instructions = $this->htmlToPlainText($instructions);
+        $instructions .= "\n\nBegin your response with a short, descriptive title for this document on its own line, then a blank line, then the full content.";
+
+        $userMessage = $instructions."\n\n---\n\n".$document->content;
+        $systemPrompt = ltrim($this->withEnglishOnlyConstraint(''));
+
+        $result = $this->llmDriver->completeFreeform($systemPrompt, $userMessage);
+
+        if (($result['status'] ?? '') === 'error') {
+            Log::error('LLM Driver Failure', ['error' => $result['message'] ?? 'Unknown error']);
+            throw new \Exception($result['message'] ?? 'AI transformation failed');
+        }
+
+        if (isset($result['driver'], $result['model'])) {
+            $this->usageLogger->log(
+                driver: $result['driver'],
+                model: $result['model'],
+                type: 'llm',
+                inputTokens: $result['input_tokens'] ?? 0,
+                outputTokens: $result['output_tokens'] ?? 0,
+                project: $project,
+            );
+        }
+
+        [$title, $content] = $this->splitTitleAndContent((string) ($result['content'] ?? ''), (string) $document->name);
+
+        $actionItemsKey = config('workflow.action_items_key');
+
+        return [
+            'project_name' => $project->name,
+            'mock_response' => ['title' => $title, 'content' => $content],
+            'status' => 'success',
+            'output_type' => is_string($actionItemsKey) ? $actionItemsKey : null,
+            'single_output' => true,
+            'locked_project_type_id' => null,
+        ];
+    }
+
+    /**
+     * Splits a free-text completion's leading title line from the rest of its content. Falls
+     * back to the source document's own name when the response doesn't clearly lead with one
+     * (e.g. no blank line within the first line or two) — this is a plain-text convention, not a
+     * schema the model can fail to satisfy, so it degrades gracefully either way.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function splitTitleAndContent(string $response, string $fallbackName): array
+    {
+        $trimmed = ltrim($response);
+        $firstBreak = strpos($trimmed, "\n");
+
+        if ($firstBreak === false || $firstBreak > 200) {
+            return [$fallbackName.' — Action Items', $trimmed];
+        }
+
+        $title = trim(ltrim(substr($trimmed, 0, $firstBreak), "# \t"));
+        $rest = ltrim(substr($trimmed, $firstBreak + 1));
+
+        if ($title === '') {
+            return [$fallbackName.' — Action Items', $trimmed];
+        }
+
+        return [$title, $rest];
     }
 
     /**

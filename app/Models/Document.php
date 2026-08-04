@@ -18,6 +18,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property User|null $editor
  * @property User|null $assignee
  * @property string|null $locked_project_type_id
+ * @property string|null $custom_prompt
  * @property \Illuminate\Support\Carbon|null $content_updated_at
  */
 class Document extends Model implements HasMedia
@@ -63,6 +64,7 @@ class Document extends Model implements HasMedia
         'due_at',
         'external_due_at',
         'locked_project_type_id',
+        'custom_prompt',
     ];
 
     /**

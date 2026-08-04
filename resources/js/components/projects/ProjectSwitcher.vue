@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Folders, FolderOpen, Plus } from 'lucide-vue-next';
 import FlatSwitcherTrigger from '@/components/FlatSwitcherTrigger.vue';
 import IconTile from '@/components/IconTile.vue';
@@ -21,12 +21,41 @@ import {
 // Import the form component
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 
-defineProps<{
+const props = defineProps<{
     projects: Project[];
     currentProject: Project | null;
     // We pass this through so the Switcher stays self-contained
     clients: Client[];
 }>();
+
+// Sub-projects are listed directly beneath their parent, indented — rather than interleaved
+// with everything else in creation-date order. A child whose parent isn't in this (active,
+// visible-to-user) list at all falls back to rendering at the top level, unindented, so it's
+// never silently dropped from the switcher.
+const groupedProjects = computed(() => {
+    const ids = new Set(props.projects.map((p) => p.id));
+    const childrenByParentId = new Map<string, Project[]>();
+
+    props.projects.forEach((project) => {
+        if (!project.parent_id || !ids.has(project.parent_id)) return;
+        const siblings = childrenByParentId.get(project.parent_id) ?? [];
+        siblings.push(project);
+        childrenByParentId.set(project.parent_id, siblings);
+    });
+
+    const entries: { project: Project; isSubProject: boolean }[] = [];
+
+    props.projects
+        .filter((project) => !project.parent_id || !ids.has(project.parent_id))
+        .forEach((project) => {
+            entries.push({ project, isSubProject: false });
+            (childrenByParentId.get(project.id) ?? []).forEach((child) => {
+                entries.push({ project: child, isSubProject: true });
+            });
+        });
+
+    return entries;
+});
 
 const emit = defineEmits<{
     (e: 'switch', id: string): void;
@@ -57,9 +86,15 @@ const handleSuccess = () => {
                     Your Portfolio
                 </div>
 
-                <DropdownMenuItem v-for="p in projects" :key="p.id" @click="emit('switch', p.id)" class="p-3 cursor-pointer rounded-lg mb-1 flex items-center gap-3">
-                    <IconTile :src="p.logo_url" :alt="p.name" :icon="FolderOpen" size="sm" tone="primary" />
-                    <span class="font-bold text-sm">{{ p.name }}</span>
+                <DropdownMenuItem
+                    v-for="entry in groupedProjects"
+                    :key="entry.project.id"
+                    @click="emit('switch', entry.project.id)"
+                    class="p-3 cursor-pointer rounded-lg mb-1 flex items-center gap-3"
+                    :class="{ 'pl-10': entry.isSubProject }"
+                >
+                    <IconTile :src="entry.project.logo_url" :alt="entry.project.name" :icon="FolderOpen" size="sm" tone="primary" />
+                    <span class="font-bold text-sm">{{ entry.project.name }}</span>
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator class="my-2 bg-gray-100 dark:bg-gray-800" />

@@ -78,6 +78,10 @@ const {
 const aiStatusMessageRef = ref('');
 const activeTab = ref(props.activeTab);
 
+// Both tabs are task-centric views, so "New Document" reads as "New Task" and defaults the
+// create form's category to Task from either one.
+const isTaskContext = computed(() => activeTab.value === 'tasks' || activeTab.value === 'calendar');
+
 // The URL only gains an explicit `?tab=` when the user clicks a tab button (see updateTab()
 // below) — on first load it can be absent even though `activeTab` (server-resolved from the
 // query param, then a cookie, then a 'tasks' default) is already showing a specific tab. Various
@@ -267,6 +271,7 @@ const handleCreateNavigation = (projectId: string) => {
     router.visit(projectDocumentsRoutes.create({ project: projectId }).url, {
         data: {
             redirect: window.location.href,
+            ...(isTaskContext.value ? { type: 'task' } : {}),
         },
     });
 };
@@ -350,7 +355,7 @@ watch(
                         @click="handleCreateNavigation(currentProject.id)"
                         class="h-11 rounded-xl bg-projector-primary-600 px-6 font-bold whitespace-nowrap text-white hover:bg-projector-primary-700"
                     >
-                        <PlusIcon class="mr-2 h-4 w-4" /> New Document
+                        <PlusIcon class="mr-2 h-4 w-4" /> {{ isTaskContext ? 'New Task' : 'New Document' }}
                     </Button>
                     <Button
                         v-else

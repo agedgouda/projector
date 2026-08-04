@@ -92,6 +92,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         priority: item.priority,
         task_status: item.task_status,
         due_at: item.due_at,
+        custom_prompt: item.custom_prompt ?? null,
     });
 
     const syncSidebarFields = (newItem: ExtendedDocument) => {

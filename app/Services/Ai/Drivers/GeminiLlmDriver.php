@@ -64,6 +64,50 @@ class GeminiLlmDriver extends AbstractLlmDriver
         }
     }
 
+    public function completeFreeform(string $systemPrompt, string $userPrompt): array
+    {
+        $apiKey = config('services.gemini.key');
+        $model = config('services.gemini.model', 'gemini-2.0-flash');
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
+
+        try {
+            $response = Http::timeout(60)->post($url, [
+                'system_instruction' => [
+                    'parts' => [['text' => $systemPrompt]],
+                ],
+                'contents' => [
+                    ['parts' => [['text' => $userPrompt]]],
+                ],
+                'generationConfig' => [
+                    'temperature' => 0.7,
+                ],
+            ]);
+
+            if ($response->failed()) {
+                Log::error('Gemini API Failure', ['body' => $response->body()]);
+
+                return ['status' => 'error', 'message' => 'Gemini Error: '.$response->status()];
+            }
+
+            $data = $response->json();
+            $usage = $data['usageMetadata'] ?? [];
+
+            return [
+                'status' => 'success',
+                'content' => $data['candidates'][0]['content']['parts'][0]['text'] ?? '',
+                'input_tokens' => $usage['promptTokenCount'] ?? 0,
+                'output_tokens' => $usage['candidatesTokenCount'] ?? 0,
+                'driver' => 'gemini',
+                'model' => $model,
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Gemini Driver Exception: '.$e->getMessage());
+
+            return ['status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
+
     public function getEmbedding(string $text): array
     {
         $apiKey = config('services.gemini.key');

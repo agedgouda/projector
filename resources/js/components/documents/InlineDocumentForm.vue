@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
@@ -236,6 +237,31 @@ const updateCriterion = (index: number, value: string) =>
                 class="pt-1 text-[10px] font-bold text-red-500 uppercase"
             >
                 {{ form.errors.content }}
+            </p>
+        </div>
+
+        <div class="grid gap-2">
+            <Label
+                class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                >AI Processing Instructions</Label
+            >
+            <p class="text-[10px] font-medium text-slate-400">
+                Overrides the default AI processing for this document. Leave
+                blank to use standard processing.
+            </p>
+            <Textarea
+                :model-value="form.custom_prompt ?? ''"
+                @update:model-value="
+                    (v) => updateField('custom_prompt', v || null)
+                "
+                placeholder="e.g. Clean this up into full meeting notes, eliminating anything personal..."
+                class="min-h-24 border-slate-200 bg-white text-[13px] dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
+            />
+            <p
+                v-if="form.errors.custom_prompt"
+                class="text-[10px] font-bold text-red-500 uppercase"
+            >
+                {{ form.errors.custom_prompt }}
             </p>
         </div>
 

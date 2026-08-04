@@ -133,9 +133,18 @@ const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.d
                 <div class="mt-8 space-y-10">
                     <SheetHeader class="space-y-0.5 text-left p-0">
                         <div class="flex items-center justify-between mt-5 mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-projector-primary-600 bg-projector-primary-50 px-2 py-1 rounded border border-projector-primary-100">
-                                {{ typeLabel }}
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-projector-primary-600 bg-projector-primary-50 px-2 py-1 rounded border border-projector-primary-100">
+                                    {{ typeLabel }}
+                                </span>
+                                <span
+                                    v-if="document.custom_prompt"
+                                    class="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100"
+                                    title="This document uses its own custom AI processing instructions instead of the default."
+                                >
+                                    Custom AI Instructions
+                                </span>
+                            </div>
 
                             <div class="flex items-center gap-2">
                                 <Button
