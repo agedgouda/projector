@@ -128,16 +128,15 @@ declare global {
     }
 
     export interface DocumentMetadata {
-    criteria: string[];
-    raw_data?: {
-        criteria?: string[];
+        criteria: string[];
+        raw_data?: {
+            criteria?: string[];
+            [key: string]: any;
+        };
+        error?: string;
+        failed_at?: string;
         [key: string]: any;
-    };
-    error?: string;
-    failed_at?: string;
-    [key: string]: any;
-}
-
+    }
 
     export interface ProjectDocument {
         id: string | number; // UUID in DB, but sometimes number in UI state
@@ -199,17 +198,16 @@ declare global {
         project_id: string;
     }
     export interface ExtendedDocument extends ProjectDocument {
-        currentStatus?: string | null;      // Temporary AI status (e.g., "Analyzing...")
-        hasError?: boolean;               // UI flag for highlighting rows
-        processingError?: string | null;  // The specific error message from a failed AI Job
-        children?: ExtendedDocument[];    // The recursive tree structure
+        currentStatus?: string | null; // Temporary AI status (e.g., "Analyzing...")
+        hasError?: boolean; // UI flag for highlighting rows
+        processingError?: string | null; // The specific error message from a failed AI Job
+        children?: ExtendedDocument[]; // The recursive tree structure
         task_status: TaskStatus;
         priority: TaskPriority;
         due_at: string | null;
         user?: User;
         comments?: Comment[];
     }
-
 
     export interface DocumentForm {
         name: string;
@@ -250,15 +248,15 @@ declare global {
     }
 
     export interface TaskFromDoc {
-        id: string;                  // document ID
+        id: string; // document ID
         title: string;
         description: string;
         assignee_id: number | null;
-        assignee?: User | null;      // optional, may not exist
+        assignee?: User | null; // optional, may not exist
         due_at: string | null;
         priority: TaskPriority;
         status: TaskStatus;
-        sourceType: string;          // document type
+        sourceType: string; // document type
     }
 
     export interface FlatTask {
@@ -285,10 +283,10 @@ declare global {
         deleted_at?: string | null;
         user?: User;
     }
-export interface AiDriverOption {
-    value: string;
-    label: string;
-}
+    export interface AiDriverOption {
+        value: string;
+        label: string;
+    }
     export interface Organization {
         id: string; // UUID
         name: string;
@@ -358,7 +356,12 @@ export interface AiDriverOption {
         processed_at: string | null;
         created_at: string;
         creator?: { name: string } | null;
-        ai_draft_status: 'processing' | 'pending_review' | 'committed' | 'failed' | null;
+        ai_draft_status:
+            | 'processing'
+            | 'pending_review'
+            | 'committed'
+            | 'failed'
+            | null;
         ai_draft_error?: string | null;
         ai_draft_groups: StatusMeetingDraftGroup[];
         linked_documents: StatusMeetingLinkedDocument[];
@@ -410,13 +413,16 @@ export interface AiDriverOption {
         document: ProjectDocument;
     }
 
-    export type AppPageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
+    export type AppPageProps<
+        T extends Record<string, unknown> = Record<string, unknown>,
+    > = T & {
         auth: Auth;
         name: string;
         quote: { message: string; author: string };
         sidebarOpen: boolean;
         currentOrganization?: Organization | null;
         requirementStatus: RequirementStatus[];
+        session: { lifetime_minutes: number };
         flash: {
             success: string | null;
             error: string | null;
@@ -431,7 +437,7 @@ export interface AiDriverOption {
         to_key: string;
         ai_template_id: string | null;
     }
-     export interface AiTemplate {
+    export interface AiTemplate {
         id: number;
         name: string;
         description: string | null;
@@ -443,11 +449,14 @@ export interface AiDriverOption {
         user_prompt: string;
         created_at: string;
         updated_at: string;
-     }
+    }
 }
 
 // Module-level exports
-export interface BreadcrumbItem { title: string; href: string; }
+export interface BreadcrumbItem {
+    title: string;
+    href: string;
+}
 export type BreadcrumbItemType = BreadcrumbItem;
 
 export interface NavItem {
@@ -458,7 +467,5 @@ export interface NavItem {
     hidden?: boolean;
     children?: NavItem[];
 }
-
-
 
 export {};

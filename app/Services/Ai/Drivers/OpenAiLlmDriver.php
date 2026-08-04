@@ -23,6 +23,46 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
             preg_match('/"([^"]+)", and "criteria"/', $userPrompt, $matches);
             $dynamicKey = $matches[1] ?? 'content';
 
+            // The prompt only asks for "assignee_name" when the caller found @-mentioned
+            // candidates to match against — mirror that here so the strict schema below
+            // actually has room for it. Without this, OpenAI's structured-output mode
+            // rejects (or silently drops) any key not declared here, regardless of what
+            // the prompt text says.
+            $includeAssignee = str_contains($userPrompt, '"assignee_name"');
+
+            $properties = [
+                'title' => [
+                    'type' => 'string',
+                    'description' => 'A short, descriptive name for this item.',
+                ],
+                $dynamicKey => [
+                    'type' => 'string',
+                    'description' => 'The main content or body of the item.',
+                ],
+                'criteria' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                ],
+                'due_date' => [
+                    'type' => ['string', 'null'],
+                    'description' => 'ISO 8601 date (YYYY-MM-DD) extracted from deadline or delivery language, or null.',
+                ],
+                'priority' => [
+                    'type' => 'string',
+                    'enum' => ['low', 'medium', 'high'],
+                    'description' => "The item's priority level.",
+                ],
+            ];
+            $required = ['title', $dynamicKey, 'criteria', 'due_date', 'priority'];
+
+            if ($includeAssignee) {
+                $properties['assignee_name'] = [
+                    'type' => ['string', 'null'],
+                    'description' => 'The exact name of the person this item is assigned to, from the candidate names given in the prompt, or null if none clearly applies.',
+                ];
+                $required[] = 'assignee_name';
+            }
+
             $jsonSchema = [
                 'name' => 'document_extraction',
                 'strict' => true,
@@ -33,30 +73,8 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
                             'type' => 'array',
                             'items' => [
                                 'type' => 'object',
-                                'properties' => [
-                                    'title' => [
-                                        'type' => 'string',
-                                        'description' => 'A short, descriptive name for this item.',
-                                    ],
-                                    $dynamicKey => [
-                                        'type' => 'string',
-                                        'description' => 'The main content or body of the item.',
-                                    ],
-                                    'criteria' => [
-                                        'type' => 'array',
-                                        'items' => ['type' => 'string'],
-                                    ],
-                                    'due_date' => [
-                                        'type' => ['string', 'null'],
-                                        'description' => 'ISO 8601 date (YYYY-MM-DD) extracted from deadline or delivery language, or null.',
-                                    ],
-                                    'priority' => [
-                                        'type' => 'string',
-                                        'enum' => ['low', 'medium', 'high'],
-                                        'description' => "The item's priority level.",
-                                    ],
-                                ],
-                                'required' => ['title', $dynamicKey, 'criteria', 'due_date', 'priority'],
+                                'properties' => $properties,
+                                'required' => $required,
                                 'additionalProperties' => false,
                             ],
                         ],

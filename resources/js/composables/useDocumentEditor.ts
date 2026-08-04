@@ -95,6 +95,17 @@ export function useDocumentEditor(
     if (users) {
         extensions.push(
             Mention.extend({
+                // The base extension's own parseHTML() only matches
+                // span[data-type="mention"] — widened here to also match the plain
+                // span.mention this app saved before the renderHTML fix below existed, so
+                // mentions saved by that earlier version still round-trip correctly instead
+                // of degrading into inert HTML the next time their document is opened.
+                parseHTML() {
+                    return [
+                        { tag: 'span[data-type="mention"]' },
+                        { tag: 'span.mention' },
+                    ];
+                },
                 renderHTML({ node, HTMLAttributes }) {
                     const name = String(
                         node.attrs.label ?? node.attrs.id ?? '',
@@ -108,7 +119,15 @@ export function useDocumentEditor(
                         .slice(0, 2);
                     return [
                         'span',
-                        mergeAttributes({ class: 'mention' }, HTMLAttributes),
+                        // Overriding renderHTML replaces the base Mention extension's own
+                        // implementation entirely, which is what normally stamps
+                        // data-type="mention" onto the span for parseHTML() (above) to find
+                        // on the next load — added explicitly here since our own version
+                        // wouldn't otherwise include it.
+                        mergeAttributes(
+                            { class: 'mention', 'data-type': 'mention' },
+                            HTMLAttributes,
+                        ),
                         ['span', { class: 'mention-avatar' }, initials],
                         name,
                     ];

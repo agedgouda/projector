@@ -1,8 +1,10 @@
 import type { AxiosError, AxiosResponse } from 'axios';
 
-function goToLogin(): void {
+export function goToLogin(): void {
     const isMobile = window.location.pathname.startsWith('/app');
-    window.location.href = isMobile ? '/app/login?expired=1' : '/login?expired=1';
+    window.location.href = isMobile
+        ? '/app/login?expired=1'
+        : '/login?expired=1';
 }
 
 /**
@@ -17,7 +19,10 @@ function goToLogin(): void {
 export function redirectIfLoggedOut(response: AxiosResponse): boolean {
     const contentType = response.headers?.['content-type'];
 
-    if (typeof contentType === 'string' && !contentType.includes('application/json')) {
+    if (
+        typeof contentType === 'string' &&
+        !contentType.includes('application/json')
+    ) {
         goToLogin();
 
         return true;

@@ -11,8 +11,22 @@ abstract class AbstractLlmDriver implements LlmDriver
         return 1536;
     }
 
-    protected function getOutputSchema(string $outputType = 'content'): array
+    protected function getOutputSchema(string $outputType = 'content', bool $includeAssignee = false): array
     {
+        $properties = [
+            'title' => ['type' => 'string'],
+            // Use the dynamic key here!
+            $outputType => ['type' => 'string'],
+            'criteria' => ['type' => 'array', 'items' => ['type' => 'string']],
+            'priority' => ['type' => 'string', 'enum' => ['low', 'medium', 'high']],
+        ];
+        $required = ['title', $outputType, 'criteria', 'priority'];
+
+        if ($includeAssignee) {
+            $properties['assignee_name'] = ['type' => 'string', 'nullable' => true];
+            $required[] = 'assignee_name';
+        }
+
         return [
             'type' => 'object',
             'properties' => [
@@ -20,14 +34,8 @@ abstract class AbstractLlmDriver implements LlmDriver
                     'type' => 'array',
                     'items' => [
                         'type' => 'object',
-                        'properties' => [
-                            'title' => ['type' => 'string'],
-                            // Use the dynamic key here!
-                            $outputType => ['type' => 'string'],
-                            'criteria' => ['type' => 'array', 'items' => ['type' => 'string']],
-                            'priority' => ['type' => 'string', 'enum' => ['low', 'medium', 'high']],
-                        ],
-                        'required' => ['title', $outputType, 'criteria', 'priority'],
+                        'properties' => $properties,
+                        'required' => $required,
                         'additionalProperties' => false,
                     ],
                 ],

@@ -66,6 +66,13 @@ Route::post('/log-connection-issue', function (Request $request) {
     return response()->json(['status' => 'logged']);
 })->middleware(['auth', 'throttle:60,1']);
 
+// Hit by the idle-session-timeout modal's "Stay Logged In" action — merely being an
+// authenticated request is enough to refresh the session's last-activity timestamp via the
+// framework's own session middleware, so this needs no body beyond that.
+Route::post('/session/keep-alive', function () {
+    return response()->noContent();
+})->middleware(['auth', 'throttle:30,1'])->name('session.keep-alive');
+
 /**
  * Access Pending:
  * A fallback page for users who are logged in but not yet assigned

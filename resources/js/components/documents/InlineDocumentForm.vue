@@ -29,6 +29,12 @@ const props = defineProps<{
     mode: 'create' | 'edit';
     form: InertiaForm<DocumentForm>;
     document_schema?: DocumentSchemaItem[]; // Added project prop to get schema
+    mentionableUsers?: {
+        id: number;
+        name: string;
+        first_name: string;
+        last_name: string;
+    }[];
 }>();
 
 const emit = defineEmits(['cancel', 'submit']);
@@ -37,10 +43,13 @@ const emit = defineEmits(['cancel', 'submit']);
  * Correct mapping for the Select dropdown
  */
 
-// Use the new composable
+// @-mentioning a project member here (e.g. "@Jane will handle checkout flow") lets the
+// "Action Items to Tasks" AI transformation assign the resulting task to them automatically —
+// see ProjectAiService::extractMentionedUsers().
 const { editor } = useDocumentEditor(
     () => props.form.content,
     (html) => updateField('content', html),
+    props.mentionableUsers ?? [],
 );
 
 const updateField = (field: string, value: any) => {

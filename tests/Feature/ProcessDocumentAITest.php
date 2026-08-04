@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectType;
+use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Services\Ai\ProjectAiService;
 
@@ -439,4 +440,112 @@ it('uses the locked protocol\'s own workflow step when no override is given, and
 
     expect($result['output_type'])->toBe('task');
     expect($result['locked_project_type_id'])->toBe($projectType->id);
+});
+
+it('resolves an @-mentioned assignee from the source document into the generated task\'s assignee_id', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $user = User::factory()->create(['first_name' => 'Jane', 'last_name' => 'Doe']);
+
+    $document->update([
+        'content' => 'Follow up with the client — <span class="mention" data-id="'.$user->id.'" data-label="Jane Doe">Jane Doe</span> will own this.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, '"Jane Doe"') && str_contains($userMessage, 'assignee_name'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Follow up', 'task' => 'Send a note', 'criteria' => [], 'assignee_name' => 'Jane Doe'],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->assignee_id)->toBe($user->id);
+});
+
+it('leaves assignee_id null when the AI names someone who was never actually @-mentioned', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    User::factory()->create(['first_name' => 'Jane', 'last_name' => 'Doe']);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Follow up', 'task' => 'Send a note', 'criteria' => [], 'assignee_name' => 'Jane Doe'],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->assignee_id)->toBeNull();
+});
+
+it('assigns to whichever of multiple @-mentioned people the AI names for that task', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $jane = User::factory()->create(['first_name' => 'Jane', 'last_name' => 'Doe']);
+    $john = User::factory()->create(['first_name' => 'John', 'last_name' => 'Smith']);
+
+    $document->update([
+        'content' => '<span class="mention" data-id="'.$jane->id.'" data-label="Jane Doe">Jane Doe</span> and '.
+            '<span class="mention" data-id="'.$john->id.'" data-label="John Smith">John Smith</span> need to follow up.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Task A', 'task' => 'Do A', 'criteria' => [], 'assignee_name' => 'John Smith'],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->assignee_id)->toBe($john->id);
+});
+
+it('does not ask for an assignee when the source document has no @-mentions', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to Tasks',
+        'type' => 'workflow',
+        'system_prompt' => 'Extract tasks.',
+        'user_prompt' => '{{input}}',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => ! str_contains($userMessage, 'assignee_name'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Task', 'task' => 'Do it', 'criteria' => []]],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $template->id,
+    ]);
 });

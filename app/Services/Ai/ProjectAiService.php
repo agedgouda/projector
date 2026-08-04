@@ -216,12 +216,27 @@ class ProjectAiService
             $baseMessage .= "\n\nProject Context:\n{$project->description}";
         }
 
+        $mentionedUsers = $this->extractMentionedUsers($context);
+
         $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", \"criteria\", and \"priority\" (one of \"low\", \"medium\", or \"high\"). Also include \"due_date\" (an ISO 8601 date string YYYY-MM-DD, or null if no date is mentioned).";
+
+        if (! empty($mentionedUsers)) {
+            $names = implode(', ', array_map(fn (string $name): string => '"'.$name.'"', $mentionedUsers));
+            $schemaInstruction .= " Also include \"assignee_name\": if an item is clearly assigned to one of the people mentioned in the source text — {$names} — set it to their exact name as given; otherwise set it to null. Never use a name that isn't in that list.";
+        }
 
         $userMessage = $baseMessage.$schemaInstruction;
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
         $systemPrompt = $this->withEnglishOnlyConstraint($this->htmlToPlainText($rawSystemPrompt));
+
+        if (! empty($mentionedUsers)) {
+            // Most templates' own system prompts explicitly say not to extract assignee/owner
+            // information (and constrain the response to an exact key list) — reasonable
+            // defaults when nobody was mentioned, but they'd otherwise silently override the
+            // assignee_name instruction just added to the user message above.
+            $systemPrompt .= "\n\nException to any instruction above about not extracting assignee/owner information, or about which JSON keys are allowed: for this request only, also follow the assignee_name instructions given below.";
+        }
 
         $result = $this->llmDriver->call(
             $systemPrompt,
@@ -245,6 +260,7 @@ class ProjectAiService
         }
 
         $items = $this->normalizeOutputKeys($result['content'] ?? [], $outputKey);
+        $items = $this->resolveAssigneeIds($items, $mentionedUsers);
 
         return [
             'project_name' => $project->name,
@@ -281,6 +297,78 @@ class ProjectAiService
         return array_map(function (array $item) use ($found, $expectedKey) {
             $item[$expectedKey] = $item[$found];
             unset($item[$found]);
+
+            return $item;
+        }, $items);
+    }
+
+    /**
+     * Extracts every @-mentioned user from a document's HTML content — rendered by the
+     * frontend's TipTap Mention extension as <span class="mention" data-id="…" data-label="…">
+     * — so the prompt can ask the model to assign generated tasks to whoever was actually
+     * mentioned in the source text, never someone it invents.
+     *
+     * @return array<int, string> user id => display name
+     */
+    private function extractMentionedUsers(string $html): array
+    {
+        if (! str_contains($html, 'data-id')) {
+            return [];
+        }
+
+        $dom = new \DOMDocument;
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8"?><div>'.$html.'</div>', LIBXML_NOERROR | LIBXML_NOWARNING);
+        libxml_clear_errors();
+
+        $mentions = [];
+
+        foreach ($dom->getElementsByTagName('span') as $span) {
+            if (! str_contains($span->getAttribute('class'), 'mention')) {
+                continue;
+            }
+
+            $id = $span->getAttribute('data-id');
+            $label = $span->getAttribute('data-label');
+
+            if ($id !== '' && $label !== '') {
+                $mentions[(int) $id] = $label;
+            }
+        }
+
+        return $mentions;
+    }
+
+    /**
+     * Maps each item's AI-provided "assignee_name" back to the real user id it corresponds
+     * to, matching only against the mentions actually present in the source document — never
+     * a fresh database lookup — so a task can only be assigned to someone who was genuinely
+     *
+     * @-mentioned there, and never to a name the model invented. Items with no match, or no
+     * mentions to match against, are left without an assignee.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<int, string>  $mentionedUsers  user id => display name
+     * @return array<int, array<string, mixed>>
+     */
+    private function resolveAssigneeIds(array $items, array $mentionedUsers): array
+    {
+        if (empty($mentionedUsers)) {
+            return $items;
+        }
+
+        $idsByLowerName = [];
+        foreach ($mentionedUsers as $id => $name) {
+            $idsByLowerName[mb_strtolower(trim($name))] = $id;
+        }
+
+        return array_map(function (array $item) use ($idsByLowerName) {
+            $name = $item['assignee_name'] ?? null;
+            unset($item['assignee_name']);
+
+            if (is_string($name) && isset($idsByLowerName[mb_strtolower(trim($name))])) {
+                $item['assignee_id'] = $idsByLowerName[mb_strtolower(trim($name))];
+            }
 
             return $item;
         }, $items);

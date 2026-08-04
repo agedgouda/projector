@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -142,6 +143,9 @@ class HandleInertiaRequests extends Middleware
                 'newClientId' => $request->session()->get('newClientId'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'session' => [
+                'lifetime_minutes' => Config::integer('session.lifetime'),
+            ],
         ];
     }
 }

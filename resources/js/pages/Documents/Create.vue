@@ -201,6 +201,9 @@ const updateFormValue = (field: string, val: any) => {
                         mode="create"
                         :form="form"
                         :document_schema="creatableDocumentTypes"
+                        :mentionable-users="
+                            project.client?.organization?.users ?? []
+                        "
                         @submit="handleFormSubmit"
                         @cancel="handleCancel"
                     />
