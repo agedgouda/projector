@@ -9,6 +9,7 @@ import { toast } from 'vue-sonner';
 // Layouts & Components
 import AppLayout from '@/layouts/AppLayout.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import DocumentSidebar from './Partials/DocumentSidebar.vue';
 import DocumentContent from './Partials/DocumentContent.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
@@ -19,6 +20,7 @@ import CommentSection from '@/components/comments/CommentSection.vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentForm } from '@/composables/documents/useDocumentForm';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
+import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
 import { useWorkflow } from '@/composables/useWorkflow';
 
 /* ---------------------------
@@ -51,6 +53,11 @@ const {
 
 // props.item is replaced by Inertia after sidebar PATCH — sync form to avoid stale overwrites.
 watch(toRef(props, 'item'), (newItem) => syncSidebarFields(newItem), { deep: false });
+
+// Surfaces a dropped live-updates connection and reconnects the socket — same pattern as
+// Projects/Show.vue. Without this, a lost connection here fails silently: nothing tells the
+// user their document isn't going to hear about processing completion via broadcast at all.
+useEchoWatchdog(() => props.project.id);
 
 const { breadcrumbs, handleBack } = useDocumentNavigation(props.project, props.item);
 
@@ -166,13 +173,9 @@ watch(() => page.props.flash, (flash) => {
             @close="isDeleteModalOpen = false"
         />
 
-        <ConfirmDeleteModal
+        <ReprocessPromptModal
             :open="isReprocessPromptOpen"
-            title="Reprocess Document?"
-            description="Reprocessing will regenerate this document's output from its current content, overwriting anything previously generated. Continue?"
-            confirm-label="Yes"
-            cancel-label="No"
-            confirm-variant="default"
+            description="Reprocessing will regenerate this document's output from its current content, overwriting anything previously generated."
             :loading="isReprocessing"
             @confirm="confirmReprocess"
             @close="isReprocessPromptOpen = false"

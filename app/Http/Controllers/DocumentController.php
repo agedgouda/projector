@@ -284,7 +284,7 @@ class DocumentController extends Controller
     /**
      * Restart AI processing for a document.
      */
-    public function reprocess(Project $project, Document $document)
+    public function reprocess(Request $request, Project $project, Document $document)
     {
         Gate::authorize('update', $document);
 
@@ -294,7 +294,11 @@ class DocumentController extends Controller
             return $block;
         }
 
-        if (! \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document)) {
+        $validated = $request->validate([
+            'one_off_instructions' => 'nullable|string',
+        ]);
+
+        if (! \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document, null, $validated['one_off_instructions'] ?? null)) {
             return response()->json(['message' => 'This document is already being processed.'], 409);
         }
 

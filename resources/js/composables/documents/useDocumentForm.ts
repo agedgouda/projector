@@ -1,4 +1,4 @@
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, onBeforeUnmount } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { toast } from 'vue-sonner';
@@ -6,6 +6,14 @@ import axios from 'axios';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { useWorkflow } from '@/composables/useWorkflow';
 import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
+
+// Safety net for a missed .DocumentProcessingUpdate broadcast (dropped/reconnected socket,
+// tab backgrounded during the job, etc.) — without this, isProcessingLive has no other way
+// to ever become false again, since it's otherwise cleared exclusively by that one event.
+// 15s keeps this cheap in the common case (the broadcast almost always wins the race and
+// clears the interval before it ever fires) while still self-correcting within a bounded
+// time when it doesn't.
+const PROCESSING_POLL_INTERVAL_MS = 15000;
 
 export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const isEditing = ref(false);
@@ -20,6 +28,33 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const isProcessingLive = ref(false);
     const processingMessage = ref<string | null>(null);
 
+    let processingPollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const stopProcessingPoll = () => {
+        if (processingPollTimer) {
+            clearInterval(processingPollTimer);
+            processingPollTimer = null;
+        }
+    };
+
+    const startProcessingPoll = () => {
+        stopProcessingPoll();
+        processingPollTimer = setInterval(() => {
+            // Re-fetches just `item` — syncSidebarFields (called from Show.vue's watcher on
+            // the replaced prop) is what actually notices processed_at advanced and clears
+            // isProcessingLive; this timer's only job is to trigger that re-fetch.
+            router.reload({ only: ['item'], preserveScroll: true, preserveState: true });
+        }, PROCESSING_POLL_INTERVAL_MS);
+    };
+
+    const clearProcessingState = () => {
+        isProcessingLive.value = false;
+        processingMessage.value = null;
+        stopProcessingPoll();
+    };
+
+    onBeforeUnmount(stopProcessingPoll);
+
     useEcho(
         `project.${project.id}`,
         ['.DocumentProcessingUpdate'],
@@ -32,8 +67,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             const isSuccess = (msg.includes('success') || Number(payload.progress) === 100) && !isError;
 
             if (isError) {
-                isProcessingLive.value = false;
-                processingMessage.value = null;
+                clearProcessingState();
                 toast.error(message);
                 return;
             }
@@ -41,8 +75,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             processingMessage.value = message;
 
             if (isSuccess) {
-                isProcessingLive.value = false;
-                processingMessage.value = null;
+                clearProcessingState();
                 router.reload();
             }
         },
@@ -96,6 +129,14 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     });
 
     const syncSidebarFields = (newItem: ExtendedDocument) => {
+        // Self-correction for a missed broadcast: whenever Inertia hands us a freshly
+        // replaced `item` (from the poll fallback above, or any other reload/navigation)
+        // and it turns out processing has actually finished, stop showing "processing" even
+        // though the completion event itself never arrived.
+        if (isProcessingLive.value && newItem.processed_at) {
+            clearProcessingState();
+        }
+
         if (!isEditing.value) {
             form.priority = newItem.priority;
             form.task_status = newItem.task_status;
@@ -136,7 +177,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         });
     };
 
-    const confirmReprocess = async () => {
+    const confirmReprocess = async (oneOffInstructions: string | null = null) => {
         isReprocessing.value = true;
         const url = projectDocumentsRoutes.reprocess.url({ project: project.id, document: item.id });
 
@@ -145,11 +186,12 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         // Once dispatched, the live status above takes over until the job's own
         // success/error broadcast arrives — no immediate reload here.
         try {
-            const response = await axios.post(url);
+            const response = await axios.post(url, { one_off_instructions: oneOffInstructions });
             if (redirectIfLoggedOut(response)) return;
 
             isProcessingLive.value = true;
             processingMessage.value = 'Starting...';
+            startProcessingPoll();
         } catch (error) {
             if (redirectIfSessionExpiredError(error)) return;
 

@@ -28,8 +28,11 @@ class ProcessDocumentAI implements ShouldQueue
 
     /**
      * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     * @param  string|null  $oneOffInstructions  Free text entered on the Reprocess confirmation for this
+     *                                           run only — never persisted, lives only in this job's
+     *                                           own queued payload.
      */
-    public function __construct(public Document $document, public ?array $overrideStep = null) {}
+    public function __construct(public Document $document, public ?array $overrideStep = null, public ?string $oneOffInstructions = null) {}
 
     /**
      * Dispatch this job unless the same document already has a run in flight — a document
@@ -41,13 +44,13 @@ class ProcessDocumentAI implements ShouldQueue
      *
      * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
      */
-    public static function dispatchUnlessProcessing(Document $document, ?array $overrideStep = null): bool
+    public static function dispatchUnlessProcessing(Document $document, ?array $overrideStep = null, ?string $oneOffInstructions = null): bool
     {
         if (! Cache::lock(self::lockKey($document->id), 300)->get()) {
             return false;
         }
 
-        self::dispatch($document, $overrideStep);
+        self::dispatch($document, $overrideStep, $oneOffInstructions);
 
         return true;
     }
@@ -67,7 +70,7 @@ class ProcessDocumentAI implements ShouldQueue
 
         event(new DocumentProcessingUpdate($this->document, 'Analyzing document...', 15));
 
-        $result = $aiService->process($this->document, $this->overrideStep);
+        $result = $aiService->process($this->document, $this->overrideStep, $this->oneOffInstructions);
 
         // Case 1: Early return (Workflow/Template missing)
         if ($result === null) {

@@ -12,6 +12,7 @@ import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { Input } from '@/components/ui/input';
 import TraceabilityRow from './TraceabilityRow.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 
 const props = withDefaults(defineProps<{
     project: Project;
@@ -171,13 +172,13 @@ const handleReprocess = (id: string) => {
     reprocessConfirmDoc.value = doc;
 };
 
-const executeReprocess = () => {
+const executeReprocess = (oneOffInstructions: string | null = null) => {
     const doc = reprocessConfirmDoc.value;
     reprocessConfirmDoc.value = null;
     if (!doc) return;
     aiProgress.value = 5;
     aiStatusMessage.value = 'Initializing...';
-    void setDocToProcessing(doc);
+    void setDocToProcessing(doc, oneOffInstructions);
 };
 
 type TransitionPayload = { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string };
@@ -294,11 +295,10 @@ onMounted(() => {
         </div>
     </div>
 
-    <ConfirmDeleteModal
+    <ReprocessPromptModal
         :open="!!reprocessConfirmDoc"
         title="Reprocess Document?"
         :description="`This will re-run the AI on &quot;${reprocessConfirmDoc?.name}&quot; and overwrite the current content. This action cannot be undone.`"
-        confirm-label="Reprocess"
         @close="reprocessConfirmDoc = null"
         @confirm="executeReprocess"
     />

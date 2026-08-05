@@ -208,6 +208,93 @@ it('instructs the model to respond in English only for single-document transform
     ]);
 });
 
+it('appends one-off instructions passed to process() after the template\'s own system_prompt, for single-document transformations', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to SOW',
+        'type' => 'workflow',
+        'system_prompt' => 'Write a SOW.',
+        'user_prompt' => '{{input}}',
+        'single_output' => true,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(function (string $systemPrompt) {
+            $basePos = strpos($systemPrompt, 'Write a SOW.');
+            $oneOffPos = strpos($systemPrompt, 'only extract from the Action Items section');
+
+            return $basePos !== false && $oneOffPos !== false && $basePos < $oneOffPos;
+        })
+        ->andReturn([
+            'status' => 'success',
+            'content' => ['title' => 'SOW', 'content' => 'Body'],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'software_sow',
+        'ai_template_id' => $template->id,
+    ], 'For this run, only extract from the Action Items section.');
+});
+
+it('appends one-off instructions after the template\'s own system_prompt, for multi-item transformations', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to Tasks',
+        'type' => 'workflow',
+        'system_prompt' => 'Extract tasks.',
+        'user_prompt' => '{{input}}',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(function (string $systemPrompt) {
+            $basePos = strpos($systemPrompt, 'Extract tasks.');
+            $oneOffPos = strpos($systemPrompt, 'only extract from the Action Items section');
+
+            return $basePos !== false && $oneOffPos !== false && $basePos < $oneOffPos;
+        })
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Item', 'action_items' => 'Follow up', 'criteria' => []]],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'action_items',
+        'ai_template_id' => $template->id,
+    ], 'For this run, only extract from the Action Items section.');
+});
+
+it('does not append anything to the system prompt when no one-off instructions are given', function () {
+    $document = createReprocessableDocument();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to SOW',
+        'type' => 'workflow',
+        'system_prompt' => 'Write a SOW.',
+        'user_prompt' => '{{input}}',
+        'single_output' => true,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => trim(str_replace('Respond only in English. Do not use any non-English words, phrases, or characters, including in headings, labels, or examples.', '', $systemPrompt)) === 'Write a SOW.')
+        ->andReturn([
+            'status' => 'success',
+            'content' => ['title' => 'SOW', 'content' => 'Body'],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'software_sow',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
 it('instructs the model to respond in English only for multi-item transformations', function () {
     $document = createReprocessableDocument();
 

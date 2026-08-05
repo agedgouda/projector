@@ -116,7 +116,7 @@ export function useDocumentActions(
         }
     };
 
-    const setDocToProcessing = async (doc: UIProjectDocument) => {
+    const setDocToProcessing = async (doc: UIProjectDocument, oneOffInstructions: string | null = null) => {
         if (!doc) return;
 
         // UI-only state
@@ -125,7 +125,9 @@ export function useDocumentActions(
 
         try {
             const projectId = props.project.id;
-            const response = await axios.post(`/projects/${projectId}/documents/${doc.id}/reprocess`);
+            const response = await axios.post(`/projects/${projectId}/documents/${doc.id}/reprocess`, {
+                one_off_instructions: oneOffInstructions,
+            });
             if (redirectIfLoggedOut(response)) return;
         } catch (error) {
             if (redirectIfSessionExpiredError(error)) return;

@@ -102,6 +102,25 @@ it('sends a document\'s own custom_prompt and its content together as one free-f
     expect($result['mock_response']['content'])->toBe('Cleaned meeting notes.');
 });
 
+it('applies one-off instructions on top of a document\'s own custom_prompt for this run only', function () {
+    $document = createDocumentWithCustomPrompt(
+        $this->project,
+        'Clean up and create full meeting notes.'
+    );
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('completeFreeform')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, 'Clean up and create full meeting notes.')
+            && str_contains($userMessage, 'only extract the Action Items section'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => "Title\n\nBody.",
+        ]);
+
+    app(ProjectAiService::class)->process($document, null, 'For this run, only extract the Action Items section.');
+});
+
 it('creates a new child document from a custom prompt and leaves the source document untouched, the same way the default pipeline does', function () {
     $document = createDocumentWithCustomPrompt($this->project, 'Clean up these notes.');
     $originalContent = $document->content;

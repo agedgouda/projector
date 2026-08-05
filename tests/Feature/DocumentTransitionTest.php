@@ -117,6 +117,34 @@ it('rejects a second transition request for the same document while the first is
     Queue::assertPushed(ProcessDocumentAI::class, 1);
 });
 
+it('passes one_off_instructions from the reprocess request through to the job, without persisting it anywhere', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]), [
+            'one_off_instructions' => 'Only extract from the section labeled "Action Items" this time.',
+        ])
+        ->assertSuccessful();
+
+    Queue::assertPushed(ProcessDocumentAI::class, function ($job) {
+        return $job->document->is($this->document)
+            && $job->oneOffInstructions === 'Only extract from the section labeled "Action Items" this time.';
+    });
+
+    // Ephemeral — never written to the document itself.
+    expect($this->document->fresh()->getAttributes())->not->toHaveKey('one_off_instructions');
+});
+
+it('reprocesses without one_off_instructions when none is given', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]))
+        ->assertSuccessful();
+
+    Queue::assertPushed(ProcessDocumentAI::class, fn ($job) => $job->oneOffInstructions === null);
+});
+
 it('rejects a second reprocess request for the same document while the first is still processing', function () {
     Queue::fake([ProcessDocumentAI::class]);
 

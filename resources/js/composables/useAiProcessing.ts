@@ -1,4 +1,4 @@
-import { ref, computed, watch, onBeforeUnmount, type Ref } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, type Ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { globalAiState } from '@/state';
@@ -35,6 +35,19 @@ export function useAiProcessing(
 
     return isTargeting || !!pendingDoc;
 });
+
+    // Browser back/forward navigation restores Inertia's cached history snapshot entirely
+    // client-side (no server round-trip) — see handlePopstateEvent in @inertiajs/core. If a
+    // reprocess finished while this page was navigated away from, the cached snapshot still
+    // shows the pre-completion processed_at: null, so isAiProcessing above comes back stuck
+    // true on remount even though nothing is actually running anymore. One reload on mount,
+    // only when there's something to reconcile, corrects that — the exact same reload path
+    // already used when new documents arrive live (see the Echo handler below).
+    onMounted(() => {
+        if (isAiProcessing.value) {
+            router.reload(reloadPropsOnNewDocuments?.length ? { only: reloadPropsOnNewDocuments } : {});
+        }
+    });
 
     // Sync Global AI State
     watch(isAiProcessing, (newVal) => {

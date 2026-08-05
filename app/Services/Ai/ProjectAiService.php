@@ -35,8 +35,13 @@ class ProjectAiService
      * nothing to reprocess into.
      *
      * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     * @param  string|null  $oneOffInstructions  Free text typed at the moment of dispatch (e.g. on the
+     *                                           Reprocess confirmation) — appended to whichever system
+     *                                           prompt this run resolves to, for this run only. Never
+     *                                           persisted anywhere; lives only in the queued job's
+     *                                           payload for this one dispatch.
      */
-    public function process(Document $document, ?array $overrideStep = null)
+    public function process(Document $document, ?array $overrideStep = null, ?string $oneOffInstructions = null)
     {
         $document->loadMissing('project.client');
         $project = $document->project;
@@ -45,7 +50,7 @@ class ProjectAiService
             $step = $overrideStep + ['from_key' => $document->type];
             $lockedProjectTypeId = $overrideStep['project_type_id'] ?? null;
         } elseif (! empty($document->custom_prompt) && $project instanceof Project) {
-            return $this->processCustomPrompt($project, $document);
+            return $this->processCustomPrompt($project, $document, $oneOffInstructions);
         } elseif ($document->type === config('workflow.intake_key')) {
             $actionItemsKey = config('workflow.action_items_key');
             $templateId = config('workflow.intake_to_action_items_ai_template_id');
@@ -110,8 +115,8 @@ class ProjectAiService
         $singleOutput = (bool) $template->single_output;
 
         $result = $singleOutput
-            ? $this->callLlmSingleDocument($project, $strategy, $document->content, $document)
-            : $this->callLlm($project, $strategy, $document->content, $document, $outputKey);
+            ? $this->callLlmSingleDocument($project, $strategy, $document->content, $document, $oneOffInstructions)
+            : $this->callLlm($project, $strategy, $document->content, $document, $outputKey, $oneOffInstructions);
 
         if (($result['status'] ?? '') === 'success') {
             $result['output_type'] = $strategy->getOutputDocumentType();
@@ -140,13 +145,17 @@ class ProjectAiService
      *
      * @return array{project_name: string, mock_response: array{title: string, content: string}, status: string, output_type: string|null, single_output: bool, locked_project_type_id: null}
      */
-    protected function processCustomPrompt(Project $project, Document $document): array
+    protected function processCustomPrompt(Project $project, Document $document, ?string $oneOffInstructions = null): array
     {
         $replacements = $this->buildReplacements($project, $document);
 
         $instructions = str_replace(array_keys($replacements), array_values($replacements), (string) $document->custom_prompt);
         $instructions = $this->htmlToPlainText($instructions);
         $instructions .= "\n\nBegin your response with a short, descriptive title for this document on its own line, then a blank line, then the full content.";
+
+        if (! empty($oneOffInstructions)) {
+            $instructions .= "\n\nFor this run only, also follow this instruction: ".$oneOffInstructions;
+        }
 
         $userMessage = $instructions."\n\n---\n\n".$document->content;
         $systemPrompt = ltrim($this->withEnglishOnlyConstraint(''));
@@ -242,7 +251,7 @@ class ProjectAiService
         return $replacements;
     }
 
-    protected function callLlmSingleDocument(Project $project, $strategy, string $context, ?Document $currentDoc = null): array
+    protected function callLlmSingleDocument(Project $project, $strategy, string $context, ?Document $currentDoc = null, ?string $oneOffInstructions = null): array
     {
         $userTemplate = $strategy->getUserPromptTemplate();
         $replacements = $this->buildReplacements($project, $currentDoc) + ['{{input}}' => $context];
@@ -256,7 +265,13 @@ class ProjectAiService
         $userMessage .= "\n\nCRITICAL: Return a single JSON object (NOT an array) with exactly two keys: \"title\" (string) and \"content\" (a complete Markdown document).";
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
-        $systemPrompt = $this->withEnglishOnlyConstraint($this->htmlToPlainText($rawSystemPrompt));
+        $systemPrompt = $this->htmlToPlainText($rawSystemPrompt);
+
+        if (! empty($oneOffInstructions)) {
+            $systemPrompt .= "\n\nFor this run only, also follow this instruction: ".$oneOffInstructions;
+        }
+
+        $systemPrompt = $this->withEnglishOnlyConstraint($systemPrompt);
 
         $singleDocSchema = [
             'type' => 'object',
@@ -295,7 +310,7 @@ class ProjectAiService
         ];
     }
 
-    protected function callLlm(Project $project, $strategy, string $context, ?Document $currentDoc = null, string $outputKey = 'content')
+    protected function callLlm(Project $project, $strategy, string $context, ?Document $currentDoc = null, string $outputKey = 'content', ?string $oneOffInstructions = null)
     {
         $userTemplate = $strategy->getUserPromptTemplate();
         $replacements = $this->buildReplacements($project, $currentDoc, $outputKey) + ['{{input}}' => $context];
@@ -318,7 +333,13 @@ class ProjectAiService
         $userMessage = $baseMessage.$schemaInstruction;
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
-        $systemPrompt = $this->withEnglishOnlyConstraint($this->htmlToPlainText($rawSystemPrompt));
+        $systemPrompt = $this->htmlToPlainText($rawSystemPrompt);
+
+        if (! empty($oneOffInstructions)) {
+            $systemPrompt .= "\n\nFor this run only, also follow this instruction: ".$oneOffInstructions;
+        }
+
+        $systemPrompt = $this->withEnglishOnlyConstraint($systemPrompt);
 
         if (! empty($mentionedUsers)) {
             // Most templates' own system prompts explicitly say not to extract assignee/owner
