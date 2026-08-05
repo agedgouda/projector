@@ -19,7 +19,7 @@ class ProjectTypeFactory extends Factory
         return [
             'name' => $this->faker->unique()->words(3, true),
             'icon' => 'Briefcase',
-            'document_schema' => [['label' => 'Notes', 'key' => 'intake', 'is_task' => false]],
+            'document_schema' => [['label' => 'Transcription', 'key' => 'intake', 'is_task' => false]],
         ];
     }
 }

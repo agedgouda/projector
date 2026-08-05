@@ -66,6 +66,23 @@ Route::post('/log-connection-issue', function (Request $request) {
     return response()->json(['status' => 'logged']);
 })->middleware(['auth', 'throttle:60,1']);
 
+// Hit by useAiProcessing's periodic reconciliation poll whenever it discovers a document it
+// was showing as "processing" had actually already finished — a missed .DocumentProcessingUpdate
+// broadcast (the socket itself may never have dropped; see /log-connection-issue for that case).
+// Diagnostic-only, so a client that never checks in just means nothing to report — no alerting
+// depends on this ever firing.
+Route::post('/log-stale-processing', function (Request $request) {
+    Log::warning('Stale AI processing indicator self-corrected', [
+        'user_id' => auth()->id(),
+        'project_id' => $request->input('project_id'),
+        'document_ids' => $request->input('document_ids'),
+        'stuck_for_ms' => $request->input('stuck_for_ms'),
+        'user_agent' => $request->userAgent(),
+    ]);
+
+    return response()->json(['status' => 'logged']);
+})->middleware(['auth', 'throttle:60,1']);
+
 // Hit by the idle-session-timeout modal's "Stay Logged In" action — merely being an
 // authenticated request is enough to refresh the session's last-activity timestamp via the
 // framework's own session middleware, so this needs no body beyond that.

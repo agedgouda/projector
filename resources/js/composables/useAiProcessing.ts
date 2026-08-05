@@ -1,7 +1,15 @@
-import { ref, computed, watch, onMounted, onBeforeUnmount, type Ref } from 'vue';
+import { ref, computed, watch, onBeforeUnmount, type Ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
+import axios from 'axios';
 import { globalAiState } from '@/state';
+
+// How often to re-check server truth while something appears to be processing — a safety net
+// for a missed .DocumentProcessingUpdate broadcast. This covers a case connection-state
+// monitoring (see useEchoWatchdog) can't: the socket itself never drops, but one specific
+// message is lost, so nothing ever tells the client to stop waiting. Cheap in the common case,
+// since the live broadcast almost always resolves isAiProcessing well before the first tick.
+const PROCESSING_POLL_INTERVAL_MS = 15000;
 
 export function useAiProcessing(
     projectId: string,
@@ -36,18 +44,68 @@ export function useAiProcessing(
     return isTargeting || !!pendingDoc;
 });
 
-    // Browser back/forward navigation restores Inertia's cached history snapshot entirely
-    // client-side (no server round-trip) — see handlePopstateEvent in @inertiajs/core. If a
-    // reprocess finished while this page was navigated away from, the cached snapshot still
-    // shows the pre-completion processed_at: null, so isAiProcessing above comes back stuck
-    // true on remount even though nothing is actually running anymore. One reload on mount,
-    // only when there's something to reconcile, corrects that — the exact same reload path
-    // already used when new documents arrive live (see the Echo handler below).
-    onMounted(() => {
-        if (isAiProcessing.value) {
-            router.reload(reloadPropsOnNewDocuments?.length ? { only: reloadPropsOnNewDocuments } : {});
+    // Two related self-corrections for isAiProcessing getting stuck true with nothing left to
+    // resolve it, layered on top of the normal live-broadcast path:
+    //
+    // 1. Browser back/forward navigation restores Inertia's cached history snapshot entirely
+    //    client-side (no server round-trip) — see handlePopstateEvent in @inertiajs/core. If a
+    //    reprocess finished while this page was navigated away from, the cached snapshot still
+    //    shows the pre-completion processed_at: null, so isAiProcessing comes back stuck true
+    //    on remount even though nothing is actually running anymore.
+    // 2. A tab left open for the job's whole duration that simply never received the one
+    //    .DocumentProcessingUpdate broadcast telling it to stop — no remount ever happens here,
+    //    so a one-off mount-time check alone can't catch it.
+    //
+    // Both are handled the same way: reconcile with the server, once immediately whenever
+    // isAiProcessing turns true (covers case 1, including at mount) and then again every
+    // PROCESSING_POLL_INTERVAL_MS for as long as it stays true (covers case 2).
+    let processingPollTimer: ReturnType<typeof setInterval> | null = null;
+    let reconcileCount = 0;
+
+    const stopProcessingPoll = () => {
+        if (processingPollTimer) {
+            clearInterval(processingPollTimer);
+            processingPollTimer = null;
         }
-    });
+        reconcileCount = 0;
+    };
+
+    const reconcileWithServer = () => {
+        reconcileCount++;
+        const pendingBefore = allDocs.value.filter(d => d.processed_at === null).map(d => d.id);
+
+        router.reload({
+            ...(reloadPropsOnNewDocuments?.length ? { only: reloadPropsOnNewDocuments } : {}),
+            onSuccess: () => {
+                // Only a poll tick after the first (the immediate, mount-time-equivalent check)
+                // means a full interval passed with the live broadcast never arriving — that's
+                // the genuinely diagnostic-worthy case, not just a normal fresh load or a
+                // same-tick cache correction.
+                if (reconcileCount > 1 && !isAiProcessing.value && pendingBefore.length) {
+                    axios.post('/log-stale-processing', {
+                        project_id: projectId,
+                        document_ids: pendingBefore,
+                        stuck_for_ms: reconcileCount * PROCESSING_POLL_INTERVAL_MS,
+                    }).catch(() => {
+                        // Best-effort diagnostic logging — never block or surface an error over this.
+                    });
+                }
+            },
+        });
+    };
+
+    watch(isAiProcessing, (isProcessing) => {
+        if (isProcessing) {
+            if (!processingPollTimer) {
+                reconcileWithServer();
+                processingPollTimer = setInterval(reconcileWithServer, PROCESSING_POLL_INTERVAL_MS);
+            }
+        } else {
+            stopProcessingPoll();
+        }
+    }, { immediate: true });
+
+    onBeforeUnmount(stopProcessingPoll);
 
     // Sync Global AI State
     watch(isAiProcessing, (newVal) => {

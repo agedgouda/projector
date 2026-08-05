@@ -21,7 +21,7 @@ class ToDoListProjectTypeSeeder extends Seeder
             'organization_id' => null,
             'document_schema' => [
                 [
-                    'label' => 'Notes',
+                    'label' => 'Transcription',
                     'key' => 'intake',
                     'is_task' => false,
                 ],
@@ -31,7 +31,7 @@ class ToDoListProjectTypeSeeder extends Seeder
                     'is_task' => false,
                 ],
             ],
-            // Notes always auto-convert to Action Items via the universal intake step
+            // Transcriptions always auto-convert to Action Items via the universal intake step
             // (see config('workflow.intake_key')), so a protocol's own workflow only needs to
             // define what happens from Action Items onward.
             'workflow' => [],
