@@ -70,7 +70,7 @@ const form = useForm({
     id: props.commentableId,
 });
 
-const { editor, triggerUpload } = useDocumentEditor(
+const { editor, triggerUpload, isUploading } = useDocumentEditor(
     '',
     (html) => {
         form.body = html;
@@ -118,7 +118,7 @@ watch(
 );
 
 const submitComment = () => {
-    if (!form.body.trim() || form.processing) return;
+    if (!form.body.trim() || form.processing || isUploading.value) return;
     form.post(CommentRoutes.store().url, {
         preserveScroll: true,
         onSuccess: () => {
@@ -338,16 +338,16 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                 >
                 <Button
                     @click="submitComment"
-                    :disabled="!form.body.trim() || form.processing"
+                    :disabled="!form.body.trim() || form.processing || isUploading"
                     size="sm"
                     class="h-8 rounded-lg bg-projector-primary-600 px-4 text-[10px] font-bold tracking-widest uppercase hover:bg-projector-primary-700"
                 >
                     <Loader2
-                        v-if="form.processing"
+                        v-if="form.processing || isUploading"
                         class="mr-1 h-3 w-3 animate-spin"
                     />
                     <Send v-else class="mr-1 h-3 w-3" />
-                    Post
+                    {{ isUploading ? 'Uploading…' : 'Post' }}
                 </Button>
             </div>
         </div>

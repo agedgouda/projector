@@ -56,6 +56,18 @@ const {
 // props.item is replaced by Inertia after sidebar PATCH — sync form to avoid stale overwrites.
 watch(toRef(props, 'item'), (newItem) => syncSidebarFields(newItem), { deep: false });
 
+// Set by DocumentContent (bubbled up from InlineDocumentForm) while a pasted/dropped/attached
+// file's upload is still in flight — saving before that finishes would persist content missing
+// the file, since the upload's insertion into the editor happens asynchronously after the
+// request completes.
+const isUploading = ref(false);
+const handleFormSubmitGuarded = () => {
+    if (isUploading.value) {
+        return;
+    }
+    handleFormSubmit();
+};
+
 // Surfaces a dropped live-updates connection and reconnects the socket — same pattern as
 // Projects/Show.vue. Without this, a lost connection here fails silently: nothing tells the
 // user their document isn't going to hear about processing completion via broadcast at all.
@@ -134,12 +146,13 @@ watch(() => page.props.flash, (flash) => {
                     :project="project"
                     :item="item"
                     :is-editing="isEditing"
-                    :is-saving="form.processing"
+                    :is-saving="form.processing || isUploading"
+                    :save-label="isUploading ? 'Uploading…' : undefined"
                     save-button-class="w-24"
                     @back="handleBack"
                     @toggle-edit="toggleEdit"
                     @delete="isDeleteModalOpen = true"
-                    @save="handleFormSubmit"
+                    @save="handleFormSubmitGuarded"
                 />
             </template>
 
@@ -151,8 +164,9 @@ watch(() => page.props.flash, (flash) => {
                     :is-editing="isEditing"
                     :metadata="form.metadata"
                     :form="form"
-                    @submit="() => handleFormSubmit()"
+                    @submit="handleFormSubmitGuarded"
                     @cancel="toggleEdit"
+                    @update:is-uploading="isUploading = $event"
                 />
 
                 <div class="mt-12 pt-10 border-t border-slate-100">

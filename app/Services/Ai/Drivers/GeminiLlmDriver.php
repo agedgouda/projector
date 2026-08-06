@@ -15,6 +15,10 @@ class GeminiLlmDriver extends AbstractLlmDriver
         // candidates to match against — the schema needs room for it in that case, or
         // Gemini's structured-output mode will drop the field regardless of prompt text.
         $includeAssignee = str_contains($userPrompt, '"assignee_name"');
+        // Same reasoning as $includeAssignee: the prompt only asks for "image_ids" when the
+        // caller found uploaded images to match against, and strict structured-output mode
+        // drops any field not declared here regardless of what the prompt text says.
+        $includeImageIds = str_contains($userPrompt, '"image_ids"');
         $apiKey = config('services.gemini.key');
         // Using Gemini 2.0 or 1.5 Flash for speed and schema support
         $model = config('services.gemini.model', 'gemini-2.0-flash');
@@ -31,7 +35,7 @@ class GeminiLlmDriver extends AbstractLlmDriver
                 'generationConfig' => [
                     'temperature' => 0,
                     'responseMimeType' => 'application/json',
-                    'responseSchema' => $useCustomSchema ? $responseSchema : $this->getOutputSchema('content', $includeAssignee),
+                    'responseSchema' => $useCustomSchema ? $responseSchema : $this->getOutputSchema('content', $includeAssignee, $includeImageIds),
                 ],
             ]);
 

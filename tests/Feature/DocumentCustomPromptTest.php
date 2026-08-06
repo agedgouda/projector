@@ -147,6 +147,27 @@ it('creates a new child document from a custom prompt and leaves the source docu
     expect($child->content)->toContain('Cleaned Notes');
 });
 
+it('carries an uploaded image from a custom-prompt document straight through to its generated child', function () {
+    $document = createDocumentWithCustomPrompt($this->project, 'Clean up these notes.');
+    $document->update([
+        'content' => 'Raw meeting transcript <img src="https://example.test/storage/content-uploads/proj/abc.png" alt="whiteboard.png"> more notes.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('completeFreeform')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => ! str_contains($systemPrompt, 'image_ids') && ! str_contains($userMessage, 'image_ids'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => "Marketing Briefing\n\nCleaned meeting notes.",
+        ]);
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->content)->toContain('<img src="https://example.test/storage/content-uploads/proj/abc.png" alt="whiteboard.png">');
+});
+
 it('lets an explicit override step win over a document\'s stored custom_prompt', function () {
     $document = createDocumentWithCustomPrompt($this->project, 'Clean up these notes.');
 

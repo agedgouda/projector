@@ -22,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'submit'): void;
     (e: 'cancel'): void;
+    (e: 'update:isUploading', value: boolean): void;
 }>();
 
 const handleFormSubmit = () => emit('submit');
@@ -45,6 +46,7 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
                 :project-id="project.id"
                 @submit="handleFormSubmit"
                 @cancel="handleCancel"
+                @update:is-uploading="emit('update:isUploading', $event)"
             />
         </div>
 

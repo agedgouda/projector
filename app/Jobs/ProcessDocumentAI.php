@@ -114,6 +114,15 @@ class ProcessDocumentAI implements ShouldQueue
 
                 $html = (new GithubFlavoredMarkdownConverter)->convert($markdown)->getContent();
 
+                foreach ($result['images'] ?? [] as $image) {
+                    $src = $image['src'] ?? null;
+                    if (! is_string($src) || $src === '') {
+                        continue;
+                    }
+                    $alt = is_string($image['alt'] ?? null) ? $image['alt'] : '';
+                    $html .= '<p><img src="'.e($src).'" alt="'.e($alt).'"></p>';
+                }
+
                 $newDocumentIds[] = $this->document->project->documents()->create([
                     'parent_id' => $this->document->id,
                     'type' => $outputType,
@@ -127,6 +136,17 @@ class ProcessDocumentAI implements ShouldQueue
 
                     if (empty($content)) {
                         throw new \Exception("AI Validation Error: Required key '{$outputType}' was missing from the response.");
+                    }
+
+                    $content = (string) $content;
+
+                    foreach ($data['_images'] ?? [] as $image) {
+                        $src = $image['src'] ?? null;
+                        if (! is_string($src) || $src === '') {
+                            continue;
+                        }
+                        $alt = is_string($image['alt'] ?? null) ? $image['alt'] : '';
+                        $content .= '<p><img src="'.e($src).'" alt="'.e($alt).'"></p>';
                     }
 
                     $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;

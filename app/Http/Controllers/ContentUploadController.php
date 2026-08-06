@@ -29,8 +29,12 @@ class ContentUploadController extends Controller
     {
         Gate::authorize('view', $project);
 
+        // Kept in sync with the production server's own hard upload cap (its web server/PHP
+        // config rejects anything larger before this validation would ever even run) — see
+        // MAX_UPLOAD_BYTES in useDocumentEditor.ts, which checks this client-side first so
+        // users get a clear error instead of a generic failure once they exceed it.
         $request->validate([
-            'file' => ['required', 'file', 'max:20480'],
+            'file' => ['required', 'file', 'max:2048'],
         ]);
 
         $file = $request->file('file');

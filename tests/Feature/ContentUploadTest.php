@@ -68,11 +68,19 @@ it('blocks a user from another org from uploading', function () {
 });
 
 it('rejects a file over the size cap', function () {
-    $file = UploadedFile::fake()->create('huge.png', 20481); // just over the 20MB cap
+    $file = UploadedFile::fake()->create('huge.png', 2049); // just over the 2MB cap
 
     $this->actingAs($this->member)
         ->postJson(route('projects.content-uploads.store', $this->project), ['file' => $file])
         ->assertUnprocessable();
+});
+
+it('accepts a file right at the size cap', function () {
+    $file = UploadedFile::fake()->create('at-limit.png', 2048); // exactly 2MB
+
+    $this->actingAs($this->member)
+        ->postJson(route('projects.content-uploads.store', $this->project), ['file' => $file])
+        ->assertOk();
 });
 
 it('rejects a blocked file extension', function () {

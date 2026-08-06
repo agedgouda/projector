@@ -29,6 +29,10 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
             // rejects (or silently drops) any key not declared here, regardless of what
             // the prompt text says.
             $includeAssignee = str_contains($userPrompt, '"assignee_name"');
+            // Same reasoning as $includeAssignee: the prompt only asks for "image_ids" when
+            // the caller found uploaded images to match against, and strict structured-output
+            // mode drops any field not declared here regardless of what the prompt text says.
+            $includeImageIds = str_contains($userPrompt, '"image_ids"');
 
             $properties = [
                 'title' => [
@@ -61,6 +65,15 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
                     'description' => 'The exact name of the person this item is assigned to, from the candidate names given in the prompt, or null if none clearly applies.',
                 ];
                 $required[] = 'assignee_name';
+            }
+
+            if ($includeImageIds) {
+                $properties['image_ids'] = [
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                    'description' => 'Numbers of any uploaded images from the source document, given in the prompt, that clearly belong with this item — or an empty array if none do.',
+                ];
+                $required[] = 'image_ids';
             }
 
             $jsonSchema = [

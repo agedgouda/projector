@@ -3,6 +3,7 @@ import { useDocumentEditor } from '@/composables/useDocumentEditor';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import type { InertiaForm } from '@inertiajs/vue3';
 import { EditorContent } from '@tiptap/vue-3';
+import { watch } from 'vue';
 import {
     Bold,
     CheckCircle2,
@@ -41,7 +42,7 @@ const props = defineProps<{
     projectId: string;
 }>();
 
-const emit = defineEmits(['cancel', 'submit']);
+const emit = defineEmits(['cancel', 'submit', 'update:isUploading']);
 
 /**
  * Correct mapping for the Select dropdown
@@ -50,12 +51,17 @@ const emit = defineEmits(['cancel', 'submit']);
 // @-mentioning a project member here (e.g. "@Jane will handle checkout flow") lets the
 // "Action Items to Tasks" AI transformation assign the resulting task to them automatically —
 // see ProjectAiService::extractMentionedUsers().
-const { editor, triggerUpload } = useDocumentEditor(
+const { editor, triggerUpload, isUploading } = useDocumentEditor(
     () => props.form.content,
     (html) => updateField('content', html),
     props.mentionableUsers ?? [],
     props.projectId,
 );
+
+// Bubbled up so the page-level Save button in the header (a separate component from this
+// form) can also be disabled while an upload is still in flight — saving before an upload's
+// async insertion into the editor completes would silently persist content missing the file.
+watch(isUploading, (value) => emit('update:isUploading', value), { immediate: true });
 
 const { getDocLabel } = useDocumentPresenter(props.document_schema);
 
@@ -365,7 +371,7 @@ const updateCriterion = (index: number, value: string) =>
         </Button>
         <Button
             @click="emit('submit')"
-            :disabled="form.processing"
+            :disabled="form.processing || isUploading"
             class="bg-projector-primary-600 px-8 text-[10px] font-bold tracking-widest uppercase hover:bg-projector-primary-700"
         >
             <RefreshCw
@@ -373,9 +379,11 @@ const updateCriterion = (index: number, value: string) =>
                 class="mr-2 h-4 w-4 animate-spin"
             />
             {{
-                mode === 'create'
-                    ? `Create ${getDocLabel(form.type) || 'Document'}`
-                    : 'Save'
+                isUploading
+                    ? 'Uploading…'
+                    : mode === 'create'
+                      ? `Create ${getDocLabel(form.type) || 'Document'}`
+                      : 'Save'
             }}
         </Button>
     </div>

@@ -4,7 +4,7 @@
 ---------------------------- */
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { FilePlus2 } from 'lucide-vue-next';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 // Layouts & Components
@@ -78,10 +78,19 @@ const saveLabel = computed(
     () => `Create ${getDocLabel(form.type) || 'Document'}`,
 );
 
+// Set by InlineDocumentForm while a pasted/dropped/attached file's upload is still in
+// flight — saving before that finishes would persist content missing the file, since the
+// upload's insertion into the editor happens asynchronously after the request completes.
+const isUploading = ref(false);
+
 /* ---------------------------
    5. Action Handlers
 ---------------------------- */
 const handleFormSubmit = () => {
+    if (isUploading.value) {
+        return;
+    }
+
     const baseUrl = projectDocumentsRoutes.store({
         project: props.project.id,
     }).url;
@@ -116,6 +125,10 @@ const saveAndRedirectToCreate = (type: string) => {
 };
 
 const handleSaveAndNew = () => {
+    if (isUploading.value) {
+        return;
+    }
+
     const currentType = form.type;
     form.post(saveAndRedirectToCreate(currentType), {
         onSuccess: () => {
@@ -157,8 +170,8 @@ const updateFormValue = (field: string, val: any) => {
                     :project="project"
                     :item="draftItem"
                     :is-editing="true"
-                    :save-label="saveLabel"
-                    :is-saving="form.processing"
+                    :save-label="isUploading ? 'Uploading…' : saveLabel"
+                    :is-saving="form.processing || isUploading"
                     @back="handleCancel"
                     @toggle-edit="handleCancel"
                     @save="handleFormSubmit"
@@ -167,7 +180,7 @@ const updateFormValue = (field: string, val: any) => {
                         <Button
                             variant="outline"
                             size="sm"
-                            :disabled="form.processing"
+                            :disabled="form.processing || isUploading"
                             @click="handleSaveAndNew"
                             class="h-8 px-4 text-[10px] font-black tracking-widest uppercase"
                         >
@@ -192,6 +205,7 @@ const updateFormValue = (field: string, val: any) => {
                         :project-id="project.id"
                         @submit="handleFormSubmit"
                         @cancel="handleCancel"
+                        @update:is-uploading="isUploading = $event"
                     />
                 </div>
             </template>

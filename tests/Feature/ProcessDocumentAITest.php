@@ -684,3 +684,237 @@ it('does not ask for an assignee when the source document has no @-mentions', fu
         'ai_template_id' => $template->id,
     ]);
 });
+
+it('carries an uploaded image straight through a single-output transformation, with no detection prompt', function () {
+    $document = createReprocessableDocument();
+    $document->update([
+        'content' => 'Notes <img src="https://example.test/storage/content-uploads/proj/abc.png" alt="diagram.png"> more notes.',
+    ]);
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to SOW',
+        'type' => 'workflow',
+        'system_prompt' => 'Write a SOW.',
+        'user_prompt' => '{{input}}',
+        'single_output' => true,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => ! str_contains($systemPrompt, 'image_ids'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => ['title' => 'SOW', 'content' => 'Body text'],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'software_sow',
+        'ai_template_id' => $template->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->content)->toContain('<img src="https://example.test/storage/content-uploads/proj/abc.png" alt="diagram.png">');
+});
+
+it('detects which task an uploaded image belongs with and carries it into that task only', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $document->update([
+        'content' => 'Follow up with the client <img src="https://example.test/storage/content-uploads/proj/abc.png" alt="budget-screenshot.png"> about the budget.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, 'budget-screenshot.png') && str_contains($userMessage, 'image_ids'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Follow up', 'task' => 'Send budget note', 'criteria' => [], 'image_ids' => [1]],
+                ['title' => 'Other task', 'task' => 'Do something else', 'criteria' => []],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $children = Document::where('parent_id', $document->id)->get();
+    $claimed = $children->firstWhere('name', 'Follow up');
+    $unclaimed = $children->firstWhere('name', 'Other task');
+
+    expect($claimed->content)->toContain('<img src="https://example.test/storage/content-uploads/proj/abc.png" alt="budget-screenshot.png">');
+    expect($unclaimed->content)->not->toContain('<img');
+});
+
+it('describes each image by the text it actually appeared next to, not just its filename', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    // Realistic shape: images live inside the same block (li > p) as the text they relate to,
+    // with generic auto-generated screenshot filenames carrying no real signal on their own.
+    $document->update([
+        'content' => '<ol>'
+            .'<li><p>Send Linz availability for the regroup meeting.<img src="https://example.test/one.png" alt="Screenshot 2026-08-06 at 11.21.56 AM.png"></p></li>'
+            .'<li><p>Review the Q3 cost report before the call.<img src="https://example.test/two.png" alt="Screenshot 2026-07-07 at 1.51.38 PM.png"></p></li>'
+            .'</ol>',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, 'Send Linz availability for the regroup meeting')
+            && str_contains($userMessage, 'Review the Q3 cost report before the call'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Send Linz availability', 'task' => 'Share times with Linz', 'criteria' => [], 'image_ids' => [1]],
+                ['title' => 'Review cost report', 'task' => 'Go over Q3 costs', 'criteria' => [], 'image_ids' => [2]],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $children = Document::where('parent_id', $document->id)->get();
+    $linz = $children->firstWhere('name', 'Send Linz availability');
+    $costs = $children->firstWhere('name', 'Review cost report');
+
+    expect($linz->content)->toContain('one.png')->not->toContain('two.png');
+    expect($costs->content)->toContain('two.png')->not->toContain('one.png');
+});
+
+it('does not attach an image to any task when the AI omits image_ids entirely', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $document->update([
+        'content' => 'Notes <img src="https://example.test/storage/content-uploads/proj/abc.png" alt="diagram.png"> more notes.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Task', 'task' => 'Do it', 'criteria' => []],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->content)->not->toContain('<img');
+});
+
+it('does not attach an image to any task when the AI returns an image id that was never offered', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $document->update([
+        'content' => 'Notes <img src="https://example.test/storage/content-uploads/proj/abc.png" alt="diagram.png"> more notes.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Task', 'task' => 'Do it', 'criteria' => [], 'image_ids' => [99]],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->content)->not->toContain('<img');
+});
+
+it('distributes multiple uploaded images across the tasks that claim them', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $document->update([
+        'content' => 'Notes <img src="https://example.test/one.png" alt="one.png"> and '.
+            '<img src="https://example.test/two.png" alt="two.png"> more notes.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Task A', 'task' => 'Do A', 'criteria' => [], 'image_ids' => [1]],
+                ['title' => 'Task B', 'task' => 'Do B', 'criteria' => [], 'image_ids' => [2]],
+                ['title' => 'Task C', 'task' => 'Do C', 'criteria' => []],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $children = Document::where('parent_id', $document->id)->get();
+    $a = $children->firstWhere('name', 'Task A');
+    $b = $children->firstWhere('name', 'Task B');
+    $c = $children->firstWhere('name', 'Task C');
+
+    expect($a->content)->toContain('one.png')->not->toContain('two.png');
+    expect($b->content)->toContain('two.png')->not->toContain('one.png');
+    expect($c->content)->not->toContain('<img');
+});
+
+it('does not ask about images when the source document has no uploaded images', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => ! str_contains($userMessage, 'image_ids') && ! str_contains($systemPrompt, 'image_ids'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Task', 'task' => 'Do it', 'criteria' => []]],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+});
+
+it('escapes special characters in an uploaded image\'s filename when carrying it into a task', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $document->update([
+        'content' => 'Notes <img src="https://example.test/storage/content-uploads/proj/abc.png" alt="quote&quot;file.png"> more notes.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Task', 'task' => 'Do it', 'criteria' => [], 'image_ids' => [1]],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->content)->toContain('alt="quote&quot;file.png"')
+        ->not->toContain('alt="quote"file.png"');
+});

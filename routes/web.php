@@ -84,6 +84,26 @@ Route::post('/log-stale-processing', function (Request $request) {
     return response()->json(['status' => 'logged']);
 })->middleware(['auth', 'throttle:60,1']);
 
+// Hit by useDocumentEditor's uploadFile() whenever a content-upload request fails (network
+// error, server error, validation rejection, etc.) — the client is often the only place that
+// ever sees the real response, since a hard rejection at the production web server/PHP layer
+// (e.g. a file over its own upload cap) can happen before Laravel's own app-level logging
+// would ever run.
+Route::post('/log-upload-error', function (Request $request) {
+    Log::error('Content upload failed', [
+        'user_id' => auth()->id(),
+        'project_id' => $request->input('project_id'),
+        'file_name' => $request->input('file_name'),
+        'file_size' => $request->input('file_size'),
+        'file_type' => $request->input('file_type'),
+        'status' => $request->input('status'),
+        'message' => $request->input('message'),
+        'user_agent' => $request->userAgent(),
+    ]);
+
+    return response()->json(['status' => 'logged']);
+})->middleware(['auth', 'throttle:60,1']);
+
 // Hit by the idle-session-timeout modal's "Stay Logged In" action — merely being an
 // authenticated request is enough to refresh the session's last-activity timestamp via the
 // framework's own session middleware, so this needs no body beyond that.

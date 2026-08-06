@@ -5,10 +5,17 @@ import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
 import StarterKit from '@tiptap/starter-kit';
 import { useEditor } from '@tiptap/vue-3';
-import axios from 'axios';
+import axios, { type AxiosError } from 'axios';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
-import { createApp, h, onBeforeUnmount, watch, type Ref } from 'vue';
+import { computed, createApp, h, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 import { toast } from 'vue-sonner';
+
+// Kept in sync with the production server's own hard upload cap (its web server/PHP config
+// rejects anything larger before the request even reaches the app) — see
+// ContentUploadController::store()'s matching `max:2048` (KB) validation rule. Checked
+// client-side first so an oversized file gets a clear, specific error instead of a generic
+// failure once it hits that ceiling.
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 // Non-image uploads (any file type is accepted) render as this atomic inline chip rather
 // than a plain link, so they're visually distinct from ordinary text links produced by
@@ -193,6 +200,13 @@ export function useDocumentEditor(
         );
     }
 
+    // Tracks in-flight uploads so callers can block save/submit until every upload has
+    // actually landed in the editor's content — without this, saving while an upload is
+    // still pending silently persists content with the image missing, since the upload's
+    // own insertion into the editor happens asynchronously after the save already ran.
+    const pendingUploads = ref(0);
+    const isUploading = computed(() => pendingUploads.value > 0);
+
     // Only wired up when a projectId is given — a couple of unrelated editors elsewhere
     // reuse this composable without one (e.g. AiTemplateForm.vue), and file upload has no
     // authorization scope to upload against without a project.
@@ -201,8 +215,16 @@ export function useDocumentEditor(
             return;
         }
 
+        if (file.size > MAX_UPLOAD_BYTES) {
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+            toast.error(`${file.name} is too large (${sizeMb}MB) — the maximum upload size is 2MB.`);
+            return;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
+
+        pendingUploads.value++;
 
         const upload = axios
             .post(contentUploads.store.url({ project: projectId }), formData)
@@ -226,6 +248,29 @@ export function useDocumentEditor(
                         })
                         .run();
                 }
+            })
+            .catch((error: AxiosError<{ message?: string }>) => {
+                // The server response is often the only record of what actually went wrong
+                // (e.g. a hard rejection at the production web server/PHP layer never reaches
+                // the app's own logging) — captured here, best-effort, so it's still visible
+                // later even though the user only ever sees the generic toast below.
+                console.error('Content upload failed', error);
+                axios
+                    .post('/log-upload-error', {
+                        project_id: projectId,
+                        file_name: file.name,
+                        file_size: file.size,
+                        file_type: file.type,
+                        status: error.response?.status ?? null,
+                        message: error.response?.data?.message ?? error.message,
+                    })
+                    .catch(() => {
+                        // Never let logging itself mask the original upload failure.
+                    });
+                throw error;
+            })
+            .finally(() => {
+                pendingUploads.value--;
             });
 
         toast.promise(upload, {
@@ -292,5 +337,5 @@ export function useDocumentEditor(
         editor.value?.destroy();
     });
 
-    return { editor, triggerUpload };
+    return { editor, triggerUpload, isUploading };
 }

@@ -149,6 +149,7 @@ class ProjectAiService
     protected function processCustomPrompt(Project $project, Document $document, ?string $oneOffInstructions = null): array
     {
         $replacements = $this->buildReplacements($project, $document);
+        $images = $this->extractImages((string) $document->content);
 
         $instructions = str_replace(array_keys($replacements), array_values($replacements), (string) $document->custom_prompt);
         $instructions = $this->htmlToPlainText($instructions);
@@ -190,6 +191,7 @@ class ProjectAiService
             'output_type' => is_string($actionItemsKey) ? $actionItemsKey : null,
             'single_output' => true,
             'locked_project_type_id' => null,
+            'images' => array_values($images),
         ];
     }
 
@@ -256,6 +258,7 @@ class ProjectAiService
     {
         $userTemplate = $strategy->getUserPromptTemplate();
         $replacements = $this->buildReplacements($project, $currentDoc) + ['{{input}}' => $context];
+        $images = $this->extractImages($context);
 
         $userMessage = str_replace(array_keys($replacements), array_values($replacements), $userTemplate);
 
@@ -308,6 +311,7 @@ class ProjectAiService
             'project_name' => $project->name,
             'mock_response' => $doc,
             'status' => 'success',
+            'images' => array_values($images),
         ];
     }
 
@@ -323,12 +327,29 @@ class ProjectAiService
         }
 
         $mentionedUsers = $this->extractMentionedUsers($context);
+        $images = $this->extractImages($context);
 
         $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", \"criteria\", and \"priority\" (one of \"low\", \"medium\", or \"high\"). Also include \"due_date\" (an ISO 8601 date string YYYY-MM-DD, or null if no date is mentioned).";
 
         if (! empty($mentionedUsers)) {
             $names = implode(', ', array_map(fn (string $name): string => '"'.$name.'"', $mentionedUsers));
             $schemaInstruction .= " Also include \"assignee_name\": if an item is clearly assigned to one of the people mentioned in the source text — {$names} — set it to their exact name as given; otherwise set it to null. Never use a name that isn't in that list.";
+        }
+
+        if (! empty($images)) {
+            // Uploaded images are very often auto-named screenshots — the filename alone
+            // ("Screenshot 2026-08-06 at 11.21.56 AM.png") carries no real signal about which
+            // item an image belongs with. What the source text says immediately around the
+            // image is a far more reliable match, so that's the primary instruction here —
+            // filename is included only as a secondary hint.
+            $descriptions = [];
+            foreach ($images as $id => $image) {
+                $near = $image['context'] !== '' ? $image['context'] : $image['alt'];
+                $descriptions[] = "#{$id} (appeared next to this text in the source: \"{$near}\"; filename: \"{$image['alt']}\")";
+            }
+            $schemaInstruction .= ' Also include "image_ids": an array of image numbers from the source document — '
+                .implode(', ', $descriptions)
+                .' — matched by comparing each image\'s surrounding source text to this item\'s own content (you cannot see the image itself, only text). Include a number in an item whenever that item\'s content clearly covers the same thing as the text the image appeared next to. Use [] or omit the key if none clearly match. Never use a number that isn\'t in that list.';
         }
 
         $userMessage = $baseMessage.$schemaInstruction;
@@ -348,6 +369,10 @@ class ProjectAiService
             // defaults when nobody was mentioned, but they'd otherwise silently override the
             // assignee_name instruction just added to the user message above.
             $systemPrompt .= "\n\nException to any instruction above about not extracting assignee/owner information, or about which JSON keys are allowed: for this request only, also follow the assignee_name instructions given below.";
+        }
+
+        if (! empty($images)) {
+            $systemPrompt .= "\n\nException to any instruction above about which JSON keys are allowed: for this request only, also follow the image_ids instructions given below.";
         }
 
         $result = $this->llmDriver->call(
@@ -373,6 +398,7 @@ class ProjectAiService
 
         $items = $this->normalizeOutputKeys($result['content'] ?? [], $outputKey);
         $items = $this->resolveAssigneeIds($items, $mentionedUsers);
+        $items = $this->resolveImages($items, $images);
 
         return [
             'project_name' => $project->name,
@@ -452,6 +478,72 @@ class ProjectAiService
     }
 
     /**
+     * Block-level tags whose text content stands in for "what an image is about" — the closest
+     * ancestor of an <img> matching one of these gives extractImages() something far more
+     * reliable to match against than the image's filename alone (see there for why).
+     *
+     * @var list<string>
+     */
+    private const BLOCK_CONTEXT_TAGS = ['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'div'];
+
+    /**
+     * Extracts every <img> tag from a document's HTML content, in document order, so a
+     * transformation can carry the right ones into whichever output document(s) they belong
+     * with — never trusting the model to reproduce a real src on its own. Keyed by an
+     * incrementing counter (not src) so two insertions of the same image still get distinct
+     * numbers a multi-item transformation could assign to different items. Skips tags with an
+     * empty src.
+     *
+     * Also captures the text of the image's closest block-level ancestor (paragraph, list item,
+     * etc.) as "context" — uploaded images are very often auto-named screenshots
+     * ("Screenshot 2026-08-06 at 11.21.56 AM.png"), whose filename alone carries no signal
+     * about which generated item they're relevant to. The surrounding text is what actually
+     * lets a multi-item transformation match an image to the right item.
+     *
+     * @return array<int, array{src: string, alt: string, context: string}>
+     */
+    private function extractImages(string $html): array
+    {
+        if (! str_contains($html, '<img')) {
+            return [];
+        }
+
+        $dom = new \DOMDocument;
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8"?><div>'.$html.'</div>', LIBXML_NOERROR | LIBXML_NOWARNING);
+        libxml_clear_errors();
+
+        $images = [];
+        $nextId = 1;
+
+        foreach ($dom->getElementsByTagName('img') as $img) {
+            $src = $img->getAttribute('src');
+
+            if ($src === '') {
+                continue;
+            }
+
+            $context = '';
+            $ancestor = $img->parentNode;
+            while ($ancestor instanceof \DOMElement) {
+                if (in_array(strtolower($ancestor->tagName), self::BLOCK_CONTEXT_TAGS, true)) {
+                    $context = trim((string) preg_replace('/\s+/', ' ', $ancestor->textContent));
+                    break;
+                }
+                $ancestor = $ancestor->parentNode;
+            }
+
+            $images[$nextId++] = [
+                'src' => $src,
+                'alt' => $img->getAttribute('alt'),
+                'context' => mb_substr($context, 0, 200),
+            ];
+        }
+
+        return $images;
+    }
+
+    /**
      * Maps each item's AI-provided "assignee_name" back to the real user id it corresponds
      * to, matching only against the mentions actually present in the source document — never
      * a fresh database lookup — so a task can only be assigned to someone who was genuinely
@@ -480,6 +572,44 @@ class ProjectAiService
 
             if (is_string($name) && isset($idsByLowerName[mb_strtolower(trim($name))])) {
                 $item['assignee_id'] = $idsByLowerName[mb_strtolower(trim($name))];
+            }
+
+            return $item;
+        }, $items);
+    }
+
+    /**
+     * Maps each item's AI-provided "image_ids" back to the real {src, alt} entries from the
+     * originally extracted list — never inventing a src the model wasn't given — mirroring
+     * resolveAssigneeIds() above. Items with no match, or no images to match against, are left
+     * untouched (no fallback/orphan handling for unclaimed images yet).
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<int, array{src: string, alt: string, context: string}>  $images
+     * @return array<int, array<string, mixed>>
+     */
+    private function resolveImages(array $items, array $images): array
+    {
+        if (empty($images)) {
+            return $items;
+        }
+
+        return array_map(function (array $item) use ($images) {
+            $ids = $item['image_ids'] ?? [];
+            unset($item['image_ids']);
+
+            $matched = [];
+            if (is_array($ids)) {
+                foreach ($ids as $id) {
+                    $key = is_numeric($id) ? (int) $id : null;
+                    if ($key !== null && isset($images[$key])) {
+                        $matched[] = $images[$key];
+                    }
+                }
+            }
+
+            if (! empty($matched)) {
+                $item['_images'] = $matched;
             }
 
             return $item;
