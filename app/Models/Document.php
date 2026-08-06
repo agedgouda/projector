@@ -127,6 +127,14 @@ class Document extends Model implements HasMedia
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Document, $this>
+     */
+    public function children(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Document::class, 'parent_id');
+    }
+
+    /**
      * The AI template that most recently generated this document's children — via the
      * universal intake step, a locked protocol's workflow step, or a manually chosen Transform.
      * Lets Reprocess re-run "whatever last produced output from this document" even for types

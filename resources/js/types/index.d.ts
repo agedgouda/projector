@@ -156,6 +156,7 @@ declare global {
         external_due_at: string | null;
         locked_project_type_id?: string | null;
         locked_next_workflow_step_exists?: boolean;
+        children_exists?: boolean;
         content_updated_at?: string | null;
         custom_prompt?: string | null;
         last_ai_template_id?: number | null;

@@ -21,11 +21,6 @@
 :deep(.custom-scrollbar::-webkit-scrollbar) { width: 6px; }
 :deep(.custom-scrollbar::-webkit-scrollbar-thumb) { background: #e2e8f0; border-radius: 10px; }
 
-:deep(input[type="date"]::-webkit-calendar-picker-indicator) {
-    filter: invert(48%) sepia(13%) saturate(541%) hue-rotate(186deg) brightness(96%) contrast(88%);
-    cursor: pointer;
-}
-
 :deep([data-radix-collection-item]),
 :deep(button[role="combobox"]),
 :deep(.custom-date-input:focus) {

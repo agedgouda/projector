@@ -21,6 +21,10 @@ const props = defineProps<{
     isEditing: boolean;
     saveLabel?: string;
     isSaving?: boolean;
+    // Only set on the document edit page (Documents/Show.vue), to match the fixed w-24 the
+    // Cancel/Edit toggle button below already uses — left unset on the create page, whose
+    // save label is the dynamic (and often much longer) "Create <Type>".
+    saveButtonClass?: string;
 }>();
 
 const ancestors = computed(() => {
@@ -73,17 +77,6 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
             </div>
 
             <div v-if="!project.inactive" class="flex items-center gap-2">
-                <Button
-                    v-if="isEditing"
-                    size="sm"
-                    :disabled="isSaving"
-                    @click="emit('save')"
-                    class="h-8 bg-projector-primary-600 px-4 text-[10px] font-black tracking-widest text-white uppercase hover:bg-projector-primary-700"
-                >
-                    <Save class="mr-1.5 h-3 w-3" />
-                    {{ saveLabel ?? 'Save' }}
-                </Button>
-
                 <slot v-if="isEditing" name="extra-actions" />
 
                 <Button
@@ -104,6 +97,20 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
                     <span class="ml-4">{{
                         isEditing ? 'Cancel' : 'Edit'
                     }}</span>
+                </Button>
+
+                <Button
+                    v-if="isEditing"
+                    size="sm"
+                    :disabled="isSaving"
+                    @click="emit('save')"
+                    :class="[
+                        'h-8 bg-projector-primary-600 px-4 text-[10px] font-black tracking-widest text-white uppercase hover:bg-projector-primary-700',
+                        saveButtonClass,
+                    ]"
+                >
+                    <Save class="mr-1.5 h-3 w-3" />
+                    {{ saveLabel ?? 'Save' }}
                 </Button>
 
                 <Button

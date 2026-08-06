@@ -207,14 +207,14 @@ class ProjectAiService
         $firstBreak = strpos($trimmed, "\n");
 
         if ($firstBreak === false || $firstBreak > 200) {
-            return [$fallbackName.' — Action Items', $trimmed];
+            return [$fallbackName.' — Meeting Notes', $trimmed];
         }
 
         $title = trim(ltrim(substr($trimmed, 0, $firstBreak), "# \t"));
         $rest = ltrim(substr($trimmed, $firstBreak + 1));
 
         if ($title === '') {
-            return [$fallbackName.' — Action Items', $trimmed];
+            return [$fallbackName.' — Meeting Notes', $trimmed];
         }
 
         return [$title, $rest];

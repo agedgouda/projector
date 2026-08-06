@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { formatDate } from '@/lib/utils';
 import { computed } from 'vue';
-import {
-    PRIORITY_LABELS,
-    kanbanDotClasses,
-    priorityDotClasses
-} from '@/lib/constants';
+import { PRIORITY_LABELS } from '@/lib/constants';
 import {
     Select,
     SelectContent,
@@ -14,7 +10,7 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, FileDown, FileType } from 'lucide-vue-next';
+import { RefreshCw, FileDown, FileType, Calendar as CalendarIcon } from 'lucide-vue-next';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { exportPdf, exportWord } from '@/actions/App/Http/Controllers/DocumentController';
 
@@ -24,7 +20,8 @@ const props = defineProps<{
     documentTypeCatalog?: DocumentSchemaItem[];
     dueAtProxy: string;
     usesExternalDueDates?: boolean;
-    needsReprocess?: boolean;
+    isReprocessable?: boolean;
+    processButtonLabel?: string;
     isProcessingLive?: boolean;
     processingMessage?: string | null;
 }>();
@@ -48,6 +45,19 @@ const assigneeValue = computed(() => {
 const invitations = computed(() => props.project.client.organization?.invitations ?? []);
 const columns = computed(() => props.project.kanban_columns ?? []);
 
+// The native date input's own text/icon rendering can't be pixel-matched to the Assignee
+// text above it (Chrome renders a filled value's segments differently than its placeholder
+// text with respect to letter-spacing/alignment). So the input itself is made invisible and
+// only handles the click-to-open-picker + value interaction; the visible text is this plain
+// span, styled identically to the Assignee span, which guarantees identical rendering.
+const formatDateDisplay = (val: string | null | undefined): string => {
+    if (!val) {
+        return 'MM/DD/YYYY';
+    }
+    const [year, month, day] = val.split('-');
+    return `${month}/${day}/${year}`;
+};
+
 </script>
 
 <template>
@@ -66,14 +76,13 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                         </div>
 
                         <Button
-                            v-if="needsReprocess && !isProcessingLive"
+                            v-if="isReprocessable && !isProcessingLive"
                             variant="outline"
                             size="sm"
                             class="w-full"
                             @click="$emit('request-process')"
                         >
-                            <Sparkles class="h-3.5 w-3.5" />
-                            Process Document
+                            {{ processButtonLabel }} Document
                         </Button>
 
                         <div
@@ -108,16 +117,22 @@ const columns = computed(() => props.project.kanban_columns ?? []);
 
                             <div class="flex justify-between items-center min-h-[24px]">
                                 <span class="text-slate-900 dark:text-slate-400 text-[13px]">{{ usesExternalDueDates ? 'Internal Due Date' : 'Due Date' }}</span>
-                                <div class="flex items-center hover:bg-slate-100 dark:hover:bg-white/10 pl-2 pr-1 rounded transition-colors cursor-pointer mr-[-3px]">
+                                <div
+                                    class="relative flex items-center gap-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                                    :class="project.inactive ? 'opacity-50' : ''"
+                                >
+                                    <span class="font-black uppercase tracking-[0.12em] text-[13px] text-slate-900 dark:text-slate-200 w-[112px] text-right pointer-events-none">
+                                        {{ formatDateDisplay(dueAtProxy) }}
+                                    </span>
+                                    <CalendarIcon class="w-4 h-4 text-slate-400 shrink-0 pointer-events-none" />
                                     <input
                                         type="date"
                                         :value="dueAtProxy"
                                         :disabled="project.inactive"
                                         @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
                                         :class="[
-                                            'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0',
-                                            project.inactive ? 'opacity-50 cursor-default' : 'cursor-pointer',
-                                            !dueAtProxy ? 'w-[112px] is-empty text-left' : 'w-[112px] text-right'
+                                            'custom-date-input absolute inset-0 w-full h-full opacity-0 border-none p-0',
+                                            project.inactive ? 'cursor-default' : 'cursor-pointer'
                                         ]"
                                     />
                                 </div>
@@ -125,16 +140,22 @@ const columns = computed(() => props.project.kanban_columns ?? []);
 
                             <div v-if="usesExternalDueDates" class="flex justify-between items-center min-h-[24px]">
                                 <span class="text-slate-900 dark:text-slate-400 text-[13px]">External Due Date</span>
-                                <div class="flex items-center hover:bg-slate-100 dark:hover:bg-white/10 pl-2 pr-1 rounded transition-colors cursor-pointer mr-[-3px]">
+                                <div
+                                    class="relative flex items-center gap-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                                    :class="project.inactive ? 'opacity-50' : ''"
+                                >
+                                    <span class="font-black uppercase tracking-[0.12em] text-[13px] text-slate-900 dark:text-slate-200 w-[112px] text-right pointer-events-none">
+                                        {{ formatDateDisplay(item.external_due_at ? item.external_due_at.substring(0, 10) : '') }}
+                                    </span>
+                                    <CalendarIcon class="w-4 h-4 text-slate-400 shrink-0 pointer-events-none" />
                                     <input
                                         type="date"
                                         :value="item.external_due_at ? item.external_due_at.substring(0, 10) : ''"
                                         :disabled="project.inactive"
                                         @input="$emit('change', 'external_due_at', ($event.target as HTMLInputElement).value)"
                                         :class="[
-                                            'custom-date-input bg-transparent border-none p-0 text-[13px] font-black uppercase tracking-normal text-slate-900 dark:text-slate-200 focus:ring-0',
-                                            project.inactive ? 'opacity-50 cursor-default' : 'cursor-pointer',
-                                            !item.external_due_at ? 'w-[112px] is-empty text-left' : 'w-[112px] text-right'
+                                            'custom-date-input absolute inset-0 w-full h-full opacity-0 border-none p-0',
+                                            project.inactive ? 'cursor-default' : 'cursor-pointer'
                                         ]"
                                     />
                                 </div>
@@ -147,16 +168,12 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
                                                 <SelectValue />
-                                                <div :class="[priorityDotClasses[item.priority ?? 'low'], 'w-2 h-2 rounded-full ml-2 flex-shrink-0']"></div>
                                             </span>
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[160px]">
                                         <SelectItem v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer focus:bg-slate-100 dark:focus:bg-white/10">
-                                            <div class="flex items-center justify-between w-full">
-                                                <span>{{ label }}</span>
-                                                <div :class="[priorityDotClasses[key], 'w-2 h-2 rounded-full ml-4 flex-shrink-0']"></div>
-                                            </div>
+                                            {{ label }}
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -169,16 +186,12 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                                         <div class="px-2 py-1">
                                             <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
                                                 <SelectValue />
-                                                <div :class="[kanbanDotClasses[columns.find(c => c.key === (item.task_status ?? 'todo'))?.color ?? 'slate'], 'w-2 h-2 rounded-full ml-2 flex-shrink-0']"></div>
                                             </span>
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[160px]">
                                         <SelectItem v-for="column in columns" :key="column.key" :value="column.key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer">
-                                            <div class="flex items-center justify-between w-full min-w-[120px]">
-                                                <span>{{ column.label }}</span>
-                                                <div :class="[kanbanDotClasses[column.color ?? 'slate'], 'w-2 h-2 rounded-full ml-4 flex-shrink-0']"></div>
-                                            </div>
+                                            {{ column.label }}
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -202,7 +215,7 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                             <span class="text-slate-900">Last Updated</span>
                             <div class="flex items-center gap-1.5 font-bold">
                                 <span class="text-slate-900 dark:text-slate-200">{{ formatDate(item.updated_at) }}</span>
-                                <span class="text-slate-400 font-medium lowercase italic">by</span>
+                                <span v-if="item.editor?.name" class="text-slate-400 font-medium lowercase italic">by</span>
                                 <span v-if="item.editor?.name" class="text-projector-primary-600">{{ item.editor?.name }}</span>
                             </div>
                         </div>
@@ -213,13 +226,13 @@ const columns = computed(() => props.project.kanban_columns ?? []);
                     <Button as-child variant="outline" size="sm" class="w-full">
                         <a :href="exportPdf.url({ project: project.id, document: String(item.id) })">
                             <FileDown class="h-3.5 w-3.5" />
-                            Save As PDF
+                            Export As PDF
                         </a>
                     </Button>
                     <Button as-child variant="outline" size="sm" class="w-full">
                         <a :href="exportWord.url({ project: project.id, document: String(item.id) })">
                             <FileType class="h-3.5 w-3.5" />
-                            Save As Word
+                            Export As Word
                         </a>
                     </Button>
                 </div>

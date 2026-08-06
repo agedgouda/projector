@@ -255,6 +255,63 @@
         background-color: rgb(99 102 241 / 0.7);
     }
 
+    /* Non-image file uploads embedded in document content / comment bodies (see
+       useDocumentEditor.ts's fileAttachment node) render as this chip. No Tailwind
+       Typography plugin is installed, so this and the img rule below are load-bearing —
+       without them uploaded content has no sizing/styling at all, in the editor and in
+       every read-only view that renders the same saved HTML. */
+    .file-attachment {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        max-width: 100%;
+        overflow: hidden;
+        border: 1px solid rgb(226 232 240);
+        border-radius: 0.375rem;
+        background-color: rgb(241 245 249);
+        color: rgb(51 65 85);
+        padding: 0.2em 0.6em 0.2em 0.5em;
+        font-size: 0.92em;
+        font-weight: 600;
+        line-height: 1.4;
+        text-decoration: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: 0.05em;
+    }
+
+    .file-attachment::before {
+        content: '';
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        flex-shrink: 0;
+        background-color: currentColor;
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'/%3E%3Cpath d='M14 2v6h6'/%3E%3C/svg%3E");
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+    }
+
+    .dark .file-attachment {
+        border-color: rgba(255, 255, 255, 0.12);
+        background-color: rgba(255, 255, 255, 0.08);
+        color: rgb(203 213 225);
+    }
+
+    .prose-content img,
+    .ProseMirror img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
     * {
         @apply border-border outline-ring/50;
     }

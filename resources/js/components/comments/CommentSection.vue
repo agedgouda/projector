@@ -27,6 +27,7 @@ import {
     Loader2,
     MessageSquare,
     MoreVertical,
+    Paperclip,
     Send,
     Trash2,
 } from 'lucide-vue-next';
@@ -44,6 +45,7 @@ const props = defineProps<{
         last_name: string;
     }[];
     readOnly?: boolean;
+    projectId: string;
 }>();
 
 const page = usePage<AppPageProps>();
@@ -68,12 +70,13 @@ const form = useForm({
     id: props.commentableId,
 });
 
-const { editor } = useDocumentEditor(
+const { editor, triggerUpload } = useDocumentEditor(
     '',
     (html) => {
         form.body = html;
     },
     props.mentionableUsers ?? [],
+    props.projectId,
 );
 
 const scrollToBottom = () => {
@@ -313,6 +316,18 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                         }"
                     >
                         <ListOrdered class="h-4 w-4" />
+                    </Button>
+                    <div
+                        class="mx-1 h-4 w-px bg-slate-200 dark:bg-slate-700"
+                    ></div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 dark:text-slate-300"
+                        @click="triggerUpload"
+                    >
+                        <Paperclip class="h-4 w-4" />
                     </Button>
                 </div>
                 <editor-content :editor="editor" />

@@ -49,9 +49,19 @@ class DocumentController extends Controller
         $definition = $project->documentTypeCatalog()->get($document->type);
         $isTask = $definition instanceof \App\Models\DocumentTypeDefinition && $definition->is_task;
 
-        $target = $isTask
-            ? ($request->query('redirect') ?? route('projects.show', $project).'?tab=tasks')
+        // "Save and New" (Documents/Create.vue) sends `redirect` back to its own create form
+        // for any document type, not just tasks — honored here regardless of type, falling
+        // back to each type's normal post-create destination when it's absent. Restricted to
+        // same-origin relative paths (never a bare "//host" either) since it's an unvalidated
+        // query param and this endpoint redirects to it directly.
+        $default = $isTask
+            ? route('projects.show', $project).'?tab=tasks'
             : route('projects.show', $project).'?tab=hierarchy';
+
+        $redirectParam = $request->query('redirect');
+        $target = (is_string($redirectParam) && str_starts_with($redirectParam, '/') && ! str_starts_with($redirectParam, '//'))
+            ? $redirectParam
+            : $default;
 
         return redirect()->to($target)
             ->with('success', 'Document created successfully.');
@@ -71,8 +81,8 @@ class DocumentController extends Controller
         return inertia('Documents/Show', [
             'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'kanbanColumns']),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
-            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent'])
-                ->loadExists('lockedNextWorkflowStep'),
+            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent', 'lastAiTemplate:id,name'])
+                ->loadExists(['lockedNextWorkflowStep', 'children']),
         ]);
     }
 

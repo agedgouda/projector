@@ -42,6 +42,7 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
                 mode="edit"
                 :form="form"
                 :mentionable-users="project.client?.organization?.users ?? []"
+                :project-id="project.id"
                 @submit="handleFormSubmit"
                 @cancel="handleCancel"
             />

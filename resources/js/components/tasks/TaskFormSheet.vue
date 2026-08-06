@@ -165,6 +165,7 @@ const submit = () => {
                         :comments="task.comments || []"
                         commentable-type="task"
                         :commentable-id="task.id"
+                        :project-id="projectId"
                     />
                 </TabsContent>
             </Tabs>

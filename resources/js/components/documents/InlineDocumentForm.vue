@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useDocumentEditor } from '@/composables/useDocumentEditor';
+import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import type { InertiaForm } from '@inertiajs/vue3';
 import { EditorContent } from '@tiptap/vue-3';
 import {
@@ -8,6 +9,7 @@ import {
     Italic,
     List,
     ListOrdered,
+    Paperclip,
     Plus,
     RefreshCw,
     X,
@@ -36,6 +38,7 @@ const props = defineProps<{
         first_name: string;
         last_name: string;
     }[];
+    projectId: string;
 }>();
 
 const emit = defineEmits(['cancel', 'submit']);
@@ -47,11 +50,14 @@ const emit = defineEmits(['cancel', 'submit']);
 // @-mentioning a project member here (e.g. "@Jane will handle checkout flow") lets the
 // "Action Items to Tasks" AI transformation assign the resulting task to them automatically —
 // see ProjectAiService::extractMentionedUsers().
-const { editor } = useDocumentEditor(
+const { editor, triggerUpload } = useDocumentEditor(
     () => props.form.content,
     (html) => updateField('content', html),
     props.mentionableUsers ?? [],
+    props.projectId,
 );
+
+const { getDocLabel } = useDocumentPresenter(props.document_schema);
 
 const updateField = (field: string, value: any) => {
     (props.form as any)[field] = value;
@@ -229,6 +235,18 @@ const updateCriterion = (index: number, value: string) =>
                     >
                         <ListOrdered class="h-4 w-4" />
                     </Button>
+                    <div
+                        class="mx-1 h-4 w-px bg-slate-200 dark:bg-white/20"
+                    ></div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 dark:text-slate-300"
+                        @click="triggerUpload"
+                    >
+                        <Paperclip class="h-4 w-4" />
+                    </Button>
                 </div>
                 <editor-content :editor="editor" />
             </div>
@@ -354,7 +372,11 @@ const updateCriterion = (index: number, value: string) =>
                 v-if="form.processing"
                 class="mr-2 h-4 w-4 animate-spin"
             />
-            {{ mode === 'create' ? 'Create Document' : 'Update Document' }}
+            {{
+                mode === 'create'
+                    ? `Create ${getDocLabel(form.type) || 'Document'}`
+                    : 'Save'
+            }}
         </Button>
     </div>
 </template>

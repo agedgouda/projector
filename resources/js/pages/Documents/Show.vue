@@ -8,6 +8,7 @@ import { toast } from 'vue-sonner';
 
 // Layouts & Components
 import AppLayout from '@/layouts/AppLayout.vue';
+import AiProgressBar from '@/components/AiProgressBar.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import DocumentSidebar from './Partials/DocumentSidebar.vue';
@@ -21,7 +22,7 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentForm } from '@/composables/documents/useDocumentForm';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
-import { useWorkflow } from '@/composables/useWorkflow';
+import { useWorkflow, reprocessDescription } from '@/composables/useWorkflow';
 
 /* ---------------------------
    2. Props
@@ -44,6 +45,7 @@ const {
     isReprocessing,
     isProcessingLive,
     processingMessage,
+    aiProgress,
     toggleEdit,
     handleFormSubmit,
     confirmDeletion,
@@ -77,20 +79,34 @@ const dueAtProxy = computed<string>({
 const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
 
 // Derived from the live `props.item` (not a one-time snapshot) so it stays accurate across
-// saves within the same page visit — a document has something to reprocess once its content
-// has been edited more recently than the last successful AI run, and its type is actually
-// reprocessable (an intake document, or one locked to a protocol that still has a next step).
+// saves within the same page visit — same visibility rule as the tree/detail-sheet Reprocess
+// button (see TraceabilityRow.vue's isReprocessable): an intake document, one locked to a
+// protocol that still has a next step, or any document that's already been run through a
+// template once before (see Document::lastAiTemplate()). Deliberately not staleness-gated —
+// unlike the old needsReprocess rule, this shows regardless of whether content has changed
+// since the last run, matching the tree exactly.
 const { reprocessableTypes } = useWorkflow();
-const needsReprocess = computed(() => {
-    const item = props.item;
-    const isLocked = !!item.locked_project_type_id;
-    const isReprocessableType = reprocessableTypes.value.has(item.type) || (isLocked && !!item.locked_next_workflow_step_exists);
+const isLocked = computed(() => !!props.item.locked_project_type_id);
+const isReprocessable = computed(() =>
+    reprocessableTypes.value.has(props.item.type)
+    || (isLocked.value && !!props.item.locked_next_workflow_step_exists)
+    || !!props.item.last_ai_template_id
+);
 
-    if (!isReprocessableType || !item.content_updated_at) return false;
-    if (!item.processed_at) return true;
+// Matches processButtonLabel in TraceabilityRow.vue: "Reprocess" once this document has
+// already produced output before (so running it again would overwrite something), "Process"
+// the first time (nothing to overwrite yet).
+const processButtonLabel = computed(() => props.item.children_exists ? 'Reprocess' : 'Process');
 
-    return new Date(item.content_updated_at) > new Date(item.processed_at);
-});
+// Mirrors handleReprocess in DocumentManager.vue/Projects/Show.vue: skip the confirmation
+// modal entirely when nothing would be overwritten yet.
+const handleRequestProcess = () => {
+    if (props.item.children_exists) {
+        isReprocessPromptOpen.value = true;
+    } else {
+        void confirmReprocess();
+    }
+};
 
 /* ---------------------------
    5. Watchers (Flash Messages)
@@ -107,6 +123,11 @@ watch(() => page.props.flash, (flash) => {
     <Head :title="item.name" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
+        <AiProgressBar
+            :is-processing="isProcessingLive"
+            :progress="aiProgress"
+        />
+
         <DocumentLayoutWrapper>
             <template #header>
                 <DocumentHeader
@@ -114,10 +135,10 @@ watch(() => page.props.flash, (flash) => {
                     :item="item"
                     :is-editing="isEditing"
                     :is-saving="form.processing"
+                    save-button-class="w-24"
                     @back="handleBack"
                     @toggle-edit="toggleEdit"
                     @delete="isDeleteModalOpen = true"
-                    save-label="Update Document"
                     @save="handleFormSubmit"
                 />
             </template>
@@ -144,6 +165,7 @@ watch(() => page.props.flash, (flash) => {
                         :commentable-id="item.id"
                         :mentionable-users="project.client?.organization?.users ?? []"
                         :read-only="project.inactive"
+                        :project-id="project.id"
                     />
                 </div>
             </template>
@@ -154,12 +176,13 @@ watch(() => page.props.flash, (flash) => {
                     :project="project"
                     :document-type-catalog="documentTypeCatalog"
                     :uses-external-due-dates="usesExternalDueDates"
-                    :needs-reprocess="needsReprocess"
+                    :is-reprocessable="isReprocessable"
+                    :process-button-label="processButtonLabel"
                     :is-processing-live="isProcessingLive"
                     :processing-message="processingMessage"
                     v-model:dueAtProxy="dueAtProxy"
                     @change="(field, val) => updateField(item.id as string, field, val)"
-                    @request-process="isReprocessPromptOpen = true"
+                    @request-process="handleRequestProcess"
                 />
             </template>
         </DocumentLayoutWrapper>
@@ -175,7 +198,7 @@ watch(() => page.props.flash, (flash) => {
 
         <ReprocessPromptModal
             :open="isReprocessPromptOpen"
-            description="Reprocessing will regenerate this document's output from its current content, overwriting anything previously generated."
+            :description="reprocessDescription(item)"
             :loading="isReprocessing"
             @confirm="confirmReprocess"
             @close="isReprocessPromptOpen = false"

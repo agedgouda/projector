@@ -345,7 +345,7 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                                         {{ doc.name }}
                                     </span>
                                     <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">
-                                        Action Items
+                                        Meeting Notes
                                     </span>
                                     <span v-if="doc.project_name" class="text-[10px] text-slate-400 shrink-0">
                                         {{ doc.project_name }}<template v-if="doc.client_name"> · {{ doc.client_name }}</template>

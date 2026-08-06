@@ -1,4 +1,4 @@
-import { ref, nextTick, onBeforeUnmount } from 'vue';
+import { ref, nextTick, onBeforeUnmount, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { toast } from 'vue-sonner';
@@ -27,6 +27,31 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     // classification as the project tree view (see useAiProcessing.ts).
     const isProcessingLive = ref(false);
     const processingMessage = ref<string | null>(null);
+    const aiProgress = ref<number>(0);
+    let creepInterval: ReturnType<typeof setInterval> | null = null;
+
+    // Same "creep" animation as useAiProcessing.ts: nudges the bar forward on its own between
+    // broadcasts so it doesn't sit dead still during any gap, capped short of the next real
+    // checkpoint so an actual update always visibly overtakes it.
+    const stopCreep = () => {
+        if (creepInterval) {
+            clearInterval(creepInterval);
+            creepInterval = null;
+        }
+    };
+
+    watch(aiProgress, (newVal) => {
+        stopCreep();
+        if (newVal > 0 && newVal < 90) {
+            creepInterval = setInterval(() => {
+                if (aiProgress.value < newVal + 15 && aiProgress.value < 95) {
+                    aiProgress.value += 0.5;
+                }
+            }, 1000);
+        }
+    });
+
+    onBeforeUnmount(stopCreep);
 
     let processingPollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -50,6 +75,8 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const clearProcessingState = () => {
         isProcessingLive.value = false;
         processingMessage.value = null;
+        aiProgress.value = 0;
+        stopCreep();
         stopProcessingPoll();
     };
 
@@ -63,13 +90,20 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
 
             const message = String(payload.statusMessage);
             const msg = message.toLowerCase();
+            const newProgress = Number(payload.progress || 0);
             const isError = msg.includes('error') || msg.includes('failed');
-            const isSuccess = (msg.includes('success') || Number(payload.progress) === 100) && !isError;
+            const isSuccess = (msg.includes('success') || newProgress === 100) && !isError;
 
             if (isError) {
                 clearProcessingState();
                 toast.error(message);
                 return;
+            }
+
+            if (isSuccess) {
+                aiProgress.value = 100;
+            } else if (newProgress > aiProgress.value) {
+                aiProgress.value = newProgress;
             }
 
             processingMessage.value = message;
@@ -191,6 +225,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
 
             isProcessingLive.value = true;
             processingMessage.value = 'Starting...';
+            aiProgress.value = 5;
             startProcessingPoll();
         } catch (error) {
             if (redirectIfSessionExpiredError(error)) return;
@@ -229,6 +264,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         isReprocessing,
         isProcessingLive,
         processingMessage,
+        aiProgress,
         toggleEdit,
         handleFormSubmit,
         confirmDeletion,

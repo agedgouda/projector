@@ -6,6 +6,7 @@ use App\Http\Controllers\BugReportController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientLogoController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\ContentUploadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FaqController;
@@ -242,6 +243,9 @@ Route::middleware(['auth'])->group(function () {
             Route::match(['get', 'post'], '/documents/search', [DocumentController::class, 'search'])
                 ->middleware('throttle:30,1')
                 ->name('documents.search');
+            Route::post('/content-uploads', [ContentUploadController::class, 'store'])
+                ->middleware('throttle:30,1')
+                ->name('content-uploads.store');
             Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
                 ->middleware('throttle:10,1')
                 ->name('documents.reprocess');

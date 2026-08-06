@@ -3,7 +3,7 @@
    1. Imports & Types
 ---------------------------- */
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { CopyPlus, FilePlus2 } from 'lucide-vue-next';
+import { FilePlus2 } from 'lucide-vue-next';
 import { computed, onMounted } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -11,6 +11,7 @@ import { toast } from 'vue-sonner';
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { Button } from '@/components/ui/button';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
+import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
@@ -72,7 +73,10 @@ const creatableDocumentTypes = computed(() =>
     ),
 );
 
-const isTaskType = computed(() => form.type === 'task');
+const { getDocLabel } = useDocumentPresenter(creatableDocumentTypes.value);
+const saveLabel = computed(
+    () => `Create ${getDocLabel(form.type) || 'Document'}`,
+);
 
 /* ---------------------------
    5. Action Handlers
@@ -91,45 +95,34 @@ const handleFormSubmit = () => {
     });
 };
 
-// "Save and New" / "Save and Copy" (task type only): save the current task, then land back
-// on this create-task form instead of the tasks board — store()'s existing `redirect` query
-// param is reused to send the post-save visit straight back here. Inertia reuses this page's
-// component instance across that round-trip rather than remounting it, so `form` still holds
-// the just-submitted values once `onSuccess` fires: "Save and Copy" leaves them in place,
-// "Save and New" explicitly clears them back to blank.
-const buildCreateTaskUrl = (): string => {
+// "Save and New": save the current document, then land back on this create form (still set
+// to the same type) instead of navigating away — store()'s existing `redirect` query param is
+// reused to send the post-save visit straight back here. Inertia reuses this page's component
+// instance across that round-trip rather than remounting it, so `form` still holds the
+// just-submitted values once `onSuccess` fires; the type is captured up front since
+// `form.reset()` would otherwise revert it to this page's original default type.
+const buildCreateUrl = (type: string): string => {
     const baseUrl = projectDocumentsRoutes.create({
         project: props.project.id,
     }).url;
-    return `${baseUrl}?${new URLSearchParams({ type: 'task' }).toString()}`;
+    return `${baseUrl}?${new URLSearchParams({ type }).toString()}`;
 };
 
-const saveAndRedirectToCreateTask = () => {
+const saveAndRedirectToCreate = (type: string) => {
     const storeUrl = projectDocumentsRoutes.store({
         project: props.project.id,
     }).url;
-    const finalUrl = `${storeUrl}?${new URLSearchParams({ redirect: buildCreateTaskUrl() }).toString()}`;
-
-    return finalUrl;
+    return `${storeUrl}?${new URLSearchParams({ redirect: buildCreateUrl(type) }).toString()}`;
 };
 
 const handleSaveAndNew = () => {
-    form.post(saveAndRedirectToCreateTask(), {
+    const currentType = form.type;
+    form.post(saveAndRedirectToCreate(currentType), {
         onSuccess: () => {
-            toast.success('Task created — ready for the next one.');
+            toast.success('Document created — ready for the next one.');
             form.reset();
             form.clearErrors();
-            form.type = 'task';
-        },
-        onError: () => toast.error('Please correct the errors.'),
-    });
-};
-
-const handleSaveAndCopy = () => {
-    form.post(saveAndRedirectToCreateTask(), {
-        onSuccess: () => {
-            toast.success('Task created — copy ready to edit.');
-            form.clearErrors();
+            form.type = currentType;
         },
         onError: () => toast.error('Please correct the errors.'),
     });
@@ -164,13 +157,13 @@ const updateFormValue = (field: string, val: any) => {
                     :project="project"
                     :item="draftItem"
                     :is-editing="true"
-                    save-label="Create Document"
+                    :save-label="saveLabel"
                     :is-saving="form.processing"
                     @back="handleCancel"
                     @toggle-edit="handleCancel"
                     @save="handleFormSubmit"
                 >
-                    <template v-if="isTaskType" #extra-actions>
+                    <template #extra-actions>
                         <Button
                             variant="outline"
                             size="sm"
@@ -180,16 +173,6 @@ const updateFormValue = (field: string, val: any) => {
                         >
                             <FilePlus2 class="mr-1.5 h-3 w-3" />
                             Save and New
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            :disabled="form.processing"
-                            @click="handleSaveAndCopy"
-                            class="h-8 px-4 text-[10px] font-black tracking-widest uppercase"
-                        >
-                            <CopyPlus class="mr-1.5 h-3 w-3" />
-                            Save and Copy
                         </Button>
                     </template>
                 </DocumentHeader>
@@ -206,6 +189,7 @@ const updateFormValue = (field: string, val: any) => {
                         :mentionable-users="
                             project.client?.organization?.users ?? []
                         "
+                        :project-id="project.id"
                         @submit="handleFormSubmit"
                         @cancel="handleCancel"
                     />
