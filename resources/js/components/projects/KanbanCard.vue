@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
     KANBAN_UI,
-    dueDateCardBackground,
+    dueDateCardBorderColor,
     getAvatarAppearance,
     getPriorityStyles,
     kanbanCardBg,
@@ -18,10 +18,11 @@ const emit = defineEmits(['open']);
 const getInitials = (user: any) =>
     (user.first_name?.[0] || '') + (user.last_name?.[0] || '') || user.name[0];
 
-// Cards are tinted by due-date urgency (green -> yellow -> red) instead of column color;
-// cards with no due date (and not in the "done" column) fall back to the column's tint.
-const dueDateBg = computed(() =>
-    dueDateCardBackground(props.doc, props.column),
+// Card background is always the neutral gray tint, regardless of column color; only
+// the border is tinted by due-date urgency (red -> yellow), falling back to the
+// default border once the due date is more than 2 days out, in the "done" column, or unset.
+const dueDateBorder = computed(() =>
+    dueDateCardBorderColor(props.doc, props.column),
 );
 </script>
 
@@ -29,10 +30,10 @@ const dueDateBg = computed(() =>
     <div
         :class="[
             KANBAN_UI.card,
-            !dueDateBg ? kanbanCardBg[column.color ?? 'slate'] : '',
+            kanbanCardBg.slate,
             'group p-5 hover:border-projector-primary-200',
         ]"
-        :style="dueDateBg ? { backgroundColor: dueDateBg } : undefined"
+        :style="dueDateBorder ? { borderColor: dueDateBorder } : undefined"
         tabindex="0"
         role="button"
         :aria-label="`Open task: ${doc.name}`"

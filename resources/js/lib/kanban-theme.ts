@@ -63,15 +63,13 @@ export const kanbanCardBg: Record<string, string> = {
 };
 
 /**
- * Card background driven by due-date urgency rather than column color: green when the
- * due date is more than 2 days out, sliding through yellow as it approaches, red once
- * the due date has arrived (or passed). Cards in the "done" column are always green,
- * and cards with no due date fall back to the column's own color (`kanbanCardBg`).
+ * Card background always uses the column's static color (`kanbanCardBg`). Only the
+ * border reflects due-date urgency: red once the due date has arrived (or passed),
+ * sliding through yellow as it approaches. More than 2 days out, in the "done" column,
+ * or with no due date at all, the border falls back to the card's static default.
  */
 const DUE_DATE_RED: [number, number, number] = [239, 68, 68]; // red-500
 const DUE_DATE_YELLOW: [number, number, number] = [251, 191, 36]; // amber-400
-const DUE_DATE_GREEN: [number, number, number] = [16, 185, 129]; // emerald-500
-const DUE_DATE_BG_OPACITY = 0.14;
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
@@ -106,27 +104,24 @@ const daysUntil = (dueAt: string): number => {
     );
 };
 
-export const dueDateCardBackground = (
+export const dueDateCardBorderColor = (
     doc: { due_at: string | null },
     column: { key: string },
 ): string | null => {
-    if (column.key === 'done') {
-        return toRgba(DUE_DATE_GREEN, DUE_DATE_BG_OPACITY);
-    }
-
-    if (!doc.due_at) {
+    if (column.key === 'done' || !doc.due_at) {
         return null;
     }
 
     const days = daysUntil(doc.due_at);
-    const rgb =
-        days <= 0
-            ? DUE_DATE_RED
-            : days > 2
-              ? DUE_DATE_GREEN
-              : lerpRgb(DUE_DATE_RED, DUE_DATE_YELLOW, days / 2);
 
-    return toRgba(rgb, DUE_DATE_BG_OPACITY);
+    if (days > 2) {
+        return null;
+    }
+
+    const rgb =
+        days <= 0 ? DUE_DATE_RED : lerpRgb(DUE_DATE_RED, DUE_DATE_YELLOW, days / 2);
+
+    return toRgba(rgb, 1);
 };
 
 /**
