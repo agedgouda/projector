@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { ChevronRight, FileText, Folder, CheckSquare, Eye, Sparkles, RefreshCw, GitBranch } from 'lucide-vue-next';
+import { ChevronRight, FileText, Folder, CheckSquare, Sparkles, RefreshCw, GitBranch } from 'lucide-vue-next';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { kanbanDotClasses, priorityDotClasses, PRIORITY_LABELS } from '@/lib/constants';
@@ -53,8 +53,13 @@ const isLocked = computed(() => !!props.item.locked_project_type_id);
 // A locked document only has something to (re)process if its locked protocol
 // still defines a next workflow step for its own type — otherwise it's a
 // terminal deliverable and reprocessing would never produce a new child.
+// A document with no single, unambiguous next step of its own (see useWorkflow's INTAKE_KEY
+// note) is still reprocessable once it's been run through a Transform at least once — reprocess
+// then means "re-run that exact same transformation again" (see Document::lastAiTemplate()).
 const isReprocessable = computed(() =>
-    props.reprocessableTypes.has(props.item.type) || (isLocked.value && !!props.item.locked_next_workflow_step_exists)
+    props.reprocessableTypes.has(props.item.type)
+    || (isLocked.value && !!props.item.locked_next_workflow_step_exists)
+    || !!props.item.last_ai_template_id
 );
 const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.item.id) ? 'Reprocess' : 'Process');
 
@@ -70,7 +75,7 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
 <template>
     <div class="flex flex-col">
         <div
-            class="group relative flex items-center gap-2.5 h-9 pr-2 rounded-md cursor-pointer transition-colors"
+            class="group relative flex items-center gap-2.5 min-h-9 pr-2 rounded-md cursor-pointer transition-colors"
             :class="isSelected ? FLAT_ROW_SELECTED : FLAT_ROW_HOVER"
             @click="goToDetails"
         >
@@ -94,10 +99,14 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
 
             <div class="flex-1 flex items-center gap-2.5 min-w-0">
                 <span
-                    class="text-[13px] truncate"
+                    class="text-[13px]"
                     :class="[
                         level === 0 ? 'font-bold' : 'font-medium',
-                        isProcessing ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'
+                        isProcessing ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100',
+                        // Long titles are allowed to wrap onto multiple lines (growing the row)
+                        // when the window gets too narrow, rather than truncating with an
+                        // ellipsis — short titles keep the single-line truncate behavior always.
+                        item.name.length > 60 ? 'whitespace-normal break-words' : 'truncate'
                     ]"
                 >
                     {{ item.name }}
@@ -117,35 +126,7 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 </span>
             </div>
 
-            <button
-                v-if="isReprocessable && !isReadOnly"
-                type="button"
-                :disabled="item.currentStatus || item.processed_at === null"
-                class="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-projector-highlight-600 dark:text-projector-highlight-400 hover:bg-projector-highlight-50 dark:hover:bg-projector-highlight-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 ml-2"
-                @click.stop="emit('handleReprocess', item.id)"
-            >
-                <Sparkles class="w-3.5 h-3.5" />
-                <span class="text-[9px] font-black uppercase tracking-widest">{{ processButtonLabel }}</span>
-            </button>
-
-            <Popover v-if="!isReadOnly && !isLocked && !isTask && !isNotes" v-model:open="isTransformOpen">
-                <PopoverTrigger as-child>
-                    <button
-                        type="button"
-                        :disabled="!!item.currentStatus || item.processed_at === null"
-                        class="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 ml-1"
-                        @click.stop
-                    >
-                        <GitBranch class="w-3.5 h-3.5" />
-                        <span class="text-[9px] font-black uppercase tracking-widest">Transform</span>
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent align="center" class="p-0" @click.stop>
-                    <TransformPicker :project-id="String(item.project_id)" :document-id="String(item.id)" @run="handleRunTransform" />
-                </PopoverContent>
-            </Popover>
-
-            <div class="hidden md:flex items-center gap-3 shrink-0 ml-3">
+            <div class="hidden md:flex items-center shrink-0 ml-3">
                 <div
                     v-if="leadUser"
                     :class="[
@@ -158,8 +139,53 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 <div v-else class="h-6 w-6 rounded-full border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center">
                     <span class="text-[8px] font-bold text-slate-300">--</span>
                 </div>
+            </div>
 
-                <template v-if="isTask">
+            <button
+                v-if="isReprocessable && !isReadOnly"
+                type="button"
+                :disabled="item.currentStatus || item.processed_at === null"
+                class="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-projector-highlight-600 dark:text-projector-highlight-400 hover:bg-projector-highlight-50 dark:hover:bg-projector-highlight-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 ml-2"
+                @click.stop="emit('handleReprocess', item.id)"
+            >
+                <Sparkles class="w-3.5 h-3.5" />
+                <span class="text-[9px] font-black uppercase tracking-widest">{{ processButtonLabel }}</span>
+            </button>
+
+            <!-- Rendered (but made invisible) whenever this row could ever show Reprocess without
+                 Transform (i.e. any non-task row — Notes or a locked/terminal document) so its
+                 width is still reserved — otherwise Reprocess would sit one slot further right on
+                 rows without a Transform button (e.g. Notes) than on rows with one (e.g. Action
+                 Items), leaving the two out of alignment between parent/child rows in the tree. -->
+            <Popover v-if="!isReadOnly && !isTask" v-model:open="isTransformOpen">
+                <PopoverTrigger as-child>
+                    <button
+                        type="button"
+                        :disabled="!!item.currentStatus || item.processed_at === null"
+                        :tabindex="(!isLocked && !isNotes) ? undefined : -1"
+                        :class="[
+                            'h-7 px-2.5 flex items-center gap-1.5 rounded-md text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 ml-1',
+                            (!isLocked && !isNotes) ? '' : 'invisible pointer-events-none'
+                        ]"
+                        @click.stop
+                    >
+                        <GitBranch class="w-3.5 h-3.5" />
+                        <span class="text-[9px] font-black uppercase tracking-widest">Transform</span>
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="center" class="p-0" @click.stop>
+                    <TransformPicker :project-id="String(item.project_id)" :document-id="String(item.id)" @run="handleRunTransform" />
+                </PopoverContent>
+            </Popover>
+
+            <!-- Priority/status sit at their own natural (tight) width, packed close to the
+                 avatar, instead of each being forced into a column as wide as Reprocess/Transform
+                 (which is what caused the big gaps before). The 10px mr- was measured directly
+                 against Transform's own right-justified text edge (both status and Transform use
+                 the row's shared right-anchoring, so this offset is stable — re-measure it if
+                 Transform's label, padding, or icon size ever changes). -->
+            <template v-if="isTask">
+                <div class="hidden md:flex items-center gap-3 shrink-0 ml-2 mr-[10px]">
                     <div v-if="item.priority" class="flex items-center gap-1.5">
                         <span :class="['w-1.5 h-1.5 rounded-full shrink-0', priorityDotClasses[item.priority] ?? priorityDotClasses.low]"></span>
                         <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ PRIORITY_LABELS[item.priority] ?? item.priority }}</span>
@@ -168,19 +194,8 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                         <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[currentColumn?.color ?? 'slate']]"></span>
                         <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ currentColumn?.label ?? item.task_status ?? 'todo' }}</span>
                     </div>
-                </template>
-            </div>
-
-            <div class="flex items-center gap-1 shrink-0 ml-2">
-                <button
-                    type="button"
-                    class="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-colors"
-                    title="Open details"
-                    @click.stop="goToDetails"
-                >
-                    <Eye class="w-3.5 h-3.5" />
-                </button>
-            </div>
+                </div>
+            </template>
         </div>
 
         <div v-if="isTreeExpanded && item.children?.length" class="relative pl-7">

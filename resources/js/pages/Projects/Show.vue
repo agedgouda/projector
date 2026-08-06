@@ -22,7 +22,7 @@ import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
-import { useWorkflow } from '@/composables/useWorkflow';
+import { useWorkflow, reprocessDescription } from '@/composables/useWorkflow';
 import { setPersistentCookie } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import projectRoutes from '@/routes/projects/index';
@@ -32,6 +32,7 @@ import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
 import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
+import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import ProjectCalendar from '@/components/projects/ProjectCalendar.vue';
 import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
 
@@ -180,6 +181,8 @@ const onImportQueued = () => {
     setPersistentCookie('last_active_tab', 'hierarchy');
 };
 
+const reprocessConfirmDoc = ref<UIProjectDocument | null>(null);
+
 const handleReprocess = (id: string | number) => {
     const stringId = id.toString();
     const doc = allDocs.value.find((d) => d.id.toString() === stringId) as
@@ -188,9 +191,25 @@ const handleReprocess = (id: string | number) => {
 
     if (!doc) return;
 
-    aiProgress.value = 5;
-    void setDocToProcessing(doc);
     isSheetOpen.value = false;
+
+    // Nothing would be overwritten yet, so there's nothing to confirm.
+    if (!aiProcessedParentIds.value.has(stringId)) {
+        aiProgress.value = 5;
+        void setDocToProcessing(doc);
+        return;
+    }
+
+    reprocessConfirmDoc.value = doc;
+};
+
+const executeReprocess = (oneOffInstructions: string | null = null) => {
+    const doc = reprocessConfirmDoc.value;
+    reprocessConfirmDoc.value = null;
+    if (!doc) return;
+
+    aiProgress.value = 5;
+    void setDocToProcessing(doc, oneOffInstructions);
 };
 
 const handleTransition = (
@@ -539,6 +558,14 @@ watch(
                         'Changes saved',
                     )
             "
+        />
+
+        <ReprocessPromptModal
+            :open="!!reprocessConfirmDoc"
+            title="Reprocess Document?"
+            :description="reprocessDescription(reprocessConfirmDoc)"
+            @close="reprocessConfirmDoc = null"
+            @confirm="executeReprocess"
         />
     </AppLayout>
 </template>

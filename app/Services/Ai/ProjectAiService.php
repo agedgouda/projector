@@ -122,6 +122,7 @@ class ProjectAiService
             $result['output_type'] = $strategy->getOutputDocumentType();
             $result['single_output'] = $singleOutput;
             $result['locked_project_type_id'] = $lockedProjectTypeId;
+            $result['ai_template_id'] = $template->id;
         }
 
         return $result;

@@ -29,3 +29,18 @@ export function useWorkflow() {
         canReprocess
     };
 }
+
+/**
+ * The Reprocess confirmation modal's message — names the exact transformation that will be
+ * re-run once a document has one on record (see Document::lastAiTemplate()), falling back to
+ * the older generic wording for documents that predate that tracking or were never processed.
+ */
+export function reprocessDescription(doc: { name?: string; last_ai_template?: { name: string } | null } | null | undefined): string {
+    if (!doc) return '';
+
+    if (doc.last_ai_template?.name) {
+        return `This will rerun "${doc.last_ai_template.name}" and overwrite the current output. This action cannot be undone.`;
+    }
+
+    return `This will re-run the AI on "${doc.name}" and overwrite the current content. This action cannot be undone.`;
+}

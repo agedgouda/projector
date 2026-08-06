@@ -5,7 +5,7 @@ import { Search } from 'lucide-vue-next';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useProjectState } from '@/composables/useProjectState';
 import { useAiProcessing } from '@/composables/useAiProcessing';
-import { useWorkflow } from '@/composables/useWorkflow';
+import { useWorkflow, reprocessDescription } from '@/composables/useWorkflow';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 
 // UI Components
@@ -298,7 +298,7 @@ onMounted(() => {
     <ReprocessPromptModal
         :open="!!reprocessConfirmDoc"
         title="Reprocess Document?"
-        :description="`This will re-run the AI on &quot;${reprocessConfirmDoc?.name}&quot; and overwrite the current content. This action cannot be undone.`"
+        :description="reprocessDescription(reprocessConfirmDoc)"
         @close="reprocessConfirmDoc = null"
         @confirm="executeReprocess"
     />

@@ -341,6 +341,54 @@ it('reprocessing a locked document uses the locked protocol\'s own next step aut
     expect($child->locked_project_type_id)->toBe($this->projectType->id);
 });
 
+it('reprocessing a document previously transformed via a direct pick re-runs that exact same template', function () {
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Do the thing', 'task' => 'Follow up', 'criteria' => []],
+            ],
+        ]);
+
+    // QUEUE_CONNECTION=sync in tests, so this POST runs ProcessDocumentAI::handle() inline,
+    // recording last_ai_template_id/last_output_key on $this->document.
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'to_key' => 'task',
+            'ai_template_id' => $this->template->id,
+        ])
+        ->assertSuccessful();
+
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]))
+        ->assertSuccessful();
+
+    Queue::assertPushed(
+        ProcessDocumentAI::class,
+        fn ($job) => $job->document->is($this->document)
+            && $job->overrideStep['to_key'] === 'task'
+            && $job->overrideStep['ai_template_id'] === $this->template->id
+            && $job->overrideStep['project_type_id'] === null
+    );
+});
+
+it('reprocess has no override step for a document that has never been transformed', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]))
+        ->assertSuccessful();
+
+    Queue::assertPushed(
+        ProcessDocumentAI::class,
+        fn ($job) => $job->document->is($this->document) && $job->overrideStep === null
+    );
+});
+
 it('rejects an ai_template_id that does not exist', function () {
     Queue::fake([ProcessDocumentAI::class]);
 

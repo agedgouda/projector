@@ -19,6 +19,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property User|null $assignee
  * @property string|null $locked_project_type_id
  * @property string|null $custom_prompt
+ * @property int|null $last_ai_template_id
+ * @property string|null $last_output_key
+ * @property AiTemplate|null $lastAiTemplate
  * @property \Illuminate\Support\Carbon|null $content_updated_at
  */
 class Document extends Model implements HasMedia
@@ -41,6 +44,7 @@ class Document extends Model implements HasMedia
         'editor_id' => 'integer',
         'assignee_id' => 'integer',
         'pending_assignee_invitation_id' => 'integer',
+        'last_ai_template_id' => 'integer',
     ];
 
     protected $hidden = ['embedding'];
@@ -65,6 +69,8 @@ class Document extends Model implements HasMedia
         'external_due_at',
         'locked_project_type_id',
         'custom_prompt',
+        'last_ai_template_id',
+        'last_output_key',
     ];
 
     /**
@@ -118,6 +124,19 @@ class Document extends Model implements HasMedia
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Document::class, 'parent_id');
+    }
+
+    /**
+     * The AI template that most recently generated this document's children — via the
+     * universal intake step, a locked protocol's workflow step, or a manually chosen Transform.
+     * Lets Reprocess re-run "whatever last produced output from this document" even for types
+     * with no single, unambiguous next step of their own (see ProjectAiService::process()).
+     *
+     * @return BelongsTo<AiTemplate, $this>
+     */
+    public function lastAiTemplate(): BelongsTo
+    {
+        return $this->belongsTo(AiTemplate::class, 'last_ai_template_id');
     }
 
     /**

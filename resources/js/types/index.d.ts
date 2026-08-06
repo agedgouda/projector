@@ -158,6 +158,7 @@ declare global {
         locked_next_workflow_step_exists?: boolean;
         content_updated_at?: string | null;
         custom_prompt?: string | null;
+        last_ai_template_id?: number | null;
 
         // Relationships
         creator?: User;
@@ -167,6 +168,7 @@ declare global {
         project?: Partial<Project>;
         children?: ProjectDocument[];
         tasks?: Task[];
+        last_ai_template?: { id: number; name: string } | null;
 
         embedding: any | null;
         metadata: DocumentMetadata;

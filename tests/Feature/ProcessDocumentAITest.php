@@ -493,6 +493,54 @@ it('uses the single-document path for a direct override when the template itself
     expect($result['mock_response']['content'])->toBe("# Scope\n\n- Item one");
 });
 
+it('records the ai template and output key that produced a document\'s children', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Item', 'task' => 'Do it', 'criteria' => []],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $document->refresh();
+    expect($document->last_ai_template_id)->toBe($templateA->id);
+    expect($document->last_output_key)->toBe('task');
+});
+
+it('clears last_ai_template_id when a run produces no ai_template_id (e.g. a custom-prompt run)', function () {
+    $document = createReprocessableDocument();
+    $document->update(['last_ai_template_id' => AiTemplate::create([
+        'name' => 'Stale Template',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => 'y',
+    ])->id, 'last_output_key' => 'stale_key']);
+
+    $this->mock(ProjectAiService::class, function ($mock) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'action_items',
+            'single_output' => true,
+            'mock_response' => ['title' => 'Cleaned Notes', 'content' => 'Body'],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $document->refresh();
+    expect($document->last_ai_template_id)->toBeNull();
+    expect($document->last_output_key)->toBeNull();
+});
+
 it('returns null when no override is given and the document is not locked to a protocol', function () {
     [$document] = createActionItemsDocumentWithTemplates();
 

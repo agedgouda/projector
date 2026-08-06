@@ -120,8 +120,13 @@ const handleUpdate = (field: string, value: any) => {
 // A locked document only has something to (re)process if its locked protocol still defines
 // a next workflow step for its own type — otherwise it's a terminal deliverable and
 // reprocessing would never produce a new child.
+// A document with no single, unambiguous next step of its own (see useWorkflow's INTAKE_KEY
+// note) is still reprocessable once it's been run through a Transform at least once — reprocess
+// then means "re-run that exact same transformation again" (see Document::lastAiTemplate()).
 const isReprocessable = computed(() =>
-    props.reprocessableTypes.has(props.document.type) || (isLocked.value && !!props.document.locked_next_workflow_step_exists)
+    props.reprocessableTypes.has(props.document.type)
+    || (isLocked.value && !!props.document.locked_next_workflow_step_exists)
+    || !!props.document.last_ai_template_id
 );
 const processButtonLabel = computed(() => props.aiProcessedParentIds.has(props.document.id as string) ? 'Reprocess' : 'Process');
 </script>

@@ -155,7 +155,11 @@ class ProcessDocumentAI implements ShouldQueue
                 }
             }
 
-            $this->document->update(['processed_at' => now()]);
+            $this->document->update([
+                'processed_at' => now(),
+                'last_ai_template_id' => $result['ai_template_id'] ?? null,
+                'last_output_key' => isset($result['ai_template_id']) ? $outputType : null,
+            ]);
         });
 
         Cache::lock(self::lockKey($this->document->id))->forceRelease();

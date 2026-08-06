@@ -298,7 +298,25 @@ class DocumentController extends Controller
             'one_off_instructions' => 'nullable|string',
         ]);
 
-        if (! \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document, null, $validated['one_off_instructions'] ?? null)) {
+        // ProjectAiService::process() only auto-resolves a transition for an intake document or
+        // one locked to a protocol — anything else has no single, unambiguous next step of its
+        // own (see its final else-branch) unless it's already been run through one before, in
+        // which case re-running that exact same template is the only sensible meaning of
+        // "reprocess" for it (see Document::lastAiTemplate()).
+        $overrideStep = null;
+        if ($document->type !== config('workflow.intake_key')
+            && ! $document->locked_project_type_id
+            && $document->last_ai_template_id
+            && $document->last_output_key) {
+            $overrideStep = [
+                'to_key' => $document->last_output_key,
+                'ai_template_id' => $document->last_ai_template_id,
+                'single_output' => false,
+                'project_type_id' => null,
+            ];
+        }
+
+        if (! \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document, $overrideStep, $validated['one_off_instructions'] ?? null)) {
             return response()->json(['message' => 'This document is already being processed.'], 409);
         }
 
