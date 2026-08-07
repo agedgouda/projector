@@ -28,6 +28,8 @@ class OrganizationRegistrationController extends Controller
         return Inertia::render('auth/OrganizationRegister', [
             'organization' => $organization->only('id', 'name'),
             'invitedEmail' => $invitation?->email,
+            'invitedFirstName' => $invitation?->first_name,
+            'invitedLastName' => $invitation?->last_name,
             'invitationToken' => $invitation?->token,
         ]);
     }

@@ -63,6 +63,15 @@ class UserCollection extends Collection
             'organization_id' => $orgId,
             'organization_name' => $orgName ?? 'System Access',
             'row_key' => $user->id.'-'.($orgId ?? 'global'),
+            // Every real User row currently always has a password — the column is NOT
+            // NULL at the schema level, and both places that create one (Fortify's
+            // CreateNewUser, OrganizationRegistrationController::store) always set it.
+            // Pending invitations (see OrgInvitationTable.vue) are the only "person" who
+            // doesn't have one yet, which is what UserInfo.vue's dimmed-avatar check
+            // keys off of. If a future flow ever creates an account placeholder before a
+            // password is set, this should become a real `$user->password !== null`
+            // check (and the column would need to allow null).
+            'has_password' => true,
         ];
     }
 

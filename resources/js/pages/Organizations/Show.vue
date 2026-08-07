@@ -150,7 +150,7 @@ const cancelBillingWarning = () => {
     pendingUserAction.value = null;
 };
 
-const inviteForm = useForm({ email: '', role: 'team-member' });
+const inviteForm = useForm({ first_name: '', last_name: '', email: '', role: 'team-member' });
 
 const submitInvite = (orgId: string) => {
     inviteForm.post(inviteUser(orgId).url, {
@@ -372,9 +372,34 @@ const submitInvite = (orgId: string) => {
             <DialogContent class="sm:max-w-[400px]">
                 <DialogHeader>
                     <DialogTitle>Invite User to {{ currentOrg.name }}</DialogTitle>
-                    <DialogDescription>Enter an email address to send an invitation link.</DialogDescription>
+                    <DialogDescription>Enter their name and email address to send an invitation link. If that email is already registered, they'll be added to the organization directly instead.</DialogDescription>
                 </DialogHeader>
                 <form @submit.prevent="submitInvite(currentOrg.id)" class="grid gap-4 pt-2">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label for="invite-first-name">First name</Label>
+                            <Input
+                                id="invite-first-name"
+                                v-model="inviteForm.first_name"
+                                type="text"
+                                placeholder="Jane"
+                                required
+                                autofocus
+                            />
+                            <InputError :message="inviteForm.errors.first_name" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="invite-last-name">Last name</Label>
+                            <Input
+                                id="invite-last-name"
+                                v-model="inviteForm.last_name"
+                                type="text"
+                                placeholder="Doe"
+                                required
+                            />
+                            <InputError :message="inviteForm.errors.last_name" />
+                        </div>
+                    </div>
                     <div class="grid gap-2">
                         <Label for="invite-email">Email address</Label>
                         <Input
@@ -383,7 +408,6 @@ const submitInvite = (orgId: string) => {
                             type="email"
                             placeholder="email@example.com"
                             required
-                            autofocus
                         />
                         <InputError :message="inviteForm.errors.email" />
                     </div>

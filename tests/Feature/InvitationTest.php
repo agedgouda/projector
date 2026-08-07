@@ -28,7 +28,7 @@ it('forbids a regular member from sending an invitation for the organization', f
     $this->org->users()->attach($regularMember->id, ['role' => 'team-member']);
 
     $this->actingAs($regularMember)
-        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'New', 'last_name' => 'User', 'email' => 'newuser@example.com', 'role' => 'team-member'])
         ->assertNotFound();
 
     Mail::assertNothingSent();
@@ -40,7 +40,7 @@ it('forbids a user unrelated to the organization from sending an invitation for 
     $outsider = User::factory()->create();
 
     $this->actingAs($outsider)
-        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'New', 'last_name' => 'User', 'email' => 'newuser@example.com', 'role' => 'team-member'])
         ->assertNotFound();
 
     Mail::assertNothingSent();
@@ -54,7 +54,7 @@ it('allows a super-admin to send an invitation for any organization', function (
     $superAdmin->assignRole('super-admin');
 
     $this->actingAs($superAdmin)
-        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'New', 'last_name' => 'User', 'email' => 'newuser@example.com', 'role' => 'team-member'])
         ->assertRedirect();
 
     Mail::assertSent(OrganizationInvitationMail::class);
@@ -85,7 +85,7 @@ it('sends a registration link for a new email', function () {
     Mail::fake();
 
     $this->actingAs($this->orgAdmin)
-        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'New', 'last_name' => 'User', 'email' => 'newuser@example.com', 'role' => 'team-member'])
         ->assertRedirect();
 
     Mail::assertSent(OrganizationInvitationMail::class, function ($mail) {
@@ -93,22 +93,34 @@ it('sends a registration link for a new email', function () {
             && str_contains($mail->link, '/invite/');
     });
 
-    expect(OrganizationInvitation::where('email', 'newuser@example.com')->exists())->toBeTrue();
+    $invitation = OrganizationInvitation::where('email', 'newuser@example.com')->first();
+    expect($invitation)->not->toBeNull()
+        ->and($invitation->first_name)->toBe('New')
+        ->and($invitation->last_name)->toBe('User');
 });
 
-it('sends a login link for an existing user not in the org', function () {
+it('attaches an existing user directly instead of sending an invitation', function () {
     Mail::fake();
 
-    $existingUser = User::factory()->create(['email' => 'existing@example.com']);
+    $existingUser = User::factory()->create(['email' => 'existing@example.com', 'first_name' => 'Real', 'last_name' => 'Name']);
 
     $this->actingAs($this->orgAdmin)
-        ->post(route('organizations.invite', $this->org), ['email' => 'existing@example.com', 'role' => 'team-member'])
-        ->assertRedirect();
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'Typed', 'last_name' => 'Name', 'email' => 'existing@example.com', 'role' => 'project-lead'])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Typed Name (existing@example.com) is already registered and has been added to Acme Corp.');
 
-    Mail::assertSent(OrganizationInvitationMail::class, function ($mail) {
-        return $mail->hasTo('existing@example.com')
-            && str_contains($mail->link, '/invite/');
-    });
+    Mail::assertNothingSent();
+
+    expect(OrganizationInvitation::where('email', 'existing@example.com')->exists())->toBeFalse();
+
+    $pivot = $this->org->users()->where('user_id', $existingUser->id)->first()?->pivot;
+    expect($pivot)->not->toBeNull()
+        ->and($pivot->role)->toBe('project-lead');
+
+    // The typed name is never written back to the existing account.
+    $existingUser->refresh();
+    expect($existingUser->first_name)->toBe('Real')
+        ->and($existingUser->last_name)->toBe('Name');
 });
 
 it('returns an error if the user is already a member', function () {
@@ -118,7 +130,7 @@ it('returns an error if the user is already a member', function () {
     $this->org->users()->attach($member->id);
 
     $this->actingAs($this->orgAdmin)
-        ->post(route('organizations.invite', $this->org), ['email' => 'member@example.com', 'role' => 'team-member'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'Member', 'last_name' => 'Person', 'email' => 'member@example.com', 'role' => 'team-member'])
         ->assertSessionHasErrors('email');
 
     Mail::assertNotSent(OrganizationInvitationMail::class);
@@ -135,7 +147,7 @@ it('replaces an existing pending invitation for the same email', function () {
     ]);
 
     $this->actingAs($this->orgAdmin)
-        ->post(route('organizations.invite', $this->org), ['email' => 'newuser@example.com', 'role' => 'team-member'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'New', 'last_name' => 'User', 'email' => 'newuser@example.com', 'role' => 'team-member'])
         ->assertRedirect();
 
     expect(OrganizationInvitation::where('email', 'newuser@example.com')->count())->toBe(1);
@@ -236,7 +248,7 @@ it('rejects an expired invitation token', function () {
 });
 
 it('requires authentication to send an invitation', function () {
-    $this->post(route('organizations.invite', $this->org), ['email' => 'test@example.com', 'role' => 'team-member'])
+    $this->post(route('organizations.invite', $this->org), ['first_name' => 'Test', 'last_name' => 'User', 'email' => 'test@example.com', 'role' => 'team-member'])
         ->assertRedirect();
 
     $this->assertGuest();
@@ -246,7 +258,7 @@ it('stores the invited role on the invitation', function () {
     Mail::fake();
 
     $this->actingAs($this->orgAdmin)
-        ->post(route('organizations.invite', $this->org), ['email' => 'lead@example.com', 'role' => 'project-lead'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'Lead', 'last_name' => 'Person', 'email' => 'lead@example.com', 'role' => 'project-lead'])
         ->assertRedirect();
 
     expect(OrganizationInvitation::where('email', 'lead@example.com')->first()->role)->toBe('project-lead');
@@ -256,8 +268,64 @@ it('rejects an invalid role when inviting', function () {
     Mail::fake();
 
     $this->actingAs($this->orgAdmin)
-        ->post(route('organizations.invite', $this->org), ['email' => 'test@example.com', 'role' => 'super-villain'])
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'Test', 'last_name' => 'User', 'email' => 'test@example.com', 'role' => 'super-villain'])
         ->assertSessionHasErrors('role');
+});
+
+it('requires a first and last name when inviting', function () {
+    Mail::fake();
+
+    $this->actingAs($this->orgAdmin)
+        ->post(route('organizations.invite', $this->org), ['email' => 'test@example.com', 'role' => 'team-member'])
+        ->assertSessionHasErrors(['first_name', 'last_name']);
+
+    Mail::assertNothingSent();
+});
+
+it('includes name and role in the invitations list on the organization page', function () {
+    OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'shown@example.com',
+        'first_name' => 'Shown',
+        'last_name' => 'Person',
+        'role' => 'project-lead',
+        'token' => str_repeat('q', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->get(route('organizations.index', ['org' => $this->org->id]));
+
+    $response->assertOk();
+
+    $invitation = collect($response->original->getData()['page']['props']['invitations'])
+        ->firstWhere('email', 'shown@example.com');
+
+    expect($invitation)->not->toBeNull()
+        ->and($invitation['first_name'])->toBe('Shown')
+        ->and($invitation['last_name'])->toBe('Person')
+        ->and($invitation['role'])->toBe('project-lead');
+});
+
+it('prefills the registration form with the invited name', function () {
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'invited@example.com',
+        'first_name' => 'Invited',
+        'last_name' => 'Person',
+        'token' => str_repeat('p', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $this->get(route('organization.register', ['organization' => $this->org, 'invitation' => $invitation->token]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('auth/OrganizationRegister')
+            ->where('invitedEmail', 'invited@example.com')
+            ->where('invitedFirstName', 'Invited')
+            ->where('invitedLastName', 'Person')
+        );
 });
 
 it('assigns the invited role when a new user registers via invitation', function () {

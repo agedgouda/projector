@@ -25,6 +25,39 @@ export function useAiProcessing(
     const aiProgress = ref<number>(0);
     let creepInterval: ReturnType<typeof setInterval> | null = null;
 
+    // IDs of the child documents most recently created by a transform, so the generic
+    // per-child broadcasts each one sends while it finishes embedding ("Synthesizing
+    // Document Heuristics...", "Finalizing Vector Integration...") can be summarized as
+    // "N of M tasks" instead of displayed verbatim — otherwise the header just bounces
+    // between those two strings once per child with no indication of how many are left
+    // or that it's waiting on stragglers, which reads as stuck/broken near the end of a
+    // multi-task batch.
+    const batchDocIds = ref<Set<string>>(new Set());
+
+    const batchProgressMessage = (currentDocId?: string | number | null): string | null => {
+        if (batchDocIds.value.size === 0) return null;
+
+        const remaining = allDocs.value.filter(
+            (d) => batchDocIds.value.has(String(d.id)) && d.processed_at === null
+        ).length;
+
+        if (remaining === 0) return null;
+
+        const total = batchDocIds.value.size;
+        const countLabel = `${remaining} of ${total}`;
+
+        // Name the specific task this broadcast is actually about, not just the count —
+        // falls back to the count alone if the doc hasn't loaded into allDocs yet (a brief
+        // race right after the batch-creating reload kicks off).
+        const currentDocName = currentDocId != null
+            ? allDocs.value.find((d) => String(d.id) === String(currentDocId))?.name
+            : null;
+
+        return currentDocName
+            ? `Finalizing "${currentDocName}" (${countLabel})`
+            : `Finalizing ${countLabel}`;
+    };
+
     // --- 1. CLEANUP LOGIC ---
     const stopCreep = () => {
         if (creepInterval) {
@@ -122,6 +155,7 @@ export function useAiProcessing(
         if (!newVal) {
             aiProgress.value = 0;
             aiStatusMessage.value = '';
+            batchDocIds.value = new Set();
             stopCreep();
         }
     }, { immediate: true });
@@ -167,8 +201,14 @@ export function useAiProcessing(
                 aiProgress.value = newProgress;
             }
 
-            // Keep the message visible
-            aiStatusMessage.value = message;
+            // A generic per-child broadcast (not the batch's own success/error) for a
+            // document we know belongs to the just-created batch gets replaced with a
+            // "N of M tasks" summary — see batchProgressMessage above.
+            const isBatchChild = !isSuccess && !isError
+                && payload.document_id != null
+                && batchDocIds.value.has(String(payload.document_id));
+
+            aiStatusMessage.value = isBatchChild ? (batchProgressMessage(payload.document_id) ?? message) : message;
         }
 
         // 2. HANDLE DATA ARRIVAL (The Finish Line)
@@ -188,6 +228,7 @@ export function useAiProcessing(
         // Only IDs are broadcast (full documents can exceed the broadcaster's
         // payload limit), so pull the new records in via a partial reload.
         if (Array.isArray(payload.newDocumentIds) && payload.newDocumentIds.length) {
+            batchDocIds.value = new Set(payload.newDocumentIds.map(String));
             router.reload(reloadPropsOnNewDocuments?.length ? { only: reloadPropsOnNewDocuments } : {});
         }
 

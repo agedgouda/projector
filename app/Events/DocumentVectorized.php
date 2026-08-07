@@ -15,8 +15,11 @@ class DocumentVectorized implements ShouldBroadcastNow
 
     public function __construct(public Document $document)
     {
-        // Don't just trust the object passed in; refresh it from the DB
-        $this->document = $document->fresh();
+        // Don't just trust the object passed in; refresh it from the DB — but if the
+        // document has been deleted in the meantime (e.g. a concurrent reprocess
+        // replacing its parent's other children), fresh() returns null; fall back to
+        // what we were given rather than crash on assigning null to this property.
+        $this->document = $document->fresh() ?? $document;
     }
 
     public function broadcastOn(): array
@@ -37,8 +40,11 @@ class DocumentVectorized implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        // Since attempts are 0, a simple refresh is sufficient.
-        $this->document->refresh();
+        // Since attempts are 0, a simple refresh is sufficient — same null-safety as the
+        // constructor. Model::refresh() uses firstOrFail() internally and would throw if
+        // the document has since been deleted; fresh() degrades to null instead, so this
+        // broadcasts the last known state rather than crashing.
+        $this->document = $this->document->fresh() ?? $this->document;
 
         return [
             'document' => [

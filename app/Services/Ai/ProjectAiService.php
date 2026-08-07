@@ -40,8 +40,16 @@ class ProjectAiService
      *                                           prompt this run resolves to, for this run only. Never
      *                                           persisted anywhere; lives only in the queued job's
      *                                           payload for this one dispatch.
+     * @param  (callable(string): void)|null  $onOutputTypeResolved  Invoked once the output document
+     *                                                               type is known — which is a fast,
+     *                                                               local decision, well before this
+     *                                                               method ever calls out to the LLM —
+     *                                                               so the caller can broadcast a
+     *                                                               progress message naming that type
+     *                                                               immediately, instead of only after
+     *                                                               the (much slower) AI call returns.
      */
-    public function process(Document $document, ?array $overrideStep = null, ?string $oneOffInstructions = null)
+    public function process(Document $document, ?array $overrideStep = null, ?string $oneOffInstructions = null, ?callable $onOutputTypeResolved = null)
     {
         $document->loadMissing('project.client');
         $project = $document->project;
@@ -50,7 +58,7 @@ class ProjectAiService
             $step = $overrideStep + ['from_key' => $document->type];
             $lockedProjectTypeId = $overrideStep['project_type_id'] ?? null;
         } elseif (! empty($document->custom_prompt) && $project instanceof Project) {
-            return $this->processCustomPrompt($project, $document, $oneOffInstructions);
+            return $this->processCustomPrompt($project, $document, $oneOffInstructions, $onOutputTypeResolved);
         } elseif ($document->type === config('workflow.intake_key')) {
             $actionItemsKey = config('workflow.action_items_key');
             $templateId = config('workflow.intake_to_action_items_ai_template_id');
@@ -114,6 +122,10 @@ class ProjectAiService
         // authoritative regardless of whether this came from a protocol step or a direct pick.
         $singleOutput = (bool) $template->single_output;
 
+        if ($onOutputTypeResolved) {
+            $onOutputTypeResolved($outputKey);
+        }
+
         $result = $singleOutput
             ? $this->callLlmSingleDocument($project, $strategy, $document->content, $document, $oneOffInstructions)
             : $this->callLlm($project, $strategy, $document->content, $document, $outputKey, $oneOffInstructions);
@@ -146,7 +158,7 @@ class ProjectAiService
      *
      * @return array{project_name: string, mock_response: array{title: string, content: string}, status: string, output_type: string|null, single_output: bool, locked_project_type_id: null}
      */
-    protected function processCustomPrompt(Project $project, Document $document, ?string $oneOffInstructions = null): array
+    protected function processCustomPrompt(Project $project, Document $document, ?string $oneOffInstructions = null, ?callable $onOutputTypeResolved = null): array
     {
         $replacements = $this->buildReplacements($project, $document);
         $images = $this->extractImages((string) $document->content);
@@ -161,6 +173,11 @@ class ProjectAiService
 
         $userMessage = $instructions."\n\n---\n\n".$document->content;
         $systemPrompt = ltrim($this->withEnglishOnlyConstraint(''));
+
+        $actionItemsKey = config('workflow.action_items_key');
+        if (is_string($actionItemsKey) && $onOutputTypeResolved) {
+            $onOutputTypeResolved($actionItemsKey);
+        }
 
         $result = $this->llmDriver->completeFreeform($systemPrompt, $userMessage);
 
@@ -181,8 +198,6 @@ class ProjectAiService
         }
 
         [$title, $content] = $this->splitTitleAndContent((string) ($result['content'] ?? ''), (string) $document->name);
-
-        $actionItemsKey = config('workflow.action_items_key');
 
         return [
             'project_name' => $project->name,

@@ -15,6 +15,8 @@ import { Eye, EyeOff } from 'lucide-vue-next';
 defineProps<{
     organization: { id: string; name: string };
     invitedEmail?: string | null;
+    invitedFirstName?: string | null;
+    invitedLastName?: string | null;
     invitationToken?: string | null;
 }>();
 
@@ -51,6 +53,7 @@ const showPasswordConfirmation = ref(false);
                             autocomplete="given-name"
                             name="first_name"
                             placeholder="Jane"
+                            :model-value="invitedFirstName ?? undefined"
                         />
                         <InputError :message="errors.first_name" />
                     </div>
@@ -65,6 +68,7 @@ const showPasswordConfirmation = ref(false);
                             autocomplete="family-name"
                             name="last_name"
                             placeholder="Doe"
+                            :model-value="invitedLastName ?? undefined"
                         />
                         <InputError :message="errors.last_name" />
                     </div>

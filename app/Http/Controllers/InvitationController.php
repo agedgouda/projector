@@ -22,6 +22,8 @@ class InvitationController extends Controller
         Gate::authorize('manageUsers', $organization);
 
         $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'role' => ['required', 'string', 'in:team-member,project-lead,org-admin'],
         ]);
@@ -39,9 +41,24 @@ class InvitationController extends Controller
             ->where('email', $email)
             ->delete();
 
+        // An account for this email already exists — attach it directly instead of sending
+        // an invitation to accept. The entered name is used only for this confirmation
+        // message; it's never written back to the existing account, since that account
+        // belongs to whoever registered it, not to whoever typed a name into this form.
+        if ($existingUser) {
+            $organization->users()->attach($existingUser->id, ['role' => $validated['role']]);
+
+            return back()->with(
+                'success',
+                "{$validated['first_name']} {$validated['last_name']} ({$email}) is already registered and has been added to {$organization->name}."
+            );
+        }
+
         $invitation = OrganizationInvitation::create([
             'organization_id' => $organization->id,
             'email' => $email,
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
             'role' => $validated['role'],
             'token' => Str::random(16),
             'expires_at' => now()->addDays(7),

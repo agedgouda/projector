@@ -149,13 +149,28 @@ const getLeadUser = (doc: ExtendedDocument) => {
                  doc.user ||
                  props.project.client?.users?.find((u: User) => u.id === doc.assignee_id);
 
-    if (!user) return null;
+    if (user) {
+        const firstInitial = user.first_name?.[0] ?? '';
+        const lastInitial = user.last_name?.[0] ?? '';
+        const initials = (firstInitial + lastInitial).toUpperCase() || '??';
 
-    const firstInitial = user.first_name?.[0] ?? '';
-    const lastInitial = user.last_name?.[0] ?? '';
-    const initials = (firstInitial + lastInitial).toUpperCase() || '??';
+        return { ...user, initials };
+    }
 
-    return { ...user, initials };
+    // Assigned to someone invited but not yet a real account — show them the same way,
+    // just flagged so TraceabilityRow can grey out the avatar (see UserInfo.vue's
+    // has_password convention for the same treatment elsewhere).
+    const invitation = doc.pending_assignee;
+    if (invitation) {
+        const firstInitial = invitation.first_name?.[0] ?? '';
+        const lastInitial = invitation.last_name?.[0] ?? '';
+        const initials = (firstInitial + lastInitial).toUpperCase() || '??';
+        const name = [invitation.first_name, invitation.last_name].filter(Boolean).join(' ') || invitation.email;
+
+        return { id: invitation.id, name, initials, isPending: true };
+    }
+
+    return null;
 };
 
 const handleReprocess = (id: string) => {

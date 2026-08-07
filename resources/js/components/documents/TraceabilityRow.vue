@@ -130,9 +130,11 @@ const goToDetails = () => navigateToDetails(props.item.project_id, props.item.id
                 <div
                     v-if="leadUser"
                     :class="[
-                        'h-6 w-6 rounded-full border flex items-center justify-center',
-                        isTask ? getAvatarAppearance(leadUser.id) : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                        'h-6 w-6 rounded-full border flex items-center justify-center transition-all duration-300',
+                        isTask ? getAvatarAppearance(leadUser.id) : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700',
+                        { 'grayscale opacity-50': leadUser.isPending }
                     ]"
+                    :title="leadUser.isPending ? `${leadUser.name} (hasn't logged in yet)` : undefined"
                 >
                     <span :class="['text-[9px] font-black uppercase', isTask ? '' : 'text-slate-500']">{{ leadUser.initials }}</span>
                 </div>

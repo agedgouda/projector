@@ -18,6 +18,14 @@ const emit = defineEmits(['open']);
 const getInitials = (user: any) =>
     (user.first_name?.[0] || '') + (user.last_name?.[0] || '') || user.name[0];
 
+// Pending invitations have no `.name` (just first/last, which may themselves be unset
+// on older invitations sent before name capture existed) — falls back to email.
+const pendingAssigneeName = (inv: OrganizationInvitation) =>
+    [inv.first_name, inv.last_name].filter(Boolean).join(' ') || inv.email;
+
+const pendingAssigneeInitials = (inv: OrganizationInvitation) =>
+    ((inv.first_name?.[0] || '') + (inv.last_name?.[0] || '')) || inv.email[0].toUpperCase();
+
 // Card background is always the neutral gray tint, regardless of column color; only
 // the border is tinted by due-date urgency (red -> yellow), falling back to the
 // default border once the due date is more than 2 days out, in the "done" column, or unset.
@@ -65,6 +73,19 @@ const dueDateBorder = computed(() =>
                 >
                     <span class="text-[10px] font-black tracking-tighter">
                         {{ getInitials(doc.assignee) }}
+                    </span>
+                </div>
+                <div
+                    v-else-if="doc.pending_assignee"
+                    :class="[
+                        KANBAN_UI.avatar,
+                        'h-8 w-8 grayscale opacity-50',
+                        getAvatarAppearance(doc.pending_assignee.id),
+                    ]"
+                    :title="`${pendingAssigneeName(doc.pending_assignee)} (hasn't logged in yet)`"
+                >
+                    <span class="text-[10px] font-black tracking-tighter">
+                        {{ pendingAssigneeInitials(doc.pending_assignee) }}
                     </span>
                 </div>
                 <div

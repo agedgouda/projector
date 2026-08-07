@@ -4,11 +4,25 @@ import { resend } from '@/actions/App/Http/Controllers/InvitationController';
 import { Link2 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import UserInfo from '@/components/UserInfo.vue';
 
 const props = defineProps<{
     invitations: OrganizationInvitation[];
     organizationId: string;
 }>();
+
+// Older invitations (sent before name capture existed) have no first_name/last_name —
+// falls back to the plain email-only display for those instead of showing a blank name line.
+// has_password: false unconditionally dims the avatar (see UserInfo.vue) — an invitation
+// is never a real account yet, regardless of how long it's been pending.
+const invitedUser = (invitation: OrganizationInvitation) => ({
+    first_name: invitation.first_name,
+    last_name: invitation.last_name,
+    name: [invitation.first_name, invitation.last_name].filter(Boolean).join(' '),
+    email: invitation.email,
+    avatar: null,
+    has_password: false,
+});
 
 const copyLink = (token: string) => {
     const url = `${window.location.origin}/invite/${token}`;
@@ -29,7 +43,7 @@ const copyLink = (token: string) => {
 <template>
     <div>
         <div class="grid grid-cols-[1fr_140px_110px_140px] h-9 px-2 items-center">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited Email</div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited User</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Resend</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Copy Link</div>
@@ -42,7 +56,13 @@ const copyLink = (token: string) => {
                 :class="['grid grid-cols-[1fr_140px_110px_140px] items-center h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
             >
                 <div class="min-w-0">
-                    <span class="text-[13px] font-medium text-slate-900 dark:text-slate-100 truncate block">{{ invitation.email }}</span>
+                    <UserInfo
+                        v-if="invitation.first_name && invitation.last_name"
+                        :user="invitedUser(invitation)"
+                        :show-email="true"
+                        compact
+                    />
+                    <span v-else class="text-[13px] font-medium text-slate-900 dark:text-slate-100 truncate block">{{ invitation.email }}</span>
                 </div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 capitalize">{{ invitation.role?.replace('-', ' ') ?? 'Team Member' }}</span>

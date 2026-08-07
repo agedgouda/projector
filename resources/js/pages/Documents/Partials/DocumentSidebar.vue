@@ -45,6 +45,27 @@ const assigneeValue = computed(() => {
 const invitations = computed(() => props.project.client.organization?.invitations ?? []);
 const columns = computed(() => props.project.kanban_columns ?? []);
 
+// Invited people are shown alongside real users, not in a separate section — an
+// invitation's name falls back to its email for older invitations sent before name
+// capture existed (see OrgInvitationTable.vue for the same fallback).
+const invitationName = (inv: OrganizationInvitation): string =>
+    [inv.first_name, inv.last_name].filter(Boolean).join(' ') || inv.email;
+
+// Real users and invited people merged into one alphabetically-sorted list, rather than
+// users in their raw (insertion) order followed by a separate invited block.
+const assigneeOptions = computed(() => {
+    const userOptions = (props.project.client.organization?.users ?? []).map((user) => ({
+        value: user.id.toString(),
+        label: user.name,
+    }));
+    const invitationOptions = invitations.value.map((inv) => ({
+        value: `inv:${inv.id}`,
+        label: invitationName(inv),
+    }));
+
+    return [...userOptions, ...invitationOptions].sort((a, b) => a.label.localeCompare(b.label));
+});
+
 // The native date input's own text/icon rendering can't be pixel-matched to the Assignee
 // text above it (Chrome renders a filled value's segments differently than its placeholder
 // text with respect to letter-spacing/alignment). So the input itself is made invisible and
@@ -104,13 +125,7 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                     </SelectTrigger>
                                     <SelectContent align="end" class="min-w-[200px]">
                                         <SelectItem value="unassigned" class="text-[13px] uppercase font-bold text-slate-400">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in project.client.organization?.users" :key="user.id" :value="user.id.toString()" class="text-[13px] uppercase font-bold">{{ user.name }}</SelectItem>
-                                        <template v-if="invitations.length > 0">
-                                            <div class="px-2 pt-2 pb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Invited</div>
-                                            <SelectItem v-for="inv in invitations" :key="inv.id" :value="`inv:${inv.id}`" class="text-[13px] font-bold">
-                                                {{ inv.email }} <span class="text-slate-400 font-normal">(Invited)</span>
-                                            </SelectItem>
-                                        </template>
+                                        <SelectItem v-for="option in assigneeOptions" :key="option.value" :value="option.value" class="text-[13px] uppercase font-bold">{{ option.label }}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

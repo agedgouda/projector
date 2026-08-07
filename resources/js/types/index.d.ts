@@ -20,6 +20,7 @@ declare global {
         is_super?: boolean;
         organization_name?: string;
         organization_id?: string | null;
+        has_password?: boolean;
     }
 
     export interface Auth {
@@ -330,6 +331,8 @@ declare global {
     export interface OrganizationInvitation {
         id: number;
         email: string;
+        first_name?: string | null;
+        last_name?: string | null;
         role: string;
         token: string;
         expires_at: string;

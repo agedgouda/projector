@@ -13,7 +13,7 @@ class OrganizationInvitation extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['organization_id', 'email', 'role', 'token', 'expires_at'];
+    protected $fillable = ['organization_id', 'email', 'first_name', 'last_name', 'role', 'token', 'expires_at'];
 
     protected function casts(): array
     {

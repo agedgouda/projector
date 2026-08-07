@@ -68,9 +68,21 @@ class ProcessDocumentAI implements ShouldQueue
         /** @var ProjectAiService $aiService */
         $aiService = app(ProjectAiService::class);
 
-        event(new DocumentProcessingUpdate($this->document, 'Analyzing document...', 15));
+        // Named once the output type is resolved (fast and local — see ProjectAiService::process's
+        // $onOutputTypeResolved doc) so the same "Generating {type}..." text carries the whole run
+        // instead of flashing through a generic "Analyzing document..." first and a bare "Success"
+        // at the end — both of which used to come and go too quickly to read.
+        $typeLabel = null;
 
-        $result = $aiService->process($this->document, $this->overrideStep, $this->oneOffInstructions);
+        $result = $aiService->process(
+            $this->document,
+            $this->overrideStep,
+            $this->oneOffInstructions,
+            function (string $outputType) use (&$typeLabel) {
+                $typeLabel = $this->document->project?->documentTypeCatalog()->get($outputType)?->label ?? $outputType;
+                event(new DocumentProcessingUpdate($this->document, "Generating {$typeLabel}...", 15));
+            }
+        );
 
         // Case 1: Early return (Workflow/Template missing)
         if ($result === null) {
@@ -86,11 +98,13 @@ class ProcessDocumentAI implements ShouldQueue
             throw new \Exception($result['message'] ?? 'AI transformation failed');
         }
 
-        event(new DocumentProcessingUpdate($this->document, 'Generating project deliverables...', 65));
-
         $outputType = $result['output_type'];
         $singleOutput = $result['single_output'] ?? false;
         $lockedProjectTypeId = $result['locked_project_type_id'] ?? null;
+
+        // $typeLabel is already set — the callback above always runs before process() can return
+        // a non-null, non-error result. Same text as the first event, just a progress bump.
+        event(new DocumentProcessingUpdate($this->document, "Generating {$typeLabel}...", 65));
 
         $deletedDocumentIds = [];
         $newDocumentIds = [];
@@ -183,7 +197,10 @@ class ProcessDocumentAI implements ShouldQueue
         });
 
         Cache::lock(self::lockKey($this->document->id))->forceRelease();
-        event(new DocumentProcessingUpdate($this->document, 'Success', 100, $deletedDocumentIds, $newDocumentIds));
+        // Same text again, not the literal word "Success" — progress hitting 100 is what the
+        // frontend actually keys success handling off of (see isSuccess in useAiProcessing.ts),
+        // not the message string, so this can stay consistent with the two events above it.
+        event(new DocumentProcessingUpdate($this->document, "Generating {$typeLabel}...", 100, $deletedDocumentIds, $newDocumentIds));
     }
 
     /**
