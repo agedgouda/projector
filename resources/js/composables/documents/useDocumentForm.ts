@@ -213,6 +213,15 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
 
     const confirmReprocess = async (oneOffInstructions: string | null = null) => {
         isReprocessing.value = true;
+
+        // Flip the live status synchronously — before the network round trip — so the
+        // progress bar/header appear the instant the button is pressed rather than
+        // waiting on the server's response.
+        isProcessingLive.value = true;
+        processingMessage.value = 'Starting...';
+        aiProgress.value = 5;
+        startProcessingPoll();
+
         const url = projectDocumentsRoutes.reprocess.url({ project: project.id, document: item.id });
 
         // The reprocess endpoint returns plain JSON (it's also called via axios from the
@@ -222,12 +231,9 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         try {
             const response = await axios.post(url, { one_off_instructions: oneOffInstructions });
             if (redirectIfLoggedOut(response)) return;
-
-            isProcessingLive.value = true;
-            processingMessage.value = 'Starting...';
-            aiProgress.value = 5;
-            startProcessingPoll();
         } catch (error) {
+            clearProcessingState();
+
             if (redirectIfSessionExpiredError(error)) return;
 
             toast.error('Failed to start reprocessing');

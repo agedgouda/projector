@@ -56,11 +56,17 @@ export function useAiProcessing(
     //    .DocumentProcessingUpdate broadcast telling it to stop — no remount ever happens here,
     //    so a one-off mount-time check alone can't catch it.
     //
-    // Both are handled the same way: reconcile with the server, once immediately whenever
-    // isAiProcessing turns true (covers case 1, including at mount) and then again every
-    // PROCESSING_POLL_INTERVAL_MS for as long as it stays true (covers case 2).
+    // Both are handled the same way: reconcile with the server, once immediately if
+    // isAiProcessing is already true at mount (covers case 1) and then again every
+    // PROCESSING_POLL_INTERVAL_MS for as long as it stays true (covers case 2). A flip to
+    // true *after* mount — e.g. the user just pressed a reprocess button — skips that
+    // immediate reconcile: firing a reload in the same tick as the action that's about to
+    // set processed_at server-side is a race, and losing it clobbers the fresh optimistic
+    // state with the not-yet-updated value, flashing the progress bar off again. Since we
+    // already know why we're processing in that case, the first periodic tick is enough.
     let processingPollTimer: ReturnType<typeof setInterval> | null = null;
     let reconcileCount = 0;
+    let hasMounted = false;
 
     const stopProcessingPoll = () => {
         if (processingPollTimer) {
@@ -97,12 +103,15 @@ export function useAiProcessing(
     watch(isAiProcessing, (isProcessing) => {
         if (isProcessing) {
             if (!processingPollTimer) {
-                reconcileWithServer();
+                if (!hasMounted) {
+                    reconcileWithServer();
+                }
                 processingPollTimer = setInterval(reconcileWithServer, PROCESSING_POLL_INTERVAL_MS);
             }
         } else {
             stopProcessingPoll();
         }
+        hasMounted = true;
     }, { immediate: true });
 
     onBeforeUnmount(stopProcessingPoll);

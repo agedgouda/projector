@@ -119,9 +119,12 @@ export function useDocumentActions(
     const setDocToProcessing = async (doc: UIProjectDocument, oneOffInstructions: string | null = null) => {
         if (!doc) return;
 
-        // UI-only state
+        // UI-only state, set synchronously (before the network round trip) so
+        // isAiProcessing flips true — and the progress bar/header appear — the instant
+        // the button is pressed rather than waiting on the server's response.
         doc.processingError = null;
         doc.currentStatus = 'Re-initializing AI...';
+        doc.processed_at = null;
 
         try {
             const projectId = props.project.id;
@@ -144,9 +147,10 @@ export function useDocumentActions(
     ) => {
         if (!doc) return;
 
-        // UI-only state
+        // UI-only state, set synchronously — see setDocToProcessing above.
         doc.processingError = null;
         doc.currentStatus = 'Running transition...';
+        doc.processed_at = null;
 
         try {
             const projectId = props.project.id;
