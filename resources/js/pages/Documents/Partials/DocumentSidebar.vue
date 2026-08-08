@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, FileDown, FileType, Calendar as CalendarIcon } from 'lucide-vue-next';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { exportPdf, exportWord } from '@/actions/App/Http/Controllers/DocumentController';
+import { mergeAssigneeOptions } from '@/lib/assignees';
 
 const props = defineProps<{
     project: Project;
@@ -42,29 +43,13 @@ const assigneeValue = computed(() => {
     return props.item.assignee_id?.toString() ?? 'unassigned';
 });
 
-const invitations = computed(() => props.project.client.organization?.invitations ?? []);
 const columns = computed(() => props.project.kanban_columns ?? []);
-
-// Invited people are shown alongside real users, not in a separate section — an
-// invitation's name falls back to its email for older invitations sent before name
-// capture existed (see OrgInvitationTable.vue for the same fallback).
-const invitationName = (inv: OrganizationInvitation): string =>
-    [inv.first_name, inv.last_name].filter(Boolean).join(' ') || inv.email;
 
 // Real users and invited people merged into one alphabetically-sorted list, rather than
 // users in their raw (insertion) order followed by a separate invited block.
-const assigneeOptions = computed(() => {
-    const userOptions = (props.project.client.organization?.users ?? []).map((user) => ({
-        value: user.id.toString(),
-        label: user.name,
-    }));
-    const invitationOptions = invitations.value.map((inv) => ({
-        value: `inv:${inv.id}`,
-        label: invitationName(inv),
-    }));
-
-    return [...userOptions, ...invitationOptions].sort((a, b) => a.label.localeCompare(b.label));
-});
+const assigneeOptions = computed(() =>
+    mergeAssigneeOptions(props.project.client.organization?.users, props.project.client.organization?.invitations)
+);
 
 // The native date input's own text/icon rendering can't be pixel-matched to the Assignee
 // text above it (Chrome renders a filled value's segments differently than its placeholder

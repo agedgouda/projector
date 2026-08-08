@@ -17,6 +17,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property User|null $creator
  * @property User|null $editor
  * @property User|null $assignee
+ * @property OrganizationInvitation|null $pendingAssignee
  * @property string|null $locked_project_type_id
  * @property string|null $custom_prompt
  * @property int|null $last_ai_template_id

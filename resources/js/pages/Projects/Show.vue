@@ -35,6 +35,7 @@ import KanbanBoard from '@/components/projects/KanbanBoard.vue';
 import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import ProjectCalendar from '@/components/projects/ProjectCalendar.vue';
 import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
+import TaskReport from '@/components/reports/TaskReport.vue';
 
 const props = defineProps<{
     projects: Project[];
@@ -430,6 +431,7 @@ watch(
                         'calendar',
                         'hierarchy',
                         'recordings',
+                        'reports',
                     ]"
                     :key="tab"
                     @click="updateTab(tab)"
@@ -447,7 +449,9 @@ watch(
                               ? 'Recordings'
                               : tab === 'calendar'
                                 ? 'Calendar'
-                                : 'Tasks'
+                                : tab === 'reports'
+                                  ? 'Reports'
+                                  : 'Tasks'
                     }}
                 </button>
             </div>
@@ -539,6 +543,10 @@ watch(
                         @import-failed="targetBeingCreated = null"
                     />
                 </Deferred>
+            </div>
+
+            <div v-show="activeTab === 'reports'">
+                <TaskReport :project="currentProject" />
             </div>
         </div>
 

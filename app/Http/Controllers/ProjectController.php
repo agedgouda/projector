@@ -132,6 +132,11 @@ class ProjectController extends Controller
             'currentLifecycleStep',
             'kanbanColumns',
             'children.documents',
+            // Populates the assignee filter on the Reports tab's task search form
+            // (see resources/js/components/reports/TaskSearchForm.vue) — same
+            // merged users+invitations list used by the document assignee picker.
+            'client.organization.users',
+            'client.organization.invitations',
         ]);
 
         $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];

@@ -23,6 +23,7 @@ use App\Http\Controllers\OrganizationSetupController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectLogoController;
 use App\Http\Controllers\ProjectTypeController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
@@ -280,6 +281,15 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.exportPdf');
             Route::get('/documents/{document}/export-word', [DocumentController::class, 'exportWord'])
                 ->name('documents.exportWord');
+
+            Route::get('/reports/tasks', [ReportController::class, 'projectTasks'])
+                ->name('reports.tasks');
+            Route::get('/reports/tasks/export-pdf', [ReportController::class, 'exportTasksPdf'])
+                ->name('reports.tasks.exportPdf');
+            Route::get('/reports/tasks/export-word', [ReportController::class, 'exportTasksWord'])
+                ->name('reports.tasks.exportWord');
+            Route::get('/reports/tasks/export-excel', [ReportController::class, 'exportTasksExcel'])
+                ->name('reports.tasks.exportExcel');
 
             Route::get('/calendar/export-pdf', [ProjectController::class, 'exportCalendarPdf'])
                 ->name('calendar.exportPdf');
