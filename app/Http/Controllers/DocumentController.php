@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FormatsTaskFields;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Rules\ValidKanbanColumn;
+use App\Services\Google\GoogleExportService;
 use App\Services\VectorService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -18,6 +21,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
+    use FormatsTaskFields;
+
     /**
      * Show the form for creating a new document.
      */
@@ -151,6 +156,62 @@ class DocumentController extends Controller
         }, $filename.'.docx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ]);
+    }
+
+    /**
+     * Export the specified document as a native Google Doc — a simple Field/Value table,
+     * landing directly in the exporting user's own Drive. Returns 428 with a connect_url if
+     * the user hasn't connected a Google account yet, matching the task report's own Google
+     * exports (see ReportController::exportTasksGoogleDoc).
+     */
+    public function exportGoogleDoc(Request $request, Project $project, Document $document, GoogleExportService $service): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $accessToken = $service->getValidAccessToken($request->user());
+
+        if (! $accessToken) {
+            return response()->json([
+                'message' => 'Connect your Google account to export to Google Docs.',
+                'connect_url' => route('integrations.google.connect'),
+            ], 428);
+        }
+
+        $project->loadMissing('kanbanColumns');
+
+        $catalogEntry = $project->documentTypeCatalog()->get($document->type);
+        $typeLabel = $catalogEntry instanceof \App\Models\DocumentTypeDefinition ? $catalogEntry->label : $document->type;
+        $isTask = $catalogEntry instanceof \App\Models\DocumentTypeDefinition && $catalogEntry->is_task;
+
+        $rows = [
+            ['Name', $document->name ?? ''],
+            ['Type', $typeLabel],
+        ];
+
+        if ($isTask) {
+            $rows[] = ['Status', $this->statusLabel($document, $project->kanbanColumns)];
+            $rows[] = ['Due Date', $this->formatDate($document->due_at)];
+            $rows[] = ['Assignee', $this->assigneeLabel($document)];
+            $rows[] = ['Priority', $document->priority ? ucfirst($document->priority) : '—'];
+        }
+
+        $rows[] = ['Created', $this->formatDate($document->created_at?->toDateString())];
+        $rows[] = ['Last Updated', $this->formatDate($document->updated_at?->toDateString())];
+
+        $content = $this->plainTextContent($document->content);
+        if ($content !== '') {
+            $rows[] = ['Content', $content];
+        }
+
+        $documentName = is_string($document->name) ? $document->name : 'document';
+
+        $doc = $service->createDoc($accessToken, Str::slug($documentName), ['Field', 'Value'], $rows);
+
+        return response()->json($doc);
     }
 
     /**

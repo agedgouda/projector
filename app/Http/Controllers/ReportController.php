@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FormatsTaskFields;
 use App\Models\Document;
 use App\Models\Project;
 use App\Services\Google\GoogleExportService;
@@ -20,6 +21,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
+    use FormatsTaskFields;
+
     /**
      * Search this project's tasks (documents whose type is flagged is_task in the
      * organization's document type catalog) by assignee, status, priority, and due-date
@@ -439,57 +442,5 @@ class ReportController extends Controller
                 'last_name' => $task->pendingAssignee->last_name,
             ] : null,
         ];
-    }
-
-    /**
-     * @param  \Illuminate\Support\Collection<int, \App\Models\KanbanColumn>  $columns
-     */
-    private function statusLabel(Document $task, \Illuminate\Support\Collection $columns): string
-    {
-        $column = $columns->firstWhere('key', $task->task_status);
-
-        return $column?->label ?? $task->task_status ?? '—';
-    }
-
-    private function assigneeLabel(Document $task): string
-    {
-        if ($task->assignee) {
-            return $task->assignee->name;
-        }
-
-        if ($task->pendingAssignee) {
-            $name = trim(($task->pendingAssignee->first_name ?? '').' '.($task->pendingAssignee->last_name ?? ''));
-
-            return $name !== '' ? $name : $task->pendingAssignee->email;
-        }
-
-        return 'Unassigned';
-    }
-
-    private function formatDate(?string $value): string
-    {
-        if (! $value) {
-            return '—';
-        }
-
-        return \Illuminate\Support\Carbon::parse($value)->format('M j, Y');
-    }
-
-    /**
-     * Strips a task's rich-text HTML content down to plain text for the export-only
-     * "Details" column — table cells in PDF/Word/Excel can't reasonably render arbitrary
-     * HTML, so this normalizes it the same way ProjectAiService does for LLM prompts.
-     */
-    private function plainTextContent(?string $html): string
-    {
-        if (! $html) {
-            return '';
-        }
-
-        $text = (string) preg_replace('/<(p|li|br|h[1-6])[^>]*>/i', "\n", $html);
-        $text = strip_tags($text);
-        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-        return trim((string) preg_replace('/\n{3,}/', "\n\n", $text));
     }
 }

@@ -281,6 +281,8 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.exportPdf');
             Route::get('/documents/{document}/export-word', [DocumentController::class, 'exportWord'])
                 ->name('documents.exportWord');
+            Route::get('/documents/{document}/export-google-doc', [DocumentController::class, 'exportGoogleDoc'])
+                ->name('documents.exportGoogleDoc');
 
             Route::get('/reports/tasks', [ReportController::class, 'projectTasks'])
                 ->name('reports.tasks');

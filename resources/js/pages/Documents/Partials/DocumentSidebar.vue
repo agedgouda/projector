@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { formatDate } from '@/lib/utils';
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import axios from 'axios';
+import { toast } from 'vue-sonner';
 import { PRIORITY_LABELS } from '@/lib/constants';
 import {
     Select,
@@ -10,9 +12,9 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, FileDown, FileType, Calendar as CalendarIcon } from 'lucide-vue-next';
+import { RefreshCw, FileDown, FileType, FileStack, Calendar as CalendarIcon } from 'lucide-vue-next';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
-import { exportPdf, exportWord } from '@/actions/App/Http/Controllers/DocumentController';
+import { exportPdf, exportWord, exportGoogleDoc } from '@/actions/App/Http/Controllers/DocumentController';
 import { mergeAssigneeOptions } from '@/lib/assignees';
 
 const props = defineProps<{
@@ -50,6 +52,44 @@ const columns = computed(() => props.project.kanban_columns ?? []);
 const assigneeOptions = computed(() =>
     mergeAssigneeOptions(props.project.client.organization?.users, props.project.client.organization?.invitations)
 );
+
+// Unlike PDF/Word (plain <a href> downloads), this hits a JSON endpoint — it needs to branch
+// on whether the user has a connected Google account (open the created Doc) or not (send
+// them through the OAuth connect flow, then straight back here to retry automatically).
+const exportingToGoogleDoc = ref(false);
+const exportToGoogleDoc = async () => {
+    exportingToGoogleDoc.value = true;
+
+    try {
+        const response = await axios.get<{ url: string }>(
+            exportGoogleDoc({ project: props.project.id, document: String(props.item.id) }).url
+        );
+        window.open(response.data.url, '_blank');
+    } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 428 && err.response.data?.connect_url) {
+            const returnUrl = new URL(window.location.href);
+            returnUrl.searchParams.set('google_export', 'doc');
+
+            const connectUrl = new URL(err.response.data.connect_url);
+            connectUrl.searchParams.set('return_to', returnUrl.pathname + returnUrl.search);
+
+            window.location.href = connectUrl.toString();
+            return;
+        }
+        toast.error('Something went wrong exporting to Google Docs. Please try again.');
+    } finally {
+        exportingToGoogleDoc.value = false;
+    }
+};
+
+onMounted(() => {
+    if (new URLSearchParams(window.location.search).get('google_export') === 'doc') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('google_export');
+        window.history.replaceState(window.history.state, '', url);
+        void exportToGoogleDoc();
+    }
+});
 
 // The native date input's own text/icon rendering can't be pixel-matched to the Assignee
 // text above it (Chrome renders a filled value's segments differently than its placeholder
@@ -228,6 +268,16 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                             <FileDown class="h-3.5 w-3.5" />
                             Export As PDF
                         </a>
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="w-full"
+                        :disabled="exportingToGoogleDoc"
+                        @click="exportToGoogleDoc"
+                    >
+                        <FileStack class="h-3.5 w-3.5" />
+                        {{ exportingToGoogleDoc ? 'Exporting…' : 'Export To Google Docs' }}
                     </Button>
                     <Button as-child variant="outline" size="sm" class="w-full">
                         <a :href="exportWord.url({ project: project.id, document: String(item.id) })">
