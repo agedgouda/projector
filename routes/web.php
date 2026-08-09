@@ -329,6 +329,10 @@ Route::get('/privacy', function () {
     return Inertia::render('Privacy');
 })->name('privacy');
 
+Route::get('/about', function () {
+    return Inertia::render('About');
+})->name('about');
+
 /**
  * Mobile app page tree — purpose-built screens for the Capacitor-wrapped app (see
  * capacitor.config.ts), served as regular Inertia pages over the same session auth as the
