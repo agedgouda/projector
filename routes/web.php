@@ -325,6 +325,10 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 
+Route::get('/privacy', function () {
+    return Inertia::render('Privacy');
+})->name('privacy');
+
 /**
  * Mobile app page tree — purpose-built screens for the Capacitor-wrapped app (see
  * capacitor.config.ts), served as regular Inertia pages over the same session auth as the
