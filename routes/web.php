@@ -325,13 +325,11 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 
-Route::get('/privacy', function () {
-    return Inertia::render('Privacy');
-})->name('privacy');
-
-Route::get('/about', function () {
-    return Inertia::render('About');
-})->name('about');
+// Plain server-rendered Blade views, not Inertia/Vue — Google's OAuth homepage/privacy-policy
+// compliance crawler doesn't execute JavaScript, so an Inertia page (real content only inside
+// a JSON blob, hydrated client-side) reads as empty to it.
+Route::view('/privacy', 'privacy')->name('privacy');
+Route::view('/about', 'about')->name('about');
 
 /**
  * Mobile app page tree — purpose-built screens for the Capacitor-wrapped app (see
