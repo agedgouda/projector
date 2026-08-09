@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\IntegrationsController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
@@ -25,4 +26,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
         ->name('two-factor.show');
+
+    Route::get('settings/integrations', [IntegrationsController::class, 'edit'])->name('integrations.edit');
+    Route::get('settings/integrations/google/connect', [IntegrationsController::class, 'connectGoogle'])->name('integrations.google.connect');
+    Route::get('settings/integrations/google/callback', [IntegrationsController::class, 'googleCallback'])->name('integrations.google.callback');
+    Route::delete('settings/integrations/google', [IntegrationsController::class, 'disconnectGoogle'])->name('integrations.google.disconnect');
 });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\Project;
+use App\Services\Google\GoogleExportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -177,6 +178,91 @@ class ReportController extends Controller
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Export the same filtered task list as a native Google Sheet, landing directly in the
+     * exporting user's own Drive. Returns 428 with a connect_url if the user hasn't
+     * connected a Google account yet, so the frontend can send them through the OAuth flow
+     * instead of just showing an error.
+     */
+    public function exportTasksGoogleSheet(Request $request, Project $project, GoogleExportService $service): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        $accessToken = $service->getValidAccessToken($request->user());
+
+        if (! $accessToken) {
+            return response()->json([
+                'message' => 'Connect your Google account to export to Google Sheets.',
+                'connect_url' => route('integrations.google.connect'),
+            ], 428);
+        }
+
+        [$headers, $rows] = $this->googleExportHeadersAndRows($request, $project);
+
+        $sheet = $service->createSheet($accessToken, Str::slug($project->name).'-task-report', $headers, $rows);
+
+        return response()->json($sheet);
+    }
+
+    /**
+     * Export the same filtered task list as a native Google Doc, landing directly in the
+     * exporting user's own Drive. Same 428/connect_url handling as the Sheets export above.
+     */
+    public function exportTasksGoogleDoc(Request $request, Project $project, GoogleExportService $service): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        $accessToken = $service->getValidAccessToken($request->user());
+
+        if (! $accessToken) {
+            return response()->json([
+                'message' => 'Connect your Google account to export to Google Docs.',
+                'connect_url' => route('integrations.google.connect'),
+            ], 428);
+        }
+
+        [$headers, $rows] = $this->googleExportHeadersAndRows($request, $project);
+
+        $doc = $service->createDoc($accessToken, Str::slug($project->name).'-task-report', $headers, $rows);
+
+        return response()->json($doc);
+    }
+
+    /**
+     * Shared row-building for both Google export formats — same column set/formatting as the
+     * Excel export, just handed to the Sheets/Docs API instead of PhpSpreadsheet.
+     *
+     * @return array{0: array<int, string>, 1: array<int, array<int, string>>}
+     */
+    private function googleExportHeadersAndRows(Request $request, Project $project): array
+    {
+        [$tasks, $includeDetails] = $this->tasksForExport($request, $project);
+
+        $project->loadMissing('kanbanColumns');
+
+        $headers = ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority'];
+        if ($includeDetails) {
+            $headers[] = 'Details';
+        }
+
+        $rows = $tasks->map(function (Document $task) use ($project, $includeDetails) {
+            $row = [
+                $this->statusLabel($task, $project->kanbanColumns),
+                $this->formatDate($task->due_at),
+                $task->name ?? '',
+                $this->assigneeLabel($task),
+                $task->priority ? ucfirst($task->priority) : '—',
+            ];
+            if ($includeDetails) {
+                $row[] = $this->plainTextContent($task->content);
+            }
+
+            return $row;
+        })->all();
+
+        return [$headers, $rows];
     }
 
     /**

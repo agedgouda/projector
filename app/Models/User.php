@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Collections\UserCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -15,6 +16,7 @@ use Spatie\Permission\Traits\HasRoles;
 /**
  * @property \Illuminate\Database\Eloquent\Collection<int, \App\Models\Organization> $organizations
  * @property string|null $avatar
+ * @property \App\Models\GoogleOauthToken|null $googleOauthToken
  */
 class User extends Authenticatable
 {
@@ -74,6 +76,11 @@ class User extends Authenticatable
     public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Document::class, 'assignee_id');
+    }
+
+    public function googleOauthToken(): HasOne
+    {
+        return $this->hasOne(GoogleOauthToken::class);
     }
 
     public function getAvatarAttribute(): ?string

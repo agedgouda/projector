@@ -66,4 +66,10 @@ return [
     'vector_driver' => env('VECTOR_DRIVER', 'gemini'),
     'llm_driver' => env('LLM_DRIVER', 'gemini'),
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
 ];

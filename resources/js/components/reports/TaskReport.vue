@@ -2,12 +2,19 @@
 import { ref, computed, onMounted } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-import { Search, FileText, FileSpreadsheet, FileType } from 'lucide-vue-next';
+import { Search, FileText, FileSpreadsheet, FileType, Table2, FileStack } from 'lucide-vue-next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import TaskSearchForm, { type TaskSearchFilters } from '@/components/reports/TaskSearchForm.vue';
 import TaskReportTable, { type TaskReportRow, type SortKey, type SortDir } from '@/components/reports/TaskReportTable.vue';
-import { projectTasks, exportTasksPdf, exportTasksWord, exportTasksExcel } from '@/actions/App/Http/Controllers/ReportController';
+import {
+    projectTasks,
+    exportTasksPdf,
+    exportTasksWord,
+    exportTasksExcel,
+    exportTasksGoogleSheet,
+    exportTasksGoogleDoc,
+} from '@/actions/App/Http/Controllers/ReportController';
 
 const props = defineProps<{
     project: Project;
@@ -116,6 +123,40 @@ const exportUrl = (action: typeof exportTasksPdf | typeof exportTasksWord | type
 
     return action({ project: props.project.id }, { query }).url;
 };
+
+// Unlike the other three exports (plain <a href> downloads), these hit a JSON endpoint —
+// they need to branch on whether the user has a connected Google account (open the created
+// file) or not (send them to the OAuth connect flow first).
+const exportingToGoogle = ref<'sheet' | 'doc' | null>(null);
+const exportToGoogle = async (kind: 'sheet' | 'doc') => {
+    exportingToGoogle.value = kind;
+    error.value = null;
+
+    const query: Record<string, string> = {
+        ...activeParams.value,
+        sort_by: currentSort.value.key,
+        sort_dir: currentSort.value.dir,
+    };
+    if (includeDetails.value) {
+        query.include_details = '1';
+    }
+
+    const action = kind === 'sheet' ? exportTasksGoogleSheet : exportTasksGoogleDoc;
+    const label = kind === 'sheet' ? 'Google Sheets' : 'Google Docs';
+
+    try {
+        const response = await axios.get<{ url: string }>(action({ project: props.project.id }, { query }).url);
+        window.open(response.data.url, '_blank');
+    } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 428 && err.response.data?.connect_url) {
+            window.location.href = err.response.data.connect_url;
+            return;
+        }
+        error.value = `Something went wrong exporting to ${label}. Please try again.`;
+    } finally {
+        exportingToGoogle.value = null;
+    }
+};
 </script>
 
 <template>
@@ -164,6 +205,24 @@ const exportUrl = (action: typeof exportTasksPdf | typeof exportTasksWord | type
                         <FileText class="h-3.5 w-3.5" />
                         PDF
                     </a>
+                    <button
+                        type="button"
+                        :disabled="exportingToGoogle !== null"
+                        class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-200 dark:border-white/10 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                        @click="exportToGoogle('sheet')"
+                    >
+                        <Table2 class="h-3.5 w-3.5" />
+                        {{ exportingToGoogle === 'sheet' ? 'Exporting…' : 'Google Sheets' }}
+                    </button>
+                    <button
+                        type="button"
+                        :disabled="exportingToGoogle !== null"
+                        class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-200 dark:border-white/10 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                        @click="exportToGoogle('doc')"
+                    >
+                        <FileStack class="h-3.5 w-3.5" />
+                        {{ exportingToGoogle === 'doc' ? 'Exporting…' : 'Google Docs' }}
+                    </button>
                 </div>
             </div>
 

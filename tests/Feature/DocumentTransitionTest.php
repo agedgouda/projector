@@ -1,6 +1,7 @@
 <?php
 
 use App\Contracts\LlmDriver;
+use App\Contracts\VectorDriver;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\AiTemplate;
 use App\Models\AiUsageLog;
@@ -17,6 +18,17 @@ use Spatie\Permission\Models\Role;
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
+    // Document::create() below synchronously dispatches GenerateDocumentEmbedding
+    // (QUEUE_CONNECTION=sync in phpunit.xml), which would otherwise hit the real
+    // configured embedding API on every test in this file.
+    $this->app->bind(VectorDriver::class, fn () => new class implements VectorDriver
+    {
+        public function getEmbedding(string $text): array
+        {
+            return array_fill(0, 1536, 0.01);
+        }
+    });
+
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
 

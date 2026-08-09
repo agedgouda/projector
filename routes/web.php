@@ -290,6 +290,10 @@ Route::middleware(['auth'])->group(function () {
                 ->name('reports.tasks.exportWord');
             Route::get('/reports/tasks/export-excel', [ReportController::class, 'exportTasksExcel'])
                 ->name('reports.tasks.exportExcel');
+            Route::get('/reports/tasks/export-google-sheet', [ReportController::class, 'exportTasksGoogleSheet'])
+                ->name('reports.tasks.exportGoogleSheet');
+            Route::get('/reports/tasks/export-google-doc', [ReportController::class, 'exportTasksGoogleDoc'])
+                ->name('reports.tasks.exportGoogleDoc');
 
             Route::get('/calendar/export-pdf', [ProjectController::class, 'exportCalendarPdf'])
                 ->name('calendar.exportPdf');
