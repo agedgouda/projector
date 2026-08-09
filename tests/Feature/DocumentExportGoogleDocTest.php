@@ -73,12 +73,7 @@ it('creates a google doc for the document when connected', function () {
     ]);
 
     Http::fake([
-        'sheets.googleapis.com/*' => Http::response([], 200),
-        'docs.googleapis.com/v1/documents' => Http::response(['documentId' => 'doc123'], 200),
-        'docs.googleapis.com/v1/documents/*:batchUpdate' => Http::response([], 200),
-        'docs.googleapis.com/v1/documents/*' => Http::response([
-            'body' => ['content' => []],
-        ], 200),
+        'www.googleapis.com/upload/drive/v3/files*' => Http::response(['id' => 'doc123'], 200),
     ]);
 
     $response = $this->actingAs($this->admin)
@@ -87,8 +82,18 @@ it('creates a google doc for the document when connected', function () {
     $response->assertOk();
     expect($response->json('url'))->toBe('https://docs.google.com/document/d/doc123/edit');
 
-    Http::assertSent(fn ($request) => $request->url() === 'https://docs.googleapis.com/v1/documents'
-        && $request['title'] === 'action-items-for-kickoff');
+    // The doc is built via Drive's HTML-import conversion (a raw multipart/related body, not
+    // JSON), so assert on its content directly rather than a decoded field — it should carry
+    // the document's name (as both the file title and the in-body heading) and its content.
+    Http::assertSent(function ($request) {
+        $body = $request->body();
+
+        return $request->url() === 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id'
+            && str_contains($body, 'action-items-for-kickoff')
+            && str_contains($body, 'Action Items for Kickoff')
+            && str_contains($body, 'Follow up with the client.')
+            && str_contains($body, 'application/vnd.google-apps.document');
+    });
 });
 
 it('denies access to a document outside the user\'s organization', function () {

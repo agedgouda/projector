@@ -182,6 +182,47 @@ class GoogleExportService
     }
 
     /**
+     * Creates a native Google Doc in the connected user's own Drive from a chunk of HTML,
+     * preserving basic rich-text formatting (bold, headings, lists, etc.) — for exporting a
+     * single document so it reads like a document (title + formatted body), rather than the
+     * row/column shape createDoc() above builds for task-list exports.
+     *
+     * Rather than hand-building Docs API structural edits for arbitrary rich text (fragile —
+     * see createDoc()'s table-cell-index dance above, which only works because a table's
+     * cells are a known, predictable structure), this uses Drive's own HTML-to-Google-Doc
+     * import conversion: uploading content as text/html with the target mimeType set to a
+     * Google Doc makes Drive do the HTML parsing and formatting conversion itself.
+     *
+     * @return array{id: string, url: string}
+     */
+    public function createDocFromHtml(string $accessToken, string $title, string $html): array
+    {
+        $boundary = 'projector-'.bin2hex(random_bytes(16));
+        $metadata = json_encode(['name' => $title, 'mimeType' => 'application/vnd.google-apps.document'], JSON_UNESCAPED_SLASHES);
+
+        $body = "--{$boundary}\r\n"
+            ."Content-Type: application/json; charset=UTF-8\r\n\r\n"
+            ."{$metadata}\r\n"
+            ."--{$boundary}\r\n"
+            ."Content-Type: text/html; charset=UTF-8\r\n\r\n"
+            ."{$html}\r\n"
+            ."--{$boundary}--";
+
+        $response = Http::withToken($accessToken)
+            ->withBody($body, "multipart/related; boundary={$boundary}")
+            ->post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id');
+
+        if ($response->failed()) {
+            throw new \RuntimeException('Failed to create Google Doc: '.$response->body());
+        }
+
+        $idValue = $response->json('id');
+        $id = is_string($idValue) ? $idValue : '';
+
+        return ['id' => $id, 'url' => "https://docs.google.com/document/d/{$id}/edit"];
+    }
+
+    /**
      * Walks a documents.get response to find the single table this class ever creates, and
      * returns the insertion index of each of its (empty) cells, in row-major reading order.
      *

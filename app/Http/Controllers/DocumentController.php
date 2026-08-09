@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsTaskFields;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
 use App\Models\OrganizationInvitation;
@@ -21,8 +20,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
-    use FormatsTaskFields;
-
     /**
      * Show the form for creating a new document.
      */
@@ -159,10 +156,9 @@ class DocumentController extends Controller
     }
 
     /**
-     * Export the specified document as a native Google Doc — a simple Field/Value table,
-     * landing directly in the exporting user's own Drive. Returns 428 with a connect_url if
-     * the user hasn't connected a Google account yet, matching the task report's own Google
-     * exports (see ReportController::exportTasksGoogleDoc).
+     * Export the specified document as a native Google Doc, landing directly in the exporting
+     * user's own Drive — same title + type label + rich-text content layout as exportWord()
+     * above. Returns 428 with a connect_url if the user hasn't connected a Google account yet.
      */
     public function exportGoogleDoc(Request $request, Project $project, Document $document, GoogleExportService $service): JsonResponse
     {
@@ -181,35 +177,19 @@ class DocumentController extends Controller
             ], 428);
         }
 
-        $project->loadMissing('kanbanColumns');
-
         $catalogEntry = $project->documentTypeCatalog()->get($document->type);
         $typeLabel = $catalogEntry instanceof \App\Models\DocumentTypeDefinition ? $catalogEntry->label : $document->type;
-        $isTask = $catalogEntry instanceof \App\Models\DocumentTypeDefinition && $catalogEntry->is_task;
 
-        $rows = [
-            ['Name', $document->name ?? ''],
-            ['Type', $typeLabel],
-        ];
+        $documentName = is_string($document->name) ? $document->name : 'Untitled';
+        $content = trim((string) $document->content) !== '' ? $document->content : '<p>No content provided.</p>';
 
-        if ($isTask) {
-            $rows[] = ['Status', $this->statusLabel($document, $project->kanbanColumns)];
-            $rows[] = ['Due Date', $this->formatDate($document->due_at)];
-            $rows[] = ['Assignee', $this->assigneeLabel($document)];
-            $rows[] = ['Priority', $document->priority ? ucfirst($document->priority) : '—'];
-        }
+        $html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+            .'<h1 style="font-size:20pt;color:#0F172A;">'.e($documentName).'</h1>'
+            .'<p style="font-size:9pt;font-weight:bold;color:#6366F1;text-transform:uppercase;">'.e($typeLabel).'</p>'
+            .$content
+            .'</body></html>';
 
-        $rows[] = ['Created', $this->formatDate($document->created_at?->toDateString())];
-        $rows[] = ['Last Updated', $this->formatDate($document->updated_at?->toDateString())];
-
-        $content = $this->plainTextContent($document->content);
-        if ($content !== '') {
-            $rows[] = ['Content', $content];
-        }
-
-        $documentName = is_string($document->name) ? $document->name : 'document';
-
-        $doc = $service->createDoc($accessToken, Str::slug($documentName), ['Field', 'Value'], $rows);
+        $doc = $service->createDocFromHtml($accessToken, Str::slug($documentName), $html);
 
         return response()->json($doc);
     }
