@@ -86,6 +86,26 @@ it('redirects back with a status instead of a broken google url when oauth crede
     expect(session('status'))->toBe('google-not-configured');
 });
 
+it('stores a safe relative return_to in the session for the callback to use', function () {
+    config(['services.google.client_id' => 'fake-client-id', 'services.google.client_secret' => 'fake-client-secret']);
+
+    $this->actingAs($this->user)
+        ->get(route('integrations.google.connect', ['return_to' => '/projects/abc/reports?tab=reports']))
+        ->assertRedirect();
+
+    expect(session('google_connect_return_to'))->toBe('/projects/abc/reports?tab=reports');
+});
+
+it('does not store an unsafe return_to (protocol-relative or absolute external url)', function () {
+    config(['services.google.client_id' => 'fake-client-id', 'services.google.client_secret' => 'fake-client-secret']);
+
+    $this->actingAs($this->user)
+        ->get(route('integrations.google.connect', ['return_to' => '//evil.com']))
+        ->assertRedirect();
+
+    expect(session('google_connect_return_to'))->toBeNull();
+});
+
 // ── Callback ────────────────────────────────────────────────────────────────
 
 it('stores a token when the google callback succeeds', function () {
@@ -118,6 +138,30 @@ it('does not store a token when google returns no refresh token', function () {
         ->assertRedirect(route('integrations.edit'));
 
     expect(GoogleOauthToken::where('user_id', $this->user->id)->exists())->toBeFalse();
+});
+
+it('redirects back to the stored return_to on a successful callback instead of the settings page', function () {
+    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+        'refreshToken' => 'fake-refresh-token',
+    ]));
+
+    $this->withSession(['google_connect_return_to' => '/projects/abc/reports?tab=reports'])
+        ->actingAs($this->user)
+        ->get(route('integrations.google.callback'))
+        ->assertRedirect('/projects/abc/reports?tab=reports');
+
+    expect(session('google_connect_return_to'))->toBeNull();
+});
+
+it('ignores the stored return_to and goes to the settings page when the callback fails', function () {
+    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+        'refreshToken' => null,
+    ]));
+
+    $this->withSession(['google_connect_return_to' => '/projects/abc/reports?tab=reports'])
+        ->actingAs($this->user)
+        ->get(route('integrations.google.callback'))
+        ->assertRedirect(route('integrations.edit'));
 });
 
 // ── Disconnect ──────────────────────────────────────────────────────────────

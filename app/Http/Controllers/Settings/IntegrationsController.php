@@ -30,12 +30,24 @@ class IntegrationsController extends Controller
     }
 
     /**
-     * Redirect the user to Google's consent screen.
+     * Redirect the user to Google's consent screen. Callers elsewhere in the app (e.g. the
+     * Google Sheets/Docs export buttons) can pass `return_to` so the callback sends the user
+     * back to what they were doing instead of always landing on this settings page.
+     * Restricted to same-origin relative paths (never a bare "//host" either) since it's an
+     * unvalidated query param and the callback redirects to it directly.
      */
-    public function connectGoogle(): RedirectResponse
+    public function connectGoogle(Request $request): RedirectResponse
     {
         if (blank(config('services.google.client_id')) || blank(config('services.google.client_secret'))) {
             return to_route('integrations.edit')->with('status', 'google-not-configured');
+        }
+
+        $returnTo = $request->query('return_to');
+
+        if (is_string($returnTo) && str_starts_with($returnTo, '/') && ! str_starts_with($returnTo, '//')) {
+            $request->session()->put('google_connect_return_to', $returnTo);
+        } else {
+            $request->session()->forget('google_connect_return_to');
         }
 
         return Socialite::driver('google')
@@ -50,6 +62,7 @@ class IntegrationsController extends Controller
     public function googleCallback(Request $request): RedirectResponse
     {
         $googleUser = Socialite::driver('google')->user();
+        $returnTo = $request->session()->pull('google_connect_return_to');
 
         if (! $googleUser->refreshToken) {
             return to_route('integrations.edit')->with('status', 'google-connect-failed');
@@ -65,6 +78,10 @@ class IntegrationsController extends Controller
                 'scopes' => implode(' ', self::GOOGLE_SCOPES),
             ]
         );
+
+        if (is_string($returnTo)) {
+            return redirect()->to($returnTo)->with('status', 'google-connected');
+        }
 
         return to_route('integrations.edit')->with('status', 'google-connected');
     }

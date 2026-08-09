@@ -105,12 +105,6 @@ const runSearch = async (filters: TaskSearchFilters) => {
     }
 };
 
-onMounted(() => {
-    if (initialFilters) {
-        void runSearch(initialFilters);
-    }
-});
-
 const exportUrl = (action: typeof exportTasksPdf | typeof exportTasksWord | typeof exportTasksExcel): string => {
     const query: Record<string, string> = {
         ...activeParams.value,
@@ -149,7 +143,16 @@ const exportToGoogle = async (kind: 'sheet' | 'doc') => {
         window.open(response.data.url, '_blank');
     } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 428 && err.response.data?.connect_url) {
-            window.location.href = err.response.data.connect_url;
+            // Not connected yet — send the user through the connect flow, then bounce them
+            // straight back here (with this same export re-triggered automatically) instead
+            // of dropping them on the standalone Settings > Integrations page.
+            const returnUrl = new URL(window.location.href);
+            returnUrl.searchParams.set('google_export', kind);
+
+            const connectUrl = new URL(err.response.data.connect_url);
+            connectUrl.searchParams.set('return_to', returnUrl.pathname + returnUrl.search);
+
+            window.location.href = connectUrl.toString();
             return;
         }
         error.value = `Something went wrong exporting to ${label}. Please try again.`;
@@ -157,6 +160,24 @@ const exportToGoogle = async (kind: 'sheet' | 'doc') => {
         exportingToGoogle.value = null;
     }
 };
+
+// Set when landing back here after being sent through the Google connect flow mid-export
+// above — resumed once the restored search results are in, then stripped from the URL so a
+// refresh doesn't repeat it.
+const pendingGoogleExport = new URLSearchParams(window.location.search).get('google_export');
+
+onMounted(async () => {
+    if (initialFilters) {
+        await runSearch(initialFilters);
+    }
+
+    if (pendingGoogleExport === 'sheet' || pendingGoogleExport === 'doc') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('google_export');
+        window.history.replaceState(window.history.state, '', url);
+        void exportToGoogle(pendingGoogleExport);
+    }
+});
 </script>
 
 <template>
