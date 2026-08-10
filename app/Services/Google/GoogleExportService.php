@@ -73,8 +73,14 @@ class GoogleExportService
     }
 
     /**
-     * Creates a native Google Sheet in the connected user's own Drive and writes the given
-     * header + data rows to it in a single call.
+     * Creates a native Google Sheet in the connected user's own Drive from the given header +
+     * data rows.
+     *
+     * Builds a CSV and uploads it via uploadAndConvert() rather than calling the Sheets API
+     * (sheets.googleapis.com) directly — that's a separate API from Drive with its own scope
+     * requirement (spreadsheets), which the app deliberately never requests (see
+     * createDocFromHtml()'s docblock for the same reasoning applied to Docs). Drive's own
+     * CSV-to-Sheet import conversion covers this without needing it.
      *
      * @param  array<int, string>  $headerRow
      * @param  array<int, array<int, string>>  $dataRows
@@ -82,43 +88,22 @@ class GoogleExportService
      */
     public function createSheet(string $accessToken, string $title, array $headerRow, array $dataRows): array
     {
-        $createResponse = Http::withToken($accessToken)
-            ->post('https://sheets.googleapis.com/v4/spreadsheets', [
-                'properties' => ['title' => $title],
-            ]);
+        $id = $this->uploadAndConvert(
+            $accessToken,
+            $title,
+            $this->tableCsv($headerRow, $dataRows),
+            'text/csv',
+            'application/vnd.google-apps.spreadsheet',
+        );
 
-        if ($createResponse->failed()) {
-            throw new \RuntimeException('Failed to create Google Sheet: '.$createResponse->body());
-        }
-
-        $spreadsheetIdValue = $createResponse->json('spreadsheetId');
-        $spreadsheetUrlValue = $createResponse->json('spreadsheetUrl');
-        $spreadsheetId = is_string($spreadsheetIdValue) ? $spreadsheetIdValue : '';
-        $spreadsheetUrl = is_string($spreadsheetUrlValue) ? $spreadsheetUrlValue : '';
-
-        $writeResponse = Http::withToken($accessToken)
-            ->put("https://sheets.googleapis.com/v4/spreadsheets/{$spreadsheetId}/values/A1?valueInputOption=RAW", [
-                'values' => [$headerRow, ...$dataRows],
-            ]);
-
-        if ($writeResponse->failed()) {
-            throw new \RuntimeException('Failed to write Google Sheet values: '.$writeResponse->body());
-        }
-
-        return ['id' => $spreadsheetId, 'url' => $spreadsheetUrl];
+        return ['id' => $id, 'url' => "https://docs.google.com/spreadsheets/d/{$id}/edit"];
     }
 
     /**
      * Creates a native Google Doc in the connected user's own Drive, containing a table of
-     * the given header + data rows.
-     *
-     * A brand-new Google Doc's table cells can't be addressed by index up front — the API
-     * only reports each cell's insertion point after the (still-empty) table actually exists
-     * in the document — so this makes three calls: create the table, re-fetch the document to
-     * read the resulting cell positions, then fill every cell in a single batch. Cells are
-     * filled last-to-first: inserting text shifts the index of everything after it, so working
-     * backwards means each not-yet-filled cell's precomputed index is still valid when its turn
-     * comes.
+     * the given header + data rows. Built as an HTML table and handed to createDocFromHtml()
+     * — see that method's docblock for why (avoids the Docs API's own `documents` scope,
+     * which the app deliberately never requests).
      *
      * @param  array<int, string>  $headerRow
      * @param  array<int, array<int, string>>  $dataRows
@@ -126,100 +111,49 @@ class GoogleExportService
      */
     public function createDoc(string $accessToken, string $title, array $headerRow, array $dataRows): array
     {
-        $createResponse = Http::withToken($accessToken)
-            ->post('https://docs.googleapis.com/v1/documents', [
-                'title' => $title,
-            ]);
-
-        if ($createResponse->failed()) {
-            throw new \RuntimeException('Failed to create Google Doc: '.$createResponse->body());
-        }
-
-        $documentIdValue = $createResponse->json('documentId');
-        $documentId = is_string($documentIdValue) ? $documentIdValue : '';
-
-        $rows = [$headerRow, ...$dataRows];
-
-        $tableResponse = Http::withToken($accessToken)
-            ->post("https://docs.googleapis.com/v1/documents/{$documentId}:batchUpdate", [
-                'requests' => [[
-                    'insertTable' => [
-                        'rows' => count($rows),
-                        'columns' => count($headerRow),
-                        'location' => ['index' => 1],
-                    ],
-                ]],
-            ]);
-
-        if ($tableResponse->failed()) {
-            throw new \RuntimeException('Failed to insert Google Doc table: '.$tableResponse->body());
-        }
-
-        $getResponse = Http::withToken($accessToken)
-            ->get("https://docs.googleapis.com/v1/documents/{$documentId}");
-
-        if ($getResponse->failed()) {
-            throw new \RuntimeException('Failed to read back Google Doc structure: '.$getResponse->body());
-        }
-
-        $documentBody = $getResponse->json();
-        $cellStartIndexes = $this->tableCellStartIndexes(is_array($documentBody) ? $documentBody : []);
-        $values = array_merge(...$rows);
-
-        $insertRequests = [];
-        foreach (array_reverse($cellStartIndexes, true) as $i => $startIndex) {
-            $value = $values[$i] ?? '';
-            if ($value === '') {
-                continue;
-            }
-
-            $insertRequests[] = [
-                'insertText' => [
-                    'location' => ['index' => $startIndex],
-                    'text' => $value,
-                ],
-            ];
-        }
-
-        if (! empty($insertRequests)) {
-            $fillResponse = Http::withToken($accessToken)
-                ->post("https://docs.googleapis.com/v1/documents/{$documentId}:batchUpdate", [
-                    'requests' => $insertRequests,
-                ]);
-
-            if ($fillResponse->failed()) {
-                throw new \RuntimeException('Failed to fill Google Doc table: '.$fillResponse->body());
-            }
-        }
-
-        return ['id' => $documentId, 'url' => "https://docs.google.com/document/d/{$documentId}/edit"];
+        return $this->createDocFromHtml($accessToken, $title, $this->tableHtml($headerRow, $dataRows));
     }
 
     /**
      * Creates a native Google Doc in the connected user's own Drive from a chunk of HTML,
-     * preserving basic rich-text formatting (bold, headings, lists, etc.) — for exporting a
-     * single document so it reads like a document (title + formatted body), rather than the
-     * row/column shape createDoc() above builds for task-list exports.
+     * preserving basic rich-text formatting (bold, headings, lists, tables, etc.).
      *
-     * Rather than hand-building Docs API structural edits for arbitrary rich text (fragile —
-     * see createDoc()'s table-cell-index dance above, which only works because a table's
-     * cells are a known, predictable structure), this uses Drive's own HTML-to-Google-Doc
-     * import conversion: uploading content as text/html with the target mimeType set to a
-     * Google Doc makes Drive do the HTML parsing and formatting conversion itself.
+     * Rather than hand-building Docs API (docs.googleapis.com) structural edits, this uses
+     * Drive's own HTML-to-Google-Doc import conversion: uploading content as text/html with
+     * the target mimeType set to a Google Doc makes Drive do the HTML parsing and formatting
+     * conversion itself. This is also the only reason the app's OAuth scope can stay limited
+     * to drive.file — the Docs and Sheets APIs are entirely separate from Drive and each
+     * require their own scope (`documents`, `spreadsheets`) that a drive.file-only token
+     * doesn't carry, which is exactly what broke this in production (Google returns 403
+     * ACCESS_TOKEN_SCOPE_INSUFFICIENT for docs.googleapis.com calls). Letting Drive perform
+     * the conversion sidesteps needing those broader, more sensitive scopes at all.
      *
      * @return array{id: string, url: string}
      */
     public function createDocFromHtml(string $accessToken, string $title, string $html): array
     {
+        $id = $this->uploadAndConvert($accessToken, $title, $html, 'text/html', 'application/vnd.google-apps.document');
+
+        return ['id' => $id, 'url' => "https://docs.google.com/document/d/{$id}/edit"];
+    }
+
+    /**
+     * Uploads arbitrary source content to Drive with a target Google Workspace mimeType,
+     * letting Drive's own importer convert it (HTML -> Doc, CSV -> Sheet, etc.) — the shared
+     * mechanism behind createDoc(), createSheet(), and createDocFromHtml(). Kept scoped to
+     * drive.file: the resulting file is one this app itself just created.
+     */
+    private function uploadAndConvert(string $accessToken, string $title, string $content, string $sourceContentType, string $targetMimeType): string
+    {
         $boundary = 'projector-'.bin2hex(random_bytes(16));
-        $metadata = json_encode(['name' => $title, 'mimeType' => 'application/vnd.google-apps.document'], JSON_UNESCAPED_SLASHES);
+        $metadata = json_encode(['name' => $title, 'mimeType' => $targetMimeType], JSON_UNESCAPED_SLASHES);
 
         $body = "--{$boundary}\r\n"
             ."Content-Type: application/json; charset=UTF-8\r\n\r\n"
             ."{$metadata}\r\n"
             ."--{$boundary}\r\n"
-            ."Content-Type: text/html; charset=UTF-8\r\n\r\n"
-            ."{$html}\r\n"
+            ."Content-Type: {$sourceContentType}; charset=UTF-8\r\n\r\n"
+            ."{$content}\r\n"
             ."--{$boundary}--";
 
         $response = Http::withToken($accessToken)
@@ -227,13 +161,53 @@ class GoogleExportService
             ->post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id');
 
         if ($response->failed()) {
-            throw new \RuntimeException('Failed to create Google Doc: '.$response->body());
+            throw new \RuntimeException('Failed to create Google file: '.$response->body());
         }
 
         $idValue = $response->json('id');
-        $id = is_string($idValue) ? $idValue : '';
 
-        return ['id' => $id, 'url' => "https://docs.google.com/document/d/{$id}/edit"];
+        return is_string($idValue) ? $idValue : '';
+    }
+
+    /**
+     * @param  array<int, string>  $headerRow
+     * @param  array<int, array<int, string>>  $dataRows
+     */
+    private function tableHtml(array $headerRow, array $dataRows): string
+    {
+        $escape = fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_HTML5);
+
+        $headCells = implode('', array_map(fn ($v) => '<th>'.$escape((string) $v).'</th>', $headerRow));
+        $bodyRows = implode('', array_map(
+            fn ($row) => '<tr>'.implode('', array_map(fn ($v) => '<td>'.$escape((string) $v).'</td>', $row)).'</tr>',
+            $dataRows,
+        ));
+
+        return "<table><tr>{$headCells}</tr>{$bodyRows}</table>";
+    }
+
+    /**
+     * @param  array<int, string>  $headerRow
+     * @param  array<int, array<int, string>>  $dataRows
+     */
+    private function tableCsv(array $headerRow, array $dataRows): string
+    {
+        $stream = fopen('php://temp', 'r+');
+
+        if ($stream === false) {
+            throw new \RuntimeException('Failed to open a temporary stream for CSV generation.');
+        }
+
+        fputcsv($stream, $headerRow);
+        foreach ($dataRows as $row) {
+            fputcsv($stream, $row);
+        }
+
+        rewind($stream);
+        $csv = stream_get_contents($stream);
+        fclose($stream);
+
+        return $csv === false ? '' : $csv;
     }
 
     /**
@@ -251,49 +225,5 @@ class GoogleExportService
         }
 
         return $response->body();
-    }
-
-    /**
-     * Walks a documents.get response to find the single table this class ever creates, and
-     * returns the insertion index of each of its (empty) cells, in row-major reading order.
-     *
-     * @param  array<string, mixed>  $document
-     * @return array<int, int>
-     */
-    private function tableCellStartIndexes(array $document): array
-    {
-        $body = $document['body'] ?? null;
-        $content = is_array($body) ? ($body['content'] ?? []) : [];
-        $content = is_array($content) ? $content : [];
-
-        $table = null;
-        foreach ($content as $element) {
-            if (is_array($element) && isset($element['table']) && is_array($element['table'])) {
-                $table = $element['table'];
-                break;
-            }
-        }
-
-        if (! is_array($table)) {
-            return [];
-        }
-
-        $tableRows = $table['tableRows'] ?? [];
-        $tableRows = is_array($tableRows) ? $tableRows : [];
-
-        $startIndexes = [];
-        foreach ($tableRows as $row) {
-            $tableCells = is_array($row) ? ($row['tableCells'] ?? []) : [];
-            $tableCells = is_array($tableCells) ? $tableCells : [];
-
-            foreach ($tableCells as $cell) {
-                $content = is_array($cell) ? ($cell['content'] ?? []) : [];
-                $paragraph = is_array($content) ? ($content[0] ?? null) : null;
-                $startIndex = is_array($paragraph) ? ($paragraph['startIndex'] ?? 0) : 0;
-                $startIndexes[] = is_numeric($startIndex) ? (int) $startIndex : 0;
-            }
-        }
-
-        return $startIndexes;
     }
 }

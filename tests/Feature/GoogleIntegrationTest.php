@@ -199,12 +199,7 @@ it('creates a google sheet with the filtered tasks when connected', function () 
     Document::create(['project_id' => $this->project->id, 'name' => 'Exportable Task', 'type' => 'action_items', 'content' => 'x', 'priority' => 'high']);
 
     Http::fake([
-        // Specific values-write pattern first — must precede the broader create pattern.
-        'sheets.googleapis.com/v4/spreadsheets/*/values/*' => Http::response(['updatedCells' => 5], 200),
-        'sheets.googleapis.com/v4/spreadsheets' => Http::response([
-            'spreadsheetId' => 'abc123',
-            'spreadsheetUrl' => 'https://docs.google.com/spreadsheets/d/abc123/edit',
-        ], 200),
+        'www.googleapis.com/upload/drive/v3/files*' => Http::response(['id' => 'abc123'], 200),
     ]);
 
     $response = $this->actingAs($this->user)
@@ -213,12 +208,19 @@ it('creates a google sheet with the filtered tasks when connected', function () 
     $response->assertOk();
     expect($response->json('url'))->toBe('https://docs.google.com/spreadsheets/d/abc123/edit');
 
-    Http::assertSent(fn ($request) => $request->url() === 'https://sheets.googleapis.com/v4/spreadsheets'
-        && $request['properties']['title'] === 'test-project-task-report');
+    // Built via Drive's CSV-import conversion (a raw multipart/related body, not JSON, and a
+    // Sheets-typed mimeType instead of the Docs one createDoc()/createDocFromHtml() use) —
+    // see DocumentExportGoogleDocTest.php for the same assertion style applied to Docs.
+    Http::assertSent(function ($request) {
+        $body = $request->body();
 
-    Http::assertSent(fn ($request) => str_contains($request->url(), '/values/A1?valueInputOption=RAW')
-        && $request['values'][0] === ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority']
-        && $request['values'][1][2] === 'Exportable Task');
+        return $request->url() === 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id'
+            && str_contains($body, 'test-project-task-report')
+            && str_contains($body, 'application/vnd.google-apps.spreadsheet')
+            && str_contains($body, 'text/csv')
+            && str_contains($body, 'Status,"Due Date","Task Name",Assignee,Priority')
+            && str_contains($body, 'Exportable Task');
+    });
 });
 
 it('forbids exporting to google sheets for a user unrelated to the project', function () {
@@ -237,32 +239,8 @@ it('creates a google doc with a filled table of the filtered tasks when connecte
 
     Document::create(['project_id' => $this->project->id, 'name' => 'Exportable Task', 'type' => 'action_items', 'content' => 'x', 'priority' => 'high']);
 
-    // 2 rows (header + 1 task) x 5 columns = 10 cells. A brand-new table's cells are only
-    // addressable once documents.get reports back their (empty) paragraph start indexes —
-    // these are made up but internally consistent, standing in for whatever Google actually
-    // assigns.
-    $fakeCellIndex = fn (int $row, int $col) => 5 + ($row * 4 * 5) + ($col * 4);
-    $fakeDocument = [
-        'body' => [
-            'content' => [
-                [
-                    'table' => [
-                        'tableRows' => [
-                            ['tableCells' => array_map(fn ($col) => ['content' => [['startIndex' => $fakeCellIndex(0, $col)]]], range(0, 4))],
-                            ['tableCells' => array_map(fn ($col) => ['content' => [['startIndex' => $fakeCellIndex(1, $col)]]], range(0, 4))],
-                        ],
-                    ],
-                ],
-            ],
-        ],
-    ];
-
     Http::fake([
-        // Specific patterns before the general wildcard — a bare "/documents/*" would
-        // otherwise also swallow the ":batchUpdate" calls below.
-        'docs.googleapis.com/v1/documents' => Http::response(['documentId' => 'doc123'], 200),
-        'docs.googleapis.com/v1/documents/*:batchUpdate' => Http::response([], 200),
-        'docs.googleapis.com/v1/documents/*' => Http::response($fakeDocument, 200),
+        'www.googleapis.com/upload/drive/v3/files*' => Http::response(['id' => 'doc123'], 200),
     ]);
 
     $response = $this->actingAs($this->user)
@@ -271,27 +249,19 @@ it('creates a google doc with a filled table of the filtered tasks when connecte
     $response->assertOk();
     expect($response->json('url'))->toBe('https://docs.google.com/document/d/doc123/edit');
 
-    Http::assertSent(fn ($request) => $request->url() === 'https://docs.googleapis.com/v1/documents'
-        && $request['title'] === 'test-project-task-report');
+    // Built via Drive's HTML-import conversion (a raw multipart/related body, not JSON) —
+    // see DocumentExportGoogleDocTest.php for the same assertion style.
+    Http::assertSent(function ($request) {
+        $body = $request->body();
 
-    Http::assertSent(fn ($request) => str_contains($request->url(), 'doc123:batchUpdate')
-        && ($request['requests'][0]['insertTable']['rows'] ?? null) === 2
-        && ($request['requests'][0]['insertTable']['columns'] ?? null) === 5);
-
-    // Cells must be filled last-to-first (by precomputed index) so that inserting text
-    // into a later cell never invalidates an earlier cell's still-to-be-used index.
-    Http::assertSent(function ($request) use ($fakeCellIndex) {
-        if (! str_contains($request->url(), 'doc123:batchUpdate') || ! isset($request['requests'][0]['insertText'])) {
-            return false;
-        }
-
-        $requests = $request['requests'];
-
-        return count($requests) === 10
-            && $requests[0]['insertText']['location']['index'] === $fakeCellIndex(1, 4)
-            && $requests[0]['insertText']['text'] === 'High'
-            && $requests[9]['insertText']['location']['index'] === $fakeCellIndex(0, 0)
-            && $requests[9]['insertText']['text'] === 'Status';
+        return $request->url() === 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id'
+            && str_contains($body, 'test-project-task-report')
+            && str_contains($body, 'application/vnd.google-apps.document')
+            && str_contains($body, 'text/html')
+            && str_contains($body, '<th>Status</th>')
+            && str_contains($body, '<th>Priority</th>')
+            && str_contains($body, '<td>Exportable Task</td>')
+            && str_contains($body, '<td>High</td>');
     });
 });
 
