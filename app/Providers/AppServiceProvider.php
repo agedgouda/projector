@@ -25,6 +25,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use PhpOffice\PhpWord\Settings as PhpWordSettings;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -85,6 +86,11 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
         }
+
+        // PhpWord defaults this to false, writing text content into the docx XML
+        // completely unescaped — a task/document name containing "&" (e.g. "Q&A")
+        // produces an invalid document.xml that Word refuses to open.
+        PhpWordSettings::setOutputEscapingEnabled(true);
 
         // Register Model Observers
         Document::observe(DocumentObserver::class);

@@ -20,7 +20,6 @@ import projectDocumentsRoutes from '@/routes/projects/documents/index';
 
 const props = defineProps<{
     currentOrg: { id: string; name: string };
-    organizations: OrgOption[];
     statusMeetings: StatusMeeting[];
     canManage: boolean;
     meetingProvider: string | null;
@@ -137,10 +136,6 @@ const canProcess = (meeting: StatusMeeting) =>
     meeting.ai_draft_status !== 'processing' &&
     !processingIds.value.has(meeting.id);
 
-const switchOrg = (id: string) => {
-    router.get(statusMeetingsRoutes.index.url({ query: { org: id } }));
-};
-
 const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -171,15 +166,6 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <select
-                        v-if="organizations.length > 1"
-                        :value="currentOrg.id"
-                        @change="switchOrg(($event.target as HTMLSelectElement).value)"
-                        class="h-10 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
-                    >
-                        <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
-                    </select>
-
                     <Button
                         v-if="canManage"
                         @click="router.visit(orgDocumentsRoutes.create({ organization: currentOrg.id }).url)"
@@ -393,10 +379,10 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
 
                     <AvailableOrgRecordings
                         :organization-id="currentOrg.id"
-                        :recordings="recordingsData.recordings"
-                        :imported-ids="recordingsData.importedIds"
+                        :recordings="recordingsData!.recordings"
+                        :imported-ids="recordingsData!.importedIds"
                         :can-manage="canManage"
-                        :provider-error="recordingsData.providerError"
+                        :provider-error="recordingsData!.providerError"
                     />
                 </Deferred>
             </div>

@@ -78,6 +78,34 @@ it('downloads a word document when the content has unclosed html tags', function
     expect($response->headers->get('content-type'))->toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 });
 
+it('downloads a valid word document when the name or content contains an unescaped ampersand', function () {
+    // Raw "&" is invalid inside XML text content unless escaped; PhpWord's Settings
+    // defaults output escaping to *off*, so without AppServiceProvider explicitly
+    // enabling it, this produces a document.xml Word refuses to open.
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Draft approved Q&A responses',
+        'type' => 'action_items',
+        'content' => '<p>Covers R&D and Sales & Marketing.</p>',
+        'processed_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.documents.exportWord', [$this->project, $document]));
+
+    $response->assertOk();
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'docx');
+    file_put_contents($tmpFile, $response->streamedContent());
+
+    // Throws if word/document.xml isn't well-formed XML - proves the file is valid,
+    // not just that a response was returned.
+    $loaded = \PhpOffice\PhpWord\IOFactory::load($tmpFile);
+    unlink($tmpFile);
+
+    expect($loaded)->toBeInstanceOf(\PhpOffice\PhpWord\PhpWord::class);
+});
+
 it('denies access to a document outside the user\'s organization', function () {
     $document = Document::create([
         'project_id' => $this->project->id,

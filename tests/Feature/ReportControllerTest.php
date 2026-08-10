@@ -307,6 +307,30 @@ it('exports the filtered tasks as a word document', function () {
     expect($response->headers->get('Content-Type'))->toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 });
 
+it('exports a valid word document when a task name contains an unescaped ampersand', function () {
+    // Raw "&" is invalid inside XML text content unless escaped; PhpWord's Settings
+    // defaults output escaping to *off*, so without AppServiceProvider explicitly
+    // enabling it, this produces a document.xml Word refuses to open.
+    Document::create(['project_id' => $this->project->id, 'name' => 'Draft approved Q&A responses', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->get(route('projects.reports.tasks.exportWord', $this->project));
+
+    $response->assertOk();
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'docx');
+    file_put_contents($tmpFile, $response->streamedContent());
+
+    // Throws if word/document.xml isn't well-formed XML - proves the file is valid,
+    // not just that a response was returned.
+    $loaded = \PhpOffice\PhpWord\IOFactory::load($tmpFile);
+    unlink($tmpFile);
+
+    expect($loaded)->toBeInstanceOf(\PhpOffice\PhpWord\PhpWord::class);
+});
+
 it('exports the filtered tasks as an excel workbook, with the details column only when requested', function () {
     Document::create(['project_id' => $this->project->id, 'name' => 'Exportable Task', 'type' => 'action_items', 'content' => 'Some details here']);
 

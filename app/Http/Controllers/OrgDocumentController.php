@@ -77,17 +77,12 @@ class OrgDocumentController extends Controller
             ];
         })->values()->all();
 
-        $userOrganizations = $user->hasRole('super-admin')
-            ? Organization::all(['id', 'name'])
-            : $user->organizations()->get(['organizations.id', 'organizations.name']);
-
         $canManage = $user->can('create', [OrgDocument::class, $organization]);
 
         cookie()->queue(cookie()->forever('last_org_id', (string) $organization->id));
 
         return inertia('StatusMeetings/Index', [
             'currentOrg' => $organization->only(['id', 'name']),
-            'organizations' => $userOrganizations,
             'statusMeetings' => $statusMeetings,
             'canManage' => $canManage,
             'meetingProvider' => $organization->meeting_provider,

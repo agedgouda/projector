@@ -377,10 +377,6 @@ declare global {
         linked_documents: StatusMeetingLinkedDocument[];
     }
 
-    export interface OrgOption {
-        id: string;
-        name: string;
-    }
 
     export interface RecordingsData {
         recordings: Recording[];
