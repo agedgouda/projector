@@ -215,6 +215,16 @@ Route::middleware(['auth'])->group(function () {
     // Org Documents (status meetings CRUD, nested under org for authorization)
     Route::post('/organizations/{organization}/import-recording', [\App\Http\Controllers\OrgDocumentController::class, 'importFromRecording'])
         ->name('organizations.import-recording');
+    Route::post('/organizations/{organization}/dismiss-recording', [\App\Http\Controllers\OrgDocumentController::class, 'dismissRecording'])
+        ->name('organizations.dismiss-recording');
+    Route::get('/organizations/{organization}/google-picker-token', [\App\Http\Controllers\OrgDocumentImportController::class, 'googlePickerToken'])
+        ->name('organizations.google-picker-token');
+    Route::post('/organizations/{organization}/import-google-doc', [\App\Http\Controllers\OrgDocumentImportController::class, 'importGoogleDoc'])
+        ->middleware('throttle:20,1')
+        ->name('organizations.import-google-doc');
+    Route::post('/organizations/{organization}/import-file', [\App\Http\Controllers\OrgDocumentImportController::class, 'importFile'])
+        ->middleware('throttle:20,1')
+        ->name('organizations.import-file');
 
     Route::prefix('organizations/{organization}/documents')->name('organizations.documents.')->group(function () {
         Route::get('/create', [\App\Http\Controllers\OrgDocumentController::class, 'create'])->name('create');

@@ -38,6 +38,15 @@ class OrgAiService
             $template->user_prompt
         );
 
+        // A one-off custom instruction (see Document::custom_prompt for the same idea on the
+        // project side) is folded into the fixed extraction template rather than replacing it
+        // outright — unlike ProjectAiService::processCustomPrompt(), which fully swaps out the
+        // template because a project document's next step is otherwise ambiguous, OrgAiService
+        // only ever runs this one template, so there's no "which step" to resolve around.
+        if (! empty($orgDocument->custom_prompt)) {
+            $userPrompt .= "\n\nAdditional instructions for this extraction: ".$orgDocument->custom_prompt;
+        }
+
         $result = $this->llmDriver->call($template->system_prompt, $userPrompt, $this->getResponseSchema());
 
         if (($result['status'] ?? '') === 'error') {

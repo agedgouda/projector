@@ -64,29 +64,13 @@ export const kanbanCardBg: Record<string, string> = {
 
 /**
  * Card background always uses the column's static color (`kanbanCardBg`). Only the
- * border reflects due-date urgency: red once the due date has arrived (or passed),
- * sliding through yellow as it approaches. More than 2 days out, in the "done" column,
- * or with no due date at all, the border falls back to the card's static default.
+ * border reflects due-date urgency: red once the due date has arrived (today) or
+ * passed, and only while the task isn't done. No other border color/state exists —
+ * everything else falls back to the card's static default border.
  */
-const DUE_DATE_RED: [number, number, number] = [239, 68, 68]; // red-500
-const DUE_DATE_YELLOW: [number, number, number] = [251, 191, 36]; // amber-400
+const DUE_DATE_RED = 'rgb(239, 68, 68)'; // red-500
 
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-
-const lerpRgb = (
-    a: [number, number, number],
-    b: [number, number, number],
-    t: number,
-): [number, number, number] => [
-    lerp(a[0], b[0], t),
-    lerp(a[1], b[1], t),
-    lerp(a[2], b[2], t),
-];
-
-const toRgba = (rgb: [number, number, number], opacity: number): string =>
-    `rgba(${Math.round(rgb[0])}, ${Math.round(rgb[1])}, ${Math.round(rgb[2])}, ${opacity})`;
-
-const daysUntil = (dueAt: string): number => {
+const isPastOrDueToday = (dueAt: string): boolean => {
     const due = new Date(dueAt);
     const dueMidnight = new Date(
         due.getFullYear(),
@@ -99,9 +83,7 @@ const daysUntil = (dueAt: string): number => {
         now.getMonth(),
         now.getDate(),
     );
-    return Math.round(
-        (dueMidnight.getTime() - todayMidnight.getTime()) / 86_400_000,
-    );
+    return dueMidnight.getTime() <= todayMidnight.getTime();
 };
 
 export const dueDateCardBorderColor = (
@@ -112,16 +94,7 @@ export const dueDateCardBorderColor = (
         return null;
     }
 
-    const days = daysUntil(doc.due_at);
-
-    if (days > 2) {
-        return null;
-    }
-
-    const rgb =
-        days <= 0 ? DUE_DATE_RED : lerpRgb(DUE_DATE_RED, DUE_DATE_YELLOW, days / 2);
-
-    return toRgba(rgb, 1);
+    return isPastOrDueToday(doc.due_at) ? DUE_DATE_RED : null;
 };
 
 /**

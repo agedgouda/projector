@@ -4,11 +4,11 @@ import axios from 'axios';
 import { toast } from 'vue-sonner';
 import ImportDocumentOptionsPanel from '@/components/recordings/ImportDocumentOptionsPanel.vue';
 import { useGooglePicker } from '@/composables/transcripts/useGooglePicker';
-import { useDocumentImportActions } from '@/composables/transcripts/useDocumentImportActions';
-import transcriptRoutes from '@/routes/projects/transcripts/index';
+import { useOrgDocumentImportActions } from '@/composables/transcripts/useOrgDocumentImportActions';
+import organizationRoutes from '@/routes/organizations/index';
 
 const props = defineProps<{
-    projectId: string;
+    organizationId: string;
     canManage: boolean;
     googlePickerConfigured: boolean;
     googleApiKey: string | null;
@@ -16,16 +16,14 @@ const props = defineProps<{
 }>();
 
 const { isOpening, openPicker } = useGooglePicker();
-const { importingGoogleDoc, importGoogleDoc, importingFile, importFile } = useDocumentImportActions(props.projectId);
+const { importingGoogleDoc, importGoogleDoc, importingFile, importFile } = useOrgDocumentImportActions(props.organizationId);
 
-// Unlike the export flows elsewhere in the app, picking a file can't survive a redirect —
-// so this always fetches (and, if needed, connects) *before* ever opening the Picker, never
-// mid-pick. On success it opens the Picker directly, so a fresh connect only ever means one
-// extra round trip back to this exact state, not a resumed selection.
+// Mirrors Projects/Partials/ImportDocumentOptions.vue's startGoogleDocImport() — always
+// fetches (and, if needed, connects) *before* ever opening the Picker, never mid-pick.
 const startGoogleDocImport = async (prompt: string) => {
     try {
         const response = await axios.get<{ access_token: string }>(
-            transcriptRoutes.googlePickerToken.url(props.projectId)
+            organizationRoutes.googlePickerToken(props.organizationId).url
         );
 
         await openPicker({

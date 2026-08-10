@@ -396,6 +396,22 @@ declare global {
         duration_minutes: number;
     }
 
+    // One button per recording row in RecordingsList.vue — lets each context (project vs.
+    // organization) supply its own action set (e.g. Import + Requirements vs. just Import)
+    // without the shared list component knowing about per-context document-type semantics.
+    // `loading` drives this action's own spinner/label; `disabled` (defaults to `loading`'s
+    // value) controls whether the button can be clicked — kept separate so e.g. the project
+    // Import/Requirements pair can disable each other while either is in flight without both
+    // spinning at once.
+    export interface RecordingAction {
+        label: string;
+        icon: LucideIcon;
+        variant?: 'primary' | 'outline';
+        loading: (recording: Recording) => boolean;
+        disabled?: (recording: Recording) => boolean;
+        onClick: (recording: Recording, customPrompt: string) => void;
+    }
+
     export interface ImportedTranscript {
         id: string;
         name: string;

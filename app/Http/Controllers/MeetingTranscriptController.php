@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\ImportMeetingTranscript;
 use App\Models\Document;
 use App\Models\Project;
+use App\Services\Google\GoogleExportService;
 use App\Services\MeetingTranscriptService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +16,7 @@ class MeetingTranscriptController extends Controller
     /**
      * Show available recordings and already-imported transcripts for a project.
      */
-    public function index(Request $request, Project $project, MeetingTranscriptService $service)
+    public function index(Request $request, Project $project, MeetingTranscriptService $service, GoogleExportService $googleExportService)
     {
         Gate::authorize('view', $project);
 
@@ -73,10 +74,7 @@ class MeetingTranscriptController extends Controller
             'providerError' => $providerError,
             'provider' => $organization?->meeting_provider,
             'canManageTranscripts' => $canManageTranscripts,
-            'googlePickerConfigured' => filled(config('services.google.client_id'))
-                && filled(config('services.google.client_secret'))
-                && filled(config('services.google.api_key'))
-                && filled(config('services.google.app_id')),
+            'googlePickerConfigured' => $googleExportService->pickerConfigured(),
             'googleApiKey' => config('services.google.api_key'),
             'googleAppId' => config('services.google.app_id'),
         ]);

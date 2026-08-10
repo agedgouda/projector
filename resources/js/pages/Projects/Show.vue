@@ -485,6 +485,10 @@ watch(
                     :on-drag-change="onDragChange"
                     :open-detail="openDetail"
                     :handle-create-new="handleCreateNew"
+                    :update-attribute="
+                        (docId, field, val) =>
+                            updateAttribute(docId, { [field]: val }, 'Changes saved')
+                    "
                     :can-manage-columns="canManageProject"
                 />
             </div>

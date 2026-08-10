@@ -29,6 +29,7 @@ defineProps<{
     onDragChange: (event: any, column: KanbanColumnDef, rowKey: string) => void;
     openDetail: (doc: ProjectDocument) => void;
     handleCreateNew: (rowKey: string) => void;
+    updateAttribute: (docId: string | number, field: string, value: string | number | null) => void;
     canViewProjectDetails?: boolean;
     canManageColumns?: boolean;
 }>();
@@ -122,6 +123,7 @@ const togglePriority = (priority: Priority) => {
                     "
                     :on-open="openDetail"
                     :on-create="(key) => handleCreateNew(key)"
+                    :on-update-attribute="updateAttribute"
                     :can-view-project-details="canViewProjectDetails"
                     :current-project="currentProject"
                     :can-manage="canManageColumns"

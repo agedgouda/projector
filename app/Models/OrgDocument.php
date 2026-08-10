@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property Organization|null $organization
  * @property User|null $creator
+ * @property string|null $custom_prompt
  */
 class OrgDocument extends Model
 {
@@ -24,6 +25,7 @@ class OrgDocument extends Model
         'embedding',
         'metadata',
         'processed_at',
+        'custom_prompt',
     ];
 
     protected $hidden = ['embedding'];

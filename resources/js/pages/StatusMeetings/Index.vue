@@ -5,7 +5,8 @@ import { toast } from 'vue-sonner';
 import { Plus, FileText, CalendarDays, ChevronRight, Sparkles, RefreshCw, Eye } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import AvailableOrgRecordings from '@/components/AvailableOrgRecordings.vue';
+import AvailableOrgRecordings from '@/pages/Organizations/Partials/AvailableOrgRecordings.vue';
+import ImportDocumentOptions from '@/pages/Organizations/Partials/ImportDocumentOptions.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
 import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import { type BreadcrumbItem } from '@/types';
@@ -24,6 +25,9 @@ const props = defineProps<{
     canManage: boolean;
     meetingProvider: string | null;
     recordingsData?: RecordingsData;
+    googlePickerConfigured: boolean;
+    googleApiKey: string | null;
+    googleAppId: string | null;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -360,6 +364,14 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
 
             <!-- Recordings Tab -->
             <div v-show="activeTab === 'recordings'">
+                <ImportDocumentOptions
+                    :organization-id="currentOrg.id"
+                    :can-manage="canManage"
+                    :google-picker-configured="googlePickerConfigured"
+                    :google-api-key="googleApiKey"
+                    :google-app-id="googleAppId"
+                />
+
                 <div v-if="!meetingProvider" class="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
                     <p class="text-sm font-bold text-gray-500">No meeting provider configured</p>
                     <p class="text-xs text-gray-400 mt-1">Configure a provider in Organization Settings to import recordings.</p>

@@ -14,7 +14,7 @@ defineProps<{
     rowLabel: string;
 }>();
 
-const emit = defineEmits(['drag', 'open', 'create']);
+const emit = defineEmits(['drag', 'open', 'create', 'update-attribute']);
 </script>
 
 <template>
@@ -35,7 +35,12 @@ const emit = defineEmits(['drag', 'open', 'create']);
         >
             <template #item="{ element: doc }">
                 <div class="kanban-item">
-                    <KanbanCard :doc="doc" :column="column" @click="emit('open', doc)" />
+                    <KanbanCard
+                        :doc="doc"
+                        :column="column"
+                        @open="emit('open', doc)"
+                        @update-attribute="(field, val) => emit('update-attribute', doc.id, field, val)"
+                    />
                 </div>
             </template>
         </draggable>

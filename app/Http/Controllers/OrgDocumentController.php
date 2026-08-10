@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrgDocument;
 use App\Models\Project;
+use App\Services\Google\GoogleExportService;
 use App\Services\MeetingTranscriptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ use Inertia\Inertia;
 
 class OrgDocumentController extends Controller
 {
-    public function index(Request $request, MeetingTranscriptService $service)
+    public function index(Request $request, MeetingTranscriptService $service, GoogleExportService $googleExportService)
     {
         $user = $request->user();
         $orgId = $request->query('org') ?? $request->cookie('last_org_id') ?? getPermissionsTeamId();
@@ -90,6 +91,9 @@ class OrgDocumentController extends Controller
             'statusMeetings' => $statusMeetings,
             'canManage' => $canManage,
             'meetingProvider' => $organization->meeting_provider,
+            'googlePickerConfigured' => $googleExportService->pickerConfigured(),
+            'googleApiKey' => config('services.google.api_key'),
+            'googleAppId' => config('services.google.app_id'),
             'recordingsData' => Inertia::defer(function () use ($organization, $service) {
                 $importedIds = OrgDocument::where('organization_id', $organization->id)
                     ->whereNotNull('metadata->recording_id')
@@ -98,12 +102,18 @@ class OrgDocumentController extends Controller
                     ->filter()
                     ->values();
 
+                $dismissedIds = $organization->dismissedRecordings()->pluck('recording_id');
+
                 $recordings = [];
                 $providerError = null;
 
                 if ($organization->meeting_provider) {
                     try {
-                        $recordings = $service->listRecordings($organization, now()->subDays(30));
+                        $all = $service->listRecordings($organization, now()->subDays(30));
+                        $recordings = array_values(array_filter(
+                            $all,
+                            fn ($r) => ! $dismissedIds->contains($r['id'])
+                        ));
                     } catch (\Throwable $e) {
                         $providerError = $e->getMessage();
                     }
@@ -116,6 +126,22 @@ class OrgDocumentController extends Controller
                 ];
             })->once(),
         ]);
+    }
+
+    public function dismissRecording(Request $request, Organization $organization): RedirectResponse
+    {
+        setPermissionsTeamId($organization->id);
+        Gate::authorize('create', [OrgDocument::class, $organization]);
+
+        $validated = $request->validate([
+            'recording_id' => 'required|string',
+        ]);
+
+        $organization->dismissedRecordings()->firstOrCreate([
+            'recording_id' => $validated['recording_id'],
+        ]);
+
+        return back();
     }
 
     public function create(Organization $organization)
@@ -137,6 +163,7 @@ class OrgDocumentController extends Controller
             'recording_id' => 'required|string',
             'title' => 'required|string|max:255',
             'started_at' => 'required|string',
+            'custom_prompt' => 'nullable|string',
         ]);
 
         $orgDocument = $organization->orgDocuments()->create([
@@ -144,6 +171,7 @@ class OrgDocumentController extends Controller
             'name' => $validated['title'],
             'content' => '',
             'processed_at' => now(),
+            'custom_prompt' => $validated['custom_prompt'] ?? null,
             'metadata' => [
                 'recording_id' => $validated['recording_id'],
                 'provider' => $organization->meeting_provider,
@@ -235,11 +263,13 @@ class OrgDocumentController extends Controller
             'recording_id' => 'required|string',
             'title' => 'required|string|max:255',
             'started_at' => 'required|string',
+            'custom_prompt' => 'nullable|string',
         ]);
 
         $orgDocument->update([
             'name' => $orgDocument->name ?: $validated['title'],
             'processed_at' => now(),
+            'custom_prompt' => $validated['custom_prompt'] ?? $orgDocument->custom_prompt,
             'metadata' => array_merge($orgDocument->metadata ?? [], [
                 'recording_id' => $validated['recording_id'],
                 'provider' => $organization->meeting_provider,

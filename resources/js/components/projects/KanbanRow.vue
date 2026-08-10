@@ -13,6 +13,7 @@ const props = defineProps<{
     onDrag: (evt: any, column: KanbanColumnDef) => void;
     onOpen: (doc: ProjectDocument) => void;
     onCreate: (rowKey: string) => void;
+    onUpdateAttribute: (docId: string | number, field: string, value: string | number | null) => void;
     canViewProjectDetails?: boolean;
     currentProject?: Project | null;
     canManage?: boolean;
@@ -54,6 +55,7 @@ const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status
                     @drag="(evt) => onDrag(evt, column)"
                     @open="onOpen"
                     @create="onCreate(row.key)"
+                    @update-attribute="onUpdateAttribute"
                 />
             </template>
         </div>

@@ -392,8 +392,16 @@ class Organization extends Model implements HasMedia
         return $this->hasMany(OrganizationInvitation::class);
     }
 
+    /**
+     * @return HasMany<OrgDocument, $this>
+     */
     public function orgDocuments(): HasMany
     {
         return $this->hasMany(OrgDocument::class);
+    }
+
+    public function dismissedRecordings(): HasMany
+    {
+        return $this->hasMany(DismissedOrgRecording::class, 'organization_id');
     }
 }

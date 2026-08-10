@@ -5,7 +5,7 @@ import { toast } from 'vue-sonner';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
-import AvailableOrgRecordings from '@/components/AvailableOrgRecordings.vue';
+import AvailableOrgRecordings from '@/pages/Organizations/Partials/AvailableOrgRecordings.vue';
 import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
 import DOMPurify from 'dompurify';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';

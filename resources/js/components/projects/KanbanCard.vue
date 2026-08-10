@@ -6,13 +6,25 @@ import {
     getPriorityStyles,
     kanbanCardBg,
 } from '@/lib/kanban-theme';
+import { PRIORITY_LABELS, priorityDotClasses } from '@/lib/constants';
+import { mergeAssigneeOptions } from '@/lib/assignees';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+} from '@/components/ui/select';
 import { Calendar, Plus } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{ doc: ProjectDocument; column: KanbanColumnDef }>();
 
 // Define emits to handle the keyboard and click actions consistently
-const emit = defineEmits(['open']);
+const emit = defineEmits<{
+    (e: 'open', doc: ProjectDocument): void;
+    (e: 'update-attribute', field: string, value: string | number | null): void;
+}>();
 
 // Helper for initials
 const getInitials = (user: any) =>
@@ -27,11 +39,55 @@ const pendingAssigneeInitials = (inv: OrganizationInvitation) =>
     ((inv.first_name?.[0] || '') + (inv.last_name?.[0] || '')) || inv.email[0].toUpperCase();
 
 // Card background is always the neutral gray tint, regardless of column color; only
-// the border is tinted by due-date urgency (red -> yellow), falling back to the
-// default border once the due date is more than 2 days out, in the "done" column, or unset.
+// the border is tinted red once a task is overdue/due today (and not done).
 const dueDateBorder = computed(() =>
     dueDateCardBorderColor(props.doc, props.column),
 );
+
+// Mirrors DocumentSidebar.vue's project resolution — on the single-project page
+// `currentProject` already has the right client/organization/users; on the cross-project
+// Dashboard board there's no single current project, so resolve this card's own document
+// back to its project via the full `projects` list shared on every page.
+const page = usePage<AppPageProps>();
+const currentProject = computed(() => (page.props as any).currentProject as Project | null);
+const allProjects = computed(() => (page.props as any).projects as Project[] | undefined);
+const documentProject = computed(() =>
+    allProjects.value?.find((p) => p.id === props.doc.project_id) ?? currentProject.value,
+);
+
+// Real users and invited people merged into one alphabetically-sorted list, matching
+// DocumentSidebar.vue's own assignee picker — client.users (as opposed to
+// client.organization.users) is empty for most clients, so that path isn't usable here.
+const assigneeOptions = computed(() =>
+    mergeAssigneeOptions(
+        documentProject.value?.client?.organization?.users,
+        documentProject.value?.client?.organization?.invitations,
+    ),
+);
+
+const assigneeValue = computed(() => {
+    if (props.doc.pending_assignee_invitation_id) {
+        return `inv:${props.doc.pending_assignee_invitation_id}`;
+    }
+    return props.doc.assignee_id?.toString() ?? 'unassigned';
+});
+
+const handleUpdate = (field: string, value: any) => {
+    let finalValue = value;
+
+    // The backend's resolveAssignee() interprets both plain numeric ids and "inv:{id}"
+    // strings itself — no client-side parsing needed (see DocumentSidebar.vue's own
+    // handler, which passes the select value straight through the same way).
+    if (field === 'assignee_id') {
+        finalValue = value === 'unassigned' ? null : value;
+    }
+
+    if (field === 'due_at') {
+        finalValue = value === '' ? null : value;
+    }
+
+    emit('update-attribute', field, finalValue);
+};
 </script>
 
 <template>
@@ -61,62 +117,101 @@ const dueDateBorder = computed(() =>
             {{ doc.type_label ?? doc.type }}
         </div>
         <div class="flex items-center justify-between">
-            <div class="flex -space-x-2">
-                <div
-                    v-if="doc.assignee"
-                    :class="[
-                        KANBAN_UI.avatar,
-                        'h-8 w-8',
-                        getAvatarAppearance(doc.assignee.id),
-                    ]"
-                    :title="doc.assignee.name"
+            <div @click.stop @keydown.stop>
+                <Select
+                    :model-value="assigneeValue"
+                    @update:model-value="(val) => handleUpdate('assignee_id', val)"
                 >
-                    <span class="text-[10px] font-black tracking-tighter">
-                        {{ getInitials(doc.assignee) }}
-                    </span>
-                </div>
-                <div
-                    v-else-if="doc.pending_assignee"
-                    :class="[
-                        KANBAN_UI.avatar,
-                        'h-8 w-8 grayscale opacity-50',
-                        getAvatarAppearance(doc.pending_assignee.id),
-                    ]"
-                    :title="`${pendingAssigneeName(doc.pending_assignee)} (hasn't logged in yet)`"
-                >
-                    <span class="text-[10px] font-black tracking-tighter">
-                        {{ pendingAssigneeInitials(doc.pending_assignee) }}
-                    </span>
-                </div>
-                <div
-                    v-else
-                    class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-gray-200 bg-white"
-                >
-                    <Plus class="h-3 w-3 text-gray-200" />
-                </div>
+                    <SelectTrigger
+                        class="h-auto w-auto gap-0 border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
+                        :title="doc.assignee?.name ?? (doc.pending_assignee ? `${pendingAssigneeName(doc.pending_assignee)} (hasn't logged in yet)` : 'Unassigned')"
+                    >
+                        <div
+                            v-if="doc.assignee"
+                            :class="[
+                                KANBAN_UI.avatar,
+                                'h-8 w-8',
+                                getAvatarAppearance(doc.assignee.id),
+                            ]"
+                        >
+                            <span class="text-[10px] font-black tracking-tighter">
+                                {{ getInitials(doc.assignee) }}
+                            </span>
+                        </div>
+                        <div
+                            v-else-if="doc.pending_assignee"
+                            :class="[
+                                KANBAN_UI.avatar,
+                                'h-8 w-8 grayscale opacity-50',
+                                getAvatarAppearance(doc.pending_assignee.id),
+                            ]"
+                        >
+                            <span class="text-[10px] font-black tracking-tighter">
+                                {{ pendingAssigneeInitials(doc.pending_assignee) }}
+                            </span>
+                        </div>
+                        <div
+                            v-else
+                            class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-gray-200 bg-white hover:border-projector-primary-300"
+                        >
+                            <Plus class="h-3 w-3 text-gray-200" />
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                        <SelectItem value="unassigned" class="text-[10px] font-bold text-gray-400 uppercase">
+                            Unassigned
+                        </SelectItem>
+                        <SelectItem
+                            v-for="option in assigneeOptions"
+                            :key="option.value"
+                            :value="option.value"
+                            class="text-[10px] font-bold uppercase"
+                        >
+                            {{ option.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             <div class="flex items-center gap-3">
                 <div
-                    v-if="doc.due_at"
                     class="flex items-center gap-1 text-gray-400"
+                    @click.stop
+                    @keydown.stop
                 >
-                    <Calendar class="h-3 w-3" />
-                    <span :class="KANBAN_UI.subtleLabel">
-                        {{
-                            new Date(doc.due_at).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                            })
-                        }}
-                    </span>
+                    <Calendar class="h-3 w-3 shrink-0" />
+                    <input
+                        type="date"
+                        :value="doc.due_at ? doc.due_at.slice(0, 10) : ''"
+                        @change="(e) => handleUpdate('due_at', (e.target as HTMLInputElement).value)"
+                        :class="[KANBAN_UI.subtleLabel, 'w-[92px] cursor-pointer border-none bg-transparent p-0 focus:ring-0']"
+                    />
                 </div>
 
-                <div
-                    v-if="doc.priority"
-                    :class="[KANBAN_UI.badge, getPriorityStyles(doc.priority)]"
-                >
-                    {{ doc.priority }}
+                <div @click.stop @keydown.stop>
+                    <Select
+                        :model-value="doc.priority ?? 'low'"
+                        @update:model-value="(val) => handleUpdate('priority', val)"
+                    >
+                        <SelectTrigger class="h-auto w-auto gap-0 border-none bg-transparent p-0 shadow-none [&>svg]:hidden">
+                            <div :class="[KANBAN_UI.badge, getPriorityStyles(doc.priority ?? 'low')]">
+                                {{ doc.priority ?? 'low' }}
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                            <SelectItem
+                                v-for="(label, key) in PRIORITY_LABELS"
+                                :key="key"
+                                :value="key"
+                                class="text-[10px] font-black uppercase"
+                            >
+                                <div class="flex w-24 items-center justify-between">
+                                    {{ label }}
+                                    <div :class="[priorityDotClasses[key], 'h-2 w-2 rounded-full']"></div>
+                                </div>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
         </div>

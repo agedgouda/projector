@@ -59,6 +59,20 @@ class GoogleExportService
     }
 
     /**
+     * Whether the app itself (not any individual user) has everything configured for the
+     * Google Picker widget — the OAuth client plus the separate browser-facing API key and
+     * app ID Picker needs. Shared by every controller that decides whether to offer a
+     * "pick a Google Doc" import option.
+     */
+    public function pickerConfigured(): bool
+    {
+        return filled(config('services.google.client_id'))
+            && filled(config('services.google.client_secret'))
+            && filled(config('services.google.api_key'))
+            && filled(config('services.google.app_id'));
+    }
+
+    /**
      * Creates a native Google Sheet in the connected user's own Drive and writes the given
      * header + data rows to it in a single call.
      *
