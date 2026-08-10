@@ -1,4 +1,5 @@
 import { ref, computed, type Ref, watch } from 'vue';
+import { INTAKE_KEY } from '@/composables/useWorkflow';
 
 export function useDocumentTree(
     allDocs: Ref<ExtendedDocument[]>,
@@ -44,7 +45,7 @@ export function useDocumentTree(
     // --- 2. TREE BUILDING LOGIC ---
 
     const buildTree = (parentId: string | number | null = null): ExtendedDocument[] => {
-        return allDocs.value
+        const nodes = allDocs.value
             .filter(d => {
                 if (parentId !== null) {
                     return d.parent_id === parentId;
@@ -55,6 +56,17 @@ export function useDocumentTree(
                 ...d,
                 children: buildTree(d.id)
             }));
+
+        if (parentId !== null) return nodes;
+
+        // A raw transcript is just noisy source material once it's been processed — the
+        // Documentation tab should read as "what came out of this project" (Meeting Notes and
+        // beyond), so a processed transcript is replaced at the top level by its own children
+        // instead of being shown itself. An unprocessed transcript (no children yet) still has
+        // to appear, or it becomes invisible/unreachable from this tab entirely.
+        return nodes.flatMap((node) =>
+            node.type === INTAKE_KEY && node.children.length > 0 ? node.children : [node]
+        );
     };
 
     const documentTree = computed(() => {

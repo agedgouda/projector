@@ -95,6 +95,36 @@ it('reports false when the locked protocol has no further step for this document
         );
 });
 
+it('includes child document data, not just existence, so the detail page can link to them', function () {
+    $parent = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Follow up',
+        'processed_at' => now(),
+    ]);
+    $child = Document::create([
+        'project_id' => $this->project->id,
+        'parent_id' => $parent->id,
+        'name' => 'Task 1',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.documents.show', [$this->project, $parent]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Documents/Show')
+            ->where('item.children.0.id', $child->id)
+            ->where('item.children.0.name', 'Task 1')
+            ->where('item.children.0.type', 'task')
+        );
+});
+
 it('stamps content_updated_at when a document\'s content is edited', function () {
     $document = Document::create([
         'project_id' => $this->project->id,

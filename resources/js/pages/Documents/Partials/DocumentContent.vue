@@ -1,9 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
-import { type InertiaForm } from '@inertiajs/vue3';
+import { Link, type InertiaForm } from '@inertiajs/vue3';
+import { show as showDocument } from '@/routes/projects/documents';
+import { invitationName } from '@/lib/assignees';
+import { kanbanDotClasses, priorityDotClasses, PRIORITY_LABELS } from '@/lib/constants';
+import { getAvatarAppearance } from '@/lib/kanban-theme';
 import DOMPurify from 'dompurify';
-import { CheckCircle2 } from 'lucide-vue-next';
+import { CheckCircle2, CornerUpLeft, CornerDownRight, CheckSquare } from 'lucide-vue-next';
+import { INTAKE_KEY } from '@/composables/useWorkflow';
 
 // The partial metadata interface for the "View" mode section
 interface DocumentMetadata {
@@ -28,9 +34,60 @@ const emit = defineEmits<{
 const handleFormSubmit = () => emit('submit');
 const handleCancel = () => emit('cancel');
 
-const { getDocLabel } = useDocumentPresenter(props.documentTypeCatalog);
+const { getDocLabel, isTask } = useDocumentPresenter(props.documentTypeCatalog);
 
 const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
+
+// Named generically ("document" rather than "child"/"parent") since it's used for both
+// directions of the traceability chain. Sets `from` to *this* page (mirroring getAncestorUrl
+// in useDocumentNavigation.ts and navigateToDetails in useDocumentActions.ts) — never
+// forwards the `from` this page itself arrived with — so the back arrow on the document you
+// land on always returns to the literal previous page, whether that's this document or,
+// several hops earlier, a project tab.
+const documentUrl = (documentId: string | number) => {
+    const baseUrl = showDocument({ project: props.item.project_id, document: String(documentId) }).url;
+    const from = new URL(window.location.href);
+    from.searchParams.delete('from');
+    return `${baseUrl}?from=${encodeURIComponent(from.toString())}`;
+};
+
+// Exactly one generated document: a direct "View Generated X" link, mirroring "View Source
+// X" above. More than one is handled separately below (as a task list, when applicable) —
+// with more than one generated document there's no single obvious link target.
+const singleChild = computed(() => {
+    const children = props.item.children ?? [];
+    return children.length === 1 ? children[0] : null;
+});
+
+// Transcriptions can be very long, so the link to whatever got generated from them (usually
+// meeting notes) surfaces right under the title instead of requiring a scroll past the full
+// transcript — every other document type keeps it at the bottom, near the content it follows
+// from.
+const isTranscription = computed(() => props.item.type === INTAKE_KEY);
+
+// Multiple generated documents only get a summary view when they're all tasks — mirrors the
+// task rows on the project's Documentation tab (TraceabilityRow.vue), simplified for a flat,
+// read-only list rather than an editable tree.
+const childTaskList = computed(() => {
+    const children = props.item.children ?? [];
+    if (children.length <= 1) return [];
+
+    return children.every((child) => isTask(child.type)) ? children : [];
+});
+
+const statusFor = (statusKey: string | null) =>
+    props.project.kanban_columns?.find((column) => column.key === statusKey);
+
+const childAssigneeLabel = (child: ProjectDocument): string => {
+    if (child.assignee) return child.assignee.name;
+    if (child.pending_assignee) return invitationName(child.pending_assignee);
+    return 'Unassigned';
+};
+
+const initials = (label: string): string => {
+    const parts = label.trim().split(/\s+/);
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+};
 </script>
 
 <template>
@@ -57,6 +114,22 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
                 >
                     {{ item.name }}
                 </h1>
+                <Link
+                    v-if="item.parent"
+                    :href="documentUrl(item.parent.id)"
+                    class="mb-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                >
+                    <CornerUpLeft class="h-3 w-3" />
+                    View Source {{ getDocLabel(item.parent.type) }}
+                </Link>
+                <Link
+                    v-if="isTranscription && singleChild"
+                    :href="documentUrl(singleChild.id)"
+                    class="mb-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                >
+                    <CornerDownRight class="h-3 w-3" />
+                    View Generated {{ getDocLabel(singleChild.type) }}
+                </Link>
                 <div class="mb-6 flex items-center gap-3">
                     <h3
                         class="text-[11px] font-black tracking-[0.2em] text-slate-900 uppercase dark:text-slate-200"
@@ -93,6 +166,56 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
                             >{{ criterion }}</span
                         >
                     </div>
+                </div>
+            </section>
+
+            <section v-if="singleChild && !isTranscription">
+                <Link
+                    :href="documentUrl(singleChild.id)"
+                    class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                >
+                    <CornerDownRight class="h-3 w-3" />
+                    View Generated {{ getDocLabel(singleChild.type) }}
+                </Link>
+            </section>
+
+            <section v-if="childTaskList.length">
+                <h3
+                    class="mb-6 flex items-center gap-2 text-[11px] font-black tracking-[0.2em] text-slate-700 uppercase dark:text-slate-400"
+                >
+                    <div class="h-px w-4 bg-slate-400 dark:bg-slate-600"></div>
+                    Generated Tasks
+                </h3>
+                <div class="grid gap-0.5">
+                    <Link
+                        v-for="child in childTaskList"
+                        :key="child.id"
+                        :href="documentUrl(child.id)"
+                        class="flex items-center gap-2.5 rounded-md px-2 py-2 transition-colors hover:bg-slate-100 dark:hover:bg-white/5"
+                    >
+                        <CheckSquare class="h-3.5 w-3.5 shrink-0 text-slate-400" />
+
+                        <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
+                            {{ child.name }}
+                        </span>
+
+                        <span v-if="child.priority" class="flex shrink-0 items-center gap-1.5">
+                            <span :class="['h-1.5 w-1.5 shrink-0 rounded-full', priorityDotClasses[child.priority] ?? priorityDotClasses.low]"></span>
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ PRIORITY_LABELS[child.priority] ?? child.priority }}</span>
+                        </span>
+
+                        <span class="flex shrink-0 items-center gap-1.5">
+                            <span :class="['h-1.5 w-1.5 shrink-0 rounded-full', kanbanDotClasses[statusFor(child.task_status)?.color ?? 'slate']]"></span>
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ statusFor(child.task_status)?.label ?? child.task_status ?? 'todo' }}</span>
+                        </span>
+
+                        <span
+                            :class="['flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[9px] font-black uppercase', getAvatarAppearance(child.assignee?.id ?? 0)]"
+                            :title="childAssigneeLabel(child)"
+                        >
+                            {{ initials(childAssigneeLabel(child)) }}
+                        </span>
+                    </Link>
                 </div>
             </section>
         </div>

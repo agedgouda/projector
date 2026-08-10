@@ -23,7 +23,7 @@ import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
-import { useWorkflow, reprocessDescription } from '@/composables/useWorkflow';
+import { useWorkflow, reprocessDescription, ACTION_ITEMS_KEY, INTAKE_KEY } from '@/composables/useWorkflow';
 import { setPersistentCookie } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import projectRoutes from '@/routes/projects/index';
@@ -87,6 +87,19 @@ const activeTab = ref(props.activeTab);
 // Both tabs are task-centric views, so "New Document" reads as "New Task" and defaults the
 // create form's category to Task from either one.
 const isTaskContext = computed(() => activeTab.value === 'tasks' || activeTab.value === 'calendar');
+
+// Each tab's "New Document" defaults the create form to whatever type someone creating from
+// that tab almost always wants: Meeting Notes from Documentation (its rows are effectively
+// all Meeting Notes once processed transcripts are hidden from the top level — see
+// useDocumentTree.ts), Transcription from Recordings, since that's the tab for bringing in
+// new raw source material. Falls through to isTaskContext's Task default, then to no default
+// (the create form's own type picker) for any other tab.
+const defaultTypeForCreate = computed<string | null>(() => {
+    if (isTaskContext.value) return 'task';
+    if (activeTab.value === 'hierarchy') return ACTION_ITEMS_KEY;
+    if (activeTab.value === 'recordings') return INTAKE_KEY;
+    return null;
+});
 
 // The URL only gains an explicit `?tab=` when the user clicks a tab button (see updateTab()
 // below) — on first load it can be absent even though `activeTab` (server-resolved from the
@@ -295,7 +308,7 @@ const handleCreateNavigation = (projectId: string) => {
     router.visit(projectDocumentsRoutes.create({ project: projectId }).url, {
         data: {
             redirect: window.location.href,
-            ...(isTaskContext.value ? { type: 'task' } : {}),
+            ...(defaultTypeForCreate.value ? { type: defaultTypeForCreate.value } : {}),
         },
     });
 };

@@ -6,6 +6,10 @@ import { computed } from 'vue';
 // transition" to blindly re-run for anything else.
 export const INTAKE_KEY = 'intake';
 
+// Mirrors config('workflow.action_items_key') on the backend — every Notes document becomes
+// one of these via the same fixed, protocol-independent AI template.
+export const ACTION_ITEMS_KEY = 'action_items';
+
 export function useWorkflow() {
     const reprocessableTypes = computed(() => new Set<string>([INTAKE_KEY]));
 

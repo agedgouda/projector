@@ -1,22 +1,12 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { router } from '@inertiajs/vue3';
 import { ArrowLeft, Edit2, Save, Trash2, X } from 'lucide-vue-next';
-import { computed } from 'vue';
 
-type AncestorDoc = {
-    id: string | number;
-    name: string;
-    parent?: AncestorDoc | null;
-};
-
-const props = defineProps<{
+defineProps<{
     project: Project;
     item: {
         id?: string | number;
         name: string;
-        parent?: AncestorDoc | null;
     };
     isEditing: boolean;
     saveLabel?: string;
@@ -26,28 +16,6 @@ const props = defineProps<{
     // save label is the dynamic (and often much longer) "Create <Type>".
     saveButtonClass?: string;
 }>();
-
-const ancestors = computed(() => {
-    const chain: { id: string | number; name: string }[] = [];
-    let current = props.item.parent;
-    while (current) {
-        chain.unshift({ id: current.id, name: current.name });
-        current = current.parent ?? null;
-    }
-    return chain;
-});
-
-const getFrom = () =>
-    new URLSearchParams(window.location.search).get('from') ?? '';
-
-const navigateToAncestor = (ancestorId: string | number) => {
-    const baseUrl = projectDocumentsRoutes.show({
-        project: String(props.project.id),
-        document: String(ancestorId),
-    }).url;
-    const from = getFrom();
-    router.get(from ? `${baseUrl}?from=${encodeURIComponent(from)}` : baseUrl);
-};
 
 const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
 </script>
@@ -63,17 +31,8 @@ const emit = defineEmits(['back', 'toggle-edit', 'delete', 'save']);
                     class="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 transition-colors hover:text-projector-primary-600"
                 >
                     <ArrowLeft class="h-3 w-3" />
-                    {{ project.name }}
+                    Back
                 </button>
-                <template v-for="ancestor in ancestors" :key="ancestor.id">
-                    <span class="text-slate-300">/</span>
-                    <button
-                        @click="navigateToAncestor(ancestor.id)"
-                        class="max-w-[200px] cursor-pointer truncate border-0 bg-transparent p-0 transition-colors hover:text-projector-primary-600"
-                    >
-                        {{ ancestor.name }}
-                    </button>
-                </template>
             </div>
 
             <div v-if="!project.inactive" class="flex items-center gap-2">

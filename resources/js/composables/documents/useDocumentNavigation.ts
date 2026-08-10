@@ -14,10 +14,12 @@ export function useDocumentNavigation(
     project: Project,
     item?: (Partial<ExtendedDocument> & { parent?: AncestorDoc | null }) | null,
 ) {
-    // "Back" from a document returns to wherever the user actually came from — whichever
-    // project tab (Tasks, Calendar, Documentation, Recordings) was active, or the Dashboard.
-    // The exact origin travels in the `from` query param (see the various "open document"
-    // call sites); the `tab` fallback below only matters if `from` is somehow missing.
+    // "Back" from a document returns to wherever the user actually came from — the literal
+    // previous page, whether that's a project tab or another document. That page's URL
+    // travels in the `from` query param (see the various "open document" call sites, and
+    // currentUrlAsFrom() below, which keep it pointed at the immediately preceding page on
+    // every hop); the `tab` fallback below only matters if `from` is somehow missing, e.g. a
+    // document opened directly via a bookmarked/shared link.
     const getReturnUrl = () => {
         const params = new URLSearchParams(window.location.search);
         const from = params.get('from');
@@ -26,13 +28,22 @@ export function useDocumentNavigation(
         return `${projectRoutes.show.url(project.id)}?tab=${returnTab}`;
     };
 
+    // The page being navigated away from becomes the new `from` — never the `from` that page
+    // itself arrived with. That keeps `from` pointed at the literal previous page at every
+    // hop, so "back" is correct whether the user drilled down step-by-step or jumped straight
+    // to a nested document from the project's tree/list.
+    const currentUrlAsFrom = (): string => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('from');
+        return url.toString();
+    };
+
     const getAncestorUrl = (ancestorId: string | number) => {
         const baseUrl = projectDocumentsRoutes.show({
             project: String(project.id),
             document: String(ancestorId),
         }).url;
-        const from = new URLSearchParams(window.location.search).get('from');
-        return from ? `${baseUrl}?from=${encodeURIComponent(from)}` : baseUrl;
+        return `${baseUrl}?from=${encodeURIComponent(currentUrlAsFrom())}`;
     };
 
     const buildAncestors = (): { id: string | number; name: string }[] => {

@@ -9,6 +9,7 @@ import { toast } from 'vue-sonner';
 // Layouts & Components
 import AppLayout from '@/layouts/AppLayout.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
+import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import DocumentSidebar from './Partials/DocumentSidebar.vue';
@@ -23,6 +24,7 @@ import { useDocumentForm } from '@/composables/documents/useDocumentForm';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
 import { useWorkflow, reprocessDescription } from '@/composables/useWorkflow';
+import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 
 /* ---------------------------
    2. Props
@@ -110,6 +112,11 @@ const isReprocessable = computed(() =>
 // the first time (nothing to overwrite yet).
 const processButtonLabel = computed(() => props.item.children_exists ? 'Reprocess' : 'Process');
 
+// Names the confirmation prompt after this document's actual type (e.g. "Reprocess Action
+// Items?") instead of the generic "Reprocess Document?" fallback.
+const { getDocLabel } = useDocumentPresenter(props.documentTypeCatalog);
+const reprocessPromptTitle = computed(() => `Reprocess ${getDocLabel(props.item.type)}?`);
+
 // Mirrors handleReprocess in DocumentManager.vue/Projects/Show.vue: skip the confirmation
 // modal entirely when nothing would be overwritten yet.
 const handleRequestProcess = () => {
@@ -138,6 +145,12 @@ watch(() => page.props.flash, (flash) => {
         <AiProgressBar
             :is-processing="isProcessingLive"
             :progress="aiProgress"
+        />
+
+        <AiProcessingHeader
+            :is-processing="isProcessingLive"
+            :progress="aiProgress"
+            :message="processingMessage ?? ''"
         />
 
         <DocumentLayoutWrapper>
@@ -212,6 +225,7 @@ watch(() => page.props.flash, (flash) => {
 
         <ReprocessPromptModal
             :open="isReprocessPromptOpen"
+            :title="reprocessPromptTitle"
             :description="reprocessDescription(item)"
             :loading="isReprocessing"
             @confirm="confirmReprocess"

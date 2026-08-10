@@ -169,6 +169,7 @@ declare global {
         assignee?: User;
         pending_assignee?: OrganizationInvitation;
         project?: Partial<Project>;
+        parent?: ProjectDocument | null;
         children?: ProjectDocument[];
         tasks?: Task[];
         last_ai_template?: { id: number; name: string } | null;

@@ -128,7 +128,7 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                             class="w-full"
                             @click="$emit('request-process')"
                         >
-                            {{ processButtonLabel }} Document
+                            {{ processButtonLabel }} {{ getDocLabel(item.type) || 'Document' }}
                         </Button>
 
                         <div

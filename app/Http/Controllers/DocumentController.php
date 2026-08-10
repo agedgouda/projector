@@ -83,8 +83,11 @@ class DocumentController extends Controller
         return inertia('Documents/Show', [
             'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'kanbanColumns']),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
-            'item' => $document->load(['assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'parent.parent.parent', 'lastAiTemplate:id,name'])
-                ->loadExists(['lockedNextWorkflowStep', 'children']),
+            'item' => $document->load([
+                'assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user',
+                'parent.parent.parent', 'lastAiTemplate:id,name',
+                'children.assignee', 'children.pendingAssignee',
+            ])->loadExists(['lockedNextWorkflowStep', 'children']),
         ]);
     }
 
