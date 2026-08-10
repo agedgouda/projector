@@ -444,11 +444,11 @@ watch(
             >
                 <button
                     v-for="tab in [
+                        'hierarchy',
                         'tasks',
                         'calendar',
-                        'hierarchy',
-                        'recordings',
                         'reports',
+                        'recordings',
                     ]"
                     :key="tab"
                     @click="updateTab(tab)"
