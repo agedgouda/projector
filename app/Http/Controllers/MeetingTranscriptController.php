@@ -73,6 +73,12 @@ class MeetingTranscriptController extends Controller
             'providerError' => $providerError,
             'provider' => $organization?->meeting_provider,
             'canManageTranscripts' => $canManageTranscripts,
+            'googlePickerConfigured' => filled(config('services.google.client_id'))
+                && filled(config('services.google.client_secret'))
+                && filled(config('services.google.api_key'))
+                && filled(config('services.google.app_id')),
+            'googleApiKey' => config('services.google.api_key'),
+            'googleAppId' => config('services.google.app_id'),
         ]);
     }
 

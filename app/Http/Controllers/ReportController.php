@@ -42,7 +42,9 @@ class ReportController extends Controller
             'task_status', 'assignee_id', 'pending_assignee_invitation_id',
         ]) ?? collect();
 
-        return response()->json($tasks->map(fn (Document $task) => $this->taskToArray($task)));
+        $projectNames = $this->projectNamesMap($project);
+
+        return response()->json($tasks->map(fn (Document $task) => $this->taskToArray($task, $projectNames)));
     }
 
     /**
@@ -54,7 +56,7 @@ class ReportController extends Controller
     {
         Gate::authorize('view', $project);
 
-        [$tasks, $includeDetails] = $this->tasksForExport($request, $project);
+        [$tasks, $includeDetails, $projectNames] = $this->tasksForExport($request, $project);
 
         $project->loadMissing('client.organization', 'kanbanColumns');
         $organization = $project->client?->organization;
@@ -66,6 +68,8 @@ class ReportController extends Controller
             'columns' => $project->kanbanColumns,
             'includeDetails' => $includeDetails,
             'usesExternalDueDates' => (bool) $organization?->uses_external_due_dates,
+            'hasSubprojects' => count($projectNames) > 1,
+            'projectNames' => $projectNames,
             'logoPath' => $project->getFirstMedia('logo')?->getPath('preview'),
             'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath('preview'),
             'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath('preview'),
@@ -81,7 +85,8 @@ class ReportController extends Controller
     {
         Gate::authorize('view', $project);
 
-        [$tasks, $includeDetails] = $this->tasksForExport($request, $project);
+        [$tasks, $includeDetails, $projectNames] = $this->tasksForExport($request, $project);
+        $hasSubprojects = count($projectNames) > 1;
 
         $project->loadMissing('kanbanColumns');
 
@@ -99,6 +104,9 @@ class ReportController extends Controller
         $table = $section->addTable(['borderSize' => 6, 'borderColor' => 'CBD5E1', 'width' => 100 * 50, 'unit' => 'pct']);
 
         $table->addRow();
+        if ($hasSubprojects) {
+            $table->addCell(1800, $headerStyle)->addText('Project', $headerFontStyle);
+        }
         $table->addCell(2000, $headerStyle)->addText('Status', $headerFontStyle);
         $table->addCell(1600, $headerStyle)->addText('Due Date', $headerFontStyle);
         $table->addCell(3500, $headerStyle)->addText('Task Name', $headerFontStyle);
@@ -110,6 +118,9 @@ class ReportController extends Controller
 
         foreach ($tasks as $task) {
             $table->addRow();
+            if ($hasSubprojects) {
+                $table->addCell(1800)->addText($projectNames[$task->project_id] ?? '—', $cellFontStyle);
+            }
             $table->addCell(2000)->addText($this->statusLabel($task, $project->kanbanColumns), $cellFontStyle);
             $table->addCell(1600)->addText($this->formatDate($task->due_at), $cellFontStyle);
             $table->addCell(3500)->addText($task->name ?? '', $cellFontStyle);
@@ -136,7 +147,8 @@ class ReportController extends Controller
     {
         Gate::authorize('view', $project);
 
-        [$tasks, $includeDetails] = $this->tasksForExport($request, $project);
+        [$tasks, $includeDetails, $projectNames] = $this->tasksForExport($request, $project);
+        $hasSubprojects = count($projectNames) > 1;
 
         $project->loadMissing('kanbanColumns');
 
@@ -144,7 +156,9 @@ class ReportController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Task Report');
 
-        $headers = ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority'];
+        $headers = $hasSubprojects
+            ? ['Project', 'Status', 'Due Date', 'Task Name', 'Assignee', 'Priority']
+            : ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority'];
         if ($includeDetails) {
             $headers[] = 'Details';
         }
@@ -158,13 +172,23 @@ class ReportController extends Controller
 
         $row = 2;
         foreach ($tasks as $task) {
-            $sheet->setCellValue('A'.$row, $this->statusLabel($task, $project->kanbanColumns));
-            $sheet->setCellValue('B'.$row, $this->formatDate($task->due_at));
-            $sheet->setCellValue('C'.$row, $task->name ?? '');
-            $sheet->setCellValue('D'.$row, $this->assigneeLabel($task));
-            $sheet->setCellValue('E'.$row, $task->priority ? ucfirst($task->priority) : '—');
+            $col = 'A';
+            if ($hasSubprojects) {
+                $sheet->setCellValue($col.$row, $projectNames[$task->project_id] ?? '—');
+                $col++;
+            }
+            $sheet->setCellValue($col.$row, $this->statusLabel($task, $project->kanbanColumns));
+            $col++;
+            $sheet->setCellValue($col.$row, $this->formatDate($task->due_at));
+            $col++;
+            $sheet->setCellValue($col.$row, $task->name ?? '');
+            $col++;
+            $sheet->setCellValue($col.$row, $this->assigneeLabel($task));
+            $col++;
+            $sheet->setCellValue($col.$row, $task->priority ? ucfirst($task->priority) : '—');
+            $col++;
             if ($includeDetails) {
-                $sheet->setCellValue('F'.$row, $this->plainTextContent($task->content));
+                $sheet->setCellValue($col.$row, $this->plainTextContent($task->content));
             }
             $row++;
         }
@@ -241,23 +265,28 @@ class ReportController extends Controller
      */
     private function googleExportHeadersAndRows(Request $request, Project $project): array
     {
-        [$tasks, $includeDetails] = $this->tasksForExport($request, $project);
+        [$tasks, $includeDetails, $projectNames] = $this->tasksForExport($request, $project);
+        $hasSubprojects = count($projectNames) > 1;
 
         $project->loadMissing('kanbanColumns');
 
-        $headers = ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority'];
+        $headers = $hasSubprojects
+            ? ['Project', 'Status', 'Due Date', 'Task Name', 'Assignee', 'Priority']
+            : ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority'];
         if ($includeDetails) {
             $headers[] = 'Details';
         }
 
-        $rows = $tasks->map(function (Document $task) use ($project, $includeDetails) {
-            $row = [
-                $this->statusLabel($task, $project->kanbanColumns),
-                $this->formatDate($task->due_at),
-                $task->name ?? '',
-                $this->assigneeLabel($task),
-                $task->priority ? ucfirst($task->priority) : '—',
-            ];
+        $rows = $tasks->map(function (Document $task) use ($project, $includeDetails, $hasSubprojects, $projectNames) {
+            $row = [];
+            if ($hasSubprojects) {
+                $row[] = $projectNames[$task->project_id] ?? '—';
+            }
+            $row[] = $this->statusLabel($task, $project->kanbanColumns);
+            $row[] = $this->formatDate($task->due_at);
+            $row[] = $task->name ?? '';
+            $row[] = $this->assigneeLabel($task);
+            $row[] = $task->priority ? ucfirst($task->priority) : '—';
             if ($includeDetails) {
                 $row[] = $this->plainTextContent($task->content);
             }
@@ -279,7 +308,40 @@ class ReportController extends Controller
             'priority' => ['nullable', 'string', 'in:low,medium,high'],
             'due_from' => ['nullable', 'date'],
             'due_to' => ['nullable', 'date'],
+            'project_id' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * This project's own id plus its direct sub-projects' ids (2-level cap, mirroring
+     * Project::calendarItems()) — the report always spans a project and its sub-projects,
+     * not just the one being viewed.
+     *
+     * @return array<int, string>
+     */
+    private function projectIdsIncludingChildren(Project $project): array
+    {
+        $project->loadMissing('children:id,parent_id,name');
+
+        return [$project->id, ...$project->children->map(fn (Project $child) => (string) $child->id)->values()];
+    }
+
+    /**
+     * Maps every project/sub-project id in scope to its name, so exports can label each
+     * task's originating project without an extra per-row relation load.
+     *
+     * @return array<string, string>
+     */
+    private function projectNamesMap(Project $project): array
+    {
+        $project->loadMissing('children:id,parent_id,name');
+
+        $names = [(string) $project->id => (string) $project->name];
+        foreach ($project->children as $child) {
+            $names[(string) $child->id] = (string) $child->name;
+        }
+
+        return $names;
     }
 
     /**
@@ -302,9 +364,10 @@ class ReportController extends Controller
         $priority = is_string($filters['priority'] ?? null) ? $filters['priority'] : null;
         $dueFrom = is_string($filters['due_from'] ?? null) ? $filters['due_from'] : null;
         $dueTo = is_string($filters['due_to'] ?? null) ? $filters['due_to'] : null;
+        $projectId = is_string($filters['project_id'] ?? null) ? $filters['project_id'] : null;
 
         $query = Document::query()
-            ->where('project_id', $project->id)
+            ->whereIn('project_id', $this->projectIdsIncludingChildren($project))
             ->whereIn('type', $taskTypeKeys);
 
         if (! empty($assignee)) {
@@ -331,19 +394,23 @@ class ReportController extends Controller
             $query->whereDate('due_at', '<=', $dueTo);
         }
 
+        if (! empty($projectId)) {
+            $query->where('project_id', $projectId);
+        }
+
         return $query
             ->with(['assignee:id,first_name,last_name', 'pendingAssignee:id,email,first_name,last_name'])
             ->orderBy('due_at');
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Collection<int, Document>, 1: bool}
+     * @return array{0: \Illuminate\Support\Collection<int, Document>, 1: bool, 2: array<string, string>}
      */
     private function tasksForExport(Request $request, Project $project): array
     {
         $validated = $request->validate($this->filterRules() + [
             'include_details' => ['nullable', 'boolean'],
-            'sort_by' => ['nullable', 'string', 'in:status,due_at,external_due_at,name,assignee,priority'],
+            'sort_by' => ['nullable', 'string', 'in:status,due_at,external_due_at,name,assignee,priority,project_name'],
             'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
         ]);
 
@@ -360,6 +427,7 @@ class ReportController extends Controller
         }
 
         $tasks = $query?->get($columns) ?? collect();
+        $projectNames = $this->projectNamesMap($project);
 
         // The on-screen table sorts client-side, independently of this query's own
         // ->orderBy('due_at') — a downloaded file can't be re-sorted after the fact, so it
@@ -367,9 +435,9 @@ class ReportController extends Controller
         $project->loadMissing('kanbanColumns');
         $sortBy = is_string($validated['sort_by'] ?? null) ? $validated['sort_by'] : 'due_at';
         $sortDir = is_string($validated['sort_dir'] ?? null) ? $validated['sort_dir'] : 'asc';
-        $tasks = $this->sortTasksForExport($tasks, $project, $sortBy, $sortDir);
+        $tasks = $this->sortTasksForExport($tasks, $project, $sortBy, $sortDir, $projectNames);
 
-        return [$tasks, $includeDetails];
+        return [$tasks, $includeDetails, $projectNames];
     }
 
     /**
@@ -378,20 +446,22 @@ class ReportController extends Controller
      * export always matches what was on screen when the user clicked the button.
      *
      * @param  \Illuminate\Support\Collection<int, Document>  $tasks
+     * @param  array<string, string>  $projectNames
      * @return \Illuminate\Support\Collection<int, Document>
      */
-    private function sortTasksForExport(\Illuminate\Support\Collection $tasks, Project $project, string $sortBy, string $sortDir): \Illuminate\Support\Collection
+    private function sortTasksForExport(\Illuminate\Support\Collection $tasks, Project $project, string $sortBy, string $sortDir, array $projectNames = []): \Illuminate\Support\Collection
     {
         $direction = $sortDir === 'desc' ? -1 : 1;
         $priorityWeight = ['low' => 1, 'medium' => 2, 'high' => 3];
 
-        $sortValue = function (Document $task) use ($sortBy, $project, $priorityWeight) {
+        $sortValue = function (Document $task) use ($sortBy, $project, $priorityWeight, $projectNames) {
             return match ($sortBy) {
                 'status' => $project->kanbanColumns->firstWhere('key', $task->task_status)?->order,
                 'external_due_at' => $task->external_due_at,
                 'name' => mb_strtolower($task->name ?? ''),
                 'assignee' => mb_strtolower($this->assigneeLabel($task)),
                 'priority' => $task->priority ? ($priorityWeight[$task->priority] ?? null) : null,
+                'project_name' => mb_strtolower($projectNames[$task->project_id] ?? ''),
                 default => $task->due_at,
             };
         };
@@ -419,13 +489,15 @@ class ReportController extends Controller
     }
 
     /**
+     * @param  array<string, string>  $projectNames
      * @return array<string, mixed>
      */
-    private function taskToArray(Document $task): array
+    private function taskToArray(Document $task, array $projectNames = []): array
     {
         return [
             'id' => $task->id,
             'project_id' => $task->project_id,
+            'project_name' => $projectNames[$task->project_id] ?? null,
             'name' => $task->name,
             'due_at' => $task->due_at,
             'external_due_at' => $task->external_due_at,

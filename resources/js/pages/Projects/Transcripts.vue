@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { AlertCircle } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
+import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import { meetingProviderLabel } from '@/lib/constants';
 import projectRoutes from '@/routes/projects/index';
 
@@ -15,6 +16,9 @@ const props = defineProps<{
     providerError: string | null;
     provider: string | null;
     canManageTranscripts: boolean;
+    googlePickerConfigured: boolean;
+    googleApiKey: string | null;
+    googleAppId: string | null;
 }>();
 
 const breadcrumbs = computed(() => [
@@ -45,6 +49,16 @@ const providerLabel = computed(() => meetingProviderLabel(props.provider));
                 </div>
             </div>
 
+            <!-- Import a document directly (Google Doc, Word, or text file) — independent of
+                 whether a meeting provider is configured below. -->
+            <ImportDocumentOptions
+                :project-id="project.id"
+                :can-manage="canManageTranscripts"
+                :google-picker-configured="googlePickerConfigured"
+                :google-api-key="googleApiKey"
+                :google-app-id="googleAppId"
+            />
+
             <!-- No provider configured -->
             <div v-if="!provider" class="flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-6">
                 <AlertCircle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
@@ -53,7 +67,7 @@ const providerLabel = computed(() => meetingProviderLabel(props.provider));
                     <p class="text-sm text-amber-700 dark:text-amber-400 mt-1">
                         An organization admin must configure a meeting provider (Zoom, Microsoft Teams, or Google Meet) in
                         <a href="/organizations" class="underline font-medium">Organization Settings</a>
-                        before transcripts can be imported.
+                        before recordings can be automatically listed here.
                     </p>
                 </div>
             </div>

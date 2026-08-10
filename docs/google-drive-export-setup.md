@@ -1,6 +1,6 @@
-# Google Sheets / Docs Export Setup
+# Google Sheets / Docs Export & Import Setup
 
-This guide covers how to configure Google Cloud OAuth so users can export task reports directly to their own Google Sheets and Google Docs. Unlike [Google Meet Transcription](google-meet-transcription-setup.md) (a single service account configured per organization), this is a **per-user connection** — each user connects their own Google account under **Settings > Integrations**, and exported files land in that user's own Drive.
+This guide covers how to configure Google Cloud OAuth so users can export task reports directly to their own Google Sheets and Google Docs, and import an existing Google Doc as a project transcript. Unlike [Google Meet Transcription](google-meet-transcription-setup.md) (a single service account configured per organization), this is a **per-user connection** — each user connects their own Google account under **Settings > Integrations**, and exported files land in (or imported files come from) that user's own Drive.
 
 ---
 
@@ -94,6 +94,25 @@ Disconnecting (also under **Settings > Integrations**) simply deletes the stored
 
 ---
 
+## Step 6: Enable Google Doc Import (Picker)
+
+Optional — only needed if you want the **Import from Google Docs** option on a project's Meeting Transcripts tab. Everything in Steps 1-5 above (the `drive.file` scope, the OAuth client) is reused as-is — **no new scope, no re-consent, no re-verification**. Google's own docs confirm `drive.file` already covers files a user selects via the Google Picker API.
+
+1. **Enable the Picker API** — same **APIs & Services > Library** flow as Step 1; search for and enable **Google Picker API** alongside the Sheets/Docs/Drive APIs already enabled there.
+2. **Create an API key** — this is *not* the OAuth Client ID/Secret from Step 3. Go to **APIs & Services > Credentials > Create Credentials > API key**. Unlike the Client Secret, this key ships to the browser (the Picker widget runs client-side), so it's worth restricting it: under the key's settings, set **API restrictions** to just **Google Picker API**, and **Application restrictions** to your app's own domain(s) (HTTP referrers).
+3. **Find your App ID** — on the Cloud Console dashboard for your project, note the **Project number** (a numeric value, not the Project ID string/slug) — that's what the Picker widget calls its "App ID."
+4. Add both to `.env`:
+
+   ```
+   GOOGLE_API_KEY=your-picker-api-key
+   GOOGLE_APP_ID=your-project-number
+   ```
+5. Restart the app (same config-reload note as Step 4 applies — via Herd's Restart, not a manual CLI command, if running locally).
+
+If `GOOGLE_API_KEY`/`GOOGLE_APP_ID` are left blank, the "Import from Google Docs" option is simply hidden from the Transcripts tab — the Word/text file upload options work regardless, since they don't touch Google at all.
+
+---
+
 ## Troubleshooting
 
 | Problem | Resolution |
@@ -106,3 +125,5 @@ Disconnecting (also under **Settings > Integrations**) simply deletes the stored
 | `invalid_grant` errors in logs | The user revoked the app's access from their [Google Account permissions](https://myaccount.google.com/permissions), or the consent screen was left in Testing mode and the token expired after 7 days. Projector automatically clears the stored connection when this happens; the user just needs to reconnect. |
 | `403` on create | Confirm the Sheets/Docs/Drive APIs are all enabled on the Cloud project (Step 1). |
 | Redirect URI mismatch error from Google | `GOOGLE_REDIRECT_URI` in `.env` must exactly match an authorized redirect URI on the OAuth client (Step 3), including scheme and trailing path. |
+| "Import from Google Docs" option doesn't appear on the Transcripts tab | `GOOGLE_API_KEY` and/or `GOOGLE_APP_ID` aren't set in `.env` (Step 6) — this option is hidden, not broken, when either is blank. |
+| Picker opens but shows no files, or a `403` while picking | The Picker API isn't enabled on the Cloud project (Step 6.1), or `GOOGLE_API_KEY` is restricted to the wrong API/referrer (Step 6.2). |

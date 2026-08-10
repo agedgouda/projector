@@ -175,6 +175,9 @@
     <table class="tasks">
         <thead>
             <tr>
+                @if ($hasSubprojects)
+                    <th>Project</th>
+                @endif
                 <th>Status</th>
                 <th>{{ $usesExternalDueDates ? 'Internal Due' : 'Due Date' }}</th>
                 @if ($usesExternalDueDates)
@@ -196,6 +199,9 @@
                         ?? ($task->pendingAssignee ? trim(($task->pendingAssignee->first_name ?? '').' '.($task->pendingAssignee->last_name ?? '')) ?: $task->pendingAssignee->email : 'Unassigned');
                 @endphp
                 <tr>
+                    @if ($hasSubprojects)
+                        <td>{{ $projectNames[$task->project_id] ?? '—' }}</td>
+                    @endif
                     <td>{{ $column?->label ?? $task->task_status ?? '—' }}</td>
                     <td>{{ $task->due_at ? \Illuminate\Support\Carbon::parse($task->due_at)->format('M j, Y') : '—' }}</td>
                     @if ($usesExternalDueDates)
@@ -210,7 +216,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ 5 + ($usesExternalDueDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
+                    <td colspan="{{ 5 + ($hasSubprojects ? 1 : 0) + ($usesExternalDueDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
                 </tr>
             @endforelse
         </tbody>

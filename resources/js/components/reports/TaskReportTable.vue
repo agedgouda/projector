@@ -10,6 +10,7 @@ import { invitationName } from '@/lib/assignees';
 export interface TaskReportRow {
     id: string | number;
     project_id: string;
+    project_name: string | null;
     name: string;
     due_at: string | null;
     external_due_at: string | null;
@@ -19,13 +20,14 @@ export interface TaskReportRow {
     pending_assignee: { id: number; email: string; first_name: string | null; last_name: string | null } | null;
 }
 
-export type SortKey = 'status' | 'due_at' | 'external_due_at' | 'name' | 'assignee' | 'priority';
+export type SortKey = 'status' | 'due_at' | 'external_due_at' | 'name' | 'assignee' | 'priority' | 'project_name';
 export type SortDir = 'asc' | 'desc';
 
 const props = defineProps<{
     tasks: TaskReportRow[];
     columns?: KanbanColumnDef[];
     usesExternalDueDates?: boolean;
+    hasSubprojects?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -39,12 +41,25 @@ const statusFor = (statusKey: string | null) => props.columns?.find((c) => c.key
 // guarantees; sizing them tight to their actual content (rather than a wide flex group)
 // is what keeps Task Name from starting with a gap of dead space after them. "Internal"/
 // "External" stack over "Due" in the header (see template) so each due column only needs
-// to be as wide as one of those words, not the full "Internal Due" phrase.
-const gridColsClass = computed(() =>
-    props.usesExternalDueDates
-        ? 'md:grid-cols-[110px_90px_90px_1fr_180px_120px]'
-        : 'md:grid-cols-[110px_100px_1fr_180px_120px]'
-);
+// to be as wide as one of those words, not the full "Internal Due" phrase. Project (when
+// shown) always leads, since it's the grouping-level field.
+//
+// All four combinations are spelled out as complete literal strings (not built via string
+// concatenation) since Tailwind's build-time scanner only picks up class names that appear
+// verbatim in source — a runtime-assembled arbitrary-value class like grid-cols-[...] would
+// silently fail to generate any CSS.
+const gridColsClass = computed(() => {
+    if (props.hasSubprojects && props.usesExternalDueDates) {
+        return 'md:grid-cols-[140px_110px_90px_90px_1fr_180px_120px]';
+    }
+    if (props.hasSubprojects) {
+        return 'md:grid-cols-[140px_110px_100px_1fr_180px_120px]';
+    }
+    if (props.usesExternalDueDates) {
+        return 'md:grid-cols-[110px_90px_90px_1fr_180px_120px]';
+    }
+    return 'md:grid-cols-[110px_100px_1fr_180px_120px]';
+});
 
 const formatDueDate = (value: string | null): string => {
     if (!value) return '—';
@@ -108,6 +123,8 @@ const sortValue = (task: TaskReportRow, key: SortKey): string | number | null =>
             return assigneeLabel(task).toLowerCase();
         case 'priority':
             return task.priority ? (PRIORITY_WEIGHT[task.priority] ?? null) : null;
+        case 'project_name':
+            return task.project_name ? task.project_name.toLowerCase() : null;
     }
 };
 
@@ -123,6 +140,18 @@ const sortedTasks = computed(() => {
 <template>
     <div class="grid gap-0.5">
         <div :class="['hidden md:grid items-center gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400', gridColsClass]">
+            <button
+                v-if="hasSubprojects"
+                type="button"
+                class="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300"
+                @click="toggleSort('project_name')"
+            >
+                Project
+                <ChevronUp v-if="sortKey === 'project_name' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'project_name' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+            </button>
+
             <button type="button" class="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300" @click="toggleSort('status')">
                 Status
                 <ChevronUp v-if="sortKey === 'status' && sortDir === 'asc'" class="h-3 w-3" />
@@ -188,6 +217,8 @@ const sortedTasks = computed(() => {
             :href="documentUrl(task)"
             :class="['grid grid-cols-2 items-center gap-2 md:gap-3 rounded-md px-4 py-3 text-[13px] transition-colors', gridColsClass, FLAT_ROW_HOVER]"
         >
+            <span v-if="hasSubprojects" class="truncate text-slate-500 dark:text-slate-400">{{ task.project_name ?? '—' }}</span>
+
             <span class="flex items-center gap-1.5">
                 <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[statusFor(task.task_status)?.color ?? 'slate']]"></span>
                 <span class="text-slate-500 dark:text-slate-400">{{ statusFor(task.task_status)?.label ?? task.task_status ?? '—' }}</span>

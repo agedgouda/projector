@@ -156,6 +156,12 @@ class ProjectController extends Controller
             'canManageTranscripts' => $canManageTranscripts,
             'canManageProject' => Gate::allows('update', $project),
             'meetingProvider' => $organization->meeting_provider,
+            'googlePickerConfigured' => filled(config('services.google.client_id'))
+                && filled(config('services.google.client_secret'))
+                && filled(config('services.google.api_key'))
+                && filled(config('services.google.app_id')),
+            'googleApiKey' => config('services.google.api_key'),
+            'googleAppId' => config('services.google.app_id'),
             'recordingsData' => Inertia::defer(function () use ($project, $service, $organization, $canManageTranscripts) {
                 $importedIds = $project->documents()
                     ->whereNotNull('metadata->recording_id')

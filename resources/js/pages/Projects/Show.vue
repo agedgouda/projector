@@ -9,6 +9,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
+import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import { Deferred, router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { PlusIcon, RefreshCw, ShieldAlert } from 'lucide-vue-next';
@@ -48,6 +49,9 @@ const props = defineProps<{
     canManageTranscripts: boolean;
     canManageProject: boolean;
     meetingProvider: string | null;
+    googlePickerConfigured: boolean;
+    googleApiKey: string | null;
+    googleAppId: string | null;
     recordingsData?: {
         recordings: Recording[];
         importedIds: string[];
@@ -491,6 +495,14 @@ watch(
             </div>
 
             <div v-show="activeTab === 'recordings'">
+                <ImportDocumentOptions
+                    :project-id="currentProject!.id"
+                    :can-manage="canManageTranscripts"
+                    :google-picker-configured="googlePickerConfigured"
+                    :google-api-key="googleApiKey"
+                    :google-app-id="googleAppId"
+                />
+
                 <div
                     v-if="!meetingProvider"
                     class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 py-16 dark:border-gray-700"

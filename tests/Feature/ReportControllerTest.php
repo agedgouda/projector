@@ -343,3 +343,115 @@ it('forbids exporting for a user unrelated to the project', function () {
         ->get(route('projects.reports.tasks.exportExcel', $this->project))
         ->assertNotFound();
 });
+
+// --- Sub-projects ---
+
+it('includes a sub-project\'s tasks in the search results, tagged with their project name', function () {
+    $subproject = Project::create(['name' => 'Sub Project', 'client_id' => $this->client->id, 'parent_id' => $this->project->id]);
+
+    Document::create(['project_id' => $this->project->id, 'name' => 'Parent Task', 'type' => 'action_items', 'content' => 'x']);
+    Document::create(['project_id' => $subproject->id, 'name' => 'Sub Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project))
+        ->assertOk();
+
+    $tasks = collect($response->json())->keyBy('name');
+    expect($tasks)->toHaveCount(2)
+        ->and($tasks['Parent Task']['project_name'])->toBe('Test Project')
+        ->and($tasks['Sub Task']['project_name'])->toBe('Sub Project');
+});
+
+it('excludes tasks from an unrelated project (not a sub-project of this one)', function () {
+    $unrelated = Project::create(['name' => 'Unrelated Project', 'client_id' => $this->client->id]);
+    Document::create(['project_id' => $unrelated->id, 'name' => 'Unrelated Task', 'type' => 'action_items', 'content' => 'x']);
+    Document::create(['project_id' => $this->project->id, 'name' => 'Own Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project))
+        ->assertOk();
+
+    expect($response->json())->toHaveCount(1)
+        ->and($response->json('0.name'))->toBe('Own Task');
+});
+
+it('filters search results down to a single sub-project via project_id', function () {
+    $subproject = Project::create(['name' => 'Sub Project', 'client_id' => $this->client->id, 'parent_id' => $this->project->id]);
+
+    Document::create(['project_id' => $this->project->id, 'name' => 'Parent Task', 'type' => 'action_items', 'content' => 'x']);
+    Document::create(['project_id' => $subproject->id, 'name' => 'Sub Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project).'?project_id='.$subproject->id)
+        ->assertOk();
+
+    expect($response->json())->toHaveCount(1)
+        ->and($response->json('0.name'))->toBe('Sub Task');
+});
+
+it('does not include a Project column in exports when the project has no sub-projects', function () {
+    Document::create(['project_id' => $this->project->id, 'name' => 'Solo Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->get(route('projects.reports.tasks.exportExcel', $this->project));
+    $response->assertOk();
+
+    // Column A is Status (not Project) when there's nothing to disambiguate.
+    $content = $response->streamedContent();
+    expect(readExcelColumn($content, 'A', 1))->not->toBe(['Sub Project']);
+    expect(readExcelColumn($content, 'C', 1))->toBe(['Solo Task']);
+});
+
+it('adds a leading Project column to exports once the project has a sub-project', function () {
+    $subproject = Project::create(['name' => 'Sub Project', 'client_id' => $this->client->id, 'parent_id' => $this->project->id]);
+    Document::create(['project_id' => $subproject->id, 'name' => 'Sub Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->get(route('projects.reports.tasks.exportExcel', $this->project));
+    $response->assertOk();
+
+    $content = $response->streamedContent();
+    expect(readExcelColumn($content, 'A', 1))->toBe(['Sub Project'])
+        ->and(readExcelColumn($content, 'D', 1))->toBe(['Sub Task']);
+});
+
+it('sorts the export by project_name', function () {
+    $subproject = Project::create(['name' => 'Alpha Sub', 'client_id' => $this->client->id, 'parent_id' => $this->project->id]);
+    $this->project->update(['name' => 'Zeta Parent']);
+
+    Document::create(['project_id' => $this->project->id, 'name' => 'Parent Task', 'type' => 'action_items', 'content' => 'x']);
+    Document::create(['project_id' => $subproject->id, 'name' => 'Sub Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->get(route('projects.reports.tasks.exportExcel', $this->project->fresh()).'?sort_by=project_name&sort_dir=asc');
+    $response->assertOk();
+
+    expect(readExcelColumn($response->streamedContent(), 'A', 2))->toBe(['Alpha Sub', 'Zeta Parent']);
+});
+
+it('exports pdf and word successfully when the project has sub-projects', function () {
+    $subproject = Project::create(['name' => 'Sub Project', 'client_id' => $this->client->id, 'parent_id' => $this->project->id]);
+    Document::create(['project_id' => $subproject->id, 'name' => 'Sub Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $pdf = $this->actingAs($this->orgAdmin)->get(route('projects.reports.tasks.exportPdf', $this->project));
+    $pdf->assertOk();
+    expect($pdf->headers->get('Content-Type'))->toBe('application/pdf');
+
+    $word = $this->actingAs($this->orgAdmin)->get(route('projects.reports.tasks.exportWord', $this->project));
+    $word->assertOk();
+    expect($word->headers->get('Content-Type'))->toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+});

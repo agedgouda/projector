@@ -106,6 +106,7 @@ declare global {
         tasks: Task[];
         current_lifecycle_step?: LifecycleStep | null;
         kanban_columns?: KanbanColumnDef[];
+        children?: Project[];
 
         // Meta
         documents_count?: number;

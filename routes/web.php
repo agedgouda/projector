@@ -9,6 +9,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ContentUploadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentImportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\InvitationController;
@@ -320,6 +321,14 @@ Route::middleware(['auth'])->group(function () {
                 ->name('transcripts.store');
             Route::post('/transcripts/dismiss', [MeetingTranscriptController::class, 'destroy'])
                 ->name('transcripts.destroy');
+            Route::get('/transcripts/google-picker-token', [DocumentImportController::class, 'googlePickerToken'])
+                ->name('transcripts.google-picker-token');
+            Route::post('/transcripts/import-google-doc', [DocumentImportController::class, 'importGoogleDoc'])
+                ->middleware('throttle:20,1')
+                ->name('transcripts.import-google-doc');
+            Route::post('/transcripts/import-file', [DocumentImportController::class, 'importFile'])
+                ->middleware('throttle:20,1')
+                ->name('transcripts.import-file');
         });
     });
 });

@@ -223,6 +223,23 @@ class GoogleExportService
     }
 
     /**
+     * Fetches a Google Doc's content as Drive's own HTML export — the read-direction mirror
+     * of createDocFromHtml() above, which uses the same "let Google convert" approach in
+     * reverse (Drive does the Docs-to-HTML formatting conversion, not us).
+     */
+    public function fetchDocAsHtml(string $accessToken, string $fileId): string
+    {
+        $response = Http::withToken($accessToken)
+            ->get("https://www.googleapis.com/drive/v3/files/{$fileId}/export", ['mimeType' => 'text/html']);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('Failed to fetch Google Doc content: '.$response->body());
+        }
+
+        return $response->body();
+    }
+
+    /**
      * Walks a documents.get response to find the single table this class ever creates, and
      * returns the insertion index of each of its (empty) cells, in row-major reading order.
      *

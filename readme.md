@@ -9,7 +9,7 @@ Unlike generic AI chat tools, Projector uses **admin-defined database pipelines*
 ## Documentation
 
 - [Google Meet Transcription Setup](docs/google-meet-transcription-setup.md)
-- [Google Sheets / Docs Export Setup](docs/google-drive-export-setup.md)
+- [Google Sheets / Docs Export & Import Setup](docs/google-drive-export-setup.md)
 
 ---
 
@@ -126,4 +126,5 @@ These features work without any extra configuration, but stay disabled/hidden un
 | Feature | Required env vars | Setup guide |
 |---------|-------------------|-------------|
 | Google Meet transcript import | Configured per-organization in the app itself (no env vars) | [Google Meet Transcription Setup](docs/google-meet-transcription-setup.md) |
-| Export task reports to Google Sheets / Google Docs | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | [Google Sheets / Docs Export Setup](docs/google-drive-export-setup.md) |
+| Export task reports to Google Sheets / Google Docs | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | [Google Sheets / Docs Export & Import Setup](docs/google-drive-export-setup.md) |
+| Import a Google Doc as a transcript (Picker) | Above, plus `GOOGLE_API_KEY`, `GOOGLE_APP_ID` | [Google Sheets / Docs Export & Import Setup](docs/google-drive-export-setup.md) |

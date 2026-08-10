@@ -25,6 +25,15 @@ const props = defineProps<{
 const page = usePage();
 const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
 
+// Reports always span this project plus its direct sub-projects (mirroring the calendar's
+// own behavior — see Project::calendarItems()), so the Project column/filter only need to
+// exist at all once there's more than just this one project in scope.
+const projectOptions = computed(() => [
+    { id: props.project.id, name: props.project.name },
+    ...(props.project.children ?? []).map((child) => ({ id: child.id, name: child.name })),
+]);
+const hasSubprojects = computed(() => projectOptions.value.length > 1);
+
 const results = ref<TaskReportRow[]>([]);
 const loading = ref(false);
 const hasSearched = ref(false);
@@ -42,7 +51,7 @@ const onSortChange = (key: SortKey, dir: SortDir) => {
     currentSort.value = { key, dir };
 };
 
-const FILTER_KEYS = ['assignee', 'task_status', 'priority', 'due_from', 'due_to'] as const;
+const FILTER_KEYS = ['assignee', 'task_status', 'priority', 'due_from', 'due_to', 'project_id'] as const;
 
 // The results/hasSearched state above is local to this component instance, which doesn't
 // survive navigating away (e.g. clicking a row) and back — that's a fresh mount, same as
@@ -65,6 +74,7 @@ const filtersFromUrl = (): TaskSearchFilters | null => {
         priority: params.get('priority') ?? '',
         due_from: params.get('due_from') ?? '',
         due_to: params.get('due_to') ?? '',
+        project_id: params.get('project_id') ?? '',
     };
 };
 
@@ -187,6 +197,7 @@ onMounted(async () => {
                 :users="project.client.organization?.users"
                 :invitations="project.client.organization?.invitations"
                 :columns="project.kanban_columns"
+                :project-options="projectOptions"
                 :initial-filters="initialFilters"
                 :loading="loading"
                 @search="runSearch"
@@ -251,6 +262,7 @@ onMounted(async () => {
                 :tasks="results"
                 :columns="project.kanban_columns"
                 :uses-external-due-dates="usesExternalDueDates"
+                :has-subprojects="hasSubprojects"
                 @sort-change="onSortChange"
             />
         </template>
