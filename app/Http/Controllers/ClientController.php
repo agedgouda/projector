@@ -33,7 +33,13 @@ class ClientController extends Controller
             ->get()
             ->map(fn (Client $c) => array_merge($c->toArray(), [
                 'logo_url' => $c->logo_url,
-                'projects' => $c->projects->map(fn ($p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]))->all(),
+                // Projects don't eager-load their own `client` — inject the one we already
+                // have in hand rather than a wasteful `projects.client` eager load, since
+                // ProjectFolio.vue's "Add Sub-project" link reads project.client.company_name.
+                'projects' => $c->projects->map(fn ($p) => array_merge($p->toArray(), [
+                    'logo_url' => $p->logo_url,
+                    'client' => ['company_name' => $c->company_name],
+                ]))->all(),
             ]));
 
         return inertia('Clients/Index', [
