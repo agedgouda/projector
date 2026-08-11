@@ -32,6 +32,13 @@ router.on('finish', () => {
     window.appHasHistory = true;
 });
 
+// The one place to change the brand color used for both the page-navigation progress bar
+// below and AiProcessingHeader.vue's AI-sync progress bar — both read --color-projector-
+// primary-600 (defined once, in app.css) instead of each hardcoding their own value.
+const brandColor = getComputedStyle(document.documentElement)
+    .getPropertyValue('--color-projector-primary-600')
+    .trim();
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
@@ -45,7 +52,7 @@ createInertiaApp({
             .mount(el);
     },
     progress: {
-        color: '#4F46E5',
+        color: brandColor,
     },
 });
 
