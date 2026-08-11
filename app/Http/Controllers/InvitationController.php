@@ -151,6 +151,19 @@ class InvitationController extends Controller
         return back()->with('success', 'Invitation resent to '.$invitation->email);
     }
 
+    public function destroy(Organization $organization, OrganizationInvitation $invitation): RedirectResponse
+    {
+        Gate::authorize('manageUsers', $organization);
+
+        if ($invitation->organization_id !== $organization->id) {
+            abort(404);
+        }
+
+        $invitation->delete();
+
+        return back()->with('success', 'Invitation to '.$invitation->email.' revoked.');
+    }
+
     public function accept(string $token): RedirectResponse
     {
         $invitation = OrganizationInvitation::where('token', $token)

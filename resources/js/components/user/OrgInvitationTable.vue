@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { resend } from '@/actions/App/Http/Controllers/InvitationController';
-import { Link2, Pencil } from 'lucide-vue-next';
+import { Link, router } from '@inertiajs/vue3';
+import { resend, destroy } from '@/actions/App/Http/Controllers/InvitationController';
+import { Link2, Pencil, Trash2 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
+import { ref } from 'vue';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import UserInfo from '@/components/UserInfo.vue';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 
 const props = defineProps<{
     invitations: OrganizationInvitation[];
@@ -42,23 +44,47 @@ const copyLink = (token: string) => {
     }
     toast.success('Invitation Link Copied');
 };
+
+const pendingDeleteInvitation = ref<OrganizationInvitation | null>(null);
+const isDeleting = ref(false);
+
+const confirmDelete = (invitation: OrganizationInvitation) => {
+    pendingDeleteInvitation.value = invitation;
+};
+
+const cancelDelete = () => {
+    pendingDeleteInvitation.value = null;
+};
+
+const executeDelete = () => {
+    if (!pendingDeleteInvitation.value) return;
+
+    isDeleting.value = true;
+
+    router.delete(destroy([props.organizationId, pendingDeleteInvitation.value.id]).url, {
+        preserveScroll: true,
+        onSuccess: () => { pendingDeleteInvitation.value = null; },
+        onFinish: () => { isDeleting.value = false; },
+    });
+};
 </script>
 
 <template>
     <div>
-        <div class="grid grid-cols-[1fr_140px_110px_140px_90px] h-9 px-2 items-center">
+        <div class="grid grid-cols-[1fr_140px_110px_140px_90px_90px] h-9 px-2 items-center">
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited User</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Resend</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Invitation</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Edit</div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Delete</div>
         </div>
 
         <div class="grid gap-0.5">
             <div
                 v-for="invitation in invitations"
                 :key="invitation.id"
-                :class="['grid grid-cols-[1fr_140px_110px_140px_90px] items-center h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
+                :class="['grid grid-cols-[1fr_140px_110px_140px_90px_90px] items-center h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
             >
                 <div class="min-w-0">
                     <UserInfo
@@ -105,7 +131,27 @@ const copyLink = (token: string) => {
                         <Pencil class="w-3 h-3" />
                     </button>
                 </div>
+
+                <div class="flex justify-center">
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center h-8 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
+                        @click="confirmDelete(invitation)"
+                    >
+                        <Trash2 class="w-3 h-3" />
+                    </button>
+                </div>
             </div>
         </div>
+
+        <ConfirmDeleteModal
+            :open="!!pendingDeleteInvitation"
+            title="Revoke Invitation"
+            :description="`This will permanently revoke the invitation for ${pendingDeleteInvitation?.email}. They won't be able to use their invitation link to join anymore.`"
+            confirm-label="Revoke Invitation"
+            :loading="isDeleting"
+            @close="cancelDelete"
+            @confirm="executeDelete"
+        />
     </div>
 </template>

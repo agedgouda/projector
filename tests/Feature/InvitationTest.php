@@ -153,6 +153,77 @@ it('replaces an existing pending invitation for the same email', function () {
     expect(OrganizationInvitation::where('email', 'newuser@example.com')->count())->toBe(1);
 });
 
+// --- Destroy ---
+
+it('forbids a regular member from deleting an invitation for the organization', function () {
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'invitee@example.com',
+        'token' => str_repeat('x', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $regularMember = User::factory()->create();
+    $this->org->users()->attach($regularMember->id, ['role' => 'team-member']);
+
+    $this->actingAs($regularMember)
+        ->delete(route('organizations.invitations.destroy', [$this->org, $invitation]))
+        ->assertNotFound();
+
+    expect(OrganizationInvitation::find($invitation->id))->not->toBeNull();
+});
+
+it('allows an org admin to delete a pending invitation', function () {
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'invitee@example.com',
+        'token' => str_repeat('y', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->delete(route('organizations.invitations.destroy', [$this->org, $invitation]))
+        ->assertRedirect();
+
+    expect(OrganizationInvitation::find($invitation->id))->toBeNull();
+});
+
+it('returns 404 when deleting an invitation belonging to a different organization', function () {
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $otherOrg->id,
+        'email' => 'foreign@example.com',
+        'token' => str_repeat('z', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->delete(route('organizations.invitations.destroy', [$this->org, $invitation]))
+        ->assertNotFound();
+
+    expect(OrganizationInvitation::find($invitation->id))->not->toBeNull();
+});
+
+it('unassigns a task pending on a deleted invitation instead of leaving a dangling reference', function () {
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'assignee@example.com',
+        'token' => str_repeat('o', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    [, $document] = makeDocument($this->org);
+    $document->update(['pending_assignee_invitation_id' => $invitation->id]);
+
+    $this->actingAs($this->orgAdmin)
+        ->delete(route('organizations.invitations.destroy', [$this->org, $invitation]))
+        ->assertRedirect();
+
+    $document->refresh();
+    expect($document->pending_assignee_invitation_id)->toBeNull()
+        ->and($document->assignee_id)->toBeNull();
+});
+
 // --- Update (edit + resend) ---
 
 it('forbids a regular member from editing an invitation for the organization', function () {
