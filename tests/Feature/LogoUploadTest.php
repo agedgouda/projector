@@ -272,6 +272,22 @@ it('allows an org-admin to delete a logo from a project', function () {
     expect($this->project->fresh()->getFirstMedia('logo'))->toBeNull();
 });
 
+it('includes the uploaded logo_url in the projects index page prop', function () {
+    $this->actingAs($this->admin)
+        ->post(route('projects.logo.store', $this->project), ['logo' => UploadedFile::fake()->image('logo.png', 200, 200)])
+        ->assertRedirect();
+
+    $response = $this->actingAs($this->admin)->get(route('projects.index'));
+
+    $response->assertOk();
+
+    $projects = collect($response->original->getData()['page']['props']['projects']);
+    $project = $projects->firstWhere('id', $this->project->id);
+
+    expect($project)->not->toBeNull()
+        ->and($project['logo_url'])->not->toBeNull();
+});
+
 it('rejects non-image files for a project logo', function () {
     $file = UploadedFile::fake()->create('notes.txt', 10, 'text/plain');
 

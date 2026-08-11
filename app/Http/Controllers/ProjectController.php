@@ -80,8 +80,10 @@ class ProjectController extends Controller
         $projects = Project::visibleTo($user, $orgId)
             ->whereHas('client', fn ($q) => $q->where('inactive', false))
             ->latest()
+            ->with('media')
             ->get()
-            ->withSummary();
+            ->withSummary()
+            ->map(fn (Project $p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]));
 
         return inertia('Projects/Index', [
             'projects' => $projects,
