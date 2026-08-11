@@ -6,7 +6,7 @@
 // means a future visual tweak — like the hover-color value, which has already
 // needed retuning twice based on contrast feedback — happens in one place.
 
-export const FLAT_ROW_HOVER = 'hover:bg-slate-200/80 dark:hover:bg-slate-700/60';
+export const FLAT_ROW_HOVER = 'hover:bg-projector-highlight-100/80 dark:hover:bg-projector-highlight-900/40';
 
 export const FLAT_ROW_SELECTED = 'bg-projector-primary-50 dark:bg-projector-primary-950/20';
 

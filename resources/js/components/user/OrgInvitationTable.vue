@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { resend } from '@/actions/App/Http/Controllers/InvitationController';
-import { Link2 } from 'lucide-vue-next';
+import { Link2, Pencil } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import UserInfo from '@/components/UserInfo.vue';
@@ -9,6 +9,10 @@ import UserInfo from '@/components/UserInfo.vue';
 const props = defineProps<{
     invitations: OrganizationInvitation[];
     organizationId: string;
+}>();
+
+const emit = defineEmits<{
+    (e: 'edit', invitation: OrganizationInvitation): void;
 }>();
 
 // Older invitations (sent before name capture existed) have no first_name/last_name —
@@ -42,18 +46,19 @@ const copyLink = (token: string) => {
 
 <template>
     <div>
-        <div class="grid grid-cols-[1fr_140px_110px_140px] h-9 px-2 items-center">
+        <div class="grid grid-cols-[1fr_140px_110px_140px_90px] h-9 px-2 items-center">
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited User</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Resend</div>
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Copy Link</div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Invitation</div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Edit</div>
         </div>
 
         <div class="grid gap-0.5">
             <div
                 v-for="invitation in invitations"
                 :key="invitation.id"
-                :class="['grid grid-cols-[1fr_140px_110px_140px] items-center h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
+                :class="['grid grid-cols-[1fr_140px_110px_140px_90px] items-center h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
             >
                 <div class="min-w-0">
                     <UserInfo
@@ -74,7 +79,7 @@ const copyLink = (token: string) => {
                         method="post"
                         as="button"
                         :preserve-scroll="true"
-                        class="inline-flex items-center justify-center h-8 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md text-slate-500 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 transition-colors"
+                        class="inline-flex items-center justify-center h-8 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-primary-200 text-projector-primary-700 hover:bg-projector-primary-50 dark:border-projector-primary-900/50 dark:text-projector-primary-400 dark:hover:bg-projector-primary-950/30 transition-colors"
                     >
                         Resend
                     </Link>
@@ -83,11 +88,21 @@ const copyLink = (token: string) => {
                 <div class="flex justify-center">
                     <button
                         type="button"
-                        class="inline-flex items-center justify-center h-8 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md text-slate-500 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 transition-colors"
+                        class="inline-flex items-center justify-center h-8 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-primary-200 text-projector-primary-700 hover:bg-projector-primary-50 dark:border-projector-primary-900/50 dark:text-projector-primary-400 dark:hover:bg-projector-primary-950/30 transition-colors"
                         @click="copyLink(invitation.token)"
                     >
                         <Link2 class="w-3 h-3 mr-1" />
                         Copy Link
+                    </button>
+                </div>
+
+                <div class="flex justify-center">
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center h-8 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-primary-200 text-projector-primary-700 hover:bg-projector-primary-50 dark:border-projector-primary-900/50 dark:text-projector-primary-400 dark:hover:bg-projector-primary-950/30 transition-colors"
+                        @click="emit('edit', invitation)"
+                    >
+                        <Pencil class="w-3 h-3" />
                     </button>
                 </div>
             </div>

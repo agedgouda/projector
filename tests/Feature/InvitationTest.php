@@ -153,6 +153,161 @@ it('replaces an existing pending invitation for the same email', function () {
     expect(OrganizationInvitation::where('email', 'newuser@example.com')->count())->toBe(1);
 });
 
+// --- Update (edit + resend) ---
+
+it('forbids a regular member from editing an invitation for the organization', function () {
+    Mail::fake();
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'invitee@example.com',
+        'first_name' => 'Old',
+        'last_name' => 'Name',
+        'role' => 'team-member',
+        'token' => 'test-token',
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $regularMember = User::factory()->create();
+    $this->org->users()->attach($regularMember->id, ['role' => 'team-member']);
+
+    $this->actingAs($regularMember)
+        ->put(route('organizations.invitations.update', [$this->org, $invitation]), [
+            'first_name' => 'New', 'last_name' => 'Name', 'email' => 'invitee@example.com', 'role' => 'team-member',
+        ])
+        ->assertNotFound();
+
+    Mail::assertNothingSent();
+});
+
+it('updates an invitation\'s details and resends it', function () {
+    Mail::fake();
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'old@example.com',
+        'first_name' => 'Old',
+        'last_name' => 'Name',
+        'role' => 'team-member',
+        'token' => str_repeat('r', 64),
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->put(route('organizations.invitations.update', [$this->org, $invitation]), [
+            'first_name' => 'New', 'last_name' => 'Name', 'email' => 'new@example.com', 'role' => 'project-lead',
+        ])
+        ->assertRedirect();
+
+    Mail::assertSent(OrganizationInvitationMail::class, fn ($mail) => $mail->hasTo('new@example.com'));
+
+    $invitation->refresh();
+    expect($invitation->email)->toBe('new@example.com')
+        ->and($invitation->first_name)->toBe('New')
+        ->and($invitation->role)->toBe('project-lead')
+        ->and($invitation->token)->toBe(str_repeat('r', 64))
+        ->and($invitation->expires_at->isFuture())->toBeTrue();
+});
+
+it('attaches an existing user directly when editing an invitation to their email', function () {
+    Mail::fake();
+
+    $existingUser = User::factory()->create(['email' => 'existing@example.com']);
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'old@example.com',
+        'role' => 'team-member',
+        'token' => str_repeat('s', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->put(route('organizations.invitations.update', [$this->org, $invitation]), [
+            'first_name' => 'New', 'last_name' => 'Name', 'email' => 'existing@example.com', 'role' => 'org-admin',
+        ])
+        ->assertRedirect();
+
+    Mail::assertNothingSent();
+
+    expect(OrganizationInvitation::find($invitation->id))->toBeNull();
+
+    $pivot = $this->org->users()->where('user_id', $existingUser->id)->first()?->pivot;
+    expect($pivot)->not->toBeNull()->and($pivot->role)->toBe('org-admin');
+});
+
+it('rejects editing an invitation to an email already belonging to an org member', function () {
+    Mail::fake();
+
+    $member = User::factory()->create(['email' => 'member@example.com']);
+    $this->org->users()->attach($member->id);
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'old@example.com',
+        'role' => 'team-member',
+        'token' => str_repeat('t', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->put(route('organizations.invitations.update', [$this->org, $invitation]), [
+            'first_name' => 'New', 'last_name' => 'Name', 'email' => 'member@example.com', 'role' => 'team-member',
+        ])
+        ->assertSessionHasErrors('email');
+
+    Mail::assertNothingSent();
+    expect(OrganizationInvitation::find($invitation->id))->not->toBeNull();
+});
+
+it('deletes another pending invitation for the org that already used the edited email', function () {
+    Mail::fake();
+
+    OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'taken@example.com',
+        'token' => str_repeat('u', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'old@example.com',
+        'role' => 'team-member',
+        'token' => str_repeat('v', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->put(route('organizations.invitations.update', [$this->org, $invitation]), [
+            'first_name' => 'New', 'last_name' => 'Name', 'email' => 'taken@example.com', 'role' => 'team-member',
+        ])
+        ->assertRedirect();
+
+    expect(OrganizationInvitation::where('organization_id', $this->org->id)->where('email', 'taken@example.com')->count())->toBe(1)
+        ->and(OrganizationInvitation::find($invitation->id))->not->toBeNull();
+});
+
+it('returns 404 when editing an invitation belonging to a different organization', function () {
+    Mail::fake();
+
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $otherOrg->id,
+        'email' => 'foreign@example.com',
+        'token' => str_repeat('w', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->put(route('organizations.invitations.update', [$this->org, $invitation]), [
+            'first_name' => 'New', 'last_name' => 'Name', 'email' => 'foreign@example.com', 'role' => 'team-member',
+        ])
+        ->assertNotFound();
+
+    Mail::assertNothingSent();
+});
+
 it('registers a user via an invitation token', function () {
     $invitation = OrganizationInvitation::create([
         'organization_id' => $this->org->id,

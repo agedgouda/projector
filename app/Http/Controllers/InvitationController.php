@@ -71,6 +71,70 @@ class InvitationController extends Controller
         return back()->with('success', 'Invitation sent to '.$email);
     }
 
+    /**
+     * Update a pending invitation's details and resend it — the same form the "Invite User"
+     * button opens, pre-filled and repurposed for editing. Mirrors store()'s edge-case
+     * handling (an email that now matches an existing member/user) since the email field
+     * is editable here too.
+     */
+    public function update(Request $request, Organization $organization, OrganizationInvitation $invitation): RedirectResponse
+    {
+        Gate::authorize('manageUsers', $organization);
+
+        if ($invitation->organization_id !== $organization->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'role' => ['required', 'string', 'in:team-member,project-lead,org-admin'],
+        ]);
+
+        $email = $validated['email'];
+        $inviter = $request->user();
+
+        $existingUser = User::where('email', $email)->first();
+
+        if ($existingUser && $organization->users()->where('user_id', $existingUser->id)->exists()) {
+            return back()->withErrors(['email' => 'This user is already a member of this organization.']);
+        }
+
+        // Another pending invitation for this organization may already hold the new email —
+        // same dedupe store() does when creating fresh.
+        OrganizationInvitation::where('organization_id', $organization->id)
+            ->where('email', $email)
+            ->where('id', '!=', $invitation->id)
+            ->delete();
+
+        // The edited email now belongs to an existing account — attach directly instead of
+        // resending an invitation, same as store()'s handling for a brand new invite.
+        if ($existingUser) {
+            $organization->users()->attach($existingUser->id, ['role' => $validated['role']]);
+            $invitation->delete();
+
+            return back()->with(
+                'success',
+                "{$validated['first_name']} {$validated['last_name']} ({$email}) is already registered and has been added to {$organization->name}."
+            );
+        }
+
+        $invitation->update([
+            'email' => $email,
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'role' => $validated['role'],
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $link = route('invite', $invitation->token);
+
+        Mail::to($email)->send(new OrganizationInvitationMail($inviter, $organization, $link));
+
+        return back()->with('success', 'Invitation updated and resent to '.$email);
+    }
+
     public function resend(Request $request, Organization $organization, OrganizationInvitation $invitation): RedirectResponse
     {
         Gate::authorize('manageUsers', $organization);

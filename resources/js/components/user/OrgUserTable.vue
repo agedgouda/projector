@@ -47,10 +47,14 @@ const updateUserRole = (user: User, role: string) => {
 <template>
     <div class="divide-y divide-gray-50 dark:divide-zinc-800/50">
         <div
-            v-for="user in users"
+            v-for="(user, index) in users"
             :key="user.row_key"
             class="grid items-center rounded-md transition-colors"
-            :class="[viewerIsSuperAdmin ? 'grid-cols-[1fr_auto_200px]' : 'grid-cols-[1fr_200px]', FLAT_ROW_HOVER]"
+            :class="[
+                viewerIsSuperAdmin ? 'grid-cols-[1fr_auto_200px]' : 'grid-cols-[1fr_200px]',
+                FLAT_ROW_HOVER,
+                index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
+            ]"
         >
             <div class="p-4 pl-8 min-w-0">
                 <div class="flex items-center gap-3">
@@ -69,7 +73,7 @@ const updateUserRole = (user: User, role: string) => {
                     method="post"
                     as="button"
                     :preserve-scroll="true"
-                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-highlight-200 text-projector-highlight-700 hover:bg-projector-highlight-50 dark:border-projector-highlight-900/50 dark:text-projector-highlight-400 dark:hover:bg-projector-highlight-950/30 transition-colors"
+                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-highlight-200 bg-white text-projector-highlight-700 hover:bg-projector-highlight-50 dark:border-projector-highlight-900/50 dark:bg-zinc-900 dark:text-projector-highlight-400 dark:hover:bg-projector-highlight-950/30 transition-colors"
                 >
                     Make Super Admin
                 </Link>
@@ -79,7 +83,7 @@ const updateUserRole = (user: User, role: string) => {
                     method="post"
                     as="button"
                     :preserve-scroll="true"
-                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/30 transition-colors"
+                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 dark:border-amber-900/50 dark:bg-zinc-900 dark:text-amber-400 dark:hover:bg-amber-950/30 transition-colors"
                 >
                     Impersonate
                 </Link>
@@ -94,7 +98,7 @@ const updateUserRole = (user: User, role: string) => {
                     :model-value="user.roles[0] ?? NO_ROLE"
                     @update:model-value="(val) => updateUserRole(user, String(val))"
                 >
-                    <SelectTrigger class="h-8 text-xs w-40">
+                    <SelectTrigger class="h-8 text-xs w-40 bg-white dark:bg-zinc-900">
                         <SelectValue placeholder="No role" />
                     </SelectTrigger>
                     <SelectContent>

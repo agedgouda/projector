@@ -14,7 +14,7 @@ import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
 import UserList from '@/components/users/UserList.vue';
-import { store as inviteUser } from '@/actions/App/Http/Controllers/InvitationController';
+import { store as inviteUser, update as updateInvitation } from '@/actions/App/Http/Controllers/InvitationController';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
@@ -132,6 +132,25 @@ const openInviteUser = () => {
         showBillingWarningModal.value = true;
         return;
     }
+    editingInvitation.value = null;
+    inviteForm.reset();
+    isInviteModalOpen.value = true;
+};
+
+// Reuses the "Invite User" modal/form for editing — pre-filled with the invitation's
+// current values, and submitted against the update endpoint instead of store. Unlike a
+// brand new invite, an at-limit/over-planned-count org shouldn't block editing an
+// invitation that's already counted against that limit.
+const editingInvitation = ref<OrganizationInvitation | null>(null);
+
+const openEditInvitation = (invitation: OrganizationInvitation) => {
+    editingInvitation.value = invitation;
+    inviteForm.reset();
+    inviteForm.clearErrors();
+    inviteForm.first_name = invitation.first_name ?? '';
+    inviteForm.last_name = invitation.last_name ?? '';
+    inviteForm.email = invitation.email;
+    inviteForm.role = invitation.role ?? 'team-member';
     isInviteModalOpen.value = true;
 };
 
@@ -153,12 +172,23 @@ const cancelBillingWarning = () => {
 const inviteForm = useForm({ first_name: '', last_name: '', email: '', role: 'team-member' });
 
 const submitInvite = (orgId: string) => {
+    const onSuccess = () => {
+        inviteForm.reset();
+        editingInvitation.value = null;
+        isInviteModalOpen.value = false;
+    };
+
+    if (editingInvitation.value) {
+        inviteForm.put(updateInvitation([orgId, editingInvitation.value.id]).url, {
+            preserveScroll: true,
+            onSuccess,
+        });
+        return;
+    }
+
     inviteForm.post(inviteUser(orgId).url, {
         preserveScroll: true,
-        onSuccess: () => {
-            inviteForm.reset();
-            isInviteModalOpen.value = false;
-        },
+        onSuccess,
     });
 };
 </script>
@@ -309,7 +339,7 @@ const submitInvite = (orgId: string) => {
 
                     <div v-if="(isSuperAdmin || isOrgAdmin) && invitations.length > 0">
                         <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Pending Invitations</h3>
-                        <OrgInvitationTable :invitations="invitations" :organization-id="currentOrg.id" />
+                        <OrgInvitationTable :invitations="invitations" :organization-id="currentOrg.id" @edit="openEditInvitation" />
                     </div>
                 </div>
 
@@ -371,8 +401,9 @@ const submitInvite = (orgId: string) => {
             <Dialog v-model:open="isInviteModalOpen">
             <DialogContent class="sm:max-w-[400px]">
                 <DialogHeader>
-                    <DialogTitle>Invite User to {{ currentOrg.name }}</DialogTitle>
-                    <DialogDescription>Enter their name and email address to send an invitation link. If that email is already registered, they'll be added to the organization directly instead.</DialogDescription>
+                    <DialogTitle>{{ editingInvitation ? 'Edit Invitation' : `Invite User to ${currentOrg.name}` }}</DialogTitle>
+                    <DialogDescription v-if="editingInvitation">Update their details and resend the invitation link. If that email is already registered, they'll be added to the organization directly instead.</DialogDescription>
+                    <DialogDescription v-else>Enter their name and email address to send an invitation link. If that email is already registered, they'll be added to the organization directly instead.</DialogDescription>
                 </DialogHeader>
                 <form @submit.prevent="submitInvite(currentOrg.id)" class="grid gap-4 pt-2">
                     <div class="grid grid-cols-2 gap-4">
@@ -429,7 +460,7 @@ const submitInvite = (orgId: string) => {
                         :disabled="inviteForm.processing"
                         class="inline-flex items-center justify-center w-full h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow hover:bg-primary/90 transition-colors disabled:pointer-events-none disabled:opacity-50"
                     >
-                        Send Invitation
+                        {{ editingInvitation ? 'Save and Resend' : 'Send Invitation' }}
                     </button>
                 </form>
             </DialogContent>

@@ -205,6 +205,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('organizations.pdf-branding.destroy');
     Route::post('/organizations/{organization}/invite', [InvitationController::class, 'store'])
         ->name('organizations.invite');
+    Route::put('/organizations/{organization}/invitations/{invitation}', [InvitationController::class, 'update'])
+        ->name('organizations.invitations.update');
     Route::post('/organizations/{organization}/invitations/{invitation}/resend', [InvitationController::class, 'resend'])
         ->name('organizations.invitations.resend');
 
