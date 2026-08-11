@@ -4,6 +4,8 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -166,6 +168,65 @@ it('allows changing an existing sub-project to a different valid parent, or clea
         ->assertRedirect();
 
     expect($child->fresh()->parent_id)->toBeNull();
+});
+
+// --- Logo inheritance ---
+
+it('falls back to the parent project\'s logo when the sub-project has none of its own', function () {
+    Storage::fake('public');
+
+    $child = Project::create([
+        'name' => 'Fleem Clavington',
+        'client_id' => $this->client->id,
+        'parent_id' => $this->parent->id,
+    ]);
+
+    expect($child->logo_url)->toBeNull();
+
+    $this->parent->addMedia(UploadedFile::fake()->image('parent-logo.png', 200, 200))->toMediaCollection('logo');
+
+    expect($child->fresh()->logo_url)->not->toBeNull()
+        ->and($child->fresh()->logo_url)->toBe($this->parent->fresh()->logo_url);
+});
+
+it('uses its own logo instead of the parent\'s when the sub-project has one', function () {
+    Storage::fake('public');
+
+    $child = Project::create([
+        'name' => 'Fleem Clavington',
+        'client_id' => $this->client->id,
+        'parent_id' => $this->parent->id,
+    ]);
+
+    $this->parent->addMedia(UploadedFile::fake()->image('parent-logo.png', 200, 200))->toMediaCollection('logo');
+    $child->addMedia(UploadedFile::fake()->image('child-logo.png', 200, 200))->toMediaCollection('logo');
+
+    expect($child->fresh()->logo_url)->not->toBe($this->parent->fresh()->logo_url);
+});
+
+it('does not fall back to anything for a top-level project with no logo', function () {
+    expect($this->parent->logo_url)->toBeNull();
+});
+
+it('includes the inherited logo_url for a sub-project on the projects index page', function () {
+    Storage::fake('public');
+
+    $child = Project::create([
+        'name' => 'Fleem Clavington',
+        'client_id' => $this->client->id,
+        'parent_id' => $this->parent->id,
+    ]);
+
+    $this->parent->addMedia(UploadedFile::fake()->image('parent-logo.png', 200, 200))->toMediaCollection('logo');
+
+    $response = $this->actingAs($this->admin)->get(route('projects.index'));
+
+    $response->assertOk();
+
+    $projects = collect($response->original->getData()['page']['props']['projects']);
+    $childData = $projects->firstWhere('id', $child->id);
+
+    expect($childData['logo_url'] ?? null)->not->toBeNull();
 });
 
 it('preselects the parent project and locks the client on the create page', function () {

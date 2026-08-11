@@ -88,7 +88,7 @@ class OrganizationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(['id', 'email', 'first_name', 'last_name', 'role', 'token', 'expires_at']);
 
-        $clients = $currentOrg->clients()->with(['projects.media', 'media'])->get()
+        $clients = $currentOrg->clients()->with(['projects.media', 'projects.parent.media', 'media'])->get()
             ->map(fn (Client $c) => array_merge($c->toArray(), [
                 'logo_url' => $c->logo_url,
                 // Projects don't eager-load their own `client` — inject the one we already

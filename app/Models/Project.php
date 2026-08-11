@@ -48,11 +48,20 @@ class Project extends Model implements HasMedia
 
     public $incrementing = false;
 
+    /**
+     * Falls back to the parent project's logo when this project has none of its own —
+     * sub-projects are meant to look like part of the same project unless someone
+     * deliberately uploads a distinct logo for them.
+     */
     public function getLogoUrlAttribute(): ?string
     {
         $url = $this->getFirstMediaUrl('logo', 'preview');
 
-        return $url !== '' ? $url : null;
+        if ($url !== '') {
+            return $url;
+        }
+
+        return $this->parent?->logo_url;
     }
 
     public function registerMediaCollections(): void

@@ -80,7 +80,7 @@ class ProjectController extends Controller
         $projects = Project::visibleTo($user, $orgId)
             ->whereHas('client', fn ($q) => $q->where('inactive', false))
             ->latest()
-            ->with('media')
+            ->with(['media', 'parent.media'])
             ->get()
             ->withSummary()
             ->map(fn (Project $p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]));
@@ -98,7 +98,7 @@ class ProjectController extends Controller
         $user = auth()->user();
 
         // 1. Get projects using your custom collection
-        $projects = Project::visibleTo($user)->where('inactive', false)->latest()->with('media')->get()->withDashboardContext()
+        $projects = Project::visibleTo($user)->where('inactive', false)->latest()->with(['media', 'parent.media'])->get()->withDashboardContext()
             ->map(fn (Project $p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]));
 
         if ($projects->isEmpty()) {
@@ -130,6 +130,7 @@ class ProjectController extends Controller
         $project->load([
             'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name'])->withExists('lockedNextWorkflowStep')->latest(),
             'media',
+            'parent.media',
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'kanbanColumns',

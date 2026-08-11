@@ -29,7 +29,7 @@ class ClientController extends Controller
         // 3. Fetch clients strictly for this organization
         $clients = Client::where('organization_id', $organization->id)
             ->latest()
-            ->with(['projects.media', 'media'])
+            ->with(['projects.media', 'projects.parent.media', 'media'])
             ->get()
             ->map(fn (Client $c) => array_merge($c->toArray(), [
                 'logo_url' => $c->logo_url,
