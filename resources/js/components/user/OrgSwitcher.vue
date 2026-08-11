@@ -6,6 +6,7 @@ import {
 } from "lucide-vue-next";
 import { cn } from "@/lib/utils";
 import FlatSwitcherTrigger from "@/components/FlatSwitcherTrigger.vue";
+import IconTile from "@/components/IconTile.vue";
 import {
     Command,
     CommandEmpty,
@@ -81,16 +82,19 @@ const handleSelect = (orgId: string | number) => {
                             :value="org.name"
                             @select="handleSelect(org.id)"
                             :class="cn(
-                                'flex items-center justify-between py-3 cursor-pointer transition-colors',
+                                'flex items-center justify-between gap-2 py-3 cursor-pointer transition-colors',
                                 org.id === currentOrg?.id ? 'bg-projector-primary-50/50 dark:bg-projector-primary-500/5' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
                             )"
                         >
-                            <span :class="cn(
-                                'font-medium transition-colors',
-                                org.id === currentOrg?.id ? 'text-projector-primary-600 dark:text-projector-primary-400' : 'text-gray-700 dark:text-zinc-300'
-                            )">
-                                {{ org.name }}
-                            </span>
+                            <div class="flex items-center gap-2 min-w-0">
+                                <IconTile :src="org.logo_url" :alt="org.name" :icon="Building2" size="sm" tone="muted" />
+                                <span :class="cn(
+                                    'font-medium truncate transition-colors',
+                                    org.id === currentOrg?.id ? 'text-projector-primary-600 dark:text-projector-primary-400' : 'text-gray-700 dark:text-zinc-300'
+                                )">
+                                    {{ org.name }}
+                                </span>
+                            </div>
                             <Check
                                 v-if="org.id === currentOrg?.id"
                                 class="h-4 w-4 text-projector-primary-600 dark:text-projector-primary-400"

@@ -18,6 +18,11 @@ const previewUrl = ref<string | null>(null);
 const uploadForm = useForm({ logo: null as File | null });
 const deleteForm = useForm({});
 
+// Uploads immediately on selection rather than staging behind a separate "Save" click —
+// that click lived outside the surrounding entry form's own Save/Update button, so picking
+// a logo there while editing an existing record silently never persisted it: the outer
+// form's own submit reported success (for the other fields) without ever touching this
+// widget's still-unsaved file.
 async function onFileChange(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) { return; }
@@ -25,24 +30,21 @@ async function onFileChange(event: Event) {
     const resized = await resizeImage(file);
     uploadForm.logo = resized;
     previewUrl.value = URL.createObjectURL(resized);
-}
 
-function upload() {
     uploadForm.post(props.uploadUrl, {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             previewUrl.value = null;
             uploadForm.reset();
+        },
+        onError: () => {
+            previewUrl.value = null;
+        },
+        onFinish: () => {
             if (fileInput.value) { fileInput.value.value = ''; }
         },
     });
-}
-
-function cancelPreview() {
-    previewUrl.value = null;
-    uploadForm.reset();
-    if (fileInput.value) { fileInput.value.value = ''; }
 }
 
 function removeLogo() {
@@ -63,6 +65,7 @@ const displayUrl = computed(() => previewUrl.value ?? props.currentLogoUrl);
                     :src="displayUrl"
                     alt="Logo preview"
                     class="size-full object-contain"
+                    :class="{ 'opacity-50': uploadForm.processing }"
                 />
                 <span v-else class="text-xs text-gray-400 dark:text-gray-500 text-center px-2">No logo</span>
             </div>
@@ -73,33 +76,14 @@ const displayUrl = computed(() => previewUrl.value ?? props.currentLogoUrl);
                         type="button"
                         variant="outline"
                         size="sm"
+                        :disabled="uploadForm.processing"
                         @click="fileInput?.click()"
                     >
-                        {{ currentLogoUrl ? 'Change' : 'Upload' }}
+                        {{ uploadForm.processing ? 'Uploading…' : (currentLogoUrl ? 'Change' : 'Upload') }}
                     </Button>
 
                     <Button
-                        v-if="previewUrl"
-                        type="button"
-                        size="sm"
-                        :disabled="uploadForm.processing"
-                        @click="upload"
-                    >
-                        {{ uploadForm.processing ? 'Saving…' : 'Save' }}
-                    </Button>
-
-                    <Button
-                        v-if="previewUrl"
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        @click="cancelPreview"
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        v-if="currentLogoUrl && !previewUrl"
+                        v-if="currentLogoUrl && !uploadForm.processing"
                         type="button"
                         variant="ghost"
                         size="sm"

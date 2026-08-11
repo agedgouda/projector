@@ -74,9 +74,12 @@ class HandleInertiaRequests extends Middleware
                 }
             }
 
-            // Kept lean (no logo) — this loads on every request, unlike the fuller org list
-            // the Organizations page itself fetches, so it stays a single cheap query.
-            $organizations = Organization::accessibleBy($user)->orderBy('name')->get(['id', 'name'])->toArray();
+            // This loads on every request, so it stays cheap: eager-loading media is one extra
+            // query total (not per-org), keeping the org switcher's logos affordable even
+            // though this is leaner than the fuller org list the Organizations page fetches.
+            $organizations = Organization::accessibleBy($user)->orderBy('name')->with('media')->get(['id', 'name'])
+                ->map(fn (Organization $org) => ['id' => $org->id, 'name' => $org->name, 'logo_url' => $org->logo_url])
+                ->toArray();
         }
 
         $impersonatorId = $request->session()->get('impersonator_id');
