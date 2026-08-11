@@ -37,10 +37,14 @@ export const KANBAN_UI = {
     columnWrapper:
         'flex flex-col gap-4 min-h-[160px] bg-transparent rounded-[2rem] p-4 relative',
 
+    // Columns never shrink below 240px — narrower than that, task titles and the
+    // due-date/priority row stop being readable no matter how the card wraps. Once
+    // columnCount * 240px (+ gaps) exceeds the available row width, the grid overflows
+    // its scroll-container ancestor instead of continuing to squeeze columns down.
     gridContainer: (columnCount: number): CSSProperties => ({
         display: 'grid',
         gap: '2rem', // gap-8
-        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${columnCount}, minmax(240px, 1fr))`,
         width: '100%',
     }),
 };

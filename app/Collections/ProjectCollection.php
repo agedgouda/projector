@@ -47,6 +47,8 @@ class ProjectCollection extends Collection
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'client.users',
+            'client.organization.users',
+            'client.organization.invitations',
             'kanbanColumns',
             'documents' => function ($q) {
                 $q->with(['assignee', 'creator'])->withExists('lockedNextWorkflowStep')->latest();

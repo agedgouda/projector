@@ -116,7 +116,7 @@ const handleUpdate = (field: string, value: any) => {
         <div class="mb-5 text-xs">
             {{ doc.type_label ?? doc.type }}
         </div>
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div @click.stop @keydown.stop>
                 <Select
                     :model-value="assigneeValue"
@@ -173,7 +173,7 @@ const handleUpdate = (field: string, value: any) => {
                 </Select>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <div
                     class="flex items-center gap-1 text-gray-400"
                     @click.stop

@@ -39,25 +39,34 @@ const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status
             </Link>
         </div>
 
-        <KanbanHeader
-            :columns="columns"
-            :get-count="getRowCount"
-            :current-project="currentProject"
-            :can-manage="canManage"
-        />
-
-        <div class="grid gap-8" :style="KANBAN_UI.gridContainer(columns.length)">
-            <template v-for="column in columns" :key="column.key">
-                <KanbanColumn
-                    :column="column"
-                    :tasks="getTasks(row.key, column.key)"
-                    :row-label="row.label"
-                    @drag="(evt) => onDrag(evt, column)"
-                    @open="onOpen"
-                    @create="onCreate(row.key)"
-                    @update-attribute="onUpdateAttribute"
+        <!-- Columns have a 240px floor (see gridContainer); once columnCount * 240px no
+             longer fits, this scrolls horizontally instead of squeezing columns further.
+             w-fit + min-w-full lets the row's true (possibly wider-than-viewport) content
+             width bubble up so the overflow-x-auto below actually has something to scroll,
+             while still filling the full row width when there's room to spare. -->
+        <div class="overflow-x-auto overflow-y-visible">
+            <div class="w-fit min-w-full space-y-4">
+                <KanbanHeader
+                    :columns="columns"
+                    :get-count="getRowCount"
+                    :current-project="currentProject"
+                    :can-manage="canManage"
                 />
-            </template>
+
+                <div class="grid gap-8" :style="KANBAN_UI.gridContainer(columns.length)">
+                    <template v-for="column in columns" :key="column.key">
+                        <KanbanColumn
+                            :column="column"
+                            :tasks="getTasks(row.key, column.key)"
+                            :row-label="row.label"
+                            @drag="(evt) => onDrag(evt, column)"
+                            @open="onOpen"
+                            @create="onCreate(row.key)"
+                            @update-attribute="onUpdateAttribute"
+                        />
+                    </template>
+                </div>
+            </div>
         </div>
     </div>
 </template>
