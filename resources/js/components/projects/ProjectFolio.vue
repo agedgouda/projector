@@ -20,6 +20,10 @@ const props = defineProps<{
     redirectTo?: string;
     isSubProject?: boolean;
     projects?: { id: string; name: string; client_id: string; parent_id?: string | null }[];
+    // Position within its list, for alternating-stripe backgrounds — matches
+    // OrgUserTable.vue's rule. Omitted by callers (e.g. ClientList.vue) that don't want
+    // striping, in which case the row just keeps its plain background.
+    rowIndex?: number;
 }>();
 
 const { hasRole } = usePermissions();
@@ -51,7 +55,14 @@ const executeDelete = () => {
 </script>
 
 <template>
-    <div v-bind="$attrs" class="group/folio grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 py-3 px-4 transition-colors hover:bg-gray-50/50 dark:hover:bg-zinc-800/30" :class="{ 'pl-10': isSubProject }">
+    <div
+        v-bind="$attrs"
+        class="group/folio grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 py-3 px-4 rounded-md transition-colors"
+        :class="[
+            isSubProject ? 'pl-10' : '',
+            rowIndex !== undefined && rowIndex % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
+        ]"
+    >
 
         <div class="flex items-center gap-4 min-w-0">
             <div class="h-9 w-9 shrink-0 rounded-lg bg-slate-50 dark:bg-zinc-800 flex items-center justify-center border border-slate-100 dark:border-zinc-700 shadow-sm overflow-hidden">
@@ -108,7 +119,7 @@ const executeDelete = () => {
         <div class="flex justify-end w-10">
             <button
                 @click="isEditModalOpen = true"
-                class="p-2 text-slate-300 hover:text-projector-primary-500 transition-colors opacity-0 group-hover/folio:opacity-100"
+                class="p-2 text-slate-300 hover:text-projector-primary-500 transition-colors"
                 title="Edit Project"
             >
                 <Pencil class="w-4 h-4" />
@@ -118,7 +129,7 @@ const executeDelete = () => {
         <div class="flex justify-end w-10">
             <button
                 @click="isDeleteModalOpen = true"
-                class="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover/folio:opacity-100"
+                class="p-2 text-slate-300 hover:text-red-500 transition-colors"
                 title="Delete Project"
             >
                 <Trash2 class="w-4 h-4" />

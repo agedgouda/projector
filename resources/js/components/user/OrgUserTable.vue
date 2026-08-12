@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/select';
 import { computed } from 'vue';
 import { formatRoleName } from '@/lib/utils';
-import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 
 const props = defineProps<{
     users: User[];
@@ -52,7 +51,6 @@ const updateUserRole = (user: User, role: string) => {
             class="grid items-center rounded-md transition-colors"
             :class="[
                 viewerIsSuperAdmin ? 'grid-cols-[1fr_auto_200px]' : 'grid-cols-[1fr_200px]',
-                FLAT_ROW_HOVER,
                 index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
             ]"
         >

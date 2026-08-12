@@ -15,6 +15,11 @@ export const FLAT_ROW_ACCENT_BAR = 'absolute left-0 top-1.5 bottom-1.5 w-[3px] r
 export const FLAT_ACTION_BUTTON =
     'h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-colors';
 
+// Same as FLAT_ACTION_BUTTON but always shown, not just on hover — for lists where the
+// action buttons should stay visible at all times.
+export const FLAT_ACTION_BUTTON_VISIBLE =
+    'h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-projector-primary-600 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 transition-colors';
+
 export const FLAT_SEARCH_ICON = 'absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-projector-primary-500 transition-colors';
 
 export const FLAT_SEARCH_INPUT =

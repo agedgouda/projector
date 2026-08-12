@@ -3,7 +3,6 @@ import IconTile from '@/components/IconTile.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
-    FLAT_ROW_HOVER,
     FLAT_SEARCH_ICON,
     FLAT_SEARCH_INPUT,
 } from '@/lib/flat-ui';
@@ -198,11 +197,11 @@ const duplicateType = (typeId: string, orgId?: string) => {
                         >
                     </div>
                     <ResourceList :items="orgTypes">
-                        <template #default="{ item: type }">
+                        <template #default="{ item: type, index }">
                             <div
                                 :class="[
                                     'space-y-4 rounded-md p-3 transition-colors',
-                                    FLAT_ROW_HOVER,
+                                    index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
                                 ]"
                             >
                                 <div class="flex items-center gap-3 px-1">
@@ -360,11 +359,11 @@ const duplicateType = (typeId: string, orgId?: string) => {
                         >
                     </div>
                     <ResourceList :items="globalTypes">
-                        <template #default="{ item: type }">
+                        <template #default="{ item: type, index }">
                             <div
                                 :class="[
                                     'space-y-4 rounded-md p-3 transition-colors',
-                                    FLAT_ROW_HOVER,
+                                    index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
                                 ]"
                             >
                                 <div class="flex items-center gap-3 px-1">

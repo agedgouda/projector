@@ -11,13 +11,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderPlus, Building2 } from 'lucide-vue-next';
-import ProjectFolio from '@/components/projects/ProjectFolio.vue';
+import ProjectFolioList from '@/components/projects/ProjectFolioList.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ResourceSearch from '@/components/ResourceSearch.vue';
 import UpgradeModal from '@/components/UpgradeModal.vue';
 import FlatRow from '@/components/FlatRow.vue';
 import IconTile from '@/components/IconTile.vue';
-import { FLAT_ACTION_BUTTON } from '@/lib/flat-ui';
+import { FLAT_ACTION_BUTTON_VISIBLE } from '@/lib/flat-ui';
 import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
@@ -149,7 +149,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
             </div>
 
             <div v-for="client in filteredClients" :key="client.id">
-                <FlatRow height="md" clickable @click="toggleProjects(client.id)">
+                <FlatRow height="md" clickable no-hover always-show-actions @click="toggleProjects(client.id)">
                     <template #leading>
                         <component :is="collapsedClients[client.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-slate-400 shrink-0" />
                         <IconTile :src="client.logo_url" :alt="client.company_name" :icon="Building2" size="sm" />
@@ -172,16 +172,16 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                     </template>
 
                     <template #actions>
-                        <button type="button" @click.stop="openAddProjectModal(client)" :class="FLAT_ACTION_BUTTON" title="Add Project">
+                        <button type="button" @click.stop="openAddProjectModal(client)" :class="FLAT_ACTION_BUTTON_VISIBLE" title="Add Project">
                             <FolderPlus class="w-3.5 h-3.5" />
                         </button>
-                        <button type="button" @click.stop="handleEditRequest(client)" :class="FLAT_ACTION_BUTTON" title="Edit client">
+                        <button type="button" @click.stop="handleEditRequest(client)" :class="FLAT_ACTION_BUTTON_VISIBLE" title="Edit client">
                             <Pencil class="w-3.5 h-3.5" />
                         </button>
                         <button
                             type="button"
                             @click.stop="confirmDeleteClient(client)"
-                            class="h-7 w-7 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-colors"
+                            class="h-7 w-7 flex items-center justify-center rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                             title="Delete client"
                         >
                             <Trash2 class="w-3.5 h-3.5" />
@@ -191,18 +191,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
 
                 <div v-if="!collapsedClients[client.id]" class="relative pl-7">
                     <div class="absolute left-[14px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
-                    <div v-if="client.projects?.length === 0" class="py-4 text-slate-400 text-[10px] font-black uppercase tracking-widest italic">
-                        No active projects for this client
-                    </div>
-                    <ProjectFolio
-                        v-else
-                        v-for="project in client.projects"
-                        :key="`proj-${project.id}`"
-                        :project="project"
-                        :projects="client.projects"
-                        :redirect-to="redirectTo ?? '/clients'"
-                        class="w-full"
-                    />
+                    <ProjectFolioList :projects="client.projects ?? []" :redirect-to="redirectTo ?? '/clients'" />
                 </div>
             </div>
         </div>

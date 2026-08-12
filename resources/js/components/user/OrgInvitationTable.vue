@@ -4,7 +4,6 @@ import { resend, destroy } from '@/actions/App/Http/Controllers/InvitationContro
 import { Link2, Pencil, Trash2 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { ref } from 'vue';
-import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import UserInfo from '@/components/UserInfo.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 
@@ -84,7 +83,7 @@ const executeDelete = () => {
             <div
                 v-for="invitation in invitations"
                 :key="invitation.id"
-                :class="['grid grid-cols-[1fr_140px_110px_140px_90px_90px] items-center h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
+                class="grid grid-cols-[1fr_140px_110px_140px_90px_90px] items-center h-12 px-2 rounded-md transition-colors"
             >
                 <div class="min-w-0">
                     <UserInfo

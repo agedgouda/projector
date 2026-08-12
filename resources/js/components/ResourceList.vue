@@ -7,7 +7,7 @@ defineProps<{
 <template>
     <TransitionGroup
         tag="div"
-        class="space-y-2 relative"
+        class="relative"
         move-class="transition duration-300 ease-in-out"
         enter-active-class="transition duration-300 ease-out"
         enter-from-class="opacity-0 translate-y-4"

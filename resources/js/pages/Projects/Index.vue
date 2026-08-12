@@ -4,7 +4,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import AppLayout from '@/layouts/AppLayout.vue';
 import NewProjectModal from '@/components/projects/NewProjectModal.vue';
-import ProjectFolio from '@/components/projects/ProjectFolio.vue';
+import ProjectFolioList from '@/components/projects/ProjectFolioList.vue';
 import ResourceHeader from '@/components/ResourceHeader.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import projectRoutes from '@/routes/projects/index';
@@ -43,15 +43,18 @@ const handleSuccess = (clientId: string) => {
     collapsedGroups.value[clientId] = false;
 };
 
-// --- The Master List Logic (Preserved) ---
-const displayItems = computed(() => {
+// --- The Master List Logic ---
+// Groups by client (search-filtered, parent kept alongside any matching child so a
+// query matching only a sub-project doesn't strand it with no visible parent). Ordering
+// and indentation of parent-vs-sub-projects within a client, plus their row striping,
+// is ProjectFolioList's job — the same component the Clients tab uses, so both stay in
+// sync automatically.
+const clientGroups = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
     const matchesQuery = (project: Project) => !query ||
         project.name.toLowerCase().includes(query) ||
         project.client?.company_name?.toLowerCase().includes(query);
 
-    // Built from the full, unfiltered set so parent/child relationships survive search —
-    // otherwise a query matching only a sub-project would strand it with no visible parent.
     const childrenByParentId = new Map<string, Project[]>();
     props.projects.forEach((project) => {
         if (!project.parent_id) return;
@@ -60,65 +63,28 @@ const displayItems = computed(() => {
         childrenByParentId.set(project.parent_id, siblings);
     });
 
-    const topLevel = props.projects
+    const byClientId = new Map<string, { clientId: string; clientName: string; projects: Project[] }>();
+
+    props.projects
         .filter((project) => !project.parent_id)
-        .map((project) => ({
-            project,
-            children: (childrenByParentId.get(project.id) ?? []).filter(matchesQuery),
-        }))
-        .filter(({ project, children }) => matchesQuery(project) || children.length > 0);
+        .forEach((project) => {
+            const children = (childrenByParentId.get(project.id) ?? []).filter(matchesQuery);
+            if (!matchesQuery(project) && children.length === 0) return;
 
-    topLevel.sort((a, b) => {
-        const clientA = a.project.client?.company_name || '';
-        const clientB = b.project.client?.company_name || '';
-        const clientComparison = clientA.localeCompare(clientB);
-        if (clientComparison !== 0) return clientComparison;
-        return a.project.name.localeCompare(b.project.name);
-    });
-    topLevel.forEach(({ children }) => children.sort((a, b) => a.name.localeCompare(b.name)));
+            const clientId = project.client?.id ?? 'unassigned';
+            const group = byClientId.get(clientId) ?? {
+                clientId,
+                clientName: project.client?.company_name || 'Unassigned',
+                projects: [],
+            };
+            group.projects.push(project, ...children);
+            byClientId.set(clientId, group);
+        });
 
-    const flattened: any[] = [];
-    let lastClientId: any = null;
-
-    topLevel.forEach(({ project, children }) => {
-        if (project.client?.id !== lastClientId) {
-            flattened.push({
-                isHeader: true,
-                domId: `header-${project.client?.id}`,
-                clientId: project.client?.id,
-                name: project.client?.company_name || 'Unassigned'
-            });
-            lastClientId = project.client?.id;
-        }
-
-        if (!collapsedGroups.value[project.client?.id]) {
-            flattened.push({
-                ...project,
-                isHeader: false,
-                isSubProject: false,
-                domId: `project-${project.id}`
-            });
-
-            children.forEach((child) => {
-                flattened.push({
-                    ...child,
-                    isHeader: false,
-                    isSubProject: true,
-                    domId: `project-${child.id}`
-                });
-            });
-        }
-    });
-
-    return flattened;
+    return [...byClientId.values()].sort((a, b) => a.clientName.localeCompare(b.clientName));
 });
 
-// --- Helper Functions ---
-const getProjectCount = (clientId: any) => {
-    return props.projects.filter(p => p.client?.id === clientId).length;
-};
-
-const toggleGroup = (clientId: any) => {
+const toggleGroup = (clientId: string) => {
     collapsedGroups.value[clientId] = !collapsedGroups.value[clientId];
 };
 
@@ -165,23 +131,20 @@ watch(searchQuery, (newVal) => {
             </div>
 
             <div class="relative w-full">
-                <div v-if="displayItems.length === 0" class="text-center py-20 border-2 border-dashed rounded-3xl border-gray-100 dark:border-gray-800/50">
+                <div v-if="clientGroups.length === 0" class="text-center py-20 border-2 border-dashed rounded-3xl border-gray-100 dark:border-gray-800/50">
                     <p class="text-gray-400 font-medium">No projects found matching your criteria.</p>
                 </div>
 
-                <ResourceList :items="displayItems">
-                    <template #default="{ item }">
+                <ResourceList :items="clientGroups">
+                    <template #default="{ item: group }">
                         <ResourceHeader
-                            v-if="item.isHeader"
-                            :title="item.name"
-                            :count="getProjectCount(item.clientId)"
-                            :collapsed="collapsedGroups[item.clientId]"
-                            @toggle="toggleGroup(item.clientId)"
+                            :title="group.clientName"
+                            :count="group.projects.length"
+                            :collapsed="collapsedGroups[group.clientId]"
+                            @toggle="toggleGroup(group.clientId)"
                         />
 
-                        <div v-else class="w-full">
-                            <ProjectFolio :project="item" :is-sub-project="item.isSubProject" :projects="projects" class="w-full" />
-                        </div>
+                        <ProjectFolioList v-if="!collapsedGroups[group.clientId]" :projects="group.projects" />
                     </template>
                 </ResourceList>
             </div>

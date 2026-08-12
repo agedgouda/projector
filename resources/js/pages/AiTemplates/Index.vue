@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
-    FLAT_ACTION_BUTTON,
+    FLAT_ACTION_BUTTON_VISIBLE,
     FLAT_SEARCH_ICON,
     FLAT_SEARCH_INPUT,
 } from '@/lib/flat-ui';
@@ -101,7 +101,9 @@ const buildSection = (items: AiTemplateWithPerms[]) => {
             name: 'Workflow Templates',
             count: workflows.length,
         });
-        workflows.forEach((t) => result.push({ ...t, isHeader: false }));
+        // Striping restarts per group, matching OrgUserTable.vue's rule for its own
+        // (single, ungrouped) list.
+        workflows.forEach((t, i) => result.push({ ...t, isHeader: false, rowIndex: i }));
     }
     if (orgExtraction.length) {
         result.push({
@@ -109,7 +111,7 @@ const buildSection = (items: AiTemplateWithPerms[]) => {
             name: 'Org Document Extraction',
             count: orgExtraction.length,
         });
-        orgExtraction.forEach((t) => result.push({ ...t, isHeader: false }));
+        orgExtraction.forEach((t, i) => result.push({ ...t, isHeader: false, rowIndex: i }));
     }
     return result;
 };
@@ -171,7 +173,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
             <div class="space-y-10">
                 <!-- My Organization section -->
                 <div v-if="orgItems.length > 0">
-                    <div class="mb-4 flex items-center gap-3">
+                    <div class="mb-4 flex items-center gap-3 border-b border-slate-200 pb-2 dark:border-slate-800">
                         <h2
                             class="text-[10px] font-black tracking-[0.2em] text-projector-primary-600 uppercase dark:text-projector-primary-400"
                         >
@@ -194,6 +196,9 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                 v-else
                                 height="md"
                                 clickable
+                                no-hover
+                                always-show-actions
+                                :row-index="item.rowIndex"
                                 @click="handleShow(item.id)"
                             >
                                 <span
@@ -205,7 +210,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                     <button
                                         type="button"
                                         @click.stop="handleShow(item.id)"
-                                        :class="FLAT_ACTION_BUTTON"
+                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
                                         title="Edit template"
                                     >
                                         <Edit2 class="h-3.5 w-3.5" />
@@ -214,7 +219,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                         v-if="canCreate"
                                         type="button"
                                         @click.stop="handleCopy(item.id)"
-                                        :class="FLAT_ACTION_BUTTON"
+                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
                                         title="Duplicate template"
                                     >
                                         <Copy class="h-3.5 w-3.5" />
@@ -228,7 +233,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                                 name: item.name,
                                             })
                                         "
-                                        class="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 opacity-0 transition-colors group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+                                        class="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                                         title="Delete template"
                                     >
                                         <Trash2 class="h-3.5 w-3.5" />
@@ -241,9 +246,9 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
 
                 <!-- Global Templates section -->
                 <div v-if="globalItems.length > 0">
-                    <div class="mb-4 flex items-center gap-3">
+                    <div class="mb-4 flex items-center gap-3 border-b border-slate-200 pb-2 dark:border-slate-800">
                         <h2
-                            class="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
+                            class="text-[10px] font-black tracking-[0.2em] text-projector-primary-600 uppercase dark:text-projector-primary-400"
                         >
                             Global Templates
                         </h2>
@@ -264,6 +269,9 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                 v-else
                                 height="md"
                                 clickable
+                                no-hover
+                                always-show-actions
+                                :row-index="item.rowIndex"
                                 @click="handleShow(item.id)"
                             >
                                 <span
@@ -275,7 +283,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                     <button
                                         type="button"
                                         @click.stop="handleShow(item.id)"
-                                        :class="FLAT_ACTION_BUTTON"
+                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
                                         title="Edit template"
                                     >
                                         <Edit2 class="h-3.5 w-3.5" />
@@ -284,7 +292,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                         v-if="canCreate"
                                         type="button"
                                         @click.stop="handleCopy(item.id)"
-                                        :class="FLAT_ACTION_BUTTON"
+                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
                                         title="Duplicate template"
                                     >
                                         <Copy class="h-3.5 w-3.5" />
@@ -298,7 +306,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                                                 name: item.name,
                                             })
                                         "
-                                        class="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 opacity-0 transition-colors group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+                                        class="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                                         title="Delete template"
                                     >
                                         <Trash2 class="h-3.5 w-3.5" />

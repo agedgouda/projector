@@ -113,19 +113,22 @@ const breadcrumbs = [{ title: 'Roles', href: roleRoutes.index().url }];
                             v-if="role.name !== 'super-admin'"
                             type="button"
                             @click="deleteRole(role.id)"
-                            class="mt-4 opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
+                            class="mt-4 p-2 text-gray-400 hover:text-red-500 transition-all"
                         >
                             <Trash2 class="w-4 h-4" />
                         </button>
                     </div>
 
-                    <div v-if="!collapsedRoles[role.id]" class="space-y-2 ml-10 mt-2">
+                    <div v-if="!collapsedRoles[role.id]" class="ml-10 mt-2">
                        <ResourceCard
-                            v-for="user in role.users"
+                            v-for="(user, userIndex) in role.users"
                             :key="user.id"
+                            :row-index="userIndex"
                             :title="user.name"
                             :description="user.email"
                             :show-delete="true"
+                            no-hover
+                            always-show-actions
                             @delete="unassignUser(role.id, user.id)"
                         >
                             <template #icon>
