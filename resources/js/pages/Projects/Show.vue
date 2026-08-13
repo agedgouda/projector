@@ -251,9 +251,33 @@ const handleTransition = (
     isSheetOpen.value = false;
 };
 
+// recordingsData is a deferred prop backed by a live call to the meeting provider's API
+// (see ProjectController::show()) — expensive enough that it's excluded from the reload
+// every other tab switch already triggers here, so clicking Tasks/Calendar/etc. doesn't
+// hit that API each time. Landing on Recordings specifically is the one exception: it's
+// included so the list is checked fresh instead of showing whatever was cached from the
+// last time this page loaded (see isRefreshingRecordings/refreshRecordings below for the
+// same check triggered manually, without a tab switch).
+//
+// A direct/deep link straight to ?tab=recordings never calls updateTab() below (no click
+// happened, so nothing sets this true) — Inertia's own automatic first-load fetch for a
+// deferred prop still runs, but silently, with no button-spinner feedback, only the
+// separate <Deferred> skeleton fallback. Initialized true for exactly that case (already on
+// the Recordings tab, data not in yet) and cleared once recordingsData actually arrives, so
+// the same "Checking…" state covers every path recordingsData can load through, not just
+// the ones this component itself triggers.
+const isRefreshingRecordings = ref(activeTab.value === 'recordings' && props.recordingsData === undefined);
+
+watch(() => props.recordingsData, (data) => {
+    if (data !== undefined) isRefreshingRecordings.value = false;
+});
+
 const updateTab = (tab: string) => {
     activeTab.value = tab;
     setPersistentCookie('last_active_tab', tab);
+
+    const isRecordingsTab = tab === 'recordings';
+    if (isRecordingsTab) isRefreshingRecordings.value = true;
 
     router.get(
         window.location.pathname,
@@ -265,9 +289,18 @@ const updateTab = (tab: string) => {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            except: ['recordingsData'],
+            except: isRecordingsTab ? [] : ['recordingsData'],
+            onFinish: () => { isRefreshingRecordings.value = false; },
         },
     );
+};
+
+const refreshRecordings = () => {
+    isRefreshingRecordings.value = true;
+    router.reload({
+        only: ['recordingsData'],
+        onFinish: () => { isRefreshingRecordings.value = false; },
+    });
 };
 
 const generateDeliverables = () => {
@@ -533,45 +566,62 @@ watch(
                     </p>
                 </div>
 
-                <Deferred v-else data="recordingsData">
-                    <template #fallback>
-                        <div class="grid gap-0.5">
-                            <div
-                                v-for="i in 4"
-                                :key="i"
-                                class="flex h-12 animate-pulse items-center gap-3 px-2"
-                            >
+                <template v-else>
+                    <div class="mb-4 flex items-center justify-end gap-2">
+                        <RefreshCw
+                            v-if="isRefreshingRecordings"
+                            class="h-3.5 w-3.5 animate-spin text-gray-400"
+                        />
+                        <button
+                            type="button"
+                            :disabled="isRefreshingRecordings"
+                            class="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+                            @click="refreshRecordings"
+                        >
+                            {{ isRefreshingRecordings ? 'Checking…' : 'Check for New Recordings' }}
+                        </button>
+                    </div>
+
+                    <Deferred data="recordingsData">
+                        <template #fallback>
+                            <div class="grid gap-0.5">
                                 <div
-                                    class="h-3.5 w-3.5 shrink-0 rounded bg-gray-100 dark:bg-gray-800"
-                                />
-                                <div class="flex flex-1 items-center gap-3">
+                                    v-for="i in 4"
+                                    :key="i"
+                                    class="flex h-12 animate-pulse items-center gap-3 px-2"
+                                >
                                     <div
-                                        class="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800"
+                                        class="h-3.5 w-3.5 shrink-0 rounded bg-gray-100 dark:bg-gray-800"
                                     />
+                                    <div class="flex flex-1 items-center gap-3">
+                                        <div
+                                            class="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800"
+                                        />
+                                        <div
+                                            class="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800"
+                                        />
+                                    </div>
                                     <div
-                                        class="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800"
+                                        class="h-8 w-20 rounded-md bg-gray-100 dark:bg-gray-800"
                                     />
                                 </div>
-                                <div
-                                    class="h-8 w-20 rounded-md bg-gray-100 dark:bg-gray-800"
-                                />
                             </div>
-                        </div>
-                    </template>
+                        </template>
 
-                    <AvailableRecordings
-                        :project-id="currentProject.id"
-                        :recordings="recordingsData!.recordings"
-                        :imported-ids="recordingsData!.importedIds"
-                        :cross-project-imported-ids="
-                            recordingsData!.crossProjectImportedIds
-                        "
-                        :can-manage="recordingsData!.canManage"
-                        :provider-error="recordingsData!.providerError"
-                        @import-queued="onImportQueued"
-                        @import-failed="targetBeingCreated = null"
-                    />
-                </Deferred>
+                        <AvailableRecordings
+                            :project-id="currentProject.id"
+                            :recordings="recordingsData!.recordings"
+                            :imported-ids="recordingsData!.importedIds"
+                            :cross-project-imported-ids="
+                                recordingsData!.crossProjectImportedIds
+                            "
+                            :can-manage="recordingsData!.canManage"
+                            :provider-error="recordingsData!.providerError"
+                            @import-queued="onImportQueued"
+                            @import-failed="targetBeingCreated = null"
+                        />
+                    </Deferred>
+                </template>
             </div>
 
             <div v-show="activeTab === 'reports'">

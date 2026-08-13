@@ -187,6 +187,7 @@ watch(() => page.props.flash, (flash) => {
                     @submit="handleFormSubmitGuarded"
                     @cancel="toggleEdit"
                     @update:is-uploading="isUploading = $event"
+                    @update-child-task="(id, field, val) => updateField(String(id), field, val)"
                 />
 
                 <div class="mt-12 pt-10 border-t border-slate-100">

@@ -125,6 +125,57 @@ it('includes child document data, not just existence, so the detail page can lin
         );
 });
 
+it('orders children deterministically (newest first) instead of leaving row order up to Postgres', function () {
+    // Without an explicit order, Postgres doesn't guarantee row order is stable across
+    // repeated queries — and every field edit on the "Generated Tasks" list re-runs this
+    // exact query. An unstable order meant rows could visually reshuffle after any edit,
+    // so whichever row a user was about to click next could silently become a different
+    // task by the time the click landed.
+    //
+    // created_at isn't in Document::$fillable (it's Eloquent-managed), so it can't be
+    // backdated via create() here — $older and $newer instead get real, back-to-back
+    // creation timestamps, which can legitimately land in the same second. That's exactly
+    // why the controller's query breaks ties on `id` too: Document's HasUuids trait
+    // generates time-ordered UUIDs, so `id` is a reliable, high-precision proxy for
+    // creation order even when `created_at` itself ties.
+    $parent = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Follow up',
+        'processed_at' => now(),
+    ]);
+    $older = Document::create([
+        'project_id' => $this->project->id,
+        'parent_id' => $parent->id,
+        'name' => 'Older Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+    $newer = Document::create([
+        'project_id' => $this->project->id,
+        'parent_id' => $parent->id,
+        'name' => 'Newer Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.documents.show', [$this->project, $parent]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Documents/Show')
+            ->where('item.children.0.id', $newer->id)
+            ->where('item.children.1.id', $older->id)
+        );
+});
+
 it('stamps content_updated_at when a document\'s content is edited', function () {
     $document = Document::create([
         'project_id' => $this->project->id,

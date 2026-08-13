@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
+import TaskRowContent from '@/components/documents/TaskRowContent.vue';
+import DocumentPreviewCard from '@/components/documents/DocumentPreviewCard.vue';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
-import { Link, type InertiaForm } from '@inertiajs/vue3';
+import { useDocumentActions } from '@/composables/useDocumentActions';
+import { Link, usePage, type InertiaForm } from '@inertiajs/vue3';
 import { show as showDocument } from '@/routes/projects/documents';
-import { invitationName, mergeMentionableUsers } from '@/lib/assignees';
-import { kanbanDotClasses, priorityDotClasses, PRIORITY_LABELS } from '@/lib/constants';
-import { getAvatarAppearance } from '@/lib/kanban-theme';
+import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
 import DOMPurify from 'dompurify';
-import { CheckCircle2, CornerUpLeft, CornerDownRight, CheckSquare } from 'lucide-vue-next';
+import { CheckCircle2, CornerUpLeft, CornerDownRight } from 'lucide-vue-next';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 
 // The partial metadata interface for the "View" mode section
@@ -29,7 +31,10 @@ const emit = defineEmits<{
     (e: 'submit'): void;
     (e: 'cancel'): void;
     (e: 'update:isUploading', value: boolean): void;
+    (e: 'update-child-task', id: string | number, field: string, value: any): void;
 }>();
+
+const { navigateToDetails } = useDocumentActions({ project: props.project });
 
 const handleFormSubmit = () => emit('submit');
 const handleCancel = () => emit('cancel');
@@ -65,9 +70,9 @@ const singleChild = computed(() => {
 // from.
 const isTranscription = computed(() => props.item.type === INTAKE_KEY);
 
-// Multiple generated documents only get a summary view when they're all tasks — mirrors the
-// task rows on the project's Documentation tab (TraceabilityRow.vue), simplified for a flat,
-// read-only list rather than an editable tree.
+// Multiple generated documents only get a summary view when they're all tasks — mirrors (and,
+// via TaskRowContent.vue, shares the literal row markup of) the task rows on the project's
+// Documentation tab (TraceabilityRow.vue), just as a flat list rather than an editable tree.
 const childTaskList = computed(() => {
     const children = props.item.children ?? [];
     if (children.length <= 1) return [];
@@ -82,18 +87,25 @@ const mentionableUsers = computed(() =>
     mergeMentionableUsers(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
 );
 
-const statusFor = (statusKey: string | null) =>
-    props.project.kanban_columns?.find((column) => column.key === statusKey);
+// Same merged users+invitations list the document assignee picker itself uses — feeds the
+// "Generated Tasks" rows' assignee field (see TaskRowContent.vue).
+const assigneeOptions = computed(() =>
+    mergeAssigneeOptions(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
+);
 
-const childAssigneeLabel = (child: ProjectDocument): string => {
-    if (child.assignee) return child.assignee.name;
-    if (child.pending_assignee) return invitationName(child.pending_assignee);
-    return 'Unassigned';
-};
+const page = usePage();
+const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
 
-const initials = (label: string): string => {
-    const parts = label.trim().split(/\s+/);
-    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+// A single active id (not one ref per row) since every row here is a `v-for` iteration inside
+// this one component instance, not a separate component instance the way TraceabilityRow.vue's
+// rows are — a plain ref(false) per row isn't possible without keying by id anyway.
+const openPreviewId = ref<string | number | null>(null);
+const handlePreviewOpenChange = (id: string | number, open: boolean) => {
+    if (open) {
+        openPreviewId.value = id;
+    } else if (openPreviewId.value === id) {
+        openPreviewId.value = null;
+    }
 };
 </script>
 
@@ -193,36 +205,37 @@ const initials = (label: string): string => {
                     <div class="h-px w-4 bg-slate-400 dark:bg-slate-600"></div>
                     Generated Tasks
                 </h3>
-                <div class="grid gap-0.5">
-                    <Link
-                        v-for="child in childTaskList"
+                <div>
+                    <Popover
+                        v-for="(child, index) in childTaskList"
                         :key="child.id"
-                        :href="documentUrl(child.id)"
-                        class="flex items-center gap-2.5 rounded-md px-2 py-2 transition-colors hover:bg-slate-100 dark:hover:bg-white/5"
+                        :open="openPreviewId === child.id"
+                        @update:open="(open) => handlePreviewOpenChange(child.id, open)"
                     >
-                        <CheckSquare class="h-3.5 w-3.5 shrink-0 text-slate-400" />
-
-                        <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
-                            {{ child.name }}
-                        </span>
-
-                        <span v-if="child.priority" class="flex shrink-0 items-center gap-1.5">
-                            <span :class="['h-1.5 w-1.5 shrink-0 rounded-full', priorityDotClasses[child.priority] ?? priorityDotClasses.low]"></span>
-                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ PRIORITY_LABELS[child.priority] ?? child.priority }}</span>
-                        </span>
-
-                        <span class="flex shrink-0 items-center gap-1.5">
-                            <span :class="['h-1.5 w-1.5 shrink-0 rounded-full', kanbanDotClasses[statusFor(child.task_status)?.color ?? 'slate']]"></span>
-                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ statusFor(child.task_status)?.label ?? child.task_status ?? 'todo' }}</span>
-                        </span>
-
-                        <span
-                            :class="['flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[9px] font-black uppercase', getAvatarAppearance(child.assignee?.id ?? 0)]"
-                            :title="childAssigneeLabel(child)"
-                        >
-                            {{ initials(childAssigneeLabel(child)) }}
-                        </span>
-                    </Link>
+                        <PopoverAnchor as-child>
+                            <div
+                                class="group relative flex items-center gap-2.5 min-h-9 pr-2 rounded-md transition-colors"
+                                :class="index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : ''"
+                            >
+                                <TaskRowContent
+                                    :doc="child"
+                                    :columns="project.kanban_columns ?? []"
+                                    :assignee-options="assigneeOptions"
+                                    :uses-external-due-dates="usesExternalDueDates"
+                                    :read-only="project.inactive"
+                                    @update="(field, val) => emit('update-child-task', child.id, field, val)"
+                                />
+                            </div>
+                        </PopoverAnchor>
+                        <PopoverContent class="w-(--reka-popper-anchor-width) p-4" align="end">
+                            <DocumentPreviewCard
+                                :name="child.name"
+                                :content="child.content"
+                                :go-to-label="getDocLabel(child.type)"
+                                @open="navigateToDetails(child.project_id, child.id)"
+                            />
+                        </PopoverContent>
+                    </Popover>
                 </div>
             </section>
         </div>

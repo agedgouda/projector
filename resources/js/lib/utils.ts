@@ -46,6 +46,21 @@ export function setPersistentCookie(name: string, value: string): void {
     document.cookie = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
 }
 
+// Strips HTML down to plain text for a short preview (e.g. a hover card) — mirrors
+// ProjectCalendar.vue's own previewText(), generalized with an optional character limit.
+export function htmlPreviewText(html: string | null | undefined, maxLength?: number): string {
+    if (!html) return 'No description provided.';
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const text = (div.textContent || '').trim().replace(/\s+/g, ' ');
+
+    if (!text) return 'No description provided.';
+    if (!maxLength || text.length <= maxLength) return text;
+
+    return text.slice(0, maxLength).trimEnd() + '…';
+}
+
 export const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
 

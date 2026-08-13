@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue';
 import { toast } from 'vue-sonner';
+import { usePage } from '@inertiajs/vue3';
 import { Search } from 'lucide-vue-next';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useProjectState } from '@/composables/useProjectState';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useWorkflow, reprocessDescription } from '@/composables/useWorkflow';
+import { mergeAssigneeOptions } from '@/lib/assignees';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 
 // UI Components
@@ -59,17 +61,26 @@ const isTaskType = (typeKey: string): boolean => {
 const aiStatusMessageRef = ref('');
 
 const {
-    form,
-    updateDocument: originalUpdateDocument,
+    updateField,
     setDocToProcessing,
     setDocToTransitioning,
     targetBeingCreated,
-    editingDocumentId
 } = useDocumentActions(
     props,
     aiStatusMessageRef,
     updateDocument
 );
+
+// Same merged users+invitations list the document assignee picker itself uses (see
+// DocumentSidebar.vue/DocumentContent.vue) — lets a tree row's assignee field offer a pending
+// invitee, not just registered users. project.client.organization.{users,invitations} are
+// already eager-loaded for this page (see ProjectController::show()).
+const assigneeOptions = computed(() =>
+    mergeAssigneeOptions(props.project.client?.organization?.users, props.project.client?.organization?.invitations)
+);
+
+const page = usePage();
+const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
 
 // --- 3. ENCAPSULATED AI & REAL-TIME ---
 const { aiStatusMessage, aiProgress } = useAiProcessing(
@@ -95,54 +106,7 @@ const { aiStatusMessage, aiProgress } = useAiProcessing(
 watch(aiStatusMessage, (val) => aiStatusMessageRef.value = val);
 
 // --- 4. UI LOCAL STATE & METHODS ---
-const activeEditingId = ref<string | null>(null);
-const selectedSheetId = ref<string | null>(null);
-const isDetailsSheetOpen = ref(false);
 const reprocessConfirmDoc = ref<UIProjectDocument | null>(null);
-
-const selectedSheetItem = computed(() => {
-    if (!selectedSheetId.value) return null;
-    return (documentsMap.value.get(selectedSheetId.value) as ExtendedDocument) || null;
-});
-
-const handlePrepareEdit = (item: any) => {
-    if (!item || item.id === null) {
-        activeEditingId.value = null;
-        if (editingDocumentId) editingDocumentId.value = null;
-        form.reset();
-        return;
-    }
-    activeEditingId.value = item.id;
-    if (editingDocumentId) editingDocumentId.value = item.id;
-    form.name = item.name;
-    form.content = item.content;
-    form.metadata = item.metadata;
-    form.type = item.type;
-    form.assignee_id = item.assignee_id;
-};
-
-const handleUpdateDocument = (callbackFromRow?: () => void) => {
-    const docId = activeEditingId.value;
-    const formData = form.data();
-
-    const selectedUser = props.project.client?.users?.find(
-        (u: User) => u.id === formData.assignee_id
-    ) || null;
-
-    const updatedData = {
-        ...JSON.parse(JSON.stringify(formData)),
-        assignee: selectedUser
-    };
-
-    originalUpdateDocument(() => {
-        if (docId) {
-            updateDocument(docId, updatedData);
-        }
-
-        activeEditingId.value = null;
-        if (callbackFromRow) callbackFromRow();
-    });
-};
 
 const getLeadUser = (doc: ExtendedDocument) => {
     const user = doc.assignee ||
@@ -224,8 +188,6 @@ const executeTransition = () => {
 };
 
 const onDeleteRequested = (doc: any) => {
-    isDetailsSheetOpen.value = false;
-    selectedSheetId.value = null;
     emit('confirmDelete', doc);
 };
 
@@ -284,28 +246,27 @@ onMounted(() => {
 
         <div class="grid gap-0.5">
             <TraceabilityRow
-                v-for="intake in documentTree"
+                v-for="(intake, index) in documentTree"
                 :key="intake.id"
                 :item="intake"
+                :index="index"
                 :reprocessable-types="reprocessableTypes"
                 :ai-processed-parent-ids="aiProcessedParentIds"
                 :level="0"
-                :active-editing-id="activeEditingId"
-                :selected-sheet-id="selectedSheetItem?.id ?? null"
+                :selected-sheet-id="null"
                 :expanded-root-ids="expandedRootIds"
                 :get-doc-label="getDocLabel"
                 :is-task-type="isTaskType"
                 :get-lead-user="getLeadUser"
-                :users="project.client?.users || []"
-                :form="form"
+                :assignee-options="assigneeOptions"
+                :uses-external-due-dates="usesExternalDueDates"
                 :is-read-only="project.inactive"
                 :columns="project.kanban_columns ?? []"
                 @toggle-root="toggleRoot"
-                @prepare-edit="handlePrepareEdit"
                 @handle-reprocess="handleReprocess"
                 @handle-transition="handleTransition"
                 @on-delete-requested="onDeleteRequested"
-                @submit="handleUpdateDocument"
+                @update-task="(id, field, val) => updateField(String(id), field, val)"
             />
         </div>
     </div>

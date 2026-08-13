@@ -86,7 +86,18 @@ class DocumentController extends Controller
             'item' => $document->load([
                 'assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user',
                 'parent.parent.parent', 'lastAiTemplate:id,name',
-                'children.assignee', 'children.pendingAssignee',
+                // Explicit order (matching the project tree's own 'documents' => ...->latest()
+                // eager load in ProjectController::show()) — without it, Postgres has no
+                // guaranteed row order across repeated queries, so the "Generated Tasks" list
+                // here (DocumentContent.vue) could visually reshuffle after every single field
+                // edit's reload, since each edit re-runs this exact query. Whichever row a user
+                // was about to click could silently become a different task by the time the
+                // click landed. `created_at` alone isn't fine-grained enough to break ties
+                // between children created in the same batch (e.g. several tasks generated from
+                // one AI run land in the same second) — `id` is a second sort key because
+                // Document's HasUuids trait generates time-ordered UUIDs, giving a tiebreaker
+                // with far finer precision than the timestamp column.
+                'children' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id')->with(['assignee', 'pendingAssignee']),
             ])->loadExists(['lockedNextWorkflowStep', 'children']),
         ]);
     }
