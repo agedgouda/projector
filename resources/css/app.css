@@ -221,8 +221,8 @@
         display: inline-flex;
         align-items: center;
         gap: 0.3rem;
-        background-color: rgb(238 242 255);
-        color: rgb(79 70 229);
+        background-color: var(--color-projector-primary-50);
+        color: var(--color-projector-primary-600);
         border-radius: 0.375rem;
         padding: 0.15em 0.5em 0.15em 0.25em;
         font-size: 1em;
@@ -239,7 +239,7 @@
         width: 1.5em;
         height: 1.5em;
         border-radius: 50%;
-        background-color: rgb(99 102 241);
+        background-color: var(--color-projector-primary-500);
         color: white;
         font-size: 0.7em;
         font-weight: 800;
@@ -247,12 +247,12 @@
     }
 
     .dark .mention {
-        background-color: rgb(49 46 129 / 0.4);
-        color: rgb(165 180 252);
+        background-color: color-mix(in srgb, var(--color-projector-primary-900) 40%, transparent);
+        color: var(--color-projector-primary-300);
     }
 
     .dark .mention-avatar {
-        background-color: rgb(99 102 241 / 0.7);
+        background-color: color-mix(in srgb, var(--color-projector-primary-500) 70%, transparent);
     }
 
     /* Non-image file uploads embedded in document content / comment bodies (see

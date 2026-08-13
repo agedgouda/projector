@@ -6,6 +6,7 @@ use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
+use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\ProjectType;
 use App\Models\User;
@@ -658,6 +659,43 @@ it('assigns to whichever of multiple @-mentioned people the AI names for that ta
 
     $child = Document::where('parent_id', $document->id)->firstOrFail();
     expect($child->assignee_id)->toBe($john->id);
+});
+
+it('resolves an @-mentioned pending invitee into pending_assignee_invitation_id, not assignee_id', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $document->project->client->organization_id,
+        'email' => 'invited@example.com',
+        'first_name' => 'Jane',
+        'last_name' => 'Doe',
+        'token' => str_repeat('c', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    $document->update([
+        'content' => 'Follow up with the client — <span class="mention" data-id="inv:'.$invitation->id.'" data-label="Jane Doe">Jane Doe</span> will own this.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, '"Jane Doe"') && str_contains($userMessage, 'assignee_name'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Follow up', 'task' => 'Send a note', 'criteria' => [], 'assignee_name' => 'Jane Doe'],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->assignee_id)->toBeNull()
+        ->and($child->pending_assignee_invitation_id)->toBe($invitation->id);
 });
 
 it('does not ask for an assignee when the source document has no @-mentions', function () {

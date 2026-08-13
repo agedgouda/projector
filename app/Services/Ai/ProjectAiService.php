@@ -461,7 +461,11 @@ class ProjectAiService
      * — so the prompt can ask the model to assign generated tasks to whoever was actually
      * mentioned in the source text, never someone it invents.
      *
-     * @return array<int, string> user id => display name
+     * Kept as the raw string id (not cast to int) since a mention of a pending, not-yet-
+     * registered invitee carries an "inv:{id}" id — see resolveAssigneeIds(), which mirrors
+     * DocumentController::resolveAssignee()'s same convention.
+     *
+     * @return array<string, string> mention id => display name
      */
     private function extractMentionedUsers(string $html): array
     {
@@ -485,7 +489,7 @@ class ProjectAiService
             $label = $span->getAttribute('data-label');
 
             if ($id !== '' && $label !== '') {
-                $mentions[(int) $id] = $label;
+                $mentions[$id] = $label;
             }
         }
 
@@ -586,7 +590,16 @@ class ProjectAiService
             unset($item['assignee_name']);
 
             if (is_string($name) && isset($idsByLowerName[mb_strtolower(trim($name))])) {
-                $item['assignee_id'] = $idsByLowerName[mb_strtolower(trim($name))];
+                // Array keys that look like plain integers (a real user's numeric id) are
+                // auto-cast to int by PHP — only a pending invitee's "inv:{id}" key survives
+                // as a string, so that's what distinguishes the two here.
+                $id = (string) $idsByLowerName[mb_strtolower(trim($name))];
+
+                if (str_starts_with($id, 'inv:')) {
+                    $item['pending_assignee_invitation_id'] = (int) substr($id, 4);
+                } else {
+                    $item['assignee_id'] = (int) $id;
+                }
             }
 
             return $item;

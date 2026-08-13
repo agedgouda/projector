@@ -180,6 +180,7 @@ class ProcessDocumentAI implements ShouldQueue
                         'due_at' => $dueAt,
                         'priority' => $priority,
                         'assignee_id' => $data['assignee_id'] ?? null,
+                        'pending_assignee_invitation_id' => $data['pending_assignee_invitation_id'] ?? null,
                         'locked_project_type_id' => $lockedProjectTypeId,
                         'metadata' => [
                             'criteria' => $data['criteria'] ?? [],

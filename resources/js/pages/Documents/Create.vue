@@ -12,6 +12,7 @@ import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { Button } from '@/components/ui/button';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
+import { mergeMentionableUsers } from '@/lib/assignees';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
@@ -76,6 +77,12 @@ const creatableDocumentTypes = computed(() =>
 const { getDocLabel } = useDocumentPresenter(creatableDocumentTypes.value);
 const saveLabel = computed(
     () => `Create ${getDocLabel(form.type) || 'Document'}`,
+);
+
+// Lets an @-mention resolve to a pending invitee (not just a registered user with a
+// password) — see DocumentContent.vue's identical wiring for the document detail page.
+const mentionableUsers = computed(() =>
+    mergeMentionableUsers(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
 );
 
 // Set by InlineDocumentForm while a pasted/dropped/attached file's upload is still in
@@ -199,9 +206,7 @@ const updateFormValue = (field: string, val: any) => {
                         mode="create"
                         :form="form"
                         :document_schema="creatableDocumentTypes"
-                        :mentionable-users="
-                            project.client?.organization?.users ?? []
-                        "
+                        :mentionable-users="mentionableUsers"
                         :project-id="project.id"
                         @submit="handleFormSubmit"
                         @cancel="handleCancel"

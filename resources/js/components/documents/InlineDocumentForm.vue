@@ -34,7 +34,7 @@ const props = defineProps<{
     form: InertiaForm<DocumentForm>;
     document_schema?: DocumentSchemaItem[]; // Added project prop to get schema
     mentionableUsers?: {
-        id: number;
+        id: number | string;
         name: string;
         first_name: string;
         last_name: string;

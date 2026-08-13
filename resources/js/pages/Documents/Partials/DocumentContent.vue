@@ -4,7 +4,7 @@ import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { Link, type InertiaForm } from '@inertiajs/vue3';
 import { show as showDocument } from '@/routes/projects/documents';
-import { invitationName } from '@/lib/assignees';
+import { invitationName, mergeMentionableUsers } from '@/lib/assignees';
 import { kanbanDotClasses, priorityDotClasses, PRIORITY_LABELS } from '@/lib/constants';
 import { getAvatarAppearance } from '@/lib/kanban-theme';
 import DOMPurify from 'dompurify';
@@ -75,6 +75,13 @@ const childTaskList = computed(() => {
     return children.every((child) => isTask(child.type)) ? children : [];
 });
 
+// Lets an @-mention resolve to a pending invitee (not just a registered user with a
+// password) — mirrors the assignee picker in DocumentSidebar.vue/KanbanCard.vue, which
+// already merges the two via the same `inv:` id convention.
+const mentionableUsers = computed(() =>
+    mergeMentionableUsers(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
+);
+
 const statusFor = (statusKey: string | null) =>
     props.project.kanban_columns?.find((column) => column.key === statusKey);
 
@@ -99,7 +106,7 @@ const initials = (label: string): string => {
             <InlineDocumentForm
                 mode="edit"
                 :form="form"
-                :mentionable-users="project.client?.organization?.users ?? []"
+                :mentionable-users="mentionableUsers"
                 :project-id="project.id"
                 @submit="handleFormSubmit"
                 @cancel="handleCancel"

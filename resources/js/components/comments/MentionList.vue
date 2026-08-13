@@ -3,8 +3,8 @@ import { ref, watch } from 'vue';
 import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED } from '@/lib/flat-ui';
 
 const props = defineProps<{
-    items: { id: number; name: string; first_name: string; last_name: string }[];
-    command: (item: { id: number; name: string }) => void;
+    items: { id: number | string; name: string; first_name: string; last_name: string }[];
+    command: (item: { id: number | string; name: string }) => void;
 }>();
 
 const selectedIndex = ref(0);

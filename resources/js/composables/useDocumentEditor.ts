@@ -7,7 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { useEditor } from '@tiptap/vue-3';
 import axios, { type AxiosError } from 'axios';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
-import { computed, createApp, h, onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { computed, createApp, h, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 // Kept in sync with the production server's own hard upload cap (its web server/PHP config
@@ -67,7 +67,7 @@ const FileAttachment = Node.create({
 });
 
 type MentionUser = {
-    id: number;
+    id: number | string;
     name: string;
     first_name: string;
     last_name: string;
@@ -89,12 +89,22 @@ function buildMentionSuggestion(users: MentionUser[] | Ref<MentionUser[]>) {
             let popup: TippyInstance[] | null = null;
             let mountEl: HTMLElement | null = null;
             let listRef: InstanceType<typeof MentionList> | null = null;
+            // Wrapped in reactive() so the render() below re-runs on every keystroke with
+            // the latest `items`/`command`/`clientRect` — onUpdate() just mutates this in
+            // place. Previously onUpdate() called component.provide('props', props), but
+            // MentionList never injects a 'props' value, so that was a no-op: the list stayed
+            // frozen on whatever unfiltered items came in at the very first keystroke, and
+            // its `command` stayed bound to that same first keystroke's (now stale) replace
+            // range — which is what let a selection insert the mention but leave the rest of
+            // the typed query text behind as ordinary text.
+            let state: any = null;
 
             return {
                 onStart: (props: any) => {
+                    state = reactive({ ...props });
                     mountEl = document.createElement('div');
                     component = createApp({
-                        render: () => h(MentionList, { ...props, ref: 'list' }),
+                        render: () => h(MentionList, { ...state, ref: 'list' }),
                     });
                     const instance = component.mount(mountEl) as any;
                     listRef = instance.$refs?.list ?? null;
@@ -112,7 +122,7 @@ function buildMentionSuggestion(users: MentionUser[] | Ref<MentionUser[]>) {
                 },
 
                 onUpdate: (props: any) => {
-                    component?.provide('props', props);
+                    Object.assign(state!, props);
                     popup?.[0]?.setProps({
                         getReferenceClientRect: props.clientRect,
                     });
@@ -131,6 +141,7 @@ function buildMentionSuggestion(users: MentionUser[] | Ref<MentionUser[]>) {
                     component?.unmount();
                     mountEl?.remove();
                     listRef = null;
+                    state = null;
                 },
             };
         },
