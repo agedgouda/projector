@@ -39,7 +39,7 @@ const props = defineProps<{
     commentableType: 'task' | 'document';
     commentableId: string | number;
     mentionableUsers?: {
-        id: number;
+        id: number | string;
         name: string;
         first_name: string;
         last_name: string;

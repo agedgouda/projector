@@ -17,6 +17,7 @@ import DocumentContent from './Partials/DocumentContent.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
 import CommentSection from '@/components/comments/CommentSection.vue';
+import { mergeMentionableUsers } from '@/lib/assignees';
 
 // Composables
 import { useDocumentActions } from '@/composables/useDocumentActions';
@@ -91,6 +92,12 @@ const dueAtProxy = computed<string>({
 });
 
 const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
+
+// Lets an @-mention in the Discussion section resolve to a pending invitee (not just a
+// registered user with a password) — same wiring as the content editor (DocumentContent.vue).
+const mentionableUsers = computed(() =>
+    mergeMentionableUsers(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
+);
 
 // Derived from the live `props.item` (not a one-time snapshot) so it stays accurate across
 // saves within the same page visit — same visibility rule as the tree/detail-sheet Reprocess
@@ -190,7 +197,7 @@ watch(() => page.props.flash, (flash) => {
                         :comments="item.comments ?? []"
                         commentable-type="document"
                         :commentable-id="item.id"
-                        :mentionable-users="project.client?.organization?.users ?? []"
+                        :mentionable-users="mentionableUsers"
                         :read-only="project.inactive"
                         :project-id="project.id"
                     />
