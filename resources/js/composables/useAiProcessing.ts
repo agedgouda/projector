@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import axios from 'axios';
 import { globalAiState } from '@/state';
+import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
 
 // How often to re-check server truth while something appears to be processing — a safety net
 // for a missed .DocumentProcessingUpdate broadcast. This covers a case connection-state
@@ -179,12 +180,7 @@ export function useAiProcessing(
 
         // 1. HANDLE STATUS UPDATES
         if (payload.statusMessage) {
-            const message = String(payload.statusMessage);
-            const msg = message.toLowerCase();
-            const newProgress = Number(payload.progress || 0);
-
-            const isError = msg.includes('error') || msg.includes('failed');
-            const isSuccess = (msg.includes('success') || newProgress === 100) && !isError;
+            const { message, newProgress, isError, isSuccess } = parseProcessingStatus(payload);
 
             if (isSuccess) {
                 aiProgress.value = 100;

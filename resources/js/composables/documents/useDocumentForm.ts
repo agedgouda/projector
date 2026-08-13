@@ -6,6 +6,7 @@ import axios from 'axios';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { useWorkflow } from '@/composables/useWorkflow';
 import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
+import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
 
 // Safety net for a missed .DocumentProcessingUpdate broadcast (dropped/reconnected socket,
 // tab backgrounded during the job, etc.) — without this, isProcessingLive has no other way
@@ -88,11 +89,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         (payload: any) => {
             if (payload.document_id !== item.id || !payload.statusMessage) return;
 
-            const message = String(payload.statusMessage);
-            const msg = message.toLowerCase();
-            const newProgress = Number(payload.progress || 0);
-            const isError = msg.includes('error') || msg.includes('failed');
-            const isSuccess = (msg.includes('success') || newProgress === 100) && !isError;
+            const { message, newProgress, isError, isSuccess } = parseProcessingStatus(payload);
 
             if (isError) {
                 clearProcessingState();
