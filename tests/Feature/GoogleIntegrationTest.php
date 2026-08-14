@@ -114,6 +114,7 @@ it('stores a token when the google callback succeeds', function () {
         'token' => 'fake-access-token',
         'refreshToken' => 'fake-refresh-token',
         'expiresIn' => 3600,
+        'approvedScopes' => ['https://www.googleapis.com/auth/drive.file'],
     ]));
 
     $this->actingAs($this->user)
@@ -126,6 +127,25 @@ it('stores a token when the google callback succeeds', function () {
         ->and($token->google_email)->toBe('jeff@example.com')
         ->and($token->access_token)->toBe('fake-access-token')
         ->and($token->refresh_token)->toBe('fake-refresh-token');
+});
+
+it('does not store a token, and reports the missing scope, when google approves less than drive.file', function () {
+    // The refresh token being present isn't enough on its own — Google can still grant a
+    // narrower set of scopes than requested (e.g. a Workspace admin restricting third-party
+    // app access, or Google being stricter with an app still in Testing publishing status).
+    // Storing a token in that state would just fail later, confusingly, the first time an
+    // export tried to use it.
+    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+        'refreshToken' => 'fake-refresh-token',
+        'approvedScopes' => ['openid', 'email', 'profile'],
+    ]));
+
+    $this->actingAs($this->user)
+        ->get(route('integrations.google.callback'))
+        ->assertRedirect(route('integrations.edit'));
+
+    expect(session('status'))->toBe('google-scope-missing')
+        ->and(GoogleOauthToken::where('user_id', $this->user->id)->exists())->toBeFalse();
 });
 
 it('does not store a token when google returns no refresh token', function () {
@@ -143,6 +163,7 @@ it('does not store a token when google returns no refresh token', function () {
 it('redirects back to the stored return_to on a successful callback instead of the settings page', function () {
     Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
         'refreshToken' => 'fake-refresh-token',
+        'approvedScopes' => ['https://www.googleapis.com/auth/drive.file'],
     ]));
 
     $this->withSession(['google_connect_return_to' => '/projects/abc/reports?tab=reports'])

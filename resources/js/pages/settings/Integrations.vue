@@ -30,6 +30,7 @@ const statusMessages: Record<string, string> = {
     'google-connected': 'Google account connected.',
     'google-disconnected': 'Google account disconnected.',
     'google-connect-failed': "Google didn't grant offline access, so no refresh token came back. Try connecting again — the consent screen must be shown even if you've connected before.",
+    'google-scope-missing': "Google didn't grant Drive access for this connection, so exports would fail. Try connecting again and make sure you approve access when Google's consent screen asks for it.",
     'google-not-configured': "This server hasn't been configured with Google OAuth credentials yet — see the instructions below.",
 };
 </script>
@@ -65,7 +66,7 @@ const statusMessages: Record<string, string> = {
                     v-if="status && statusMessages[status]"
                     :class="[
                         'text-sm rounded-lg border p-3',
-                        status === 'google-not-configured' || status === 'google-connect-failed'
+                        status === 'google-not-configured' || status === 'google-connect-failed' || status === 'google-scope-missing'
                             ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300'
                             : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300',
                     ]"

@@ -68,6 +68,16 @@ class IntegrationsController extends Controller
             return to_route('integrations.edit')->with('status', 'google-connect-failed');
         }
 
+        // Google doesn't always grant everything a request asks for (approvedScopes may be a
+        // subset of what was requested — e.g. an org's Workspace admin restricting third-party
+        // app scopes, or Google being stricter with an app still in Testing publishing status).
+        // Storing the connection anyway, unchecked, previously meant the missing scope only
+        // surfaced later as a confusing 500 the first time an export tried to use it — this
+        // catches it immediately, at connect time, instead.
+        if (array_diff(self::GOOGLE_SCOPES, $googleUser->approvedScopes ?? [])) {
+            return to_route('integrations.edit')->with('status', 'google-scope-missing');
+        }
+
         GoogleOauthToken::updateOrCreate(
             ['user_id' => $request->user()->id],
             [
@@ -75,7 +85,7 @@ class IntegrationsController extends Controller
                 'access_token' => $googleUser->token,
                 'refresh_token' => $googleUser->refreshToken,
                 'expires_at' => now()->addSeconds((int) ($googleUser->expiresIn ?? 3600)),
-                'scopes' => implode(' ', self::GOOGLE_SCOPES),
+                'scopes' => implode(' ', $googleUser->approvedScopes),
             ]
         );
 
