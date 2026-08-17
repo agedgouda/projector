@@ -262,6 +262,96 @@ it('rejects an invalid priority filter', function () {
         ->assertUnprocessable();
 });
 
+// --- Filter preferences ---
+
+it('returns null filters when nothing has been saved yet', function () {
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks.filters', $this->project))
+        ->assertOk()
+        ->assertJson(['filters' => null]);
+});
+
+it('saves and returns the current user\'s filter preferences for a project', function () {
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($this->orgAdmin)
+        ->putJson(route('projects.reports.tasks.filters.update', $this->project), [
+            'task_status' => ['todo', 'in_progress'],
+            'priority' => ['high'],
+        ])
+        ->assertOk();
+
+    $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks.filters', $this->project))
+        ->assertOk()
+        ->assertJson(['filters' => ['task_status' => ['todo', 'in_progress'], 'priority' => ['high']]]);
+});
+
+it('overwrites previously saved filter preferences rather than merging them', function () {
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($this->orgAdmin)
+        ->putJson(route('projects.reports.tasks.filters.update', $this->project), ['priority' => ['high']])
+        ->assertOk();
+
+    $this->actingAs($this->orgAdmin)
+        ->putJson(route('projects.reports.tasks.filters.update', $this->project), ['task_status' => ['todo']])
+        ->assertOk();
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks.filters', $this->project))
+        ->assertOk();
+
+    expect($response->json('filters'))->toBe(['task_status' => ['todo']]);
+});
+
+it('scopes saved filter preferences per user, not shared across the project', function () {
+    $otherAdmin = User::factory()->create();
+    $this->org->users()->attach($otherAdmin->id, ['role' => 'org-admin']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($this->orgAdmin)
+        ->putJson(route('projects.reports.tasks.filters.update', $this->project), ['priority' => ['high']])
+        ->assertOk();
+
+    $this->actingAs($otherAdmin)
+        ->getJson(route('projects.reports.tasks.filters', $this->project))
+        ->assertOk()
+        ->assertJson(['filters' => null]);
+});
+
+it('deletes saved filter preferences on reset', function () {
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($this->orgAdmin)
+        ->putJson(route('projects.reports.tasks.filters.update', $this->project), ['priority' => ['high']])
+        ->assertOk();
+
+    $this->actingAs($this->orgAdmin)
+        ->deleteJson(route('projects.reports.tasks.filters.destroy', $this->project))
+        ->assertOk();
+
+    $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks.filters', $this->project))
+        ->assertOk()
+        ->assertJson(['filters' => null]);
+});
+
+it('forbids a user unrelated to the project from reading or saving its filter preferences', function () {
+    $outsider = User::factory()->create();
+
+    $this->actingAs($outsider)
+        ->getJson(route('projects.reports.tasks.filters', $this->project))
+        ->assertNotFound();
+
+    $this->actingAs($outsider)
+        ->putJson(route('projects.reports.tasks.filters.update', $this->project), ['priority' => ['high']])
+        ->assertNotFound();
+});
+
 // --- Exports ---
 
 it('exports the filtered tasks as a pdf', function () {

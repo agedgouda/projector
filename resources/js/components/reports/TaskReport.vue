@@ -14,6 +14,9 @@ import {
     exportTasksExcel,
     exportTasksGoogleSheet,
     exportTasksGoogleDoc,
+    taskFilterPreferences,
+    updateTaskFilterPreferences,
+    destroyTaskFilterPreferences,
 } from '@/actions/App/Http/Controllers/ReportController';
 
 const props = defineProps<{
@@ -79,7 +82,44 @@ const filtersFromUrl = (): TaskSearchFilters | null => {
     };
 };
 
-const initialFilters = filtersFromUrl();
+// Remembers the last filters searched with, per project, across separate *visits* — not just
+// within one (URL-based restoration above already covers that) — and, unlike browser-local
+// storage, across separate browsers/devices too, since it's tied to the signed-in user's
+// account server-side rather than one browser's storage.
+const loadPersistedFilters = async (): Promise<TaskSearchFilters | null> => {
+    try {
+        const response = await axios.get<{ filters: TaskSearchFilters | null }>(taskFilterPreferences({ project: props.project.id }).url);
+        return response.data.filters;
+    } catch {
+        // A failed fetch just means nothing gets remembered for this visit — never worth
+        // failing the page over.
+        return null;
+    }
+};
+
+const persistFilters = async (filters: TaskSearchFilters) => {
+    try {
+        await axios.put(updateTaskFilterPreferences({ project: props.project.id }).url, filters);
+    } catch {
+        // Remembering filters is a convenience running alongside the actual search — a failed
+        // save shouldn't surface as a search error.
+    }
+};
+
+const clearPersistedFilters = async () => {
+    try {
+        await axios.delete(destroyTaskFilterPreferences({ project: props.project.id }).url);
+    } catch {
+        // See persistFilters().
+    }
+};
+
+// The URL (a specific link, or browser back/forward within this visit) wins when present; the
+// server-remembered filters are only consulted on a genuinely fresh navigation with nothing in
+// the URL at all — resolved in onMounted() below, since fetching them is asynchronous. A ref
+// (not a plain constant) so TaskSearchForm — which watches this prop — can pick up the
+// server-fetched value once it resolves, after the form has already rendered with defaults.
+const initialFilters = ref<TaskSearchFilters | null>(filtersFromUrl());
 
 const updateUrlFilters = (filters: TaskSearchFilters) => {
     const url = new URL(window.location.href);
@@ -118,6 +158,20 @@ const runSearch = async (filters: TaskSearchFilters) => {
     } finally {
         loading.value = false;
     }
+};
+
+const onSearch = (filters: TaskSearchFilters) => {
+    void persistFilters(filters);
+    void runSearch(filters);
+};
+
+// A reset still runs the same unfiltered search a plain "Search" with nothing chosen would
+// (unchanged from before this had persistence at all) — the difference is it forgets what
+// was remembered too, so the *next* fresh visit lands back on the empty prompt state instead
+// of silently re-running an unfiltered search on your behalf.
+const onReset = (filters: TaskSearchFilters) => {
+    void clearPersistedFilters();
+    void runSearch(filters);
 };
 
 const exportUrl = (action: typeof exportTasksPdf | typeof exportTasksWord | typeof exportTasksExcel): string => {
@@ -182,8 +236,11 @@ const exportToGoogle = async (kind: 'sheet' | 'doc') => {
 const pendingGoogleExport = new URLSearchParams(window.location.search).get('google_export');
 
 onMounted(async () => {
-    if (initialFilters) {
-        await runSearch(initialFilters);
+    if (!initialFilters.value) {
+        initialFilters.value = await loadPersistedFilters();
+    }
+    if (initialFilters.value) {
+        await runSearch(initialFilters.value);
     }
 
     if (pendingGoogleExport === 'sheet' || pendingGoogleExport === 'doc') {
@@ -205,7 +262,8 @@ onMounted(async () => {
                 :project-options="projectOptions"
                 :initial-filters="initialFilters"
                 :loading="loading"
-                @search="runSearch"
+                @search="onSearch"
+                @reset="onReset"
             />
         </div>
 

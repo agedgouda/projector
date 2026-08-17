@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\FormatsTaskFields;
 use App\Models\Document;
 use App\Models\Project;
+use App\Models\ReportFilterPreference;
 use App\Services\Google\GoogleExportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -45,6 +46,60 @@ class ReportController extends Controller
         $projectNames = $this->projectNamesMap($project);
 
         return response()->json($tasks->map(fn (Document $task) => $this->taskToArray($task, $projectNames)));
+    }
+
+    /**
+     * The current user's last-saved task-report filters for this project, if any. Lets the
+     * Reports tab remember your selections across browsers/devices, not just within one —
+     * browser-local storage (also used client-side for the same-tab-reload/back-forward case)
+     * can never share state across two entirely separate browsers or a private window.
+     */
+    public function taskFilterPreferences(Request $request, Project $project): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        $preference = ReportFilterPreference::query()
+            ->where('user_id', $request->user()->id)
+            ->where('project_id', $project->id)
+            ->first();
+
+        return response()->json(['filters' => $preference?->filters]);
+    }
+
+    /**
+     * Saves the current user's task-report filter selections for this project, overwriting
+     * whatever was saved before. The frontend calls this every time a real search runs, not
+     * on every individual filter change.
+     */
+    public function updateTaskFilterPreferences(Request $request, Project $project): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        $filters = $request->validate($this->filterRules());
+
+        ReportFilterPreference::updateOrCreate(
+            ['user_id' => $request->user()->id, 'project_id' => $project->id],
+            ['filters' => $filters],
+        );
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Forgets the current user's saved filters for this project (called on Reset) — so the
+     * *next* fresh visit, on any browser/device, lands back on the empty prompt state instead
+     * of silently re-running whatever was last searched for.
+     */
+    public function destroyTaskFilterPreferences(Request $request, Project $project): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        ReportFilterPreference::query()
+            ->where('user_id', $request->user()->id)
+            ->where('project_id', $project->id)
+            ->delete();
+
+        return response()->json(['status' => 'ok']);
     }
 
     /**

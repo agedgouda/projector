@@ -25,7 +25,24 @@ const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status
 <template>
     <div class="space-y-4">
         <div v-if="row.label" class="flex items-center gap-4 px-2">
-            <h3 :class="[KANBAN_UI.label, 'text-projector-primary-900 bg-projector-primary-50/80 px-2 py-1 rounded-md border border-projector-primary-100/50']">
+            <Link
+                v-if="canViewProjectDetails"
+                :href="projectRoutes.show.url(row.key)"
+                class="contents"
+            >
+                <h3
+                    :class="[
+                        KANBAN_UI.label,
+                        'text-projector-primary-900 bg-projector-primary-50/80 px-2 py-1 rounded-md border border-projector-primary-100/50 hover:bg-projector-primary-100/80 hover:border-projector-primary-200 transition-colors cursor-pointer',
+                    ]"
+                >
+                    {{ row.label }}
+                </h3>
+            </Link>
+            <h3
+                v-else
+                :class="[KANBAN_UI.label, 'text-projector-primary-900 bg-projector-primary-50/80 px-2 py-1 rounded-md border border-projector-primary-100/50']"
+            >
                 {{ row.label }}
             </h3>
             <div class="h-px flex-1 bg-gradient-to-r from-projector-primary-100/50 to-transparent"></div>

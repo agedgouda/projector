@@ -301,6 +301,12 @@ Route::middleware(['auth'])->group(function () {
 
             Route::get('/reports/tasks', [ReportController::class, 'projectTasks'])
                 ->name('reports.tasks');
+            Route::get('/reports/tasks/filters', [ReportController::class, 'taskFilterPreferences'])
+                ->name('reports.tasks.filters');
+            Route::put('/reports/tasks/filters', [ReportController::class, 'updateTaskFilterPreferences'])
+                ->name('reports.tasks.filters.update');
+            Route::delete('/reports/tasks/filters', [ReportController::class, 'destroyTaskFilterPreferences'])
+                ->name('reports.tasks.filters.destroy');
             Route::get('/reports/tasks/export-pdf', [ReportController::class, 'exportTasksPdf'])
                 ->name('reports.tasks.exportPdf');
             Route::get('/reports/tasks/export-word', [ReportController::class, 'exportTasksWord'])
