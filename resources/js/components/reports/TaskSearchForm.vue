@@ -1,23 +1,22 @@
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Search, RotateCcw } from 'lucide-vue-next';
 import { PRIORITY_LABELS } from '@/lib/constants';
 import { mergeAssigneeOptions } from '@/lib/assignees';
 
 export interface TaskSearchFilters {
-    assignee: string;
-    task_status: string;
-    priority: string;
+    assignee: string[];
+    task_status: string[];
+    priority: string[];
     due_from: string;
     due_to: string;
-    project_id: string;
+    project_id: string[];
 }
 
-const ANY = 'all';
 const UNASSIGNED = 'unassigned';
 
 const props = defineProps<{
@@ -35,36 +34,39 @@ const emit = defineEmits<{
     (e: 'search', filters: TaskSearchFilters): void;
 }>();
 
-const assigneeOptions = mergeAssigneeOptions(props.users, props.invitations);
+const assigneeOptions = computed(() => [{ value: UNASSIGNED, label: 'Unassigned' }, ...mergeAssigneeOptions(props.users, props.invitations)]);
+const statusOptions = computed(() => (props.columns ?? []).map((column) => ({ value: column.key, label: column.label })));
+const priorityOptions = computed(() => Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label })));
+const projectSelectOptions = computed(() => (props.projectOptions ?? []).map((option) => ({ value: option.id, label: option.name })));
 const showProjectFilter = (props.projectOptions?.length ?? 0) > 1;
 
 const filters = reactive<TaskSearchFilters>({
-    assignee: props.initialFilters?.assignee || ANY,
-    task_status: props.initialFilters?.task_status || ANY,
-    priority: props.initialFilters?.priority || ANY,
+    assignee: props.initialFilters?.assignee ?? [],
+    task_status: props.initialFilters?.task_status ?? [],
+    priority: props.initialFilters?.priority ?? [],
     due_from: props.initialFilters?.due_from || '',
     due_to: props.initialFilters?.due_to || '',
-    project_id: props.initialFilters?.project_id || ANY,
+    project_id: props.initialFilters?.project_id ?? [],
 });
 
 const submit = () => {
     emit('search', {
-        assignee: filters.assignee === ANY ? '' : filters.assignee,
-        task_status: filters.task_status === ANY ? '' : filters.task_status,
-        priority: filters.priority === ANY ? '' : filters.priority,
+        assignee: [...filters.assignee],
+        task_status: [...filters.task_status],
+        priority: [...filters.priority],
         due_from: filters.due_from,
         due_to: filters.due_to,
-        project_id: filters.project_id === ANY ? '' : filters.project_id,
+        project_id: [...filters.project_id],
     });
 };
 
 const reset = () => {
-    filters.assignee = ANY;
-    filters.task_status = ANY;
-    filters.priority = ANY;
+    filters.assignee = [];
+    filters.task_status = [];
+    filters.priority = [];
     filters.due_from = '';
     filters.due_to = '';
-    filters.project_id = ANY;
+    filters.project_id = [];
     submit();
 };
 </script>
@@ -75,64 +77,23 @@ const reset = () => {
         :class="['grid gap-4 sm:grid-cols-2 lg:items-end', showProjectFilter ? 'lg:grid-cols-6' : 'lg:grid-cols-5']"
     >
         <div v-if="showProjectFilter" class="grid gap-2">
-            <Label for="report-project" class="text-[11px] font-black uppercase tracking-widest text-slate-500">Project</Label>
-            <Select v-model="filters.project_id">
-                <SelectTrigger id="report-project" class="h-9 text-[13px]">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem :value="ANY">All Projects</SelectItem>
-                    <SelectItem v-for="option in projectOptions" :key="option.id" :value="option.id">
-                        {{ option.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            <Label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Project</Label>
+            <MultiSelect v-model="filters.project_id" :options="projectSelectOptions" placeholder="All Projects" search-placeholder="Search projects…" />
         </div>
 
         <div class="grid gap-2">
-            <Label for="report-assignee" class="text-[11px] font-black uppercase tracking-widest text-slate-500">Assignee</Label>
-            <Select v-model="filters.assignee">
-                <SelectTrigger id="report-assignee" class="h-9 text-[13px]">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem :value="ANY">Anyone</SelectItem>
-                    <SelectItem :value="UNASSIGNED">Unassigned</SelectItem>
-                    <SelectItem v-for="option in assigneeOptions" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            <Label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Assignee</Label>
+            <MultiSelect v-model="filters.assignee" :options="assigneeOptions" placeholder="Anyone" search-placeholder="Search assignees…" />
         </div>
 
         <div class="grid gap-2">
-            <Label for="report-status" class="text-[11px] font-black uppercase tracking-widest text-slate-500">Status</Label>
-            <Select v-model="filters.task_status">
-                <SelectTrigger id="report-status" class="h-9 text-[13px]">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem :value="ANY">Any Status</SelectItem>
-                    <SelectItem v-for="column in props.columns ?? []" :key="column.key" :value="column.key">
-                        {{ column.label }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            <Label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Status</Label>
+            <MultiSelect v-model="filters.task_status" :options="statusOptions" placeholder="Any Status" search-placeholder="Search statuses…" />
         </div>
 
         <div class="grid gap-2">
-            <Label for="report-priority" class="text-[11px] font-black uppercase tracking-widest text-slate-500">Priority</Label>
-            <Select v-model="filters.priority">
-                <SelectTrigger id="report-priority" class="h-9 text-[13px]">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem :value="ANY">Any Priority</SelectItem>
-                    <SelectItem v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key">
-                        {{ label }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            <Label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Priority</Label>
+            <MultiSelect v-model="filters.priority" :options="priorityOptions" placeholder="Any Priority" search-placeholder="Search priorities…" />
         </div>
 
         <div class="grid gap-2">

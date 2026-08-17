@@ -42,7 +42,7 @@ const includeDetails = ref(false);
 
 // The exact params sent to the last search — reused for the export links so they always
 // match what's currently on screen, not whatever the form happens to hold right now.
-const activeParams = ref<Record<string, string>>({});
+const activeParams = ref<Record<string, string | string[]>>({});
 
 // Mirrors TaskReportTable's own default (due_at/asc) so an export triggered before the
 // user ever clicks a column header still matches what's on screen.
@@ -51,7 +51,8 @@ const onSortChange = (key: SortKey, dir: SortDir) => {
     currentSort.value = { key, dir };
 };
 
-const FILTER_KEYS = ['assignee', 'task_status', 'priority', 'due_from', 'due_to', 'project_id'] as const;
+const ARRAY_FILTER_KEYS = ['assignee', 'task_status', 'priority', 'project_id'] as const;
+const STRING_FILTER_KEYS = ['due_from', 'due_to'] as const;
 
 // The results/hasSearched state above is local to this component instance, which doesn't
 // survive navigating away (e.g. clicking a row) and back — that's a fresh mount, same as
@@ -69,12 +70,12 @@ const filtersFromUrl = (): TaskSearchFilters | null => {
     if (!params.has('searched')) return null;
 
     return {
-        assignee: params.get('assignee') ?? '',
-        task_status: params.get('task_status') ?? '',
-        priority: params.get('priority') ?? '',
+        assignee: params.getAll('assignee'),
+        task_status: params.getAll('task_status'),
+        priority: params.getAll('priority'),
         due_from: params.get('due_from') ?? '',
         due_to: params.get('due_to') ?? '',
-        project_id: params.get('project_id') ?? '',
+        project_id: params.getAll('project_id'),
     };
 };
 
@@ -83,7 +84,11 @@ const initialFilters = filtersFromUrl();
 const updateUrlFilters = (filters: TaskSearchFilters) => {
     const url = new URL(window.location.href);
     url.searchParams.set('searched', '1');
-    FILTER_KEYS.forEach((key) => {
+    ARRAY_FILTER_KEYS.forEach((key) => {
+        url.searchParams.delete(key);
+        filters[key].forEach((value) => url.searchParams.append(key, value));
+    });
+    STRING_FILTER_KEYS.forEach((key) => {
         if (filters[key]) {
             url.searchParams.set(key, filters[key]);
         } else {
@@ -116,7 +121,7 @@ const runSearch = async (filters: TaskSearchFilters) => {
 };
 
 const exportUrl = (action: typeof exportTasksPdf | typeof exportTasksWord | typeof exportTasksExcel): string => {
-    const query: Record<string, string> = {
+    const query: Record<string, string | string[]> = {
         ...activeParams.value,
         sort_by: currentSort.value.key,
         sort_dir: currentSort.value.dir,
@@ -136,7 +141,7 @@ const exportToGoogle = async (kind: 'sheet' | 'doc') => {
     exportingToGoogle.value = kind;
     error.value = null;
 
-    const query: Record<string, string> = {
+    const query: Record<string, string | string[]> = {
         ...activeParams.value,
         sort_by: currentSort.value.key,
         sort_dir: currentSort.value.dir,

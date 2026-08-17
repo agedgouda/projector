@@ -303,12 +303,16 @@ class ReportController extends Controller
     private function filterRules(): array
     {
         return [
-            'assignee' => ['nullable', 'string'],
-            'task_status' => ['nullable', 'string'],
-            'priority' => ['nullable', 'string', 'in:low,medium,high'],
+            'assignee' => ['nullable', 'array'],
+            'assignee.*' => ['string'],
+            'task_status' => ['nullable', 'array'],
+            'task_status.*' => ['string'],
+            'priority' => ['nullable', 'array'],
+            'priority.*' => ['string', 'in:low,medium,high'],
             'due_from' => ['nullable', 'date'],
             'due_to' => ['nullable', 'date'],
-            'project_id' => ['nullable', 'string'],
+            'project_id' => ['nullable', 'array'],
+            'project_id.*' => ['string'],
         ];
     }
 
@@ -345,6 +349,18 @@ class ReportController extends Controller
     }
 
     /**
+     * @return array<int, string>
+     */
+    private function stringValues(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, 'is_string'));
+    }
+
+    /**
      * @param  array<string, mixed>  $filters
      * @return Builder<Document>|null
      */
@@ -359,31 +375,56 @@ class ReportController extends Controller
             return null;
         }
 
-        $assignee = is_string($filters['assignee'] ?? null) ? $filters['assignee'] : null;
-        $taskStatus = is_string($filters['task_status'] ?? null) ? $filters['task_status'] : null;
-        $priority = is_string($filters['priority'] ?? null) ? $filters['priority'] : null;
+        $assignees = $this->stringValues($filters['assignee'] ?? null);
+        $taskStatuses = $this->stringValues($filters['task_status'] ?? null);
+        $priorities = $this->stringValues($filters['priority'] ?? null);
         $dueFrom = is_string($filters['due_from'] ?? null) ? $filters['due_from'] : null;
         $dueTo = is_string($filters['due_to'] ?? null) ? $filters['due_to'] : null;
-        $projectId = is_string($filters['project_id'] ?? null) ? $filters['project_id'] : null;
+        $projectIds = $this->stringValues($filters['project_id'] ?? null);
 
         $query = Document::query()
             ->whereIn('project_id', $this->projectIdsIncludingChildren($project))
             ->whereIn('type', $taskTypeKeys);
 
-        if (! empty($assignee)) {
-            if (str_starts_with($assignee, 'inv:')) {
-                $query->where('pending_assignee_invitation_id', (int) substr($assignee, 4));
-            } else {
-                $query->where('assignee_id', (int) $assignee);
+        if ($assignees !== []) {
+            // Three disjoint kinds of "assignee" value can appear in the same multi-select:
+            // a real user id, a pending invitee (`inv:{id}`), and the "Unassigned" sentinel,
+            // which matches neither assignee_id nor pending_assignee_invitation_id being set.
+            $invitationIds = [];
+            $userIds = [];
+            $wantsUnassigned = false;
+
+            foreach ($assignees as $value) {
+                if ($value === 'unassigned') {
+                    $wantsUnassigned = true;
+                } elseif (str_starts_with($value, 'inv:')) {
+                    $invitationIds[] = (int) substr($value, 4);
+                } else {
+                    $userIds[] = (int) $value;
+                }
             }
+
+            $query->where(function (Builder $subQuery) use ($invitationIds, $userIds, $wantsUnassigned) {
+                if ($invitationIds !== []) {
+                    $subQuery->orWhereIn('pending_assignee_invitation_id', $invitationIds);
+                }
+                if ($userIds !== []) {
+                    $subQuery->orWhereIn('assignee_id', $userIds);
+                }
+                if ($wantsUnassigned) {
+                    $subQuery->orWhere(function (Builder $unassignedQuery) {
+                        $unassignedQuery->whereNull('assignee_id')->whereNull('pending_assignee_invitation_id');
+                    });
+                }
+            });
         }
 
-        if (! empty($taskStatus)) {
-            $query->where('task_status', $taskStatus);
+        if ($taskStatuses !== []) {
+            $query->whereIn('task_status', $taskStatuses);
         }
 
-        if (! empty($priority)) {
-            $query->where('priority', $priority);
+        if ($priorities !== []) {
+            $query->whereIn('priority', $priorities);
         }
 
         if (! empty($dueFrom)) {
@@ -394,8 +435,8 @@ class ReportController extends Controller
             $query->whereDate('due_at', '<=', $dueTo);
         }
 
-        if (! empty($projectId)) {
-            $query->where('project_id', $projectId);
+        if ($projectIds !== []) {
+            $query->whereIn('project_id', $projectIds);
         }
 
         return $query

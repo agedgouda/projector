@@ -128,12 +128,48 @@ it('filters by assignee', function () {
     setPermissionsTeamId($this->org->id);
 
     $response = $this->actingAs($this->orgAdmin)
-        ->getJson(route('projects.reports.tasks', $this->project).'?assignee='.$assignee->id)
+        ->getJson(route('projects.reports.tasks', $this->project).'?assignee[]='.$assignee->id)
         ->assertOk();
 
     expect($response->json())->toHaveCount(1)
         ->and($response->json('0.id'))->toBe($assigned->id)
         ->and($response->json('0.assignee.name'))->toBe($assignee->name);
+});
+
+it('filters by multiple assignees at once, matching any of them', function () {
+    $first = User::factory()->create();
+    $second = User::factory()->create();
+    $this->org->users()->attach([$first->id, $second->id]);
+
+    $firstTask = Document::create(['project_id' => $this->project->id, 'name' => 'First', 'type' => 'action_items', 'content' => 'x', 'assignee_id' => $first->id]);
+    $secondTask = Document::create(['project_id' => $this->project->id, 'name' => 'Second', 'type' => 'action_items', 'content' => 'x', 'assignee_id' => $second->id]);
+    Document::create(['project_id' => $this->project->id, 'name' => 'Neither', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project)."?assignee[]={$first->id}&assignee[]={$second->id}")
+        ->assertOk();
+
+    expect(collect($response->json())->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$firstTask->id, $secondTask->id])->sort()->values()->all());
+});
+
+it('filters by the unassigned sentinel alongside a real assignee', function () {
+    $assignee = User::factory()->create();
+    $this->org->users()->attach($assignee->id);
+
+    $assigned = Document::create(['project_id' => $this->project->id, 'name' => 'Assigned', 'type' => 'action_items', 'content' => 'x', 'assignee_id' => $assignee->id]);
+    $unassigned = Document::create(['project_id' => $this->project->id, 'name' => 'Unassigned', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project)."?assignee[]={$assignee->id}&assignee[]=unassigned")
+        ->assertOk();
+
+    expect(collect($response->json())->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$assigned->id, $unassigned->id])->sort()->values()->all());
 });
 
 it('filters by a pending invitation assignee', function () {
@@ -158,7 +194,7 @@ it('filters by a pending invitation assignee', function () {
     setPermissionsTeamId($this->org->id);
 
     $response = $this->actingAs($this->orgAdmin)
-        ->getJson(route('projects.reports.tasks', $this->project)."?assignee=inv:{$invitation->id}")
+        ->getJson(route('projects.reports.tasks', $this->project)."?assignee[]=inv:{$invitation->id}")
         ->assertOk();
 
     expect($response->json())->toHaveCount(1)
@@ -179,11 +215,28 @@ it('filters by status and priority', function () {
     setPermissionsTeamId($this->org->id);
 
     $response = $this->actingAs($this->orgAdmin)
-        ->getJson(route('projects.reports.tasks', $this->project).'?task_status=in_progress&priority=high')
+        ->getJson(route('projects.reports.tasks', $this->project).'?task_status[]=in_progress&priority[]=high')
         ->assertOk();
 
     expect($response->json())->toHaveCount(1)
         ->and($response->json('0.name'))->toBe('Match');
+});
+
+it('filters by multiple statuses and priorities at once, matching any of each', function () {
+    $todo = Document::create(['project_id' => $this->project->id, 'name' => 'Todo High', 'type' => 'action_items', 'content' => 'x', 'priority' => 'high']);
+    $inProgress = Document::create(['project_id' => $this->project->id, 'name' => 'In Progress Low', 'type' => 'action_items', 'content' => 'x', 'priority' => 'low']);
+    $inProgress->update(['task_status' => 'in_progress']);
+    $noMatch = Document::create(['project_id' => $this->project->id, 'name' => 'Todo Medium', 'type' => 'action_items', 'content' => 'x', 'priority' => 'medium']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project).'?task_status[]=todo&task_status[]=in_progress&priority[]=high&priority[]=low')
+        ->assertOk();
+
+    expect(collect($response->json())->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$todo->id, $inProgress->id])->sort()->values()->all())
+        ->and(collect($response->json())->pluck('id'))->not->toContain($noMatch->id);
 });
 
 it('filters by due date range', function () {
@@ -205,7 +258,7 @@ it('rejects an invalid priority filter', function () {
     setPermissionsTeamId($this->org->id);
 
     $this->actingAs($this->orgAdmin)
-        ->getJson(route('projects.reports.tasks', $this->project).'?priority=extreme')
+        ->getJson(route('projects.reports.tasks', $this->project).'?priority[]=extreme')
         ->assertUnprocessable();
 });
 
@@ -217,7 +270,7 @@ it('exports the filtered tasks as a pdf', function () {
     setPermissionsTeamId($this->org->id);
 
     $response = $this->actingAs($this->orgAdmin)
-        ->get(route('projects.reports.tasks.exportPdf', $this->project).'?priority=high');
+        ->get(route('projects.reports.tasks.exportPdf', $this->project).'?priority[]=high');
 
     $response->assertOk();
     expect($response->headers->get('Content-Type'))->toBe('application/pdf');
@@ -412,7 +465,7 @@ it('filters search results down to a single sub-project via project_id', functio
     setPermissionsTeamId($this->org->id);
 
     $response = $this->actingAs($this->orgAdmin)
-        ->getJson(route('projects.reports.tasks', $this->project).'?project_id='.$subproject->id)
+        ->getJson(route('projects.reports.tasks', $this->project).'?project_id[]='.$subproject->id)
         ->assertOk();
 
     expect($response->json())->toHaveCount(1)
