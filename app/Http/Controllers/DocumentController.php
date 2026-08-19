@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Shared\Html as PhpWordHtml;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -80,12 +81,21 @@ class DocumentController extends Controller
             abort(404);
         }
 
+        // Every other board in this task's subproject family (see Project::familyProjectIds())
+        // — what the "Move to" / "Also show on" pickers in DocumentSidebar.vue choose from.
+        // Empty for a project with no parent and no siblings, in which case the frontend just
+        // doesn't render that UI at all — nothing to move to or link.
+        $boardOptions = Project::whereIn('id', array_diff($project->familyProjectIds(), [$project->id]))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return inertia('Documents/Show', [
             'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'kanbanColumns']),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
+            'boardOptions' => $boardOptions,
             'item' => $document->load([
                 'assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user',
-                'parent.parent.parent', 'lastAiTemplate:id,name',
+                'parent.parent.parent', 'lastAiTemplate:id,name', 'linkedProjects:id,name',
                 // Explicit order (matching the project tree's own 'documents' => ...->latest()
                 // eager load in ProjectController::show()) — without it, Postgres has no
                 // guaranteed row order across repeated queries, so the "Generated Tasks" list
@@ -289,6 +299,104 @@ class DocumentController extends Controller
         $document->update(array_merge($assigneeData, $otherValidated, ['editor_id' => $request->user()->id]));
 
         return back()->with('success', 'Task updated.');
+    }
+
+    /**
+     * Move a task to a different board within its subproject family (its top-level project
+     * plus that project's direct children — see Project::familyProjectIds()). The target
+     * board's Kanban columns must match the task's current board key-for-key
+     * (Project::hasMatchingKanbanColumns()) — required so the task's single task_status
+     * value stays meaningful after the move, rather than landing on a board with no column
+     * for its current status.
+     */
+    public function move(Request $request, Project $project, Document $document)
+    {
+        Gate::authorize('move', $document);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'project_id' => ['required', 'string'],
+        ]);
+
+        $targetId = $validated['project_id'];
+
+        if ($targetId === $project->id) {
+            throw ValidationException::withMessages(['project_id' => 'This task is already on that board.']);
+        }
+
+        if (! in_array($targetId, $project->familyProjectIds(), true)) {
+            throw ValidationException::withMessages(['project_id' => 'That board is outside this task\'s project family.']);
+        }
+
+        $target = Project::findOrFail($targetId);
+
+        if (! $project->hasMatchingKanbanColumns($target)) {
+            throw ValidationException::withMessages(['project_id' => 'That board\'s statuses don\'t match this one\'s, so this task can\'t move there.']);
+        }
+
+        // A move makes the target the new home — it can't also be a "linked" extra board
+        // for a document that already lives there natively.
+        $document->linkedProjects()->detach($target->id);
+
+        $document->update(['project_id' => $target->id, 'editor_id' => $request->user()->id]);
+
+        // Deliberately not back() (unlike updateAttributes() etc.) — the page the user was
+        // just on is keyed to the *old* project in its URL (/projects/{old}/documents/{doc}),
+        // which 404s the moment project_id changes (see the ownership guard at the top of
+        // show()/this method). Sending them to the document's own new URL is what actually
+        // keeps the page they're looking at valid after a move.
+        return redirect()
+            ->route('projects.documents.show', ['project' => $target->id, 'document' => $document->id])
+            ->with('success', 'Task moved.');
+    }
+
+    /**
+     * Set the complete list of boards (beyond this task's home board) it's also shown on,
+     * within its subproject family — see move() for the same family/matching-columns rules,
+     * which apply here identically.
+     */
+    public function updateBoards(Request $request, Project $project, Document $document)
+    {
+        Gate::authorize('manageBoards', $document);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'project_ids' => ['present', 'array'],
+            'project_ids.*' => ['string'],
+        ]);
+
+        $familyIds = $project->familyProjectIds();
+        $targetIds = array_values(array_unique($validated['project_ids']));
+
+        foreach ($targetIds as $targetId) {
+            if ($targetId === $project->id) {
+                throw ValidationException::withMessages(['project_ids' => 'This task\'s own board can\'t also be an additional board.']);
+            }
+
+            if (! in_array($targetId, $familyIds, true)) {
+                throw ValidationException::withMessages(['project_ids' => 'That board is outside this task\'s project family.']);
+            }
+        }
+
+        if ($targetIds !== []) {
+            $targets = Project::whereIn('id', $targetIds)->get()->keyBy('id');
+
+            foreach ($targetIds as $targetId) {
+                if (! $project->hasMatchingKanbanColumns($targets[$targetId])) {
+                    throw ValidationException::withMessages(['project_ids' => 'That board\'s statuses don\'t match this one\'s, so this task can\'t be shown there.']);
+                }
+            }
+        }
+
+        $document->linkedProjects()->sync($targetIds);
+
+        return back()->with('success', 'Boards updated.');
     }
 
     /**

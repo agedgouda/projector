@@ -16,6 +16,12 @@ const props = defineProps<{
     placeholder: string;
     searchPlaceholder?: string;
     emptyText?: string;
+    disabled?: boolean;
+    // Forwarded onto the trigger Button explicitly (rather than relying on Vue's automatic
+    // attribute fallthrough) since the component's actual root is Popover, not the Button
+    // itself — fallthrough would land wherever Popover's own root ends up, not necessarily
+    // the visible trigger.
+    class?: string;
 }>();
 
 const emit = defineEmits<{
@@ -34,6 +40,7 @@ const filteredOptions = computed(() => {
 const isSelected = (value: string) => props.modelValue.includes(value);
 
 const toggle = (value: string) => {
+    if (props.disabled) return;
     const next = isSelected(value) ? props.modelValue.filter((v) => v !== value) : [...props.modelValue, value];
     emit('update:modelValue', next);
 };
@@ -52,14 +59,18 @@ const triggerText = computed(() => {
 
 <template>
     <Popover v-model:open="open">
-        <PopoverTrigger as-child>
+        <PopoverTrigger as-child :disabled="disabled">
             <Button
                 variant="outline"
                 role="combobox"
                 :aria-expanded="open"
                 type="button"
-                class="h-9 w-full justify-between font-normal text-[13px]"
-                :class="modelValue.length === 0 && 'text-muted-foreground'"
+                :disabled="disabled"
+                :class="[
+                    'h-9 w-full justify-between font-normal text-[13px]',
+                    modelValue.length === 0 && 'text-muted-foreground',
+                    props.class,
+                ]"
             >
                 <span class="truncate">{{ triggerText }}</span>
                 <ChevronsUpDown class="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />

@@ -126,9 +126,13 @@ class ProjectController extends Controller
 
         // Load documents (with all needed relationships) before calling
         // getKanbanDocuments(), so it uses the already-loaded collection instead
-        // of lazy-loading documents without eager-loaded relationships.
+        // of lazy-loading documents without eager-loaded relationships. linkedDocuments
+        // gets the same relationship set as documents (getKanbanDocuments() renders both
+        // together) plus project:id,name, needed there for each linked card's
+        // home_project_name.
         $project->load([
             'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name'])->withExists('lockedNextWorkflowStep')->latest(),
+            'linkedDocuments' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'project:id,name'])->withExists('lockedNextWorkflowStep'),
             'media',
             'parent.media',
             'lifecycleTemplate.lifecycleSteps',

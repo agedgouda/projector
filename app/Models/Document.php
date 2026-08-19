@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Pgvector\Laravel\HasNeighbors;
 use Pgvector\Laravel\Vector;
@@ -100,6 +101,18 @@ class Document extends Model implements HasMedia
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    /**
+     * Boards this task is *also* shown on, beyond its one home board (project()/project_id).
+     * See DocumentController::updateBoards() for the family/matching-columns rules that
+     * constrain which projects can appear here.
+     *
+     * @return BelongsToMany<Project, $this>
+     */
+    public function linkedProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'document_project_links')->withTimestamps();
     }
 
     public function creator(): BelongsTo

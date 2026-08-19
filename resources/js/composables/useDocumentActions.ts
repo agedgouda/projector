@@ -52,6 +52,29 @@ export function useDocumentActions(
         patchField(id, { [fieldName]: normalizedValue });
     };
 
+    // Reassigns a task's home board — distinct from patchField()/updateField() above, which
+    // only ever touch task_status/priority/due_at/assignee_id via updateAttributes; this hits
+    // a separate endpoint (DocumentController::move()) since moving between boards has its
+    // own family/matching-columns validation the attribute endpoint doesn't do.
+    const moveToBoard = (docId: string, targetProjectId: string, onError?: (message: string) => void) => {
+        const url = projectDocumentsRoutes.move({ project: props.project.id, document: docId }).url;
+        router.patch(url, { project_id: targetProjectId }, {
+            preserveScroll: true,
+            onError: (errors) => onError?.(Object.values(errors)[0] ?? 'Could not move this task.'),
+        });
+    };
+
+    // Sets the complete list of additional boards (beyond the home board) a task is also
+    // shown on — see DocumentController::updateBoards(). Always sends the full desired set
+    // (sync semantics), not a single add/remove, matching how the backend applies it.
+    const updateBoardLinks = (docId: string, projectIds: string[], onError?: (message: string) => void) => {
+        const url = projectDocumentsRoutes.updateBoards({ project: props.project.id, document: docId }).url;
+        router.put(url, { project_ids: projectIds }, {
+            preserveScroll: true,
+            onError: (errors) => onError?.(Object.values(errors)[0] ?? 'Could not update this task\'s boards.'),
+        });
+    };
+
     const safeJsonParse = (data: unknown) => {
         if (!data) return { criteria: [] };
         if (typeof data !== 'string') return data;
@@ -204,6 +227,8 @@ export function useDocumentActions(
         targetBeingCreated,
         patchField,
         updateField,
+        moveToBoard,
+        updateBoardLinks,
         safeJsonParse,
         navigateToDetails
     };

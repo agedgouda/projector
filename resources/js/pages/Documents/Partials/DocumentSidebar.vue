@@ -11,8 +11,10 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, FileDown, FileType, FileStack, Calendar as CalendarIcon } from 'lucide-vue-next';
+import { RefreshCw, FileDown, FileType, FileStack, Calendar as CalendarIcon, ArrowRightLeft } from 'lucide-vue-next';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { exportPdf, exportWord, exportGoogleDoc } from '@/actions/App/Http/Controllers/DocumentController';
 import { mergeAssigneeOptions } from '@/lib/assignees';
@@ -27,16 +29,26 @@ const props = defineProps<{
     processButtonLabel?: string;
     isProcessingLive?: boolean;
     processingMessage?: string | null;
+    // Every other board in this task's subproject family — empty for a project with no
+    // parent and no siblings, in which case the Board/Also Shown On section below just
+    // doesn't render (nothing to move to or link). See DocumentController::show().
+    boardOptions?: BoardOption[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
     (e: 'change', field: string, val: any): void;
     (e: 'update:dueAtProxy', val: string): void;
     (e: 'request-process'): void;
+    (e: 'move', targetProjectId: string): void;
+    (e: 'update-boards', projectIds: string[]): void;
 }>();
 
 const { getDocLabel, isTask } = useDocumentPresenter(props.documentTypeCatalog);
 const shouldShowTask = computed(() => isTask(props.item.type));
+const hasOtherBoards = computed(() => (props.boardOptions?.length ?? 0) > 0);
+
+const linkedProjectIds = computed(() => (props.item.linked_projects ?? []).map((p: BoardOption) => p.id));
+const handleUpdateBoards = (ids: string[]) => emit('update-boards', ids);
 
 const assigneeValue = computed(() => {
     if (props.item.pending_assignee_invitation_id) {
@@ -46,6 +58,8 @@ const assigneeValue = computed(() => {
 });
 
 const columns = computed(() => props.project.kanban_columns ?? []);
+
+const boardMultiSelectOptions = computed(() => (props.boardOptions ?? []).map((option) => ({ value: option.id, label: option.name })));
 
 // Real users and invited people merged into one alphabetically-sorted list, rather than
 // users in their raw (insertion) order followed by a separate invited block.
@@ -235,6 +249,49 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div v-if="hasOtherBoards" class="flex justify-between items-center min-h-[24px]">
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Board</span>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger
+                                        as-child
+                                        :disabled="project.inactive"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                                            :disabled="project.inactive"
+                                        >
+                                            <span class="font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px]">{{ project.name }}</span>
+                                            <ArrowRightLeft class="w-3 h-3 text-slate-400" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="min-w-[200px]">
+                                        <div class="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">Move to</div>
+                                        <DropdownMenuItem
+                                            v-for="option in boardOptions"
+                                            :key="option.id"
+                                            class="text-[13px] font-bold cursor-pointer"
+                                            @click="emit('move', option.id)"
+                                        >
+                                            {{ option.name }}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            <div v-if="hasOtherBoards" class="flex justify-between items-center min-h-[24px] gap-3">
+                                <span class="text-slate-900 dark:text-slate-400 text-[13px] shrink-0">Also Shown On</span>
+                                <MultiSelect
+                                    :model-value="linkedProjectIds"
+                                    :options="boardMultiSelectOptions"
+                                    placeholder="Not shown elsewhere"
+                                    search-placeholder="Search boards…"
+                                    :disabled="project.inactive"
+                                    class="max-w-[220px]"
+                                    @update:model-value="handleUpdateBoards"
+                                />
                             </div>
                         </div>
                     </div>

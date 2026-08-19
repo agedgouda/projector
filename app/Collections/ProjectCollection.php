@@ -53,6 +53,12 @@ class ProjectCollection extends Collection
             'documents' => function ($q) {
                 $q->with(['assignee', 'creator'])->withExists('lockedNextWorkflowStep')->latest();
             },
+            // Same shape as documents — getKanbanDocuments() (via asKanbanData() below)
+            // renders both together, plus project:id,name for each linked card's
+            // home_project_name.
+            'linkedDocuments' => function ($q) {
+                $q->with(['assignee', 'creator', 'project:id,name'])->withExists('lockedNextWorkflowStep');
+            },
         ]);
     }
 

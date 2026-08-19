@@ -477,8 +477,8 @@ watch(
             >
                 <button
                     v-for="tab in [
-                        'hierarchy',
                         'tasks',
+                        'hierarchy',
                         'calendar',
                         'reports',
                         'recordings',

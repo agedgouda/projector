@@ -34,6 +34,7 @@ const props = defineProps<{
     project: Project;
     item: ExtendedDocument;
     documentTypeCatalog?: DocumentSchemaItem[];
+    boardOptions?: BoardOption[];
 }>();
 
 /* ---------------------------
@@ -78,10 +79,16 @@ useEchoWatchdog(() => props.project.id);
 
 const { breadcrumbs, handleBack } = useDocumentNavigation(props.project, props.item);
 
-const { updateField } = useDocumentActions(
+const { updateField, moveToBoard, updateBoardLinks } = useDocumentActions(
     { project: props.project, documentSchema: [] },
     ref('')
 );
+
+const handleMove = (targetProjectId: string) =>
+    moveToBoard(props.item.id as string, targetProjectId, (message) => toast.error(message));
+
+const handleUpdateBoards = (projectIds: string[]) =>
+    updateBoardLinks(props.item.id as string, projectIds, (message) => toast.error(message));
 
 /* ---------------------------
    4. Local UI State
@@ -215,9 +222,12 @@ watch(() => page.props.flash, (flash) => {
                     :process-button-label="processButtonLabel"
                     :is-processing-live="isProcessingLive"
                     :processing-message="processingMessage"
+                    :board-options="boardOptions"
                     v-model:dueAtProxy="dueAtProxy"
                     @change="(field, val) => updateField(item.id as string, field, val)"
                     @request-process="handleRequestProcess"
+                    @move="handleMove"
+                    @update-boards="handleUpdateBoards"
                 />
             </template>
         </DocumentLayoutWrapper>

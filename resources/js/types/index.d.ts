@@ -140,6 +140,13 @@ declare global {
         [key: string]: any;
     }
 
+    // A project another board this task's home project could move to, or be shown on
+    // alongside — see Project::familyProjectIds()/DocumentController.php on the backend.
+    export interface BoardOption {
+        id: string;
+        name: string;
+    }
+
     export interface ProjectDocument {
         id: string | number; // UUID in DB, but sometimes number in UI state
         project_id: string;
@@ -163,6 +170,14 @@ declare global {
         custom_prompt?: string | null;
         last_ai_template_id?: number | null;
 
+        // Only set on a Kanban board's own document list (Project::getKanbanDocuments()) —
+        // whether this card is native to that board (false) or shown here because it's
+        // linked from elsewhere in the family (true), with home_project_* naming where.
+        // Not present on a document fetched any other way (e.g. the single-document page).
+        is_linked?: boolean;
+        home_project_id?: string;
+        home_project_name?: string | null;
+
         // Relationships
         creator?: User;
         editor?: User;
@@ -173,6 +188,9 @@ declare global {
         children?: ProjectDocument[];
         tasks?: Task[];
         last_ai_template?: { id: number; name: string } | null;
+        // Additional boards (beyond project_id, its home) this task is also shown on — see
+        // Document::linkedProjects(). Only loaded on the single-document page.
+        linked_projects?: BoardOption[];
 
         embedding: any | null;
         metadata: DocumentMetadata;

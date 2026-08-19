@@ -25,9 +25,14 @@ const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status
 <template>
     <div class="space-y-4">
         <div v-if="row.label" class="flex items-center gap-4 px-2">
+            <!-- Explicit ?tab=tasks on both links below — the project page otherwise falls
+                 back to whatever tab a `last_active_tab` cookie remembers from a previous
+                 visit (see ProjectController::show()), which could land the user somewhere
+                 other than Tasks. Coming from the Dashboard's kanban board, landing on Tasks
+                 specifically is the whole point of the click. -->
             <Link
                 v-if="canViewProjectDetails"
-                :href="projectRoutes.show.url(row.key)"
+                :href="projectRoutes.show.url(row.key, { query: { tab: 'tasks' } })"
                 class="contents"
             >
                 <h3
@@ -48,7 +53,7 @@ const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status
             <div class="h-px flex-1 bg-gradient-to-r from-projector-primary-100/50 to-transparent"></div>
             <Link
                 v-if="canViewProjectDetails"
-                :href="projectRoutes.show.url(row.key)"
+                :href="projectRoutes.show.url(row.key, { query: { tab: 'tasks' } })"
                 class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-projector-primary-600 hover:text-projector-primary-800 transition-colors shrink-0"
             >
                 <ExternalLink class="w-3 h-3" />

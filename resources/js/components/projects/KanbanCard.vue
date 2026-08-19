@@ -14,7 +14,7 @@ import {
     SelectItem,
     SelectTrigger,
 } from '@/components/ui/select';
-import { Calendar, Plus } from 'lucide-vue-next';
+import { Calendar, Plus, Link2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
@@ -113,8 +113,19 @@ const handleUpdate = (field: string, value: any) => {
         >
             {{ doc.name }}
         </h4>
-        <div class="mb-5 text-xs">
+        <div class="mb-5 flex items-center gap-1.5 text-xs">
             {{ doc.type_label ?? doc.type }}
+            <!-- Cards native to this board never carry is_linked at all — see
+                 Project::getKanbanDocuments() — so this only ever shows on a card that's
+                 cross-posted here from elsewhere in the project's subproject family. -->
+            <span
+                v-if="doc.is_linked"
+                :title="`Shown here from ${doc.home_project_name ?? 'another board'} — editing it updates it everywhere it's shown.`"
+                class="inline-flex items-center gap-1 rounded-full border border-projector-primary-200 bg-projector-primary-50 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-projector-primary-600 uppercase dark:border-projector-primary-800 dark:bg-projector-primary-950/40 dark:text-projector-primary-400"
+            >
+                <Link2 class="h-2.5 w-2.5" />
+                {{ doc.home_project_name }}
+            </span>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div @click.stop @keydown.stop>

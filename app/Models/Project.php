@@ -135,6 +135,20 @@ class Project extends Model implements HasMedia
         return $this->hasMany(Document::class, 'project_id');
     }
 
+    /**
+     * Tasks whose home board is a *different* project but are also shown on this board's
+     * Kanban (see Document::linkedProjects() for the inverse side). Kept separate from
+     * documents() rather than merged into one relation so callers can tell native vs.
+     * cross-posted cards apart — see getKanbanDocuments(), which is where the two get
+     * combined for actual board rendering.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<Document, $this>
+     */
+    public function linkedDocuments(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Document::class, 'document_project_links')->withTimestamps();
+    }
+
     public function dismissedRecordings(): HasMany
     {
         return $this->hasMany(DismissedRecording::class, 'project_id');
@@ -194,6 +208,54 @@ class Project extends Model implements HasMedia
     public function children(): HasMany
     {
         return $this->hasMany(Project::class, 'parent_id');
+    }
+
+    /**
+     * The top-level project of this project's subproject family — itself if it has no
+     * parent, or its parent otherwise. Nesting is capped at 2 levels throughout this app
+     * (see ProjectRequest's parent_id validation, which refuses to let a project that
+     * already has a parent become a parent itself), so a subproject's parent is always
+     * itself top-level — no need to walk up more than one level.
+     */
+    public function familyRoot(): self
+    {
+        return $this->parent ?? $this;
+    }
+
+    /**
+     * This project's subproject family: its top-level project plus that project's direct
+     * children (itself included, whichever side of the family this project is on). Used to
+     * scope which boards a task is allowed to move to or also be shown on — see
+     * DocumentController::move()/updateBoards(). Distinct from
+     * ReportController::projectIdsIncludingChildren(), which assumes the project it's
+     * called on is already top-level (true for every existing caller, but not a safe
+     * assumption for a task that's currently sitting on a subproject).
+     *
+     * @return array<int, string>
+     */
+    public function familyProjectIds(): array
+    {
+        $root = $this->familyRoot();
+        $root->loadMissing('children:id,parent_id');
+
+        return [(string) $root->id, ...$root->children->pluck('id')->map(fn ($id) => (string) $id)];
+    }
+
+    /**
+     * Whether this project's Kanban columns are the same set (by `key`, order-independent)
+     * as another project's — the rule that keeps a task's single task_status meaningful
+     * everywhere it's shown once it can appear on more than one board (see
+     * DocumentController::move()/updateBoards()). Compared by `key`, not `id`: `key` is the
+     * frozen, stable identifier for a column (see the kanban_columns migration), while `id`
+     * is just an autoincrement primary key with no meaning across two different projects'
+     * column sets.
+     */
+    public function hasMatchingKanbanColumns(self $other): bool
+    {
+        $ownKeys = $this->kanbanColumns->pluck('key')->sort()->values();
+        $otherKeys = $other->kanbanColumns->pluck('key')->sort()->values();
+
+        return $ownKeys->all() === $otherKeys->all();
     }
 
     /**
@@ -293,18 +355,37 @@ class Project extends Model implements HasMedia
     }
 
     /**
-     * Get task documents for this project enriched with type_label from the catalog.
+     * Get task documents for this project enriched with type_label from the catalog —
+     * this board's own tasks plus any tasks whose home board is elsewhere in this
+     * project's subproject family but are also shown here (see
+     * Document::linkedProjects()/linkedDocuments() above). documentTypeCatalog() is
+     * organization-scoped (not per-project), so it's safe to reuse for both: every member
+     * of a subproject family shares the same client, hence the same organization.
      */
     public function getKanbanDocuments(): \Illuminate\Support\Collection
     {
         $catalog = $this->documentTypeCatalog();
 
-        return $this->documents
+        $native = $this->documents
             ->filter(fn (Document $doc) => $this->isTaskType($catalog, $doc->type))
             ->map(fn (Document $doc) => array_merge($doc->toArray(), [
                 'type_label' => $this->labelForType($catalog, $doc->type),
-            ]))
-            ->values();
+                'is_linked' => false,
+            ]));
+
+        // Guarded against a stale link back to this project's own id (shouldn't be
+        // possible — DocumentController::updateBoards() never allows linking a task to its
+        // own home project — but native rows should win if it ever happened anyway).
+        $linked = $this->linkedDocuments
+            ->filter(fn (Document $doc) => $doc->project_id !== $this->id && $this->isTaskType($catalog, $doc->type))
+            ->map(fn (Document $doc) => array_merge($doc->toArray(), [
+                'type_label' => $this->labelForType($catalog, $doc->type),
+                'is_linked' => true,
+                'home_project_id' => $doc->project_id,
+                'home_project_name' => $doc->project?->name,
+            ]));
+
+        return $native->concat($linked)->values();
     }
 
     /**

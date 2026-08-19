@@ -61,6 +61,28 @@ class DocumentPolicy
     }
 
     /**
+     * Same shape as update() — reassigning a task's home board is more structural than
+     * flipping a status/priority dropdown (updateAttributes()'s any-org-member bar), so it
+     * gets the same access-attachment requirement as editing the document outright. The
+     * target project's own family-membership and matching-columns rules are checked
+     * separately in DocumentController::move(), since they depend on the request's target
+     * project, not just the document being moved.
+     */
+    public function move(User $user, Document $document): bool
+    {
+        return ! $document->project->inactive && $this->canAccessProject($user, $document->project);
+    }
+
+    /**
+     * Deciding which additional boards a task is cross-posted to — same access bar as
+     * move() and for the same reason.
+     */
+    public function manageBoards(User $user, Document $document): bool
+    {
+        return ! $document->project->inactive && $this->canAccessProject($user, $document->project);
+    }
+
+    /**
      * Any org member can update task attributes (assignee, status, due date).
      */
     public function updateAttributes(User $user, Document $document): bool
