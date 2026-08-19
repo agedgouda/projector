@@ -10,6 +10,28 @@ use Spatie\Permission\Models\Role;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
+/**
+ * A real transparent PNG (not Laravel's fake-image helper, which never has an alpha channel)
+ * — needed to catch a real regression: Spatie MediaLibrary's Conversion class defaults every
+ * conversion to JPEG (see Conversion::__construct()), which has no alpha channel, so without
+ * ->keepOriginalImageFormat() a transparent logo silently gets flattened onto a solid black
+ * canvas the moment it's resized. A same-color opaque fake image can't catch that; only a
+ * genuinely transparent source can.
+ */
+function transparentPngUpload(string $name = 'logo.png'): UploadedFile
+{
+    $image = imagecreatetruecolor(300, 300);
+    imagesavealpha($image, true);
+    $transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
+    imagefill($image, 0, 0, $transparent);
+
+    $path = tempnam(sys_get_temp_dir(), 'logo').'.png';
+    imagepng($image, $path);
+    imagedestroy($image);
+
+    return new UploadedFile($path, $name, 'image/png', null, true);
+}
+
 beforeEach(function () {
     Storage::fake('public');
 
@@ -302,6 +324,43 @@ it('blocks a non-admin from uploading a logo for a project', function () {
     $this->actingAs($this->member)
         ->post(route('projects.logo.store', $this->project), ['logo' => $file])
         ->assertNotFound();
+});
+
+// ── Transparency preserved (regression) ────────────────────────────────────────
+
+it('preserves a transparent project logo as png instead of flattening it to a black-backgrounded jpg', function () {
+    $this->actingAs($this->admin)
+        ->post(route('projects.logo.store', $this->project), ['logo' => transparentPngUpload()])
+        ->assertRedirect();
+
+    $media = $this->project->fresh()->getFirstMedia('logo');
+    $previewPath = $media->getPath('preview');
+
+    expect($previewPath)->toEndWith('.png');
+
+    $preview = imagecreatefrompng($previewPath);
+    $colors = imagecolorsforindex($preview, imagecolorat($preview, 5, 5));
+    expect($colors['alpha'])->toBe(127); // GD's alpha scale: 127 = fully transparent.
+});
+
+it('preserves a transparent organization logo as png instead of flattening it to a black-backgrounded jpg', function () {
+    $this->actingAs($this->admin)
+        ->post(route('organizations.logo.store', $this->org), ['logo' => transparentPngUpload()])
+        ->assertRedirect();
+
+    $media = $this->org->fresh()->getFirstMedia('logo');
+
+    expect($media->getPath('preview'))->toEndWith('.png');
+});
+
+it('preserves a transparent client logo as png instead of flattening it to a black-backgrounded jpg', function () {
+    $this->actingAs($this->admin)
+        ->post(route('clients.logo.store', $this->client), ['logo' => transparentPngUpload()])
+        ->assertRedirect();
+
+    $media = $this->client->fresh()->getFirstMedia('logo');
+
+    expect($media->getPath('preview'))->toEndWith('.png');
 });
 
 // ── Create with logo ──────────────────────────────────────────────────────────

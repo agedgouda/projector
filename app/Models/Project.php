@@ -73,13 +73,23 @@ class Project extends Model implements HasMedia
 
     public function registerMediaConversions(?Media $media = null): void
     {
+        // keepOriginalImageFormat() is required here — Spatie MediaLibrary's Conversion class
+        // defaults every conversion to JPEG regardless of the source format (see its own
+        // Conversion::__construct(), which unconditionally calls ->format('jpg')). JPEG has no
+        // alpha channel, so a transparent PNG logo gets flattened onto a solid canvas — and
+        // GD's default fill for that canvas is black, not white. That's what was turning
+        // transparent project logos solid black: the "preview"/"thumb" files were silently
+        // being saved as .jpg, not .png. keepOriginalImageFormat() preserves whatever format
+        // was actually uploaded (PNG stays PNG with alpha intact, WebP stays WebP, etc.).
         $this->addMediaConversion('thumb')
             ->nonQueued()
+            ->keepOriginalImageFormat()
             ->width(150)
             ->height(150);
 
         $this->addMediaConversion('preview')
             ->nonQueued()
+            ->keepOriginalImageFormat()
             ->width(400)
             ->height(400);
     }

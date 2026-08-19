@@ -347,13 +347,20 @@ class Organization extends Model implements HasMedia
 
     public function registerMediaConversions(?Media $media = null): void
     {
+        // keepOriginalImageFormat() is required here — see Project::registerMediaConversions()
+        // for why: without it, Spatie MediaLibrary silently converts every conversion to JPEG
+        // (its own package default), which flattens a transparent PNG logo (or pdf_header/
+        // pdf_footer image — this same 'thumb'/'preview' pair applies to all three of this
+        // model's collections) onto a black canvas.
         $this->addMediaConversion('thumb')
             ->nonQueued()
+            ->keepOriginalImageFormat()
             ->width(150)
             ->height(150);
 
         $this->addMediaConversion('preview')
             ->nonQueued()
+            ->keepOriginalImageFormat()
             ->width(400)
             ->height(400);
     }
