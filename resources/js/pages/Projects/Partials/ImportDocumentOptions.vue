@@ -61,6 +61,8 @@ onMounted(() => {
 
 <template>
     <ImportDocumentOptionsPanel
+        heading="Import a Transcript"
+        spacing-class="mb-4"
         :can-manage="canManage"
         :google-picker-configured="googlePickerConfigured"
         :is-opening="isOpening"

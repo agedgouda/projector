@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
+import ImportTaskListOptionsPanel from '@/components/recordings/ImportTaskListOptionsPanel.vue';
 import { Deferred, router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { PlusIcon, RefreshCw, ShieldAlert } from 'lucide-vue-next';
@@ -496,7 +497,7 @@ watch(
                         tab === 'hierarchy'
                             ? 'Documentation'
                             : tab === 'recordings'
-                              ? 'Recordings'
+                              ? 'Import'
                               : tab === 'calendar'
                                 ? 'Calendar'
                                 : tab === 'reports'
@@ -553,75 +554,79 @@ watch(
                     :google-app-id="googleAppId"
                 />
 
-                <div
-                    v-if="!meetingProvider"
-                    class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 py-16 dark:border-gray-700"
-                >
-                    <p class="text-sm font-bold text-gray-500">
-                        No meeting provider configured
-                    </p>
-                    <p class="mt-1 text-xs text-gray-400">
-                        Configure a provider in Organization Settings to import
-                        recordings.
-                    </p>
-                </div>
-
-                <template v-else>
-                    <div class="mb-4 flex items-center justify-end gap-2">
-                        <RefreshCw
-                            v-if="isRefreshingRecordings"
-                            class="h-3.5 w-3.5 animate-spin text-gray-400"
-                        />
-                        <button
-                            type="button"
-                            :disabled="isRefreshingRecordings"
-                            class="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
-                            @click="refreshRecordings"
-                        >
-                            {{ isRefreshingRecordings ? 'Checking…' : 'Check for New Recordings' }}
-                        </button>
+                <div class="mb-4">
+                    <div
+                        v-if="!meetingProvider"
+                        class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 py-16 dark:border-gray-700"
+                    >
+                        <p class="text-sm font-bold text-gray-500">
+                            No meeting provider configured
+                        </p>
+                        <p class="mt-1 text-xs text-gray-400">
+                            Configure a provider in Organization Settings to import
+                            recordings.
+                        </p>
                     </div>
 
-                    <Deferred data="recordingsData">
-                        <template #fallback>
-                            <div class="grid gap-0.5">
-                                <div
-                                    v-for="i in 4"
-                                    :key="i"
-                                    class="flex h-12 animate-pulse items-center gap-3 px-2"
-                                >
+                    <template v-else>
+                        <div class="mb-4 flex items-center justify-end gap-2">
+                            <RefreshCw
+                                v-if="isRefreshingRecordings"
+                                class="h-3.5 w-3.5 animate-spin text-gray-400"
+                            />
+                            <button
+                                type="button"
+                                :disabled="isRefreshingRecordings"
+                                class="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+                                @click="refreshRecordings"
+                            >
+                                {{ isRefreshingRecordings ? 'Checking…' : 'Check for New Recordings' }}
+                            </button>
+                        </div>
+
+                        <Deferred data="recordingsData">
+                            <template #fallback>
+                                <div class="grid gap-0.5">
                                     <div
-                                        class="h-3.5 w-3.5 shrink-0 rounded bg-gray-100 dark:bg-gray-800"
-                                    />
-                                    <div class="flex flex-1 items-center gap-3">
+                                        v-for="i in 4"
+                                        :key="i"
+                                        class="flex h-12 animate-pulse items-center gap-3 px-2"
+                                    >
                                         <div
-                                            class="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800"
+                                            class="h-3.5 w-3.5 shrink-0 rounded bg-gray-100 dark:bg-gray-800"
                                         />
+                                        <div class="flex flex-1 items-center gap-3">
+                                            <div
+                                                class="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800"
+                                            />
+                                            <div
+                                                class="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800"
+                                            />
+                                        </div>
                                         <div
-                                            class="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800"
+                                            class="h-8 w-20 rounded-md bg-gray-100 dark:bg-gray-800"
                                         />
                                     </div>
-                                    <div
-                                        class="h-8 w-20 rounded-md bg-gray-100 dark:bg-gray-800"
-                                    />
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <AvailableRecordings
-                            :project-id="currentProject.id"
-                            :recordings="recordingsData!.recordings"
-                            :imported-ids="recordingsData!.importedIds"
-                            :cross-project-imported-ids="
-                                recordingsData!.crossProjectImportedIds
-                            "
-                            :can-manage="recordingsData!.canManage"
-                            :provider-error="recordingsData!.providerError"
-                            @import-queued="onImportQueued"
-                            @import-failed="targetBeingCreated = null"
-                        />
-                    </Deferred>
-                </template>
+                            <AvailableRecordings
+                                :project-id="currentProject.id"
+                                :recordings="recordingsData!.recordings"
+                                :imported-ids="recordingsData!.importedIds"
+                                :cross-project-imported-ids="
+                                    recordingsData!.crossProjectImportedIds
+                                "
+                                :can-manage="recordingsData!.canManage"
+                                :provider-error="recordingsData!.providerError"
+                                @import-queued="onImportQueued"
+                                @import-failed="targetBeingCreated = null"
+                            />
+                        </Deferred>
+                    </template>
+                </div>
+
+                <ImportTaskListOptionsPanel :can-manage="canManageTranscripts" />
             </div>
 
             <div v-show="activeTab === 'reports'">

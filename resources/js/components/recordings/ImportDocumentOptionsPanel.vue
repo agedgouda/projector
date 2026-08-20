@@ -10,13 +10,25 @@ import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 // Organizations/Partials/ImportDocumentOptions.vue), since those need that wrapper's own
 // composable state. This panel only owns the three prompt textareas' local values and the
 // hidden file inputs, emitting once the user has actually picked something.
-defineProps<{
+withDefaults(defineProps<{
     canManage: boolean;
     googlePickerConfigured: boolean;
     isOpening: boolean;
     importingGoogleDoc: boolean;
     importingFile: 'docx' | 'txt' | null;
-}>();
+    // Overridable per consumer — the project page's Import tab also folds its recordings
+    // list into this same section (see Projects/Show.vue), where "Import a Document" reads
+    // oddly for a group that also covers pulling in a meeting recording; every other
+    // consumer keeps the original wording.
+    heading?: string;
+    // Same idea as heading — the project page tightens this to sit closer to the recordings
+    // list that immediately follows it, since the two now read as one visual group; every
+    // other consumer keeps the original, more generous section-to-section spacing.
+    spacingClass?: string;
+}>(), {
+    heading: 'Import a Document',
+    spacingClass: 'mb-8',
+});
 
 const emit = defineEmits<{
     (e: 'pick-google-doc', prompt: string): void;
@@ -46,9 +58,9 @@ const onFileChosen = (event: Event, kind: 'docx' | 'txt') => {
 </script>
 
 <template>
-    <section v-if="canManage" class="mb-8">
+    <section v-if="canManage" :class="spacingClass">
         <h2 class="mb-4 text-[10px] font-black tracking-widest text-gray-400 uppercase">
-            Import a Document
+            {{ heading }}
         </h2>
 
         <div class="grid gap-0.5">

@@ -3,6 +3,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import OrgSwitcher from '@/components/user/OrgSwitcher.vue';
 import { dashboard } from '@/routes';
+import { index as organizationsIndex } from '@/routes/organizations';
 import type { BreadcrumbItemType } from '@/types';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -30,9 +31,18 @@ const currentOrg = computed(
 // the switch, so staying on it either keeps showing that org's content or 403s outright. A
 // middleware (EnsureUserCanAccessClient) also auto-activates whatever org owns the resource in
 // the current URL, which would silently override an explicit switch if we stayed put.
+//
+// The Organizations index is the one exception: unlike a project/client/document, it isn't
+// scoped to a specific org by its URL — it resolves whichever org is "current" from the same
+// ?org=/session/cookie chain as everywhere else (OrganizationController::index) — so reloading
+// it after a switch just shows the newly selected org, which is exactly what the picker implies.
 const handleOrgSwitch = (orgId: string | number) => {
+    const destination = window.location.pathname === organizationsIndex().url
+        ? organizationsIndex().url
+        : dashboard().url;
+
     router.get(
-        dashboard().url,
+        destination,
         { org: orgId },
         {
             preserveState: false,
