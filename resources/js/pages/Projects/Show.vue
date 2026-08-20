@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
-import ImportTaskListOptionsPanel from '@/components/recordings/ImportTaskListOptionsPanel.vue';
+import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
 import { Deferred, router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { PlusIcon, RefreshCw, ShieldAlert } from 'lucide-vue-next';
@@ -626,7 +626,7 @@ watch(
                     </template>
                 </div>
 
-                <ImportTaskListOptionsPanel :can-manage="canManageTranscripts" />
+                <ImportTaskListOptions :project-id="currentProject!.id" :can-manage="canManageTranscripts" />
             </div>
 
             <div v-show="activeTab === 'reports'">

@@ -27,6 +27,7 @@ use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskListImportController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -302,6 +303,11 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.exportWord');
             Route::get('/documents/{document}/export-google-doc', [DocumentController::class, 'exportGoogleDoc'])
                 ->name('documents.exportGoogleDoc');
+
+            Route::post('/task-lists/analyze', [TaskListImportController::class, 'analyze'])
+                ->name('task-lists.analyze');
+            Route::post('/task-lists', [TaskListImportController::class, 'store'])
+                ->name('task-lists.store');
 
             Route::get('/reports/tasks', [ReportController::class, 'projectTasks'])
                 ->name('reports.tasks');
