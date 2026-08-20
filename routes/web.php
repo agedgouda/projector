@@ -192,6 +192,9 @@ Route::middleware(['auth'])->group(function () {
     // Main Entry Point
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Demo of dashboard redesign "option 2" — not linked from navigation, see DashboardController::demo().
+    Route::get('/dashboard2', [DashboardController::class, 'demo'])->name('dashboard.demo');
+
     // Organizations are accessible to any org member; policy handles per-action authorization.
     Route::resource('organizations', OrganizationController::class);
     Route::post('/organizations/{organization}/logo', [OrganizationLogoController::class, 'store'])

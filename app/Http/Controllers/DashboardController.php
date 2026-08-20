@@ -4,12 +4,36 @@ namespace App\Http\Controllers;
 
 use App\Models\Organization;
 use App\Models\Project;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
     public function index(Request $request)
+    {
+        $data = $this->buildData($request);
+
+        return $data instanceof RedirectResponse ? $data : Inertia::render('Dashboard/Index', $data);
+    }
+
+    /**
+     * Demo of dashboard redesign "option 2" (see conversation) — each project collapses into a
+     * summary row instead of always showing its full board. Reuses the exact same data as
+     * index() so the only difference between /dashboard and /dashboard2 is presentation, not
+     * data shape; not linked from navigation.
+     */
+    public function demo(Request $request)
+    {
+        $data = $this->buildData($request);
+
+        return $data instanceof RedirectResponse ? $data : Inertia::render('Dashboard2/Index', $data);
+    }
+
+    /**
+     * @return array<string, mixed>|RedirectResponse
+     */
+    private function buildData(Request $request): array|RedirectResponse
     {
         $user = $request->user();
 
@@ -64,12 +88,12 @@ class DashboardController extends Controller
             cookie()->queue(cookie()->forever('last_org_id', (string) $orgId));
         }
 
-        return Inertia::render('Dashboard/Index', [
+        return [
             'projects' => $projects,
             'kanbanData' => $kanbanData,
             'canViewProjectDetails' => ! $isTeamMemberOnly,
             'clients' => $clients,
             'currentOrganization' => $orgId ? Organization::find($orgId, ['id', 'name']) : null,
-        ]);
+        ];
     }
 }
