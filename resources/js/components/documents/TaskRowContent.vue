@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { CheckSquare, RefreshCw, Eye } from 'lucide-vue-next';
-import { PopoverTrigger } from '@/components/ui/popover';
-import TaskRowFields from '@/components/documents/TaskRowFields.vue';
-import PriorityDot from '@/components/documents/PriorityDot.vue';
 import AssigneeAvatar from '@/components/documents/AssigneeAvatar.vue';
+import PriorityDot from '@/components/documents/PriorityDot.vue';
+import TaskRowFields from '@/components/documents/TaskRowFields.vue';
 import type { AssigneeOption } from '@/lib/assignees';
+import { CheckSquare, Eye, RefreshCw } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 // The ENTIRE visual/interactive content of a task row — icon through assignee — lives here
 // and only here. TraceabilityRow.vue (the Documentation tree) and DocumentContent.vue's
@@ -14,14 +13,13 @@ import type { AssigneeOption } from '@/lib/assignees';
 // mirroring changes across two separate templates, which silently drifted apart more than
 // once. A future change to what a task row shows only needs to happen here.
 //
-// The preview popover is the one exception: this renders only the trigger (the eye icon).
-// The <Popover>/<PopoverAnchor>/<PopoverContent> themselves are owned by the caller (see
-// TraceabilityRow.vue/DocumentContent.vue) because the popover needs to be sized to the row's
-// own width, and only the caller has a real DOM element for "the row" — this component's own
-// root is `display:contents` precisely so it has no box of its own. reka-ui's Popover pieces
-// work via provide/inject, not DOM nesting, so a Trigger rendered in a child component still
-// connects to a Popover rendered by its parent. What the popover actually shows is still
-// unified in one place: DocumentPreviewCard.vue, which every caller renders identically.
+// The preview popover is the one exception: this only emits `hover-preview`/`navigate` from
+// the title and eye icon. The <Popover>/<PopoverAnchor>/<PopoverContent> themselves are owned
+// by the caller (see TraceabilityRow.vue/DocumentContent.vue) because the popover needs to be
+// sized to the row's own width, and only the caller has a real DOM element for "the row" — this
+// component's own root is `display:contents` precisely so it has no box of its own. What the
+// popover actually shows is still unified in one place: DocumentPreviewCard.vue, which every
+// caller renders identically.
 const props = defineProps<{
     doc: ProjectDocument;
     columns: KanbanColumnDef[];
@@ -39,11 +37,16 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'update', field: string, value: any): void;
+    (e: 'navigate'): void;
+    (e: 'hover-preview', hovering: boolean): void;
 }>();
 
-const isProcessing = computed(() => !!(props.doc as any).currentStatus || props.doc.processed_at === null);
+const isProcessing = computed(
+    () => !!(props.doc as any).currentStatus || props.doc.processed_at === null,
+);
 
-const handleUpdate = (field: string, value: any) => emit('update', field, value);
+const handleUpdate = (field: string, value: any) =>
+    emit('update', field, value);
 </script>
 
 <template>
@@ -56,16 +59,23 @@ const handleUpdate = (field: string, value: any) => emit('update', field, value)
 
         <CheckSquare class="h-3.5 w-3.5 shrink-0 text-slate-400" />
 
-        <div class="flex flex-1 items-center gap-1.5 min-w-0">
+        <div class="flex min-w-0 flex-1 items-center gap-1.5">
             <span
-                class="text-[13px]"
+                class="cursor-pointer text-[13px] transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
                 :class="[
                     bold ? 'font-bold' : 'font-medium',
-                    isProcessing ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100',
+                    isProcessing
+                        ? 'text-slate-400 dark:text-slate-500'
+                        : 'text-slate-900 dark:text-slate-100',
                     // Long titles wrap onto multiple lines (growing the row) instead of
                     // truncating with an ellipsis — short titles keep single-line truncate.
-                    doc.name.length > 60 ? 'whitespace-normal break-words' : 'truncate'
+                    doc.name.length > 60
+                        ? 'break-words whitespace-normal'
+                        : 'truncate',
                 ]"
+                @mouseenter="emit('hover-preview', true)"
+                @mouseleave="emit('hover-preview', false)"
+                @click="emit('navigate')"
             >
                 {{ doc.name }}
             </span>
@@ -81,9 +91,14 @@ const handleUpdate = (field: string, value: any) => emit('update', field, value)
                 @update="(val) => handleUpdate('assignee_id', val)"
             />
 
-            <span v-if="isProcessing" class="flex items-center gap-1.5 text-[10px] text-projector-primary-500 shrink-0">
+            <span
+                v-if="isProcessing"
+                class="flex shrink-0 items-center gap-1.5 text-[10px] text-projector-primary-500"
+            >
                 <RefreshCw class="h-3 w-3 animate-spin" />
-                <span class="animate-pulse">{{ (doc as any).currentStatus || 'Processing...' }}</span>
+                <span class="animate-pulse">{{
+                    (doc as any).currentStatus || 'Processing...'
+                }}</span>
             </span>
         </div>
 
@@ -102,19 +117,21 @@ const handleUpdate = (field: string, value: any) => emit('update', field, value)
             @update="(field, val) => handleUpdate(field, val)"
         />
 
-        <PopoverTrigger as-child>
-            <!-- Always visible (not hover-revealed) — an earlier version only showed this on
-                 row hover, which the user said made it hard to discover it exists at all. Also
-                 always click-to-open, not hover-to-open, since a still-earlier version that
-                 opened on hovering the title read as intrusive. data-[state=open] comes from
-                 reka-ui automatically, no local open-state tracking needed here. -->
-            <button
-                type="button"
-                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 data-[state=open]:bg-slate-100 data-[state=open]:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300 dark:data-[state=open]:bg-slate-800 dark:data-[state=open]:text-slate-300"
-                title="Preview"
-            >
-                <Eye class="h-3.5 w-3.5" />
-            </button>
-        </PopoverTrigger>
+        <!-- Always visible (not hover-revealed) — an earlier version only showed this on row
+             hover, which the user said made it hard to discover it exists at all. Hovering the
+             icon itself (or the title above) opens the preview popover; clicking either one
+             navigates straight to the document instead of toggling the popover, so this is a
+             plain button rather than a PopoverTrigger — the caller drives the popover's open
+             state off `hover-preview`. -->
+        <button
+            type="button"
+            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-projector-primary-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-projector-primary-400"
+            title="Open"
+            @mouseenter="emit('hover-preview', true)"
+            @mouseleave="emit('hover-preview', false)"
+            @click="emit('navigate')"
+        >
+            <Eye class="h-3.5 w-3.5" />
+        </button>
     </div>
 </template>

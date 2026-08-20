@@ -1,38 +1,42 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import DOMPurify from 'dompurify';
-import { ArrowUpRight } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
+import { computed } from 'vue';
 
 // The contents of every row-preview popover — task rows (TaskRowContent.vue) and non-task
 // rows (TraceabilityRow.vue's own branch) both render this, so what a preview looks like only
 // has to change in one place. Each caller still owns its own <Popover>/<PopoverAnchor> — that
 // part is necessarily row-specific (it needs the row's own DOM element to size the popover to
 // the row's width) — but everything about what's actually shown lives here.
+//
+// No "Go to" button here — the title and eye icon that open this preview (on hover) already
+// navigate to the document on click, so a second navigation control inside the popover itself
+// would just be a redundant target.
 const props = defineProps<{
     name: string;
     content: string | null | undefined;
-    goToLabel: string;
-}>();
-
-const emit = defineEmits<{
-    (e: 'open'): void;
 }>();
 
 // Same sanitize-and-render approach DocumentContent.vue uses for the full document body —
 // showing the full formatted content (not a stripped/truncated plain-text summary) means the
 // preview needs the same HTML rendering, not just text.
-const sanitizedContent = computed(() => DOMPurify.sanitize(props.content ?? '') || '<p>No description provided.</p>');
+const sanitizedContent = computed(
+    () =>
+        DOMPurify.sanitize(props.content ?? '') ||
+        '<p>No description provided.</p>',
+);
 </script>
 
 <template>
     <div class="space-y-3">
-        <p class="text-sm leading-snug font-bold text-slate-900 dark:text-white">{{ name }}</p>
-        <div class="preview-content max-h-80 overflow-y-auto text-xs leading-relaxed text-slate-600 dark:text-slate-400" v-html="sanitizedContent"></div>
-        <Button size="sm" class="h-8 w-full text-[10px] font-black tracking-widest uppercase" @click="emit('open')">
-            Go to {{ goToLabel }}
-            <ArrowUpRight class="ml-1 h-3.5 w-3.5" />
-        </Button>
+        <p
+            class="text-sm leading-snug font-bold text-slate-900 dark:text-white"
+        >
+            {{ name }}
+        </p>
+        <div
+            class="preview-content max-h-80 overflow-y-auto text-xs leading-relaxed text-slate-600 dark:text-slate-400"
+            v-html="sanitizedContent"
+        ></div>
     </div>
 </template>
 

@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import DocumentPreviewCard from '@/components/documents/DocumentPreviewCard.vue';
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import TaskRowContent from '@/components/documents/TaskRowContent.vue';
-import DocumentPreviewCard from '@/components/documents/DocumentPreviewCard.vue';
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
-import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
+import {
+    Popover,
+    PopoverAnchor,
+    PopoverContent,
+} from '@/components/ui/popover';
 import { useDocumentActions } from '@/composables/useDocumentActions';
-import { Link, usePage, type InertiaForm } from '@inertiajs/vue3';
-import { show as showDocument } from '@/routes/projects/documents';
-import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
-import DOMPurify from 'dompurify';
-import { CheckCircle2, CornerUpLeft, CornerDownRight } from 'lucide-vue-next';
+import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
+import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
+import { show as showDocument } from '@/routes/projects/documents';
+import { Link, usePage, type InertiaForm } from '@inertiajs/vue3';
+import DOMPurify from 'dompurify';
+import { CheckCircle2, CornerDownRight, CornerUpLeft } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 // The partial metadata interface for the "View" mode section
 interface DocumentMetadata {
@@ -31,7 +35,12 @@ const emit = defineEmits<{
     (e: 'submit'): void;
     (e: 'cancel'): void;
     (e: 'update:isUploading', value: boolean): void;
-    (e: 'update-child-task', id: string | number, field: string, value: any): void;
+    (
+        e: 'update-child-task',
+        id: string | number,
+        field: string,
+        value: any,
+    ): void;
 }>();
 
 const { navigateToDetails } = useDocumentActions({ project: props.project });
@@ -50,7 +59,10 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
 // land on always returns to the literal previous page, whether that's this document or,
 // several hops earlier, a project tab.
 const documentUrl = (documentId: string | number) => {
-    const baseUrl = showDocument({ project: props.item.project_id, document: String(documentId) }).url;
+    const baseUrl = showDocument({
+        project: props.item.project_id,
+        document: String(documentId),
+    }).url;
     const from = new URL(window.location.href);
     from.searchParams.delete('from');
     return `${baseUrl}?from=${encodeURIComponent(from.toString())}`;
@@ -84,17 +96,25 @@ const childTaskList = computed(() => {
 // password) — mirrors the assignee picker in DocumentSidebar.vue/KanbanCard.vue, which
 // already merges the two via the same `inv:` id convention.
 const mentionableUsers = computed(() =>
-    mergeMentionableUsers(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
+    mergeMentionableUsers(
+        props.project.client?.organization?.users,
+        props.project.client?.organization?.invitations,
+    ),
 );
 
 // Same merged users+invitations list the document assignee picker itself uses — feeds the
 // "Generated Tasks" rows' assignee field (see TaskRowContent.vue).
 const assigneeOptions = computed(() =>
-    mergeAssigneeOptions(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
+    mergeAssigneeOptions(
+        props.project.client?.organization?.users,
+        props.project.client?.organization?.invitations,
+    ),
 );
 
 const page = usePage();
-const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
+const usesExternalDueDates = computed(
+    () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
+);
 
 // A single active id (not one ref per row) since every row here is a `v-for` iteration inside
 // this one component instance, not a separate component instance the way TraceabilityRow.vue's
@@ -136,7 +156,7 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                 <Link
                     v-if="item.parent"
                     :href="documentUrl(item.parent.id)"
-                    class="mb-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                    class="mb-4 inline-flex items-center gap-1.5 text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
                 >
                     <CornerUpLeft class="h-3 w-3" />
                     View Source {{ getDocLabel(item.parent.type) }}
@@ -144,7 +164,7 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                 <Link
                     v-if="isTranscription && singleChild"
                     :href="documentUrl(singleChild.id)"
-                    class="mb-4 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                    class="mb-4 inline-flex items-center gap-1.5 text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
                 >
                     <CornerDownRight class="h-3 w-3" />
                     View Generated {{ getDocLabel(singleChild.type) }}
@@ -191,7 +211,7 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
             <section v-if="singleChild && !isTranscription">
                 <Link
                     :href="documentUrl(singleChild.id)"
-                    class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                    class="inline-flex items-center gap-1.5 text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
                 >
                     <CornerDownRight class="h-3 w-3" />
                     View Generated {{ getDocLabel(singleChild.type) }}
@@ -210,29 +230,59 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                         v-for="(child, index) in childTaskList"
                         :key="child.id"
                         :open="openPreviewId === child.id"
-                        @update:open="(open) => handlePreviewOpenChange(child.id, open)"
+                        @update:open="
+                            (open) => handlePreviewOpenChange(child.id, open)
+                        "
                     >
                         <PopoverAnchor as-child>
                             <div
-                                class="group relative flex items-center gap-2.5 min-h-9 pr-2 rounded-md transition-colors"
-                                :class="index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : ''"
+                                class="group relative flex min-h-9 items-center gap-2.5 rounded-md pr-2 transition-colors"
+                                :class="
+                                    index % 2 === 1
+                                        ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                                        : ''
+                                "
                             >
                                 <TaskRowContent
                                     :doc="child"
                                     :columns="project.kanban_columns ?? []"
                                     :assignee-options="assigneeOptions"
-                                    :uses-external-due-dates="usesExternalDueDates"
+                                    :uses-external-due-dates="
+                                        usesExternalDueDates
+                                    "
                                     :read-only="project.inactive"
-                                    @update="(field, val) => emit('update-child-task', child.id, field, val)"
+                                    @update="
+                                        (field, val) =>
+                                            emit(
+                                                'update-child-task',
+                                                child.id,
+                                                field,
+                                                val,
+                                            )
+                                    "
+                                    @navigate="
+                                        navigateToDetails(
+                                            child.project_id,
+                                            child.id,
+                                        )
+                                    "
+                                    @hover-preview="
+                                        (hovering) =>
+                                            handlePreviewOpenChange(
+                                                child.id,
+                                                hovering,
+                                            )
+                                    "
                                 />
                             </div>
                         </PopoverAnchor>
-                        <PopoverContent class="w-(--reka-popper-anchor-width) p-4" align="end">
+                        <PopoverContent
+                            class="w-(--reka-popper-anchor-width) p-4"
+                            align="end"
+                        >
                             <DocumentPreviewCard
                                 :name="child.name"
                                 :content="child.content"
-                                :go-to-label="getDocLabel(child.type)"
-                                @open="navigateToDetails(child.project_id, child.id)"
                             />
                         </PopoverContent>
                     </Popover>
