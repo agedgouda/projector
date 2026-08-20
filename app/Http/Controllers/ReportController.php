@@ -125,9 +125,9 @@ class ReportController extends Controller
             'usesExternalDueDates' => (bool) $organization?->uses_external_due_dates,
             'hasSubprojects' => count($projectNames) > 1,
             'projectNames' => $projectNames,
-            'logoPath' => $project->getFirstMedia('logo')?->getPath('preview'),
-            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath('preview'),
-            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath('preview'),
+            'logoPath' => $project->getFirstMedia('logo')?->getPath(),
+            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath(),
+            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath(),
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download(Str::slug($project->name).'-task-report.pdf');

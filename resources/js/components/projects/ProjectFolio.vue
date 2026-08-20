@@ -65,7 +65,10 @@ const executeDelete = () => {
     >
 
         <div class="flex items-center gap-4 min-w-0">
-            <div class="h-9 w-9 shrink-0 rounded-lg bg-slate-50 dark:bg-zinc-800 flex items-center justify-center border border-slate-100 dark:border-zinc-700 shadow-sm overflow-hidden">
+            <div
+                class="h-9 w-9 shrink-0 rounded-lg flex items-center justify-center border border-slate-100 dark:border-zinc-700 shadow-sm overflow-hidden"
+                :class="project.logo_url ? 'bg-white' : 'bg-slate-50 dark:bg-zinc-800'"
+            >
                 <img v-if="project.logo_url" :src="project.logo_url" :alt="project.name" class="size-full object-contain" />
                 <Files v-else class="w-4 h-4 text-gray-400" />
             </div>

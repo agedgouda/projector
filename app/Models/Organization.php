@@ -11,7 +11,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property-read int $users_count
@@ -311,21 +310,21 @@ class Organization extends Model implements HasMedia
 
     public function getLogoUrlAttribute(): ?string
     {
-        $url = $this->getFirstMediaUrl('logo', 'preview');
+        $url = $this->getFirstMediaUrl('logo');
 
         return $url !== '' ? $url : null;
     }
 
     public function getPdfHeaderUrlAttribute(): ?string
     {
-        $url = $this->getFirstMediaUrl('pdf_header', 'preview');
+        $url = $this->getFirstMediaUrl('pdf_header');
 
         return $url !== '' ? $url : null;
     }
 
     public function getPdfFooterUrlAttribute(): ?string
     {
-        $url = $this->getFirstMediaUrl('pdf_footer', 'preview');
+        $url = $this->getFirstMediaUrl('pdf_footer');
 
         return $url !== '' ? $url : null;
     }
@@ -343,19 +342,6 @@ class Organization extends Model implements HasMedia
         $this->addMediaCollection('pdf_footer')
             ->singleFile()
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-    }
-
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('thumb')
-            ->nonQueued()
-            ->width(150)
-            ->height(150);
-
-        $this->addMediaConversion('preview')
-            ->nonQueued()
-            ->width(400)
-            ->height(400);
     }
 
     /* --- Relationships --- */

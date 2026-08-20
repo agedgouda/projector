@@ -368,9 +368,9 @@ class ProjectController extends Controller
             'client' => $project->client,
             'month' => $grid,
             'usesExternalDueDates' => $usesExternalDueDates,
-            'logoPath' => $project->getFirstMedia('logo')?->getPath('preview'),
-            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath('preview'),
-            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath('preview'),
+            'logoPath' => $project->getFirstMedia('logo')?->getPath(),
+            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath(),
+            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath(),
         ])->setPaper('a4', 'landscape');
 
         $filename = Str::slug($project->name).'-calendar-'.$month->format('Y-m');

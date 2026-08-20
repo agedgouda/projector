@@ -59,7 +59,10 @@ const displayUrl = computed(() => previewUrl.value ?? props.currentLogoUrl);
         <Label>{{ label ?? 'Logo' }}</Label>
 
         <div class="flex items-center gap-4">
-            <div class="size-20 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0">
+            <div
+                class="size-20 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0"
+                :class="displayUrl ? 'bg-white' : 'bg-gray-50 dark:bg-gray-800'"
+            >
                 <img
                     v-if="displayUrl"
                     :src="displayUrl"

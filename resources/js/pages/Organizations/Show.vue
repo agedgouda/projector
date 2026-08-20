@@ -220,7 +220,7 @@ const submitInvite = (orgId: string) => {
             </div>
 
             <div class="flex items-center gap-4">
-                <div v-if="currentOrg.logo_url" class="size-16 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 overflow-hidden shrink-0">
+                <div v-if="currentOrg.logo_url" class="size-16 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white overflow-hidden shrink-0">
                     <img :src="currentOrg.logo_url" :alt="currentOrg.name" class="size-full object-contain" />
                 </div>
                 <div v-else class="size-16 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 flex items-center justify-center shrink-0">

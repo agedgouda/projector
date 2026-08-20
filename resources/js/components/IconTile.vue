@@ -34,7 +34,10 @@ const toneClasses: Record<string, string> = {
 const tileClasses = computed(() => [
     'flex items-center justify-center overflow-hidden shrink-0',
     sizeClasses[props.size],
-    toneClasses[props.tone],
+    // An uploaded image always sits on a white background, regardless of tone or dark mode —
+    // logos are arbitrary uploads that may have transparency, and a dark tile behind a
+    // transparent PNG reads as a rendering bug. The tone colors only apply to the icon fallback.
+    props.src ? 'bg-white' : toneClasses[props.tone],
 ]);
 
 const iconClasses = computed(() => iconSizeClasses[props.size]);

@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property Organization|null $organization
@@ -45,7 +44,7 @@ class Client extends Model implements HasMedia
 
     public function getLogoUrlAttribute(): ?string
     {
-        $url = $this->getFirstMediaUrl('logo', 'preview');
+        $url = $this->getFirstMediaUrl('logo');
 
         return $url !== '' ? $url : null;
     }
@@ -55,19 +54,6 @@ class Client extends Model implements HasMedia
         $this->addMediaCollection('logo')
             ->singleFile()
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-    }
-
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('thumb')
-            ->nonQueued()
-            ->width(150)
-            ->height(150);
-
-        $this->addMediaConversion('preview')
-            ->nonQueued()
-            ->width(400)
-            ->height(400);
     }
 
     /**

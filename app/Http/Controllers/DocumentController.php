@@ -135,9 +135,9 @@ class DocumentController extends Controller
             'project' => $project,
             'client' => $project->client,
             'typeLabel' => $typeLabel,
-            'logoPath' => $project->getFirstMedia('logo')?->getPath('preview'),
-            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath('preview'),
-            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath('preview'),
+            'logoPath' => $project->getFirstMedia('logo')?->getPath(),
+            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath(),
+            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath(),
         ]);
 
         $filename = is_string($document->name) ? Str::slug($document->name) : 'document';
