@@ -1,33 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import { onKeyStroke } from '@vueuse/core';
-import axios from 'axios';
 import { Coffee } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
-import { toast } from 'vue-sonner';
-
 import AppLayout from '@/layouts/AppLayout.vue';
+import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue';
+import projectRoutes from '@/routes/projects/index';
 
-import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
-import { useAiProcessing } from '@/composables/useAiProcessing';
-import { useWorkflow } from '@/composables/useWorkflow';
-import {
-    redirectIfLoggedOut,
-    redirectIfSessionExpiredError,
-} from '@/lib/sessionExpiry';
-
-// UI Components
-import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
-import AiProgressBar from '@/components/AiProgressBar.vue';
-import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
-import KanbanBoard2 from '@/components/projects/KanbanBoard2.vue';
-
-// Demo of dashboard redesign "option 2": each project collapses into a summary row (name +
-// per-column counts + View Project link) instead of always showing its full board, expanding
-// only on click. Otherwise an exact copy of Dashboard/Index.vue's logic — same controller data
-// shape (DashboardController::demo() mirrors index()), same composables — only the rendering
-// (KanbanBoard2/KanbanRowCollapsible) differs, so this stays a fair side-by-side comparison
-// rather than a redesign of the data itself.
+// Demo of dashboard redesign "option 2", now iterated to: one card per project/subproject
+// family, each starting collapsed to just its combined pie chart of not-done tasks — expanding
+// (ProjectSummaryCard.vue's own local state) reveals the per-subproject breakdown and both
+// deliverable lists in place, instead of a kanban board or a trip to the full project page.
+// Design iteration in progress per the user's request — not yet verified with
+// tests/typecheck/browser, intentionally, until the design settles.
 const props = defineProps<{
     projects: Project[];
     kanbanData: Record<string, ProjectDocument[]>;
@@ -36,96 +20,7 @@ const props = defineProps<{
     canViewProjectDetails: boolean;
 }>();
 
-const page = usePage<{ flash?: { success?: string; error?: string } }>();
-
-onMounted(() => {
-    const flash = page.props.flash;
-    if (flash?.success) toast.success(flash.success);
-    if (flash?.error) toast.error(flash.error);
-});
-
-watch(
-    () => page.props.flash,
-    (flash) => {
-        if (flash?.success) toast.success(flash.success);
-        if (flash?.error) toast.error(flash.error);
-    },
-    { deep: true },
-);
-
-// --- 1. KANBAN BASE LOGIC ---
-const {
-    selectedDocument,
-    isSheetOpen,
-    handleCreateNew,
-    getTasksByRowAndStatus,
-    updateAttribute,
-    onDragChange,
-    openDetail,
-    searchQuery,
-    selectedPriorities,
-    sortBy,
-    applyLocalUpdate,
-    removeLocalDocuments,
-    localKanbanData,
-} = useKanbanBoard(props);
-
-const workflowRows = computed(() =>
-    Object.keys(props.kanbanData).map((projectId) => {
-        const project = props.projects.find((p) => p.id === projectId);
-        return {
-            key: projectId,
-            label: project?.name ?? projectId,
-            is_task: true,
-            columns: project?.kanban_columns ?? [],
-        };
-    }),
-);
-
-const targetBeingCreated = ref<string | null>(null);
-
-const allDocs = computed(() => {
-    return Object.values(localKanbanData.value).flat() as ProjectDocument[];
-});
-
-// --- 2. AI PROCESSING — one listener per project, aggregated state ---
-const aiInstances = props.projects.map((project) =>
-    useAiProcessing(
-        project.id,
-        allDocs,
-        targetBeingCreated,
-        (incomingDoc: any) => {
-            applyLocalUpdate(incomingDoc.id, incomingDoc);
-        },
-        () => {
-            toast.success('Project Synced', {
-                description: 'AI processing task completed.',
-            });
-        },
-        (errorMessage) => {
-            toast.error('AI Sync Error', { description: errorMessage });
-        },
-        removeLocalDocuments,
-        ['kanbanData'],
-    ),
-);
-
-const isAiProcessing = computed(() =>
-    aiInstances.some((i) => i.isAiProcessing.value),
-);
-const aiProgress = computed(() =>
-    Math.max(0, ...aiInstances.map((i) => i.aiProgress.value)),
-);
-const aiStatusMessage = computed(
-    () =>
-        aiInstances.find((i) => i.aiStatusMessage.value)?.aiStatusMessage
-            .value ?? '',
-);
-
-// --- 3. UI METHODS & BREADCRUMBS ---
-onKeyStroke('Escape', () => {
-    searchQuery.value = '';
-});
+const currentUserId = usePage<{ auth: { user: { id: number } | null } }>().props.auth.user?.id ?? null;
 
 const breadcrumbs = computed(() => [
     {
@@ -136,99 +31,115 @@ const breadcrumbs = computed(() => [
     },
 ]);
 
-// Whether there's at least one project row to render — not whether any task within it
-// currently matches the search/priority filter. Columns should stay visible (and editable)
-// even when empty, rather than the whole board disappearing behind a "no results" state.
-const hasRows = computed(() => workflowRows.value.length > 0);
-
-// Reprocess: look up the doc's project inline — no currentProject needed
-const handleReprocess = async (id: string | number) => {
-    const doc = allDocs.value.find((d) => d.id.toString() === id.toString());
-    if (!doc) return;
-
-    if (!confirm('Are you sure you want to generate the next workflow step?'))
-        return;
-
-    isSheetOpen.value = false;
-
-    try {
-        const response = await axios.post(
-            `/projects/${doc.project_id}/documents/${doc.id}/reprocess`,
-        );
-        if (redirectIfLoggedOut(response)) return;
-    } catch (error) {
-        if (redirectIfSessionExpiredError(error)) return;
-
-        toast.error('Failed to start reprocessing.');
-    }
+// Kanban column colors are Tailwind color names (see KanbanColumn::defaultDefinitions()) —
+// the pie chart needs real CSS colors for its conic-gradient, so this maps the same palette
+// kanbanDotClasses (lib/constants.ts) uses for its dots.
+const COLUMN_HEX: Record<string, string> = {
+    slate: '#94a3b8',
+    red: '#ef4444',
+    amber: '#fbbf24',
+    emerald: '#10b981',
+    blue: '#3b82f6',
+    purple: '#a855f7',
+    pink: '#ec4899',
+    orange: '#f97316',
+    indigo: '#6366f1',
+    teal: '#14b8a6',
 };
 
-const handleTransition = async (
-    id: string | number,
-    payload: {
-        toKey?: string;
-        aiTemplateId: number;
-        singleOutput?: boolean;
-        projectTypeId?: string;
-    },
-) => {
-    const doc = allDocs.value.find((d) => d.id.toString() === id.toString());
-    if (!doc) return;
+interface Family {
+    key: string;
+    label: string;
+    members: Project[];
+}
 
-    isSheetOpen.value = false;
+// A "family" is a top-level project plus its direct children — mirrors Project::familyRoot()/
+// familyProjectIds() on the backend. A project whose parent isn't in this org's project list
+// (shouldn't normally happen) is treated as its own top-level family rather than dropped.
+const families = computed<Family[]>(() => {
+    const byId = new Map(props.projects.map((p) => [p.id, p]));
+    const tops = props.projects.filter((p) => !p.parent_id || !byId.has(p.parent_id));
 
-    try {
-        const response = await axios.post(
-            `/projects/${doc.project_id}/documents/${doc.id}/transition`,
-            {
-                to_key: payload.toKey,
-                ai_template_id: payload.aiTemplateId,
-                single_output: payload.singleOutput,
-                project_type_id: payload.projectTypeId,
-            },
-        );
-        if (redirectIfLoggedOut(response)) return;
-    } catch (error) {
-        if (redirectIfSessionExpiredError(error)) return;
-
-        toast.error('Failed to start transition.');
-    }
-};
-
-// Reprocessable types based on the selected document's project
-const selectedDocumentProject = computed(
-    () =>
-        props.projects.find(
-            (p) => p.id === (selectedDocument.value as any)?.project_id,
-        ) ?? null,
-);
-const { reprocessableTypes } = useWorkflow();
-
-const aiProcessedParentIds = computed(() => {
-    const ids = new Set<string>();
-    const docs = selectedDocumentProject.value?.documents ?? [];
-    docs.forEach((d: ProjectDocument) => {
-        if (d.parent_id) ids.add(d.parent_id);
-    });
-    return ids;
+    return tops.map((top) => ({
+        key: top.id,
+        label: top.name,
+        members: [top, ...props.projects.filter((p) => p.parent_id === top.id)],
+    }));
 });
+
+// Not-yet-done tasks (task_status !== 'done'), broken down by status, across one or more
+// projects — used both for a single project's own pie and for a whole family's combined pie.
+// Segments are keyed by column key so two subprojects with matching columns (the normal case —
+// see Project::hasMatchingKanbanColumns()) merge into one slice instead of duplicating.
+function statusBreakdown(members: Project[]) {
+    const byKey = new Map<string, { label: string; color: string; count: number }>();
+
+    for (const member of members) {
+        for (const column of member.kanban_columns ?? []) {
+            if (column.key === 'done') continue;
+            if (!byKey.has(column.key)) {
+                byKey.set(column.key, { label: column.label, color: COLUMN_HEX[column.color ?? 'slate'] ?? '#94a3b8', count: 0 });
+            }
+        }
+    }
+
+    for (const member of members) {
+        for (const task of props.kanbanData[member.id] ?? []) {
+            if (task.task_status === 'done') continue;
+            const entry = byKey.get(task.task_status);
+            if (entry) {
+                entry.count += 1;
+            } else {
+                byKey.set(task.task_status, { label: task.task_status, color: '#94a3b8', count: 1 });
+            }
+        }
+    }
+
+    return Array.from(byKey.values());
+}
+
+function allDeliverables(members: Project[]) {
+    return members.flatMap((member) => props.kanbanData[member.id] ?? []);
+}
+
+// No year — these cards are narrow (3-up grid), and the fixed-width date column was eating so
+// much room that task names were truncating down to a handful of characters. Dropping the year
+// (due dates here are always near-term) reclaims that space for the name, which is the part
+// someone's actually trying to read.
+function formatDate(value: string | null) {
+    if (!value) return '—';
+    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function upcomingDeliverables(members: Project[], limit = 6) {
+    return allDeliverables(members)
+        .filter((task) => task.due_at && task.task_status !== 'done')
+        .sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime())
+        .slice(0, limit)
+        .map((task) => ({ id: task.id, name: task.name, dueLabel: formatDate(task.due_at) }));
+}
+
+// Not-done tasks assigned to the logged-in user, across a family — replaces a flat "every
+// task" list, which was more of a raw data dump than something actually useful to look at.
+function yourDeliverables(members: Project[]) {
+    return allDeliverables(members)
+        .filter((task) => task.assignee_id === currentUserId && task.task_status !== 'done')
+        .map((task) => ({ id: task.id, name: task.name, dueLabel: formatDate(task.due_at) }));
+}
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="w-full space-y-8 p-6">
+        <div class="w-full space-y-12 p-6">
             <div
                 class="rounded-xl border border-dashed border-projector-primary-300 bg-projector-primary-50/50 px-4 py-2 text-[11px] font-bold text-projector-primary-700 dark:border-projector-primary-800 dark:bg-projector-primary-950/30 dark:text-projector-primary-300"
             >
-                Demo page — each project starts collapsed to a summary row;
-                click a row to expand its full board. Not linked from
-                navigation.
+                Demo page — one section per project/subproject family: a combined pie chart of
+                not-done tasks, one broken out per subproject, then upcoming and full deliverable
+                lists. Not linked from navigation.
             </div>
 
-            <div
-                v-if="!projects.length"
-                class="flex min-h-[40vh] flex-col items-center justify-center"
-            >
+            <div v-if="!projects.length" class="flex min-h-[40vh] flex-col items-center justify-center">
                 <div class="mb-4 rounded-full bg-gray-100 p-4">
                     <Coffee class="h-12 w-12 text-gray-400" />
                 </div>
@@ -238,57 +149,30 @@ const aiProcessedParentIds = computed(() => {
                 </p>
             </div>
 
-            <template v-else>
-                <AiProgressBar
-                    :is-processing="isAiProcessing"
-                    :progress="aiProgress"
-                />
-
-                <AiProcessingHeader
-                    :is-processing="isAiProcessing"
-                    :progress="aiProgress"
-                    :message="aiStatusMessage"
-                />
-
-                <KanbanBoard2
-                    v-model:searchQuery="searchQuery"
-                    v-model:selectedPriorities="selectedPriorities"
-                    v-model:sortBy="sortBy"
-                    :has-rows="hasRows"
-                    :workflow-rows="workflowRows"
-                    :get-tasks-by-row-and-status="getTasksByRowAndStatus"
-                    :on-drag-change="onDragChange"
-                    :open-detail="openDetail"
-                    :handle-create-new="handleCreateNew"
-                    :update-attribute="
-                        (docId, field, val) =>
-                            updateAttribute(
-                                docId,
-                                { [field]: val },
-                                'Changes saved',
-                            )
+            <!-- Grid of project cards, not one full-width section per project — lets several
+                 projects show at once instead of everyone scrolling past one giant section per
+                 project. Collapsed cards are compact (3 per row on wide screens); an expanded
+                 card spans 2 columns (see ProjectSummaryCard.vue's own col-span classes) so it
+                 gets the extra width its deliverable list needs without permanently widening
+                 every other still-collapsed card. items-start keeps a row's shorter cards from
+                 stretching to match a row-mate that's expanded taller. -->
+            <div class="grid grid-cols-1 items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <ProjectSummaryCard
+                    v-for="family in families"
+                    :key="family.key"
+                    :label="family.label"
+                    :view-project-url="canViewProjectDetails ? projectRoutes.show.url(family.key, { query: { tab: 'tasks' } }) : null"
+                    :all-title="family.members.length > 1 ? 'All' : undefined"
+                    :all-segments="statusBreakdown(family.members)"
+                    :member-breakdowns="
+                        family.members.length > 1
+                            ? family.members.map((member) => ({ title: member.name, segments: statusBreakdown([member]) }))
+                            : []
                     "
-                    :can-view-project-details="canViewProjectDetails"
+                    :upcoming="upcomingDeliverables(family.members)"
+                    :yours="yourDeliverables(family.members)"
                 />
-            </template>
+            </div>
         </div>
-
-        <DocumentDetailSheet
-            v-if="selectedDocument"
-            :reprocessable-types="reprocessableTypes"
-            :ai-processed-parent-ids="aiProcessedParentIds"
-            v-model:open="isSheetOpen"
-            :document="selectedDocument as ProjectDocument"
-            @handle-reprocess="handleReprocess"
-            @handle-transition="handleTransition"
-            @update-attribute="
-                (attr, val) =>
-                    updateAttribute(
-                        selectedDocument!.id,
-                        { [attr]: val },
-                        'Changes saved',
-                    )
-            "
-        />
     </AppLayout>
 </template>
