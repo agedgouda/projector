@@ -29,12 +29,14 @@ class ProjectCollection extends Collection
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'kanbanColumns',
+            'categories',
+            'parent.categories',
             'tasks' => fn ($q) => $q->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
             'documents' => fn ($q) => $q->with([
-                'creator', 'editor', 'assignee',
+                'creator', 'editor', 'assignee', 'category',
                 'tasks' => fn ($t) => $t->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
             ])->orderBy('created_at', 'desc'),
-        ]);
+        ])->each(fn (\App\Models\Project $p) => $p->withResolvedFamilyCategories());
     }
 
     /**
@@ -50,16 +52,18 @@ class ProjectCollection extends Collection
             'client.organization.users',
             'client.organization.invitations',
             'kanbanColumns',
+            'categories',
+            'parent.categories',
             'documents' => function ($q) {
-                $q->with(['assignee', 'creator'])->withExists('lockedNextWorkflowStep')->latest();
+                $q->with(['assignee', 'creator', 'category'])->withExists('lockedNextWorkflowStep')->latest();
             },
             // Same shape as documents — getKanbanDocuments() (via asKanbanData() below)
             // renders both together, plus project:id,name for each linked card's
             // home_project_name.
             'linkedDocuments' => function ($q) {
-                $q->with(['assignee', 'creator', 'project:id,name'])->withExists('lockedNextWorkflowStep');
+                $q->with(['assignee', 'creator', 'category', 'project:id,name'])->withExists('lockedNextWorkflowStep');
             },
-        ]);
+        ])->each(fn (\App\Models\Project $p) => $p->withResolvedFamilyCategories());
     }
 
     public function findCurrent(?string $id)

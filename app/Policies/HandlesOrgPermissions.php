@@ -53,6 +53,23 @@ trait HandlesOrgPermissions
             ->exists();
     }
 
+    /**
+     * @see isOrgMember() — same resource-org-over-active-org rule applies here.
+     */
+    protected function isOrgAdminOrProjectLead(User $user, $model = null): bool
+    {
+        $targetTeamId = $this->resolveTargetTeamId($model);
+
+        if (! $targetTeamId) {
+            return false;
+        }
+
+        return $user->organizations()
+            ->where('organizations.id', $targetTeamId)
+            ->wherePivotIn('role', ['org-admin', 'project-lead'])
+            ->exists();
+    }
+
     private function resolveTargetTeamId($model = null)
     {
         if (! $model) {

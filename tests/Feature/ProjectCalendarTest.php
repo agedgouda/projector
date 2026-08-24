@@ -71,6 +71,35 @@ it('includes a dated document from a direct sub-project, tagged as a sub-project
         ->and($items->first()['project_name'])->toBe('Sub Project');
 });
 
+it('exposes start_at on a calendar item that has one set', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Spanning Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'start_at' => '2026-09-01',
+        'due_at' => '2026-09-05',
+    ]);
+
+    $items = $this->project->fresh()->load(['documents', 'children.documents'])->calendarItems();
+
+    expect($items->first()['start_at'])->toStartWith('2026-09-01');
+});
+
+it('exposes a null start_at on a calendar item that has none set', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Own Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    $items = $this->project->fresh()->load(['documents', 'children.documents'])->calendarItems();
+
+    expect($items->first()['start_at'])->toBeNull();
+});
+
 it('excludes documents with no due date set at all', function () {
     Document::create([
         'project_id' => $this->project->id,

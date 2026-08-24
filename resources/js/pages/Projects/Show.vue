@@ -76,6 +76,8 @@ const {
     searchQuery,
     selectedPriorities,
     sortBy,
+    availableTags,
+    excludedTagIds,
     applyLocalUpdate,
     removeLocalDocuments,
     localKanbanData,
@@ -512,6 +514,8 @@ watch(
                     v-model:searchQuery="searchQuery"
                     v-model:selectedPriorities="selectedPriorities"
                     v-model:sortBy="sortBy"
+                    v-model:excludedTagIds="excludedTagIds"
+                    :available-tags="availableTags"
                     :current-project="currentProject"
                     :has-rows="hasRows"
                     :workflow-rows="workflowRows"

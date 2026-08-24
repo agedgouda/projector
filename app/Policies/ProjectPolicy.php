@@ -37,4 +37,9 @@ class ProjectPolicy
     {
         return $this->isOrgAdmin($user, $project);
     }
+
+    public function manageCategories(User $user, Project $project): bool
+    {
+        return $this->isOrgAdminOrProjectLead($user, $project);
+    }
 }

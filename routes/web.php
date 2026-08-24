@@ -3,6 +3,7 @@
 use App\Http\Controllers\AiTemplateController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\BugReportController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientLogoController;
 use App\Http\Controllers\CommentController;
@@ -346,6 +347,15 @@ Route::middleware(['auth'])->group(function () {
                 ->name('kanban-columns.update');
             Route::delete('/kanban-columns/{kanbanColumn}', [KanbanColumnController::class, 'destroy'])
                 ->name('kanban-columns.destroy');
+
+            Route::get('/categories', [CategoryController::class, 'index'])
+                ->name('categories.index');
+            Route::post('/categories', [CategoryController::class, 'store'])
+                ->name('categories.store');
+            Route::patch('/categories/{category}', [CategoryController::class, 'update'])
+                ->name('categories.update');
+            Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])
+                ->name('categories.destroy');
 
             Route::get('/transcripts', [MeetingTranscriptController::class, 'index'])
                 ->name('transcripts.index');

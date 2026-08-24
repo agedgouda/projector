@@ -131,13 +131,15 @@ class ProjectController extends Controller
         // together) plus project:id,name, needed there for each linked card's
         // home_project_name.
         $project->load([
-            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name'])->withExists('lockedNextWorkflowStep')->latest(),
-            'linkedDocuments' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'project:id,name'])->withExists('lockedNextWorkflowStep'),
+            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'category'])->withExists('lockedNextWorkflowStep')->latest(),
+            'linkedDocuments' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'category', 'project:id,name'])->withExists('lockedNextWorkflowStep'),
             'media',
             'parent.media',
+            'parent.categories',
             'lifecycleTemplate.lifecycleSteps',
             'currentLifecycleStep',
             'kanbanColumns',
+            'categories',
             'children.documents',
             // Populates the assignee filter on the Reports tab's task search form
             // (see resources/js/components/reports/TaskSearchForm.vue) — same
@@ -145,6 +147,7 @@ class ProjectController extends Controller
             'client.organization.users',
             'client.organization.invitations',
         ]);
+        $project->withResolvedFamilyCategories();
 
         $kanbanData = [(string) $project->id => $project->getKanbanDocuments()];
 

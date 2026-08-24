@@ -1,23 +1,39 @@
 <script setup lang="ts">
-import { formatDate } from '@/lib/utils';
-import { computed, onMounted, ref } from 'vue';
-import axios from 'axios';
-import { toast } from 'vue-sonner';
-import { PRIORITY_LABELS } from '@/lib/constants';
+import {
+    exportGoogleDoc,
+    exportPdf,
+    exportWord,
+} from '@/actions/App/Http/Controllers/DocumentController';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue
+    SelectValue,
 } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MultiSelect } from '@/components/ui/multi-select';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, FileDown, FileType, FileStack, Calendar as CalendarIcon, ArrowRightLeft } from 'lucide-vue-next';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
-import { exportPdf, exportWord, exportGoogleDoc } from '@/actions/App/Http/Controllers/DocumentController';
 import { mergeAssigneeOptions } from '@/lib/assignees';
+import { PRIORITY_LABELS, kanbanDotClasses } from '@/lib/constants';
+import { formatDate } from '@/lib/utils';
+import axios from 'axios';
+import {
+    ArrowRightLeft,
+    Calendar as CalendarIcon,
+    FileDown,
+    FileStack,
+    FileType,
+    RefreshCw,
+} from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 const props = defineProps<{
     project: Project;
@@ -47,7 +63,9 @@ const { getDocLabel, isTask } = useDocumentPresenter(props.documentTypeCatalog);
 const shouldShowTask = computed(() => isTask(props.item.type));
 const hasOtherBoards = computed(() => (props.boardOptions?.length ?? 0) > 0);
 
-const linkedProjectIds = computed(() => (props.item.linked_projects ?? []).map((p: BoardOption) => p.id));
+const linkedProjectIds = computed(() =>
+    (props.item.linked_projects ?? []).map((p: BoardOption) => p.id),
+);
 const handleUpdateBoards = (ids: string[]) => emit('update-boards', ids);
 
 const assigneeValue = computed(() => {
@@ -59,12 +77,20 @@ const assigneeValue = computed(() => {
 
 const columns = computed(() => props.project.kanban_columns ?? []);
 
-const boardMultiSelectOptions = computed(() => (props.boardOptions ?? []).map((option) => ({ value: option.id, label: option.name })));
+const boardMultiSelectOptions = computed(() =>
+    (props.boardOptions ?? []).map((option) => ({
+        value: option.id,
+        label: option.name,
+    })),
+);
 
 // Real users and invited people merged into one alphabetically-sorted list, rather than
 // users in their raw (insertion) order followed by a separate invited block.
 const assigneeOptions = computed(() =>
-    mergeAssigneeOptions(props.project.client.organization?.users, props.project.client.organization?.invitations)
+    mergeAssigneeOptions(
+        props.project.client.organization?.users,
+        props.project.client.organization?.invitations,
+    ),
 );
 
 // Unlike PDF/Word (plain <a href> downloads), this hits a JSON endpoint — it needs to branch
@@ -76,28 +102,43 @@ const exportToGoogleDoc = async () => {
 
     try {
         const response = await axios.get<{ url: string }>(
-            exportGoogleDoc({ project: props.project.id, document: String(props.item.id) }).url
+            exportGoogleDoc({
+                project: props.project.id,
+                document: String(props.item.id),
+            }).url,
         );
         window.open(response.data.url, '_blank');
     } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.status === 428 && err.response.data?.connect_url) {
+        if (
+            axios.isAxiosError(err) &&
+            err.response?.status === 428 &&
+            err.response.data?.connect_url
+        ) {
             const returnUrl = new URL(window.location.href);
             returnUrl.searchParams.set('google_export', 'doc');
 
             const connectUrl = new URL(err.response.data.connect_url);
-            connectUrl.searchParams.set('return_to', returnUrl.pathname + returnUrl.search);
+            connectUrl.searchParams.set(
+                'return_to',
+                returnUrl.pathname + returnUrl.search,
+            );
 
             window.location.href = connectUrl.toString();
             return;
         }
-        toast.error('Something went wrong exporting to Google Docs. Please try again.');
+        toast.error(
+            'Something went wrong exporting to Google Docs. Please try again.',
+        );
     } finally {
         exportingToGoogleDoc.value = false;
     }
 };
 
 onMounted(() => {
-    if (new URLSearchParams(window.location.search).get('google_export') === 'doc') {
+    if (
+        new URLSearchParams(window.location.search).get('google_export') ===
+        'doc'
+    ) {
         const url = new URL(window.location.href);
         url.searchParams.delete('google_export');
         window.history.replaceState(window.history.state, '', url);
@@ -117,20 +158,29 @@ const formatDateDisplay = (val: string | null | undefined): string => {
     const [year, month, day] = val.split('-');
     return `${month}/${day}/${year}`;
 };
-
 </script>
 
 <template>
     <aside class="col-span-12 lg:col-span-4">
         <div class="sticky top-10 space-y-6">
-            <div class="bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-200 dark:border-white/10 p-8 space-y-8">
+            <div
+                class="space-y-8 rounded-3xl border border-slate-200 bg-slate-50 p-8 dark:border-white/10 dark:bg-white/5"
+            >
                 <div>
-                    <h4 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-500 mb-4">Properties</h4>
+                    <h4
+                        class="mb-4 text-[11px] font-black tracking-[0.2em] text-slate-700 uppercase dark:text-slate-500"
+                    >
+                        Properties
+                    </h4>
 
                     <div class="space-y-3">
-                        <div class="flex items-center justify-between text-[13px]">
+                        <div
+                            class="flex items-center justify-between text-[13px]"
+                        >
                             <span class="text-slate-900">Category</span>
-                            <span class="font-black uppercase tracking-wider text-projector-primary-600 dark:text-projector-primary-400 bg-projector-primary-50 dark:bg-projector-primary-950 px-2 py-0.5 rounded text-[11px] border border-projector-primary-100 dark:border-projector-primary-800">
+                            <span
+                                class="rounded border border-projector-primary-100 bg-projector-primary-50 px-2 py-0.5 text-[11px] font-black tracking-wider text-projector-primary-600 uppercase dark:border-projector-primary-800 dark:bg-projector-primary-950 dark:text-projector-primary-400"
+                            >
                                 {{ getDocLabel(item.type) || 'New Document' }}
                             </span>
                         </div>
@@ -142,117 +192,345 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                             class="w-full"
                             @click="$emit('request-process')"
                         >
-                            {{ processButtonLabel }} {{ getDocLabel(item.type) || 'Document' }}
+                            {{ processButtonLabel }}
+                            {{ getDocLabel(item.type) || 'Document' }}
                         </Button>
 
                         <div
                             v-else-if="isProcessingLive"
-                            class="flex items-center justify-center gap-1.5 w-full h-8 text-[13px] text-projector-primary-600 dark:text-projector-primary-400"
+                            class="flex h-8 w-full items-center justify-center gap-1.5 text-[13px] text-projector-primary-600 dark:text-projector-primary-400"
                         >
-                            <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-                            <span class="animate-pulse">{{ processingMessage || 'Processing...' }}</span>
+                            <RefreshCw class="h-3.5 w-3.5 animate-spin" />
+                            <span class="animate-pulse">{{
+                                processingMessage || 'Processing...'
+                            }}</span>
                         </div>
 
                         <div class="flex flex-col" v-if="shouldShowTask">
-                            <div class="flex justify-between items-center min-h-[24px]">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Assignee</span>
-                                <Select :model-value="assigneeValue" :disabled="project.inactive" @update:model-value="(val) => $emit('change', 'assignee_id', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none disabled:opacity-50 disabled:pointer-events-none">
+                            <div
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Assignee</span
+                                >
+                                <Select
+                                    :model-value="assigneeValue"
+                                    :disabled="project.inactive"
+                                    @update:model-value="
+                                        (val) =>
+                                            $emit('change', 'assignee_id', val)
+                                    "
+                                >
+                                    <SelectTrigger
+                                        class="h-auto w-auto rounded-md border-none bg-transparent p-0 shadow-none transition-all outline-none hover:bg-slate-100 focus:bg-transparent focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 dark:!bg-transparent dark:hover:bg-white/10 dark:focus:bg-transparent"
+                                    >
                                         <div class="px-2 py-1">
-                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px]"><SelectValue /></span>
+                                            <span
+                                                class="relative left-[10px] text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                                ><SelectValue
+                                            /></span>
                                         </div>
                                     </SelectTrigger>
-                                    <SelectContent align="end" class="min-w-[200px]">
-                                        <SelectItem value="unassigned" class="text-[13px] uppercase font-bold text-slate-400">Unassigned</SelectItem>
-                                        <SelectItem v-for="option in assigneeOptions" :key="option.value" :value="option.value" class="text-[13px] uppercase font-bold">{{ option.label }}</SelectItem>
+                                    <SelectContent
+                                        align="end"
+                                        class="min-w-[200px]"
+                                    >
+                                        <SelectItem
+                                            value="unassigned"
+                                            class="text-[13px] font-bold text-slate-400 uppercase"
+                                            >Unassigned</SelectItem
+                                        >
+                                        <SelectItem
+                                            v-for="option in assigneeOptions"
+                                            :key="option.value"
+                                            :value="option.value"
+                                            class="text-[13px] font-bold uppercase"
+                                            >{{ option.label }}</SelectItem
+                                        >
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            <div class="flex justify-between items-center min-h-[24px]">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">{{ usesExternalDueDates ? 'Internal Due Date' : 'Due Date' }}</span>
-                                <div
-                                    class="relative flex items-center gap-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                                    :class="project.inactive ? 'opacity-50' : ''"
+                            <div
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >{{
+                                        usesExternalDueDates
+                                            ? 'Internal Due Date'
+                                            : 'Due Date'
+                                    }}</span
                                 >
-                                    <span class="font-black uppercase tracking-[0.12em] text-[13px] text-slate-900 dark:text-slate-200 w-[112px] text-right pointer-events-none">
+                                <div
+                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
+                                    :class="
+                                        project.inactive ? 'opacity-50' : ''
+                                    "
+                                >
+                                    <span
+                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                    >
                                         {{ formatDateDisplay(dueAtProxy) }}
                                     </span>
-                                    <CalendarIcon class="w-4 h-4 text-slate-400 shrink-0 pointer-events-none" />
+                                    <CalendarIcon
+                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
+                                    />
                                     <input
                                         type="date"
                                         :value="dueAtProxy"
                                         :disabled="project.inactive"
-                                        @input="$emit('update:dueAtProxy', ($event.target as HTMLInputElement).value)"
+                                        @input="
+                                            $emit(
+                                                'update:dueAtProxy',
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).value,
+                                            )
+                                        "
                                         :class="[
-                                            'custom-date-input absolute inset-0 w-full h-full opacity-0 border-none p-0',
-                                            project.inactive ? 'cursor-default' : 'cursor-pointer'
+                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
+                                            project.inactive
+                                                ? 'cursor-default'
+                                                : 'cursor-pointer',
                                         ]"
                                     />
                                 </div>
                             </div>
 
-                            <div v-if="usesExternalDueDates" class="flex justify-between items-center min-h-[24px]">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">External Due Date</span>
-                                <div
-                                    class="relative flex items-center gap-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                                    :class="project.inactive ? 'opacity-50' : ''"
+                            <div
+                                v-if="usesExternalDueDates"
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >External Due Date</span
                                 >
-                                    <span class="font-black uppercase tracking-[0.12em] text-[13px] text-slate-900 dark:text-slate-200 w-[112px] text-right pointer-events-none">
-                                        {{ formatDateDisplay(item.external_due_at ? item.external_due_at.substring(0, 10) : '') }}
+                                <div
+                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
+                                    :class="
+                                        project.inactive ? 'opacity-50' : ''
+                                    "
+                                >
+                                    <span
+                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                    >
+                                        {{
+                                            formatDateDisplay(
+                                                item.external_due_at
+                                                    ? item.external_due_at.substring(
+                                                          0,
+                                                          10,
+                                                      )
+                                                    : '',
+                                            )
+                                        }}
                                     </span>
-                                    <CalendarIcon class="w-4 h-4 text-slate-400 shrink-0 pointer-events-none" />
+                                    <CalendarIcon
+                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
+                                    />
                                     <input
                                         type="date"
-                                        :value="item.external_due_at ? item.external_due_at.substring(0, 10) : ''"
+                                        :value="
+                                            item.external_due_at
+                                                ? item.external_due_at.substring(
+                                                      0,
+                                                      10,
+                                                  )
+                                                : ''
+                                        "
                                         :disabled="project.inactive"
-                                        @input="$emit('change', 'external_due_at', ($event.target as HTMLInputElement).value)"
+                                        @input="
+                                            $emit(
+                                                'change',
+                                                'external_due_at',
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).value,
+                                            )
+                                        "
                                         :class="[
-                                            'custom-date-input absolute inset-0 w-full h-full opacity-0 border-none p-0',
-                                            project.inactive ? 'cursor-default' : 'cursor-pointer'
+                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
+                                            project.inactive
+                                                ? 'cursor-default'
+                                                : 'cursor-pointer',
                                         ]"
                                     />
                                 </div>
                             </div>
 
-                            <div class="flex justify-between items-center min-h-[24px]">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Priority</span>
-                                <Select :model-value="item.priority" :disabled="project.inactive" @update:model-value="(val) => $emit('change', 'priority', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none disabled:opacity-50 disabled:pointer-events-none">
+                            <div
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Priority</span
+                                >
+                                <Select
+                                    :model-value="item.priority"
+                                    :disabled="project.inactive"
+                                    @update:model-value="
+                                        (val) =>
+                                            $emit('change', 'priority', val)
+                                    "
+                                >
+                                    <SelectTrigger
+                                        class="h-auto w-auto rounded-md border-none bg-transparent p-0 shadow-none transition-all outline-none hover:bg-slate-100 focus:bg-transparent focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 dark:!bg-transparent dark:hover:bg-white/10 dark:focus:bg-transparent"
+                                    >
                                         <div class="px-2 py-1">
-                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
+                                            <span
+                                                class="relative left-[10px] flex items-center text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
                                                 <SelectValue />
                                             </span>
                                         </div>
                                     </SelectTrigger>
-                                    <SelectContent align="end" class="min-w-[160px]">
-                                        <SelectItem v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer focus:bg-slate-100 dark:focus:bg-white/10">
+                                    <SelectContent
+                                        align="end"
+                                        class="min-w-[160px]"
+                                    >
+                                        <SelectItem
+                                            v-for="(
+                                                label, key
+                                            ) in PRIORITY_LABELS"
+                                            :key="key"
+                                            :value="key"
+                                            class="cursor-pointer text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase focus:bg-slate-100 dark:text-slate-200 dark:focus:bg-white/10"
+                                        >
                                             {{ label }}
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            <div class="flex justify-between items-center min-h-[24px]">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Status</span>
-                                <Select :model-value="item.task_status ?? 'todo'" :disabled="project.inactive" @update:model-value="(val) => $emit('change', 'task_status', val)">
-                                    <SelectTrigger class="h-auto p-0 border-none bg-transparent dark:!bg-transparent hover:bg-slate-100 dark:hover:bg-white/10 focus:bg-transparent dark:focus:bg-transparent focus-visible:ring-0 rounded-md transition-all shadow-none w-auto outline-none disabled:opacity-50 disabled:pointer-events-none">
+                            <div
+                                v-if="(project.categories?.length ?? 0) > 0"
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Tag</span
+                                >
+                                <Select
+                                    :model-value="item.category_id ?? 'none'"
+                                    :disabled="project.inactive"
+                                    @update:model-value="
+                                        (val) =>
+                                            $emit(
+                                                'change',
+                                                'category_id',
+                                                val === 'none' ? null : val,
+                                            )
+                                    "
+                                >
+                                    <SelectTrigger
+                                        class="h-auto w-auto rounded-md border-none bg-transparent p-0 shadow-none transition-all outline-none hover:bg-slate-100 focus:bg-transparent focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 dark:!bg-transparent dark:hover:bg-white/10 dark:focus:bg-transparent"
+                                    >
                                         <div class="px-2 py-1">
-                                            <span class="relative left-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px] flex items-center">
+                                            <span
+                                                class="relative left-[10px] flex items-center gap-1.5 text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
+                                                <div
+                                                    v-if="item.category"
+                                                    :class="[
+                                                        kanbanDotClasses[
+                                                            item.category.color
+                                                        ],
+                                                        'h-2 w-2 rounded-full',
+                                                    ]"
+                                                ></div>
+                                                <SelectValue
+                                                    placeholder="None"
+                                                />
+                                            </span>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent
+                                        align="end"
+                                        class="min-w-[160px]"
+                                    >
+                                        <SelectItem
+                                            value="none"
+                                            class="cursor-pointer text-[13px] font-black tracking-[0.12em] text-slate-400 uppercase focus:bg-slate-100 dark:focus:bg-white/10"
+                                        >
+                                            No Tag
+                                        </SelectItem>
+                                        <SelectItem
+                                            v-for="category in project.categories ??
+                                            []"
+                                            :key="category.id"
+                                            :value="category.id"
+                                            class="cursor-pointer text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase focus:bg-slate-100 dark:text-slate-200 dark:focus:bg-white/10"
+                                        >
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
+                                                <div
+                                                    :class="[
+                                                        kanbanDotClasses[
+                                                            category.color
+                                                        ],
+                                                        'h-2 w-2 rounded-full',
+                                                    ]"
+                                                ></div>
+                                                {{ category.name }}
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Status</span
+                                >
+                                <Select
+                                    :model-value="item.task_status ?? 'todo'"
+                                    :disabled="project.inactive"
+                                    @update:model-value="
+                                        (val) =>
+                                            $emit('change', 'task_status', val)
+                                    "
+                                >
+                                    <SelectTrigger
+                                        class="h-auto w-auto rounded-md border-none bg-transparent p-0 shadow-none transition-all outline-none hover:bg-slate-100 focus:bg-transparent focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 dark:!bg-transparent dark:hover:bg-white/10 dark:focus:bg-transparent"
+                                    >
+                                        <div class="px-2 py-1">
+                                            <span
+                                                class="relative left-[10px] flex items-center text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
                                                 <SelectValue />
                                             </span>
                                         </div>
                                     </SelectTrigger>
-                                    <SelectContent align="end" class="min-w-[160px]">
-                                        <SelectItem v-for="column in columns" :key="column.key" :value="column.key" class="text-[13px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 cursor-pointer">
+                                    <SelectContent
+                                        align="end"
+                                        class="min-w-[160px]"
+                                    >
+                                        <SelectItem
+                                            v-for="column in columns"
+                                            :key="column.key"
+                                            :value="column.key"
+                                            class="cursor-pointer text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                        >
                                             {{ column.label }}
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            <div v-if="hasOtherBoards" class="flex justify-between items-center min-h-[24px]">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px]">Board</span>
+                            <div
+                                v-if="hasOtherBoards"
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Board</span
+                                >
                                 <DropdownMenu>
                                     <DropdownMenuTrigger
                                         as-child
@@ -260,19 +538,31 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                     >
                                         <button
                                             type="button"
-                                            class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                                            class="flex items-center gap-1.5 rounded-md px-2 py-1 transition-all hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-50 dark:hover:bg-white/10"
                                             :disabled="project.inactive"
                                         >
-                                            <span class="font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-200 text-[13px]">{{ project.name }}</span>
-                                            <ArrowRightLeft class="w-3 h-3 text-slate-400" />
+                                            <span
+                                                class="text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                                >{{ project.name }}</span
+                                            >
+                                            <ArrowRightLeft
+                                                class="h-3 w-3 text-slate-400"
+                                            />
                                         </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" class="min-w-[200px]">
-                                        <div class="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">Move to</div>
+                                    <DropdownMenuContent
+                                        align="end"
+                                        class="min-w-[200px]"
+                                    >
+                                        <div
+                                            class="px-2 py-1.5 text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                                        >
+                                            Move to
+                                        </div>
                                         <DropdownMenuItem
                                             v-for="option in boardOptions"
                                             :key="option.id"
-                                            class="text-[13px] font-bold cursor-pointer"
+                                            class="cursor-pointer text-[13px] font-bold"
                                             @click="emit('move', option.id)"
                                         >
                                             {{ option.name }}
@@ -281,8 +571,14 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                 </DropdownMenu>
                             </div>
 
-                            <div v-if="hasOtherBoards" class="flex justify-between items-center min-h-[24px] gap-3">
-                                <span class="text-slate-900 dark:text-slate-400 text-[13px] shrink-0">Also Shown On</span>
+                            <div
+                                v-if="hasOtherBoards"
+                                class="flex min-h-[24px] items-center justify-between gap-3"
+                            >
+                                <span
+                                    class="shrink-0 text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Also Shown On</span
+                                >
                                 <MultiSelect
                                     :model-value="linkedProjectIds"
                                     :options="boardMultiSelectOptions"
@@ -297,31 +593,74 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                     </div>
                 </div>
 
-                <div v-if="item.id" class="pt-6 border-t border-slate-200 dark:border-white/10">
-                    <h4 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-500 mb-4">Dates</h4>
+                <div
+                    v-if="item.id"
+                    class="border-t border-slate-200 pt-6 dark:border-white/10"
+                >
+                    <h4
+                        class="mb-4 text-[11px] font-black tracking-[0.2em] text-slate-700 uppercase dark:text-slate-500"
+                    >
+                        Dates
+                    </h4>
                     <div class="space-y-2">
-                        <div class="flex items-center justify-between text-[13px]">
+                        <div
+                            class="flex items-center justify-between text-[13px]"
+                        >
                             <span class="text-slate-900">Created</span>
                             <div class="flex items-center gap-1.5 font-bold">
-                                <span class="text-slate-900 dark:text-slate-200">{{ formatDate(item.created_at) }}</span>
-                                <span v-if="item.creator?.name" class="text-slate-400 font-medium lowercase italic">by</span>
-                                <span v-if="item.creator?.name" class="text-projector-primary-600">{{ item.creator?.name }}</span>
+                                <span
+                                    class="text-slate-900 dark:text-slate-200"
+                                    >{{ formatDate(item.created_at) }}</span
+                                >
+                                <span
+                                    v-if="item.creator?.name"
+                                    class="font-medium text-slate-400 lowercase italic"
+                                    >by</span
+                                >
+                                <span
+                                    v-if="item.creator?.name"
+                                    class="text-projector-primary-600"
+                                    >{{ item.creator?.name }}</span
+                                >
                             </div>
                         </div>
-                        <div class="flex items-center justify-between text-[13px]">
+                        <div
+                            class="flex items-center justify-between text-[13px]"
+                        >
                             <span class="text-slate-900">Last Updated</span>
                             <div class="flex items-center gap-1.5 font-bold">
-                                <span class="text-slate-900 dark:text-slate-200">{{ formatDate(item.updated_at) }}</span>
-                                <span v-if="item.editor?.name" class="text-slate-400 font-medium lowercase italic">by</span>
-                                <span v-if="item.editor?.name" class="text-projector-primary-600">{{ item.editor?.name }}</span>
+                                <span
+                                    class="text-slate-900 dark:text-slate-200"
+                                    >{{ formatDate(item.updated_at) }}</span
+                                >
+                                <span
+                                    v-if="item.editor?.name"
+                                    class="font-medium text-slate-400 lowercase italic"
+                                    >by</span
+                                >
+                                <span
+                                    v-if="item.editor?.name"
+                                    class="text-projector-primary-600"
+                                    >{{ item.editor?.name }}</span
+                                >
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="item.id" class="pt-6 border-t border-slate-200 dark:border-white/10 space-y-2">
+                <div
+                    v-if="item.id"
+                    class="space-y-2 border-t border-slate-200 pt-6 dark:border-white/10"
+                >
                     <Button as-child variant="outline" size="sm" class="w-full">
-                        <a :href="exportPdf.url({ project: project.id, document: String(item.id) })">
+                        <a
+                            :href="
+                                exportPdf.url({
+                                    project: project.id,
+                                    document: String(item.id),
+                                })
+                            "
+                        >
                             <FileDown class="h-3.5 w-3.5" />
                             Export As PDF
                         </a>
@@ -334,10 +673,21 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                         @click="exportToGoogleDoc"
                     >
                         <FileStack class="h-3.5 w-3.5" />
-                        {{ exportingToGoogleDoc ? 'Exporting…' : 'Export To Google Docs' }}
+                        {{
+                            exportingToGoogleDoc
+                                ? 'Exporting…'
+                                : 'Export To Google Docs'
+                        }}
                     </Button>
                     <Button as-child variant="outline" size="sm" class="w-full">
-                        <a :href="exportWord.url({ project: project.id, document: String(item.id) })">
+                        <a
+                            :href="
+                                exportWord.url({
+                                    project: project.id,
+                                    document: String(item.id),
+                                })
+                            "
+                        >
                             <FileType class="h-3.5 w-3.5" />
                             Export As Word
                         </a>

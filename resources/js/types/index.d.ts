@@ -106,6 +106,9 @@ declare global {
         tasks: Task[];
         current_lifecycle_step?: LifecycleStep | null;
         kanban_columns?: KanbanColumnDef[];
+        // The project family's full category set (shared with subprojects) — see
+        // Project::familyCategories()/withResolvedFamilyCategories() on the backend.
+        categories?: CategoryDef[];
         children?: Project[];
 
         // Meta
@@ -127,6 +130,12 @@ declare global {
         label: string;
         color: string | null;
         order: number;
+    }
+
+    export interface CategoryDef {
+        id: string;
+        name: string;
+        color: string;
     }
 
     export interface DocumentMetadata {
@@ -163,6 +172,8 @@ declare global {
         priority: TaskPriority;
         due_at: string | null;
         external_due_at: string | null;
+        start_at: string | null;
+        category_id: string | null;
         locked_project_type_id?: string | null;
         locked_next_workflow_step_exists?: boolean;
         children_exists?: boolean;
@@ -183,6 +194,7 @@ declare global {
         editor?: User;
         assignee?: User;
         pending_assignee?: OrganizationInvitation;
+        category?: CategoryDef | null;
         project?: Partial<Project>;
         parent?: ProjectDocument | null;
         children?: ProjectDocument[];
@@ -214,6 +226,7 @@ declare global {
         is_subproject: boolean;
         due_at: string | null;
         external_due_at: string | null;
+        start_at: string | null;
         priority: TaskPriority;
         task_status: TaskStatus;
     }
@@ -394,7 +407,6 @@ declare global {
         ai_draft_groups: StatusMeetingDraftGroup[];
         linked_documents: StatusMeetingLinkedDocument[];
     }
-
 
     export interface RecordingsData {
         recordings: Recording[];

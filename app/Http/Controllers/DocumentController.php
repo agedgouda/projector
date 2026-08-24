@@ -6,6 +6,7 @@ use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
+use App\Rules\ValidCategory;
 use App\Rules\ValidKanbanColumn;
 use App\Services\Google\GoogleExportService;
 use App\Services\VectorService;
@@ -90,11 +91,11 @@ class DocumentController extends Controller
             ->get(['id', 'name']);
 
         return inertia('Documents/Show', [
-            'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'kanbanColumns']),
+            'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'kanbanColumns', 'categories', 'parent.categories'])->withResolvedFamilyCategories(),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'boardOptions' => $boardOptions,
             'item' => $document->load([
-                'assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user',
+                'assignee', 'pendingAssignee', 'creator', 'editor', 'comments.user', 'category',
                 'parent.parent.parent', 'lastAiTemplate:id,name', 'linkedProjects:id,name',
                 // Explicit order (matching the project tree's own 'documents' => ...->latest()
                 // eager load in ProjectController::show()) — without it, Postgres has no
@@ -290,6 +291,8 @@ class DocumentController extends Controller
             'priority' => ['nullable', 'string'],
             'due_at' => ['nullable', 'date'],
             'external_due_at' => ['nullable', 'date'],
+            'start_at' => ['nullable', 'date'],
+            'category_id' => ['nullable', 'uuid', new ValidCategory($project)],
         ]);
 
         $assigneeData = $request->has('assignee_id')

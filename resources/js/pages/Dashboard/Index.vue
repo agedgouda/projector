@@ -59,6 +59,8 @@ const {
     searchQuery,
     selectedPriorities,
     sortBy,
+    availableTags,
+    excludedTagIds,
     applyLocalUpdate,
     removeLocalDocuments,
     localKanbanData,
@@ -240,6 +242,8 @@ const aiProcessedParentIds = computed(() => {
                     v-model:searchQuery="searchQuery"
                     v-model:selectedPriorities="selectedPriorities"
                     v-model:sortBy="sortBy"
+                    v-model:excludedTagIds="excludedTagIds"
+                    :available-tags="availableTags"
                     :has-rows="hasRows"
                     :workflow-rows="workflowRows"
                     :get-tasks-by-row-and-status="getTasksByRowAndStatus"

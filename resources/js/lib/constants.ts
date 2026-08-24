@@ -17,6 +17,21 @@ export const kanbanClasses: Record<string, string> = {
     teal: 'bg-teal-50 text-teal-600'
 };
 
+// Same solid color as kanbanDotClasses (minus the glow shadow), paired with white text
+// for readability — used for the tag banner on a Kanban card.
+export const kanbanSolidClasses: Record<string, string> = {
+    slate: 'bg-slate-400 text-white',
+    red: 'bg-red-500 text-white',
+    amber: 'bg-amber-400 text-white',
+    emerald: 'bg-emerald-500 text-white',
+    blue: 'bg-blue-500 text-white',
+    purple: 'bg-purple-500 text-white',
+    pink: 'bg-pink-500 text-white',
+    orange: 'bg-orange-500 text-white',
+    indigo: 'bg-indigo-500 text-white',
+    teal: 'bg-teal-500 text-white'
+};
+
 export const kanbanDotClasses: Record<string, string> = {
     slate: 'bg-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.4)]',
     red: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]',

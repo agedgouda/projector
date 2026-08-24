@@ -64,6 +64,45 @@ it('persists external_due_at when updating a document\'s attributes', function (
     expect($document->fresh()->external_due_at)->toStartWith('2026-08-15');
 });
 
+it('persists start_at when updating a document\'s attributes', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Follow up',
+        'priority' => 'low',
+        'task_status' => 'todo',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'start_at' => '2026-08-10',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->start_at)->toStartWith('2026-08-10');
+});
+
+it('leaves start_at untouched when updating an unrelated attribute', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Follow up',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'start_at' => '2026-08-10',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'priority' => 'high',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->start_at)->toStartWith('2026-08-10');
+});
+
 it('persists external_due_at when creating a document', function () {
     $this->actingAs($this->admin)
         ->post(route('projects.documents.store', $this->project), [
@@ -79,6 +118,23 @@ it('persists external_due_at when creating a document', function () {
 
     $document = Document::where('name', 'New Task')->firstOrFail();
     expect($document->external_due_at)->toStartWith('2026-08-15');
+});
+
+it('persists start_at when creating a document', function () {
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), [
+            'name' => 'New Task',
+            'type' => 'task',
+            'content' => 'Do the thing',
+            'priority' => 'low',
+            'task_status' => 'todo',
+            'start_at' => '2026-08-10',
+            'due_at' => '2026-08-20',
+        ])
+        ->assertRedirect();
+
+    $document = Document::where('name', 'New Task')->firstOrFail();
+    expect($document->start_at)->toStartWith('2026-08-10');
 });
 
 it('shares uses_external_due_dates on the active org via orgMembership', function () {

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -174,6 +175,42 @@ class Project extends Model implements HasMedia
     public function kanbanColumns(): HasMany
     {
         return $this->hasMany(KanbanColumn::class)->orderBy('order');
+    }
+
+    /**
+     * The categories this project literally owns. Unlike kanban_columns, categories are
+     * shared across a subproject family (see familyRoot()) — a subproject's own categories()
+     * is empty by design, since every family's categories live on its root row. Callers that
+     * need the family's full set (regardless of which side of the family this project is on)
+     * should use familyCategories() instead.
+     *
+     * @return HasMany<Category, $this>
+     */
+    public function categories(): HasMany
+    {
+        return $this->hasMany(Category::class)->orderBy('name');
+    }
+
+    /**
+     * @return Collection<int, Category>
+     */
+    public function familyCategories(): Collection
+    {
+        return $this->familyRoot()->categories;
+    }
+
+    /**
+     * Overwrites the loaded `categories` relation with the family-aware list, so API/Inertia
+     * responses can serialize `project.categories` as the full family set regardless of
+     * whether this row is the root or a subproject. Callers must eager-load `categories` and
+     * `parent.categories` first (see ProjectController::show(), ProjectCollection) — this
+     * only rearranges what's already loaded, it never issues new queries itself.
+     */
+    public function withResolvedFamilyCategories(): self
+    {
+        $this->setRelation('categories', $this->familyCategories());
+
+        return $this;
     }
 
     /**
@@ -382,7 +419,8 @@ class Project extends Model implements HasMedia
      * @return \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string,
      *     project_id: string, project_name: string, is_subproject: bool,
-     *     due_at: string|null, external_due_at: string|null, priority: string, task_status: string
+     *     due_at: string|null, external_due_at: string|null, start_at: string|null,
+     *     priority: string, task_status: string
      * }>
      */
     public function calendarItems(): \Illuminate\Support\Collection
@@ -391,7 +429,8 @@ class Project extends Model implements HasMedia
          * @var array<int, array{
          *     id: string, name: string|null, content: string|null, type: string,
          *     project_id: string, project_name: string, is_subproject: bool,
-         *     due_at: string|null, external_due_at: string|null, priority: string, task_status: string
+         *     due_at: string|null, external_due_at: string|null, start_at: string|null,
+         *     priority: string, task_status: string
          * }> $items
          */
         $items = [];
@@ -415,6 +454,7 @@ class Project extends Model implements HasMedia
                     'is_subproject' => $source['is_subproject'],
                     'due_at' => $doc->due_at,
                     'external_due_at' => $doc->external_due_at,
+                    'start_at' => $doc->start_at,
                     'priority' => $doc->priority,
                     'task_status' => $doc->task_status,
                 ];

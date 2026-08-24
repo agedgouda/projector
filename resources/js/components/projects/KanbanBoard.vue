@@ -15,6 +15,7 @@ import {
 } from '@/composables/kanban/useKanbanQueries';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { getPriorityStyles } from '@/lib/kanban-theme';
+import { kanbanDotClasses } from '@/lib/constants';
 import { ListFilter, Search } from 'lucide-vue-next';
 import KanbanRow from './KanbanRow.vue';
 
@@ -32,6 +33,7 @@ defineProps<{
     updateAttribute: (docId: string | number, field: string, value: string | number | null) => void;
     canViewProjectDetails?: boolean;
     canManageColumns?: boolean;
+    availableTags?: CategoryDef[];
 }>();
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' });
@@ -39,6 +41,9 @@ const selectedPriorities = defineModel<Priority[]>('selectedPriorities', {
     default: () => [...ALL_PRIORITIES],
 });
 const sortBy = defineModel<SortOption>('sortBy', { default: 'due_date' });
+const excludedTagIds = defineModel<string[]>('excludedTagIds', {
+    default: () => [],
+});
 
 const togglePriority = (priority: Priority) => {
     const current = selectedPriorities.value;
@@ -47,6 +52,16 @@ const togglePriority = (priority: Priority) => {
         selectedPriorities.value = [...current, priority];
     } else {
         selectedPriorities.value = current.filter((p) => p !== priority);
+    }
+};
+
+const toggleTag = (tagId: string) => {
+    const current = excludedTagIds.value;
+    const idx = current.indexOf(tagId);
+    if (idx === -1) {
+        excludedTagIds.value = [...current, tagId];
+    } else {
+        excludedTagIds.value = current.filter((id) => id !== tagId);
     }
 };
 </script>
@@ -86,6 +101,50 @@ const togglePriority = (priority: Priority) => {
                     ]"
                 >
                     {{ priority }}
+                </button>
+            </div>
+
+            <div
+                v-if="availableTags?.length"
+                class="flex items-center gap-2"
+            >
+                <span
+                    class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >Tag:</span
+                >
+                <button
+                    type="button"
+                    @click="excludedTagIds = []"
+                    class="rounded border border-gray-200 bg-white px-2 py-1 text-[9px] font-black tracking-tighter text-gray-500 uppercase transition-all hover:border-gray-300"
+                >
+                    All
+                </button>
+                <button
+                    type="button"
+                    @click="excludedTagIds = availableTags.map((t) => t.id)"
+                    class="rounded border border-gray-200 bg-white px-2 py-1 text-[9px] font-black tracking-tighter text-gray-500 uppercase transition-all hover:border-gray-300"
+                >
+                    None
+                </button>
+                <button
+                    v-for="tag in availableTags"
+                    :key="tag.id"
+                    type="button"
+                    @click="toggleTag(tag.id)"
+                    :class="[
+                        'flex items-center gap-1.5 rounded border px-2.5 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
+                        !excludedTagIds.includes(tag.id)
+                            ? 'border-gray-200 bg-white text-gray-700'
+                            : 'border-gray-200 bg-white text-gray-300 line-through',
+                    ]"
+                >
+                    <span
+                        :class="[
+                            'h-1.5 w-1.5 shrink-0 rounded-full',
+                            kanbanDotClasses[tag.color],
+                        ]"
+                    ></span>
+                    {{ tag.name }}
                 </button>
             </div>
 

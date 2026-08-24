@@ -69,6 +69,8 @@ class Document extends Model implements HasMedia
         'priority',
         'due_at',
         'external_due_at',
+        'start_at',
+        'category_id',
         'locked_project_type_id',
         'custom_prompt',
         'last_ai_template_id',
@@ -133,6 +135,11 @@ class Document extends Model implements HasMedia
     public function pendingAssignee(): BelongsTo
     {
         return $this->belongsTo(OrganizationInvitation::class, 'pending_assignee_invitation_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function parent(): BelongsTo

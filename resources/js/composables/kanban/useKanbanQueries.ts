@@ -48,6 +48,31 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
     const selectedPriorities = ref<Priority[]>([...ALL_PRIORITIES]);
     const sortBy = ref<SortOption>('due_date');
 
+    // Every distinct tag currently in view (across every row/status), deduped by id — the
+    // filter's own candidate list, since tags are per-project-family and dynamic rather than
+    // a fixed set like priorities.
+    const availableTags = computed<CategoryDef[]>(() => {
+        const byId = new Map<string, CategoryDef>();
+        Object.values(
+            localKanbanData.value as Record<string, ProjectDocument[]>,
+        ).forEach((tasks) => {
+            tasks.forEach((doc) => {
+                if (doc.category && !byId.has(doc.category.id)) {
+                    byId.set(doc.category.id, doc.category);
+                }
+            });
+        });
+        return Array.from(byId.values()).sort((a, b) =>
+            a.name.localeCompare(b.name),
+        );
+    });
+
+    // Tags unchecked in the filter — empty by default, so nothing is excluded until the user
+    // deselects something (mirrors "All" being the default state). A tagged task is hidden
+    // once its tag is excluded; an untagged task always passes through, same pass-through
+    // rule the priority filter already uses for undocumented priority.
+    const excludedTagIds = ref<string[]>([]);
+
     /**
      * MEMOIZED TASK MAP
      * We group tasks by a unique string key "rowKey|status"
@@ -57,6 +82,7 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
         const map: Record<string, ProjectDocument[]> = {};
         const query = searchQuery.value.toLowerCase().trim();
         const priorities = new Set(selectedPriorities.value);
+        const excludedTags = new Set(excludedTagIds.value);
 
         Object.entries(
             localKanbanData.value as Record<string, ProjectDocument[]>,
@@ -80,7 +106,11 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
                 const matchesPriority =
                     !docPriority || priorities.has(docPriority);
 
-                if (matchesSearch && matchesPriority) {
+                // 4. Apply tag filter (tasks with no tag always pass through)
+                const matchesTag =
+                    !doc.category || !excludedTags.has(doc.category.id);
+
+                if (matchesSearch && matchesPriority && matchesTag) {
                     const compositeKey = `${rowKey}|${status}`;
                     if (!map[compositeKey]) map[compositeKey] = [];
                     map[compositeKey].push(doc);
@@ -104,6 +134,8 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
         searchQuery,
         selectedPriorities,
         sortBy,
+        availableTags,
+        excludedTagIds,
         getTasksByRowAndStatus,
     };
 }
