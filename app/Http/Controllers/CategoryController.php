@@ -29,7 +29,7 @@ class CategoryController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('categories', 'name')->where('project_id', $root->id)],
-            'color' => ['required', 'string', Rule::in(self::COLOR_PALETTE)],
+            'color' => ['required', 'string', Rule::in(self::COLOR_PALETTE), Rule::unique('categories', 'color')->where('project_id', $root->id)],
         ]);
 
         $root->categories()->create($validated);
@@ -45,7 +45,7 @@ class CategoryController extends Controller
 
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('categories', 'name')->where('project_id', $root->id)->ignore($category->id)],
-            'color' => ['sometimes', 'required', 'string', Rule::in(self::COLOR_PALETTE)],
+            'color' => ['sometimes', 'required', 'string', Rule::in(self::COLOR_PALETTE), Rule::unique('categories', 'color')->where('project_id', $root->id)->ignore($category->id)],
         ]);
 
         $category->update($validated);

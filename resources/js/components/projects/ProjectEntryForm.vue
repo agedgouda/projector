@@ -4,12 +4,6 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import LogoFileInput from '@/components/LogoFileInput.vue';
 import LogoUpload from '@/components/LogoUpload.vue';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -32,14 +26,7 @@ import ClientEntryForm from '@/pages/Clients/Partials/ClientEntryForm.vue';
 import projectRoutes from '@/routes/projects/index';
 import projectLogoRoutes from '@/routes/projects/logo/index';
 import { router, useForm } from '@inertiajs/vue3';
-import {
-    AlertTriangle,
-    Loader2,
-    MoreVertical,
-    Pencil,
-    Plus,
-    Trash2,
-} from 'lucide-vue-next';
+import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -181,9 +168,21 @@ onMounted(() => {
     if (isEditing) fetchCategories();
 });
 
+// Each tag in a family must have a distinct color (enforced server-side too, via a unique
+// index on categories(project_id, color)) — this just keeps the swatch pickers from letting
+// the user pick a color that's guaranteed to be rejected.
+const usedColors = computed(() => new Set(categories.value.map((c) => c.color)));
+
 const isAddingCategory = ref(false);
 const newCategoryName = ref('');
 const newCategoryColor = ref<string>(KANBAN_COLOR_PALETTE[0]);
+
+watch(isAddingCategory, (open) => {
+    if (!open) return;
+    newCategoryColor.value =
+        KANBAN_COLOR_PALETTE.find((c) => !usedColors.value.has(c)) ??
+        KANBAN_COLOR_PALETTE[0];
+});
 
 const submitAddCategory = () => {
     const name = newCategoryName.value.trim();
@@ -209,18 +208,11 @@ const submitAddCategory = () => {
     );
 };
 
-const renamingCategoryId = ref<string | null>(null);
 const renameCategoryName = ref('');
-
-const startRenameCategory = (category: CategoryDef) => {
-    renamingCategoryId.value = category.id;
-    renameCategoryName.value = category.name;
-};
 
 const submitRenameCategory = (category: CategoryDef) => {
     const name = renameCategoryName.value.trim();
     if (!name || !props.editData || name === category.name) {
-        renamingCategoryId.value = null;
         return;
     }
 
@@ -235,7 +227,6 @@ const submitRenameCategory = (category: CategoryDef) => {
             preserveState: true,
             onSuccess: () => {
                 category.name = name;
-                renamingCategoryId.value = null;
             },
             onError: () => toast.error('Failed to rename tag.'),
         },
@@ -384,7 +375,7 @@ const submit = async () => {
         <div class="space-y-5">
             <div v-if="!isEditing" class="grid gap-2">
                 <Label
-                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
                 >
                     Client
                 </Label>
@@ -452,7 +443,7 @@ const submit = async () => {
 
             <div v-if="!isEditing && parentProject" class="grid gap-2">
                 <Label
-                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
                 >
                     Sub-project of
                 </Label>
@@ -468,7 +459,7 @@ const submit = async () => {
                 class="grid gap-2"
             >
                 <Label
-                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
                 >
                     Parent Project (optional)
                 </Label>
@@ -515,7 +506,7 @@ const submit = async () => {
             <div class="grid gap-2">
                 <Label
                     for="name"
-                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
                 >
                     Project Name
                 </Label>
@@ -537,10 +528,181 @@ const submit = async () => {
                 </p>
             </div>
 
+            <div v-if="isEditing" class="grid gap-2">
+                <div class="flex items-center justify-between px-1">
+                    <Label
+                        class="text-[10px] font-black tracking-widest text-gray-600 uppercase"
+                    >
+                        Tags
+                    </Label>
+                    <Popover
+                        v-if="canManageCategories"
+                        v-model:open="isAddingCategory"
+                    >
+                        <PopoverTrigger as-child>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-6 w-6 text-gray-600 hover:text-projector-primary-600"
+                            >
+                                <Plus class="h-4 w-4" :stroke-width="2.5" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent class="w-64 space-y-3 p-3" align="end">
+                            <Input
+                                v-model="newCategoryName"
+                                placeholder="Tag name"
+                                autofocus
+                                class="h-8 text-xs"
+                                @keydown.enter="submitAddCategory"
+                            />
+                            <div class="flex flex-wrap gap-1.5">
+                                <button
+                                    v-for="color in KANBAN_COLOR_PALETTE"
+                                    :key="color"
+                                    type="button"
+                                    :disabled="usedColors.has(color)"
+                                    :title="usedColors.has(color) ? 'Already used by another tag' : undefined"
+                                    :class="[
+                                        'h-5 w-5 rounded-full',
+                                        kanbanDotClasses[color],
+                                        newCategoryColor === color
+                                            ? 'ring-2 ring-projector-primary-500 ring-offset-1'
+                                            : '',
+                                        usedColors.has(color)
+                                            ? 'cursor-not-allowed opacity-30'
+                                            : '',
+                                    ]"
+                                    @click="newCategoryColor = color"
+                                />
+                            </div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                class="h-8 w-full px-3"
+                                @click="submitAddCategory"
+                                >Add</Button
+                            >
+                        </PopoverContent>
+                    </Popover>
+                </div>
+
+                <p
+                    v-if="!categories.length"
+                    class="px-1 text-[11px] text-slate-400"
+                >
+                    No tags yet.
+                </p>
+
+                <div class="flex flex-wrap gap-2">
+                    <template v-if="!canManageCategories">
+                        <span
+                            v-for="category in categories"
+                            :key="category.id"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                        >
+                            <span
+                                :class="[
+                                    'h-2 w-2 shrink-0 rounded-full',
+                                    kanbanDotClasses[category.color],
+                                ]"
+                            ></span>
+                            {{ category.name }}
+                        </span>
+                    </template>
+
+                    <template v-else>
+                        <Popover v-for="category in categories" :key="category.id">
+                            <PopoverTrigger as-child>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 transition-colors hover:border-gray-300 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                                    @click="renameCategoryName = category.name"
+                                >
+                                    <span
+                                        :class="[
+                                            'h-2 w-2 shrink-0 rounded-full',
+                                            kanbanDotClasses[category.color],
+                                        ]"
+                                    ></span>
+                                    {{ category.name }}
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent class="w-64 space-y-3 p-3" align="start">
+                                <Input
+                                    v-model="renameCategoryName"
+                                    autofocus
+                                    class="h-8 text-xs"
+                                    @keydown.enter="submitRenameCategory(category)"
+                                />
+                                <div class="flex flex-wrap gap-1.5">
+                                    <button
+                                        v-for="color in KANBAN_COLOR_PALETTE"
+                                        :key="color"
+                                        type="button"
+                                        :disabled="
+                                            usedColors.has(color) &&
+                                            category.color !== color
+                                        "
+                                        :title="
+                                            usedColors.has(color) &&
+                                            category.color !== color
+                                                ? 'Already used by another tag'
+                                                : undefined
+                                        "
+                                        :class="[
+                                            'h-5 w-5 rounded-full',
+                                            kanbanDotClasses[color],
+                                            category.color === color
+                                                ? 'ring-2 ring-projector-primary-500 ring-offset-1'
+                                                : '',
+                                            usedColors.has(color) &&
+                                            category.color !== color
+                                                ? 'cursor-not-allowed opacity-30'
+                                                : '',
+                                        ]"
+                                        @click="recolorCategory(category, color)"
+                                    />
+                                </div>
+                                <div class="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        class="h-8 flex-1"
+                                        @click="submitRenameCategory(category)"
+                                    >
+                                        Save
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        class="h-8 flex-1 text-red-600 hover:text-red-600"
+                                        @click="pendingDeleteCategory = category"
+                                    >
+                                        <Trash2 class="h-3.5 w-3.5" />
+                                        Delete
+                                    </Button>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    </template>
+                </div>
+
+                <ConfirmDeleteModal
+                    :open="!!pendingDeleteCategory"
+                    :title="`Delete '${pendingDeleteCategory?.name}' Tag`"
+                    description="This can't be undone. Any documents using this tag will simply have it removed."
+                    :loading="isDeletingCategory"
+                    @close="pendingDeleteCategory = null"
+                    @confirm="executeDeleteCategory"
+                />
+            </div>
+
             <div class="grid gap-2">
                 <Label
                     for="description"
-                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
                 >
                     Description / Scope
                 </Label>
@@ -609,165 +771,10 @@ const submit = async () => {
                 />
                 <Label
                     for="project-inactive"
-                    class="cursor-pointer px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    class="cursor-pointer px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
                 >
                     Inactive
                 </Label>
-            </div>
-
-            <div v-if="isEditing" class="grid gap-2">
-                <div class="flex items-center justify-between px-1">
-                    <Label
-                        class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                    >
-                        Tags
-                    </Label>
-                    <Popover
-                        v-if="canManageCategories"
-                        v-model:open="isAddingCategory"
-                    >
-                        <PopoverTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-6 w-6 text-gray-400 hover:text-projector-primary-600"
-                            >
-                                <Plus class="h-4 w-4" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent class="w-64 space-y-3 p-3" align="end">
-                            <Input
-                                v-model="newCategoryName"
-                                placeholder="Tag name"
-                                autofocus
-                                class="h-8 text-xs"
-                                @keydown.enter="submitAddCategory"
-                            />
-                            <div class="flex flex-wrap gap-1.5">
-                                <button
-                                    v-for="color in KANBAN_COLOR_PALETTE"
-                                    :key="color"
-                                    type="button"
-                                    :class="[
-                                        'h-5 w-5 rounded-full',
-                                        kanbanDotClasses[color],
-                                        newCategoryColor === color
-                                            ? 'ring-2 ring-projector-primary-500 ring-offset-1'
-                                            : '',
-                                    ]"
-                                    @click="newCategoryColor = color"
-                                />
-                            </div>
-                            <Button
-                                type="button"
-                                size="sm"
-                                class="h-8 w-full px-3"
-                                @click="submitAddCategory"
-                                >Add</Button
-                            >
-                        </PopoverContent>
-                    </Popover>
-                </div>
-
-                <p
-                    v-if="!categories.length"
-                    class="px-1 text-[11px] text-slate-400"
-                >
-                    No tags yet.
-                </p>
-
-                <div
-                    v-for="category in categories"
-                    :key="category.id"
-                    class="group/category flex h-9 items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 dark:border-zinc-800 dark:bg-zinc-800/50"
-                >
-                    <Popover v-if="canManageCategories">
-                        <PopoverTrigger as-child>
-                            <button
-                                type="button"
-                                :class="[
-                                    'h-2.5 w-2.5 shrink-0 rounded-full',
-                                    kanbanDotClasses[category.color],
-                                ]"
-                            />
-                        </PopoverTrigger>
-                        <PopoverContent class="w-auto p-2" align="start">
-                            <div class="flex max-w-[140px] flex-wrap gap-1.5">
-                                <button
-                                    v-for="color in KANBAN_COLOR_PALETTE"
-                                    :key="color"
-                                    type="button"
-                                    :class="[
-                                        'h-5 w-5 rounded-full',
-                                        kanbanDotClasses[color],
-                                        category.color === color
-                                            ? 'ring-2 ring-projector-primary-500 ring-offset-1'
-                                            : '',
-                                    ]"
-                                    @click="recolorCategory(category, color)"
-                                />
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                    <div
-                        v-else
-                        :class="[
-                            'h-2.5 w-2.5 shrink-0 rounded-full',
-                            kanbanDotClasses[category.color],
-                        ]"
-                    />
-
-                    <Input
-                        v-if="renamingCategoryId === category.id"
-                        v-model="renameCategoryName"
-                        autofocus
-                        class="h-6 flex-1 text-xs"
-                        @keydown.enter="submitRenameCategory(category)"
-                        @keydown.escape="renamingCategoryId = null"
-                        @blur="submitRenameCategory(category)"
-                    />
-                    <span
-                        v-else
-                        class="flex-1 text-xs font-bold text-gray-700 dark:text-gray-200"
-                        >{{ category.name }}</span
-                    >
-
-                    <DropdownMenu v-if="canManageCategories">
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-5 w-5 opacity-0 transition-opacity group-hover/category:opacity-100"
-                            >
-                                <MoreVertical class="h-3 w-3 text-gray-400" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" class="w-36">
-                            <DropdownMenuItem
-                                @click="startRenameCategory(category)"
-                            >
-                                <Pencil class="mr-2 h-3.5 w-3.5" />
-                                Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                @click="pendingDeleteCategory = category"
-                                class="text-red-600 focus:text-red-600"
-                            >
-                                <Trash2 class="mr-2 h-3.5 w-3.5" />
-                                Delete
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-
-                <ConfirmDeleteModal
-                    :open="!!pendingDeleteCategory"
-                    :title="`Delete '${pendingDeleteCategory?.name}' Tag`"
-                    description="This can't be undone. Any documents using this tag will simply have it removed."
-                    :loading="isDeletingCategory"
-                    @close="pendingDeleteCategory = null"
-                    @confirm="executeDeleteCategory"
-                />
             </div>
 
             <LogoFileInput
