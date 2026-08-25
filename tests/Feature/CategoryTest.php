@@ -133,8 +133,9 @@ it('lists the family category set via the index endpoint regardless of which sid
     $fromChild->assertOk()->assertJsonFragment(['name' => 'Design']);
 });
 
-it('persists category_id when updating a document\'s attributes', function () {
-    $category = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+it('syncs a document\'s tags to the given set', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
     $document = Document::create([
         'project_id' => $this->project->id,
         'name' => 'A task',
@@ -143,13 +144,55 @@ it('persists category_id when updating a document\'s attributes', function () {
     ]);
 
     $this->actingAs($this->admin)
-        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), ['category_id' => $category->id])
+        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => [$design->id, $backend->id],
+        ])
         ->assertRedirect();
 
-    expect($document->fresh()->category_id)->toBe($category->id);
+    expect($document->fresh()->categories()->pluck('categories.id')->all())
+        ->toEqualCanonicalizing([$design->id, $backend->id]);
 });
 
-it('rejects assigning a document a category from an unrelated project', function () {
+it('removes tags no longer present when syncing a document\'s tags', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A task',
+        'type' => 'task',
+        'content' => 'content',
+    ]);
+    $document->categories()->attach([$design->id, $backend->id]);
+
+    $this->actingAs($this->admin)
+        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => [$design->id],
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->categories()->pluck('categories.id')->all())->toBe([$design->id]);
+});
+
+it('clears all tags when synced with an empty list', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A task',
+        'type' => 'task',
+        'content' => 'content',
+    ]);
+    $document->categories()->attach($design->id);
+
+    $this->actingAs($this->admin)
+        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => [],
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->categories()->count())->toBe(0);
+});
+
+it('rejects assigning a document a tag from an unrelated project', function () {
     $otherProject = Project::create(['name' => 'Unrelated Project', 'client_id' => $this->client->id]);
     $category = Category::create(['project_id' => $otherProject->id, 'name' => 'Design', 'color' => 'pink']);
     $document = Document::create([
@@ -160,13 +203,15 @@ it('rejects assigning a document a category from an unrelated project', function
     ]);
 
     $this->actingAs($this->admin)
-        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), ['category_id' => $category->id])
-        ->assertSessionHasErrors('category_id');
+        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => [$category->id],
+        ])
+        ->assertSessionHasErrors('category_ids.0');
 
-    expect($document->fresh()->category_id)->toBeNull();
+    expect($document->fresh()->categories()->count())->toBe(0);
 });
 
-it('lets a subproject document use a category owned by its family root', function () {
+it('lets a subproject document use a tag owned by its family root', function () {
     $category = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
     $document = Document::create([
         'project_id' => $this->child->id,
@@ -176,8 +221,10 @@ it('lets a subproject document use a category owned by its family root', functio
     ]);
 
     $this->actingAs($this->admin)
-        ->patch(route('projects.documents.updateAttributes', [$this->child, $document]), ['category_id' => $category->id])
+        ->put(route('projects.documents.updateCategories', [$this->child, $document]), [
+            'category_ids' => [$category->id],
+        ])
         ->assertRedirect();
 
-    expect($document->fresh()->category_id)->toBe($category->id);
+    expect($document->fresh()->categories()->pluck('categories.id')->all())->toBe([$category->id]);
 });

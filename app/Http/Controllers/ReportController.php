@@ -167,6 +167,7 @@ class ReportController extends Controller
         $table->addCell(3500, $headerStyle)->addText('Task Name', $headerFontStyle);
         $table->addCell(2000, $headerStyle)->addText('Assignee', $headerFontStyle);
         $table->addCell(1400, $headerStyle)->addText('Priority', $headerFontStyle);
+        $table->addCell(2200, $headerStyle)->addText('Tags', $headerFontStyle);
         if ($includeDetails) {
             $table->addCell(4000, $headerStyle)->addText('Details', $headerFontStyle);
         }
@@ -181,6 +182,7 @@ class ReportController extends Controller
             $table->addCell(3500)->addText($task->name ?? '', $cellFontStyle);
             $table->addCell(2000)->addText($this->assigneeLabel($task), $cellFontStyle);
             $table->addCell(1400)->addText($task->priority ? ucfirst($task->priority) : '—', $cellFontStyle);
+            $table->addCell(2200)->addText($this->tagsLabel($task), $cellFontStyle);
             if ($includeDetails) {
                 $table->addCell(4000)->addText($this->plainTextContent($task->content), $cellFontStyle);
             }
@@ -212,8 +214,8 @@ class ReportController extends Controller
         $sheet->setTitle('Task Report');
 
         $headers = $hasSubprojects
-            ? ['Project', 'Status', 'Due Date', 'Task Name', 'Assignee', 'Priority']
-            : ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority'];
+            ? ['Project', 'Status', 'Due Date', 'Task Name', 'Assignee', 'Priority', 'Tags']
+            : ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority', 'Tags'];
         if ($includeDetails) {
             $headers[] = 'Details';
         }
@@ -241,6 +243,8 @@ class ReportController extends Controller
             $sheet->setCellValue($col.$row, $this->assigneeLabel($task));
             $col++;
             $sheet->setCellValue($col.$row, $task->priority ? ucfirst($task->priority) : '—');
+            $col++;
+            $sheet->setCellValue($col.$row, $this->tagsLabel($task));
             $col++;
             if ($includeDetails) {
                 $sheet->setCellValue($col.$row, $this->plainTextContent($task->content));
@@ -326,8 +330,8 @@ class ReportController extends Controller
         $project->loadMissing('kanbanColumns');
 
         $headers = $hasSubprojects
-            ? ['Project', 'Status', 'Due Date', 'Task Name', 'Assignee', 'Priority']
-            : ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority'];
+            ? ['Project', 'Status', 'Due Date', 'Task Name', 'Assignee', 'Priority', 'Tags']
+            : ['Status', 'Due Date', 'Task Name', 'Assignee', 'Priority', 'Tags'];
         if ($includeDetails) {
             $headers[] = 'Details';
         }
@@ -342,6 +346,7 @@ class ReportController extends Controller
             $row[] = $task->name ?? '';
             $row[] = $this->assigneeLabel($task);
             $row[] = $task->priority ? ucfirst($task->priority) : '—';
+            $row[] = $this->tagsLabel($task);
             if ($includeDetails) {
                 $row[] = $this->plainTextContent($task->content);
             }
@@ -368,6 +373,8 @@ class ReportController extends Controller
             'due_to' => ['nullable', 'date'],
             'project_id' => ['nullable', 'array'],
             'project_id.*' => ['string'],
+            'category_id' => ['nullable', 'array'],
+            'category_id.*' => ['string'],
         ];
     }
 
@@ -436,6 +443,7 @@ class ReportController extends Controller
         $dueFrom = is_string($filters['due_from'] ?? null) ? $filters['due_from'] : null;
         $dueTo = is_string($filters['due_to'] ?? null) ? $filters['due_to'] : null;
         $projectIds = $this->stringValues($filters['project_id'] ?? null);
+        $categoryIds = $this->stringValues($filters['category_id'] ?? null);
 
         $query = Document::query()
             ->whereIn('project_id', $this->projectIdsIncludingChildren($project))
@@ -494,8 +502,29 @@ class ReportController extends Controller
             $query->whereIn('project_id', $projectIds);
         }
 
+        if ($categoryIds !== []) {
+            // Mirrors the assignee filter's 'unassigned' sentinel above: 'none' matches
+            // tasks with zero tags, alongside any real tag ids in the same multi-select —
+            // same 'none' sentinel the Kanban board's own tag filter uses (see
+            // TAG_FILTER_NONE in useKanbanQueries.ts).
+            $wantsNoTags = in_array('none', $categoryIds, true);
+            $realCategoryIds = array_values(array_filter($categoryIds, fn (string $id) => $id !== 'none'));
+
+            $query->where(function (Builder $subQuery) use ($realCategoryIds, $wantsNoTags) {
+                if ($realCategoryIds !== []) {
+                    $subQuery->orWhereHas(
+                        'categories',
+                        fn (Builder $categoryQuery) => $categoryQuery->whereIn('categories.id', $realCategoryIds)
+                    );
+                }
+                if ($wantsNoTags) {
+                    $subQuery->orWhereDoesntHave('categories');
+                }
+            });
+        }
+
         return $query
-            ->with(['assignee:id,first_name,last_name', 'pendingAssignee:id,email,first_name,last_name'])
+            ->with(['assignee:id,first_name,last_name', 'pendingAssignee:id,email,first_name,last_name', 'categories'])
             ->orderBy('due_at');
     }
 
@@ -506,7 +535,7 @@ class ReportController extends Controller
     {
         $validated = $request->validate($this->filterRules() + [
             'include_details' => ['nullable', 'boolean'],
-            'sort_by' => ['nullable', 'string', 'in:status,due_at,external_due_at,name,assignee,priority,project_name'],
+            'sort_by' => ['nullable', 'string', 'in:status,due_at,external_due_at,name,assignee,priority,project_name,tags'],
             'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
         ]);
 
@@ -558,6 +587,9 @@ class ReportController extends Controller
                 'assignee' => mb_strtolower($this->assigneeLabel($task)),
                 'priority' => $task->priority ? ($priorityWeight[$task->priority] ?? null) : null,
                 'project_name' => mb_strtolower($projectNames[$task->project_id] ?? ''),
+                'tags' => $task->categories->isNotEmpty()
+                    ? mb_strtolower($task->categories->pluck('name')->sort()->implode(', '))
+                    : null,
                 default => $task->due_at,
             };
         };
@@ -609,6 +641,22 @@ class ReportController extends Controller
                 'first_name' => $task->pendingAssignee->first_name,
                 'last_name' => $task->pendingAssignee->last_name,
             ] : null,
+            'categories' => $task->categories->map(fn ($category) => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'color' => $category->color,
+            ])->all(),
         ];
+    }
+
+    /**
+     * Comma-joined tag names for a task, for the exports (Word/Excel/Google/PDF) where a
+     * plain string cell is needed instead of the on-screen report's colored pill chips.
+     */
+    private function tagsLabel(Document $task): string
+    {
+        $names = $task->categories->pluck('name');
+
+        return $names->isNotEmpty() ? $names->implode(', ') : '—';
     }
 }

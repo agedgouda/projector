@@ -92,8 +92,9 @@ class OrganizationController extends Controller
             ->map(fn (Client $c) => array_merge($c->toArray(), [
                 'logo_url' => $c->logo_url,
                 // Projects don't eager-load their own `client` — inject the one we already
-                // have in hand rather than a wasteful `projects.client` eager load, since
-                // ProjectFolio.vue's "Add Sub-project" link reads project.client.company_name.
+                // have in hand rather than a wasteful `projects.client` eager load. Currently
+                // unused by the UI (see ProjectFolio.vue), kept for parity with the data shape
+                // tested in ClientProjectListDataTest.php.
                 'projects' => $c->projects->map(fn ($p) => array_merge($p->toArray(), [
                     'logo_url' => $p->logo_url,
                     'client' => ['company_name' => $c->company_name],

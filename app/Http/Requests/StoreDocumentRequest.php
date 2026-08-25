@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\ValidCategory;
 use App\Rules\ValidKanbanColumn;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -69,7 +68,6 @@ class StoreDocumentRequest extends FormRequest
             'due_at' => ['nullable', 'date'],
             'external_due_at' => ['nullable', 'date'],
             'start_at' => ['nullable', 'date'],
-            'category_id' => ['nullable', 'uuid', new ValidCategory($project)],
             'assignee_id' => ['nullable', 'exists:users,id'],
             'pending_assignee_invitation_id' => [
                 'nullable',

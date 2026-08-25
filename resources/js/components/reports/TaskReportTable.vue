@@ -18,9 +18,10 @@ export interface TaskReportRow {
     task_status: string | null;
     assignee: { id: number; name: string } | null;
     pending_assignee: { id: number; email: string; first_name: string | null; last_name: string | null } | null;
+    categories: CategoryDef[];
 }
 
-export type SortKey = 'status' | 'due_at' | 'external_due_at' | 'name' | 'assignee' | 'priority' | 'project_name';
+export type SortKey = 'status' | 'due_at' | 'external_due_at' | 'name' | 'assignee' | 'priority' | 'project_name' | 'tags';
 export type SortDir = 'asc' | 'desc';
 
 const props = defineProps<{
@@ -50,15 +51,15 @@ const statusFor = (statusKey: string | null) => props.columns?.find((c) => c.key
 // silently fail to generate any CSS.
 const gridColsClass = computed(() => {
     if (props.hasSubprojects && props.usesExternalDueDates) {
-        return 'md:grid-cols-[140px_110px_90px_90px_1fr_180px_120px]';
+        return 'md:grid-cols-[140px_110px_90px_90px_1fr_180px_120px_180px]';
     }
     if (props.hasSubprojects) {
-        return 'md:grid-cols-[140px_110px_100px_1fr_180px_120px]';
+        return 'md:grid-cols-[140px_110px_100px_1fr_180px_120px_180px]';
     }
     if (props.usesExternalDueDates) {
-        return 'md:grid-cols-[110px_90px_90px_1fr_180px_120px]';
+        return 'md:grid-cols-[110px_90px_90px_1fr_180px_120px_180px]';
     }
-    return 'md:grid-cols-[110px_100px_1fr_180px_120px]';
+    return 'md:grid-cols-[110px_100px_1fr_180px_120px_180px]';
 });
 
 const formatDueDate = (value: string | null): string => {
@@ -125,6 +126,10 @@ const sortValue = (task: TaskReportRow, key: SortKey): string | number | null =>
             return task.priority ? (PRIORITY_WEIGHT[task.priority] ?? null) : null;
         case 'project_name':
             return task.project_name ? task.project_name.toLowerCase() : null;
+        case 'tags':
+            return task.categories.length
+                ? [...task.categories].map((c) => c.name).sort().join(', ').toLowerCase()
+                : null;
     }
 };
 
@@ -209,6 +214,13 @@ const sortedTasks = computed(() => {
                 <ChevronDown v-else-if="sortKey === 'priority' && sortDir === 'desc'" class="h-3 w-3" />
                 <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
             </button>
+
+            <button type="button" class="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300" @click="toggleSort('tags')">
+                Tags
+                <ChevronUp v-if="sortKey === 'tags' && sortDir === 'asc'" class="h-3 w-3" />
+                <ChevronDown v-else-if="sortKey === 'tags' && sortDir === 'desc'" class="h-3 w-3" />
+                <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+            </button>
         </div>
 
         <Link
@@ -235,6 +247,18 @@ const sortedTasks = computed(() => {
             <span class="flex items-center gap-1.5">
                 <span :class="['w-1.5 h-1.5 rounded-full shrink-0', priorityDotClasses[task.priority ?? 'low']]"></span>
                 <span class="text-slate-500 dark:text-slate-400">{{ task.priority ? PRIORITY_LABELS[task.priority] : '—' }}</span>
+            </span>
+
+            <span class="col-span-2 md:col-span-1 flex flex-wrap items-center gap-1">
+                <span
+                    v-for="category in task.categories"
+                    :key="category.id"
+                    class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                >
+                    <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[category.color]]"></span>
+                    {{ category.name }}
+                </span>
+                <span v-if="task.categories.length === 0" class="text-slate-400 dark:text-slate-500">—</span>
             </span>
         </Link>
 

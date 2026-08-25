@@ -109,7 +109,6 @@ watch(searchQuery, (newVal) => {
 
                 <NewProjectModal
                     :clients="clients"
-                    :projects="projects"
                     @success="handleSuccess"
                 />
             </div>

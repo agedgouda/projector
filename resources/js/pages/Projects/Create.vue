@@ -23,7 +23,6 @@ const props = defineProps<{
     initialName: string;
     preselectedClient: PreselectedClient | null;
     parentProject: ParentProject | null;
-    projects: { id: string; name: string; client_id: string; parent_id?: string | null }[];
     backUrl: string;
 }>();
 
@@ -81,7 +80,6 @@ const handleSuccess = () => {
                     :client="preselectedClient as any"
                     :initial-name="initialName"
                     :parent-project="parentProject"
-                    :projects="projects"
                     @success="handleSuccess"
                     @cancel="goBack"
                 />

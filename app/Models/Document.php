@@ -70,7 +70,6 @@ class Document extends Model implements HasMedia
         'due_at',
         'external_due_at',
         'start_at',
-        'category_id',
         'locked_project_type_id',
         'custom_prompt',
         'last_ai_template_id',
@@ -105,18 +104,6 @@ class Document extends Model implements HasMedia
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    /**
-     * Boards this task is *also* shown on, beyond its one home board (project()/project_id).
-     * See DocumentController::updateBoards() for the family/matching-columns rules that
-     * constrain which projects can appear here.
-     *
-     * @return BelongsToMany<Project, $this>
-     */
-    public function linkedProjects(): BelongsToMany
-    {
-        return $this->belongsToMany(Project::class, 'document_project_links')->withTimestamps();
-    }
-
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id');
@@ -137,9 +124,12 @@ class Document extends Model implements HasMedia
         return $this->belongsTo(OrganizationInvitation::class, 'pending_assignee_invitation_id');
     }
 
-    public function category(): BelongsTo
+    /**
+     * @return BelongsToMany<Category, $this>
+     */
+    public function categories(): BelongsToMany
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsToMany(Category::class);
     }
 
     public function parent(): BelongsTo

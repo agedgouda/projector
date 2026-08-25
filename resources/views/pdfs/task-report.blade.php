@@ -186,6 +186,7 @@
                 <th>Task Name</th>
                 <th>Assignee</th>
                 <th>Priority</th>
+                <th>Tags</th>
                 @if ($includeDetails)
                     <th class="col-details">Details</th>
                 @endif
@@ -210,13 +211,14 @@
                     <td>{{ $task->name }}</td>
                     <td>{{ $assigneeName }}</td>
                     <td>{{ $task->priority ? ucfirst($task->priority) : '—' }}</td>
+                    <td>{{ $task->categories->isNotEmpty() ? $task->categories->pluck('name')->implode(', ') : '—' }}</td>
                     @if ($includeDetails)
                         <td class="col-details">{!! nl2br(e(Str::limit(strip_tags($task->content ?? ''), 600))) !!}</td>
                     @endif
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ 5 + ($hasSubprojects ? 1 : 0) + ($usesExternalDueDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
+                    <td colspan="{{ 6 + ($hasSubprojects ? 1 : 0) + ($usesExternalDueDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
                 </tr>
             @endforelse
         </tbody>

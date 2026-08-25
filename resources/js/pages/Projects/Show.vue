@@ -70,14 +70,19 @@ const {
     isSheetOpen,
     handleCreateNew,
     getTasksByRowAndStatus,
+    getTaskCountByRowAndStatus,
+    matchesFilters,
     updateAttribute,
+    updateTags,
     onDragChange,
     openDetail,
     searchQuery,
     selectedPriorities,
     sortBy,
     availableTags,
-    excludedTagIds,
+    selectedTagIds,
+    projectsById,
+    assigneeOptionsByProjectId,
     applyLocalUpdate,
     removeLocalDocuments,
     localKanbanData,
@@ -514,18 +519,25 @@ watch(
                     v-model:searchQuery="searchQuery"
                     v-model:selectedPriorities="selectedPriorities"
                     v-model:sortBy="sortBy"
-                    v-model:excludedTagIds="excludedTagIds"
+                    v-model:selectedTagIds="selectedTagIds"
                     :available-tags="availableTags"
+                    :projects-by-id="projectsById"
+                    :assignee-options-by-project-id="assigneeOptionsByProjectId"
                     :current-project="currentProject"
                     :has-rows="hasRows"
                     :workflow-rows="workflowRows"
                     :get-tasks-by-row-and-status="getTasksByRowAndStatus"
+                    :get-task-count-by-row-and-status="getTaskCountByRowAndStatus"
+                    :matches-filters="matchesFilters"
                     :on-drag-change="onDragChange"
                     :open-detail="openDetail"
                     :handle-create-new="handleCreateNew"
                     :update-attribute="
                         (docId, field, val) =>
                             updateAttribute(docId, { [field]: val }, 'Changes saved')
+                    "
+                    :update-tags="
+                        (docId, categories) => updateTags(docId, categories)
                     "
                     :can-manage-columns="canManageProject"
                 />

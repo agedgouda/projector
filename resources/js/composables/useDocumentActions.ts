@@ -64,14 +64,17 @@ export function useDocumentActions(
         });
     };
 
-    // Sets the complete list of additional boards (beyond the home board) a task is also
-    // shown on — see DocumentController::updateBoards(). Always sends the full desired set
-    // (sync semantics), not a single add/remove, matching how the backend applies it.
-    const updateBoardLinks = (docId: string, projectIds: string[], onError?: (message: string) => void) => {
-        const url = projectDocumentsRoutes.updateBoards({ project: props.project.id, document: docId }).url;
-        router.put(url, { project_ids: projectIds }, {
+    // Sets the complete list of tags on a task — sync semantics (send the full desired set,
+    // not a single add/remove). Takes the resolved CategoryDef objects so the caller can
+    // optimistically update local state before the round trip.
+    const updateTags = (docId: string, categories: CategoryDef[], onError?: (message: string) => void) => {
+        const url = projectDocumentsRoutes.updateCategories({ project: props.project.id, document: docId }).url;
+        router.put(url, { category_ids: categories.map((c) => c.id) }, {
             preserveScroll: true,
-            onError: (errors) => onError?.(Object.values(errors)[0] ?? 'Could not update this task\'s boards.'),
+            onSuccess: () => {
+                if (updateDocState) updateDocState(docId, { categories });
+            },
+            onError: (errors) => onError?.(Object.values(errors)[0] ?? 'Could not update this task\'s tags.'),
         });
     };
 
@@ -228,7 +231,7 @@ export function useDocumentActions(
         patchField,
         updateField,
         moveToBoard,
-        updateBoardLinks,
+        updateTags,
         safeJsonParse,
         navigateToDetails
     };

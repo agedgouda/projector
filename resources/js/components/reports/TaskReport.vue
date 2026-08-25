@@ -54,7 +54,7 @@ const onSortChange = (key: SortKey, dir: SortDir) => {
     currentSort.value = { key, dir };
 };
 
-const ARRAY_FILTER_KEYS = ['assignee', 'task_status', 'priority', 'project_id'] as const;
+const ARRAY_FILTER_KEYS = ['assignee', 'task_status', 'priority', 'project_id', 'category_id'] as const;
 const STRING_FILTER_KEYS = ['due_from', 'due_to'] as const;
 
 // The results/hasSearched state above is local to this component instance, which doesn't
@@ -79,6 +79,7 @@ const filtersFromUrl = (): TaskSearchFilters | null => {
         due_from: params.get('due_from') ?? '',
         due_to: params.get('due_to') ?? '',
         project_id: params.getAll('project_id'),
+        category_id: params.getAll('category_id'),
     };
 };
 
@@ -260,6 +261,7 @@ onMounted(async () => {
                 :invitations="project.client.organization?.invitations"
                 :columns="project.kanban_columns"
                 :project-options="projectOptions"
+                :categories="project.categories"
                 :initial-filters="initialFilters"
                 :loading="loading"
                 @search="onSearch"

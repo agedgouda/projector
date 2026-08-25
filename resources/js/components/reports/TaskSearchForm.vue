@@ -16,9 +16,14 @@ export interface TaskSearchFilters {
     due_from: string;
     due_to: string;
     project_id: string[];
+    category_id: string[];
 }
 
 const UNASSIGNED = 'unassigned';
+// Mirrors TAG_FILTER_NONE in useKanbanQueries.ts — the Kanban board's own tag filter uses
+// the same sentinel for "no tags", kept in sync by convention rather than a shared import
+// since this form isn't part of the Kanban composable tree.
+const NO_TAGS = 'none';
 
 const props = defineProps<{
     users?: User[];
@@ -29,6 +34,9 @@ const props = defineProps<{
     // This project plus its sub-projects, if any — always includes at least the project
     // itself. The filter only renders once there's actually something to choose between.
     projectOptions?: { id: string; name: string }[];
+    // The project family's full tag catalog (see Project::familyCategories()) — the filter
+    // only renders once there's actually something to choose between.
+    categories?: CategoryDef[];
 }>();
 
 const emit = defineEmits<{
@@ -44,6 +52,25 @@ const statusOptions = computed(() => (props.columns ?? []).map((column) => ({ va
 const priorityOptions = computed(() => Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label })));
 const projectSelectOptions = computed(() => (props.projectOptions ?? []).map((option) => ({ value: option.id, label: option.name })));
 const showProjectFilter = (props.projectOptions?.length ?? 0) > 1;
+const categoryOptions = computed(() => [
+    { value: NO_TAGS, label: 'No Tags' },
+    ...(props.categories ?? []).map((category) => ({ value: category.id, label: category.name })),
+]);
+const showTagFilter = (props.categories?.length ?? 0) > 0;
+
+// Tailwind's build-time scanner only picks up class names appearing verbatim in source, so
+// each combination of the two optional filters (Project, Tags) is spelled out completely
+// rather than assembled from a computed column count.
+const formGridColsClass = computed(() => {
+    if (showProjectFilter && showTagFilter) return 'lg:grid-cols-7';
+    if (showProjectFilter || showTagFilter) return 'lg:grid-cols-6';
+    return 'lg:grid-cols-5';
+});
+const formColSpanClass = computed(() => {
+    if (showProjectFilter && showTagFilter) return 'lg:col-span-7';
+    if (showProjectFilter || showTagFilter) return 'lg:col-span-6';
+    return 'lg:col-span-5';
+});
 
 const filters = reactive<TaskSearchFilters>({
     assignee: props.initialFilters?.assignee ?? [],
@@ -52,6 +79,7 @@ const filters = reactive<TaskSearchFilters>({
     due_from: props.initialFilters?.due_from || '',
     due_to: props.initialFilters?.due_to || '',
     project_id: props.initialFilters?.project_id ?? [],
+    category_id: props.initialFilters?.category_id ?? [],
 });
 
 // initialFilters can resolve after this component has already mounted and rendered with
@@ -68,6 +96,7 @@ watch(
         filters.due_from = value.due_from;
         filters.due_to = value.due_to;
         filters.project_id = value.project_id;
+        filters.category_id = value.category_id;
     },
 );
 
@@ -78,6 +107,7 @@ const snapshot = (): TaskSearchFilters => ({
     due_from: filters.due_from,
     due_to: filters.due_to,
     project_id: [...filters.project_id],
+    category_id: [...filters.category_id],
 });
 
 const submit = () => {
@@ -91,6 +121,7 @@ const reset = () => {
     filters.due_from = '';
     filters.due_to = '';
     filters.project_id = [];
+    filters.category_id = [];
     emit('reset', snapshot());
 };
 
@@ -103,7 +134,7 @@ interface FilterChip {
 // One chip per individually-selected value (not one per field) — so "Assignee: Alice, Bob"
 // shows and removes as two chips, matching how each was chosen and letting either be dropped
 // without reopening that field's dropdown to find it again.
-const chipsFor = (field: 'assignee' | 'task_status' | 'priority' | 'project_id', options: MultiSelectOption[]): FilterChip[] =>
+const chipsFor = (field: 'assignee' | 'task_status' | 'priority' | 'project_id' | 'category_id', options: MultiSelectOption[]): FilterChip[] =>
     options
         .filter((option) => filters[field].includes(option.value))
         .map((option) => ({
@@ -118,6 +149,7 @@ const activeChips = computed<FilterChip[]>(() => [
     ...chipsFor('project_id', projectSelectOptions.value),
     ...chipsFor('assignee', assigneeOptions.value),
     ...chipsFor('task_status', statusOptions.value),
+    ...chipsFor('category_id', categoryOptions.value),
     ...chipsFor('priority', priorityOptions.value),
     ...(filters.due_from ? [{ id: 'due_from', label: `Due from ${filters.due_from}`, remove: () => { filters.due_from = ''; } }] : []),
     ...(filters.due_to ? [{ id: 'due_to', label: `Due to ${filters.due_to}`, remove: () => { filters.due_to = ''; } }] : []),
@@ -127,7 +159,7 @@ const activeChips = computed<FilterChip[]>(() => [
 <template>
     <form
         @submit.prevent="submit"
-        :class="['grid gap-4 sm:grid-cols-2 lg:items-end', showProjectFilter ? 'lg:grid-cols-6' : 'lg:grid-cols-5']"
+        :class="['grid gap-4 sm:grid-cols-2 lg:items-end', formGridColsClass]"
     >
         <div v-if="showProjectFilter" class="grid gap-2">
             <Label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Project</Label>
@@ -149,6 +181,11 @@ const activeChips = computed<FilterChip[]>(() => [
             <MultiSelect v-model="filters.priority" :options="priorityOptions" placeholder="Any Priority" search-placeholder="Search priorities…" />
         </div>
 
+        <div v-if="showTagFilter" class="grid gap-2">
+            <Label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Tags</Label>
+            <MultiSelect v-model="filters.category_id" :options="categoryOptions" placeholder="Any Tag" search-placeholder="Search tags…" />
+        </div>
+
         <div class="grid gap-2">
             <Label for="report-due-from" class="text-[11px] font-black uppercase tracking-widest text-slate-500">Due From</Label>
             <Input id="report-due-from" v-model="filters.due_from" type="date" class="h-9 text-[13px]" />
@@ -159,7 +196,7 @@ const activeChips = computed<FilterChip[]>(() => [
             <Input id="report-due-to" v-model="filters.due_to" type="date" class="h-9 text-[13px]" />
         </div>
 
-        <div v-if="activeChips.length" :class="['flex flex-wrap gap-1.5 sm:col-span-2', showProjectFilter ? 'lg:col-span-6' : 'lg:col-span-5']">
+        <div v-if="activeChips.length" :class="['flex flex-wrap gap-1.5 sm:col-span-2', formColSpanClass]">
             <Badge v-for="chip in activeChips" :key="chip.id" variant="secondary" class="gap-1 pr-1 text-[11px] font-medium">
                 {{ chip.label }}
                 <button
@@ -173,7 +210,7 @@ const activeChips = computed<FilterChip[]>(() => [
             </Badge>
         </div>
 
-        <div :class="['flex gap-2 sm:col-span-2', showProjectFilter ? 'lg:col-span-6' : 'lg:col-span-5']">
+        <div :class="['flex gap-2 sm:col-span-2', formColSpanClass]">
             <Button type="submit" size="sm" :disabled="props.loading">
                 <Search class="h-3.5 w-3.5" />
                 Search

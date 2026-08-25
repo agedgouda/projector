@@ -53,7 +53,6 @@ const ordered = computed(() => {
         :key="entry.project.id"
         :project="entry.project"
         :is-sub-project="entry.isSubProject"
-        :projects="projects"
         :redirect-to="redirectTo"
         :row-index="entry.rowIndex"
         class="w-full"

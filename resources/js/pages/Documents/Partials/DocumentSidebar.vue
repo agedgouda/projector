@@ -11,7 +11,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MultiSelect } from '@/components/ui/multi-select';
 import {
     Select,
     SelectContent,
@@ -21,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { mergeAssigneeOptions } from '@/lib/assignees';
-import { PRIORITY_LABELS, kanbanDotClasses } from '@/lib/constants';
+import { PRIORITY_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import axios from 'axios';
 import {
@@ -46,8 +45,8 @@ const props = defineProps<{
     isProcessingLive?: boolean;
     processingMessage?: string | null;
     // Every other board in this task's subproject family — empty for a project with no
-    // parent and no siblings, in which case the Board/Also Shown On section below just
-    // doesn't render (nothing to move to or link). See DocumentController::show().
+    // parent and no siblings, in which case the Board section below just doesn't render
+    // (nothing to move to). See DocumentController::show().
     boardOptions?: BoardOption[];
 }>();
 
@@ -56,17 +55,11 @@ const emit = defineEmits<{
     (e: 'update:dueAtProxy', val: string): void;
     (e: 'request-process'): void;
     (e: 'move', targetProjectId: string): void;
-    (e: 'update-boards', projectIds: string[]): void;
 }>();
 
 const { getDocLabel, isTask } = useDocumentPresenter(props.documentTypeCatalog);
 const shouldShowTask = computed(() => isTask(props.item.type));
 const hasOtherBoards = computed(() => (props.boardOptions?.length ?? 0) > 0);
-
-const linkedProjectIds = computed(() =>
-    (props.item.linked_projects ?? []).map((p: BoardOption) => p.id),
-);
-const handleUpdateBoards = (ids: string[]) => emit('update-boards', ids);
 
 const assigneeValue = computed(() => {
     if (props.item.pending_assignee_invitation_id) {
@@ -76,13 +69,6 @@ const assigneeValue = computed(() => {
 });
 
 const columns = computed(() => props.project.kanban_columns ?? []);
-
-const boardMultiSelectOptions = computed(() =>
-    (props.boardOptions ?? []).map((option) => ({
-        value: option.id,
-        label: option.name,
-    })),
-);
 
 // Real users and invited people merged into one alphabetically-sorted list, rather than
 // users in their raw (insertion) order followed by a separate invited block.
@@ -405,83 +391,6 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                             </div>
 
                             <div
-                                v-if="(project.categories?.length ?? 0) > 0"
-                                class="flex min-h-[24px] items-center justify-between"
-                            >
-                                <span
-                                    class="text-[13px] text-slate-900 dark:text-slate-400"
-                                    >Tag</span
-                                >
-                                <Select
-                                    :model-value="item.category_id ?? 'none'"
-                                    :disabled="project.inactive"
-                                    @update:model-value="
-                                        (val) =>
-                                            $emit(
-                                                'change',
-                                                'category_id',
-                                                val === 'none' ? null : val,
-                                            )
-                                    "
-                                >
-                                    <SelectTrigger
-                                        class="h-auto w-auto rounded-md border-none bg-transparent p-0 shadow-none transition-all outline-none hover:bg-slate-100 focus:bg-transparent focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 dark:!bg-transparent dark:hover:bg-white/10 dark:focus:bg-transparent"
-                                    >
-                                        <div class="px-2 py-1">
-                                            <span
-                                                class="relative left-[10px] flex items-center gap-1.5 text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
-                                            >
-                                                <div
-                                                    v-if="item.category"
-                                                    :class="[
-                                                        kanbanDotClasses[
-                                                            item.category.color
-                                                        ],
-                                                        'h-2 w-2 rounded-full',
-                                                    ]"
-                                                ></div>
-                                                <SelectValue
-                                                    placeholder="None"
-                                                />
-                                            </span>
-                                        </div>
-                                    </SelectTrigger>
-                                    <SelectContent
-                                        align="end"
-                                        class="min-w-[160px]"
-                                    >
-                                        <SelectItem
-                                            value="none"
-                                            class="cursor-pointer text-[13px] font-black tracking-[0.12em] text-slate-400 uppercase focus:bg-slate-100 dark:focus:bg-white/10"
-                                        >
-                                            No Tag
-                                        </SelectItem>
-                                        <SelectItem
-                                            v-for="category in project.categories ??
-                                            []"
-                                            :key="category.id"
-                                            :value="category.id"
-                                            class="cursor-pointer text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase focus:bg-slate-100 dark:text-slate-200 dark:focus:bg-white/10"
-                                        >
-                                            <div
-                                                class="flex items-center gap-2"
-                                            >
-                                                <div
-                                                    :class="[
-                                                        kanbanDotClasses[
-                                                            category.color
-                                                        ],
-                                                        'h-2 w-2 rounded-full',
-                                                    ]"
-                                                ></div>
-                                                {{ category.name }}
-                                            </div>
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div
                                 class="flex min-h-[24px] items-center justify-between"
                             >
                                 <span
@@ -569,25 +478,6 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                            </div>
-
-                            <div
-                                v-if="hasOtherBoards"
-                                class="flex min-h-[24px] items-center justify-between gap-3"
-                            >
-                                <span
-                                    class="shrink-0 text-[13px] text-slate-900 dark:text-slate-400"
-                                    >Also Shown On</span
-                                >
-                                <MultiSelect
-                                    :model-value="linkedProjectIds"
-                                    :options="boardMultiSelectOptions"
-                                    placeholder="Not shown elsewhere"
-                                    search-placeholder="Search boards…"
-                                    :disabled="project.inactive"
-                                    class="max-w-[220px]"
-                                    @update:model-value="handleUpdateBoards"
-                                />
                             </div>
                         </div>
                     </div>

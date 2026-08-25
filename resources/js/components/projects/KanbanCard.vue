@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
 } from '@/components/ui/select';
-import { mergeAssigneeOptions } from '@/lib/assignees';
+import type { AssigneeOption } from '@/lib/assignees';
 import {
     PRIORITY_LABELS,
     kanbanDotClasses,
-    kanbanSolidClasses,
     priorityDotClasses,
 } from '@/lib/constants';
 import {
@@ -19,16 +23,25 @@ import {
     getPriorityStyles,
     kanbanCardBg,
 } from '@/lib/kanban-theme';
-import { usePage } from '@inertiajs/vue3';
-import { Calendar, Link2, Plus } from 'lucide-vue-next';
+import { Calendar, Plus } from 'lucide-vue-next';
 import { computed } from 'vue';
 
-const props = defineProps<{ doc: ProjectDocument; column: KanbanColumnDef }>();
+const props = defineProps<{
+    doc: ProjectDocument;
+    column: KanbanColumnDef;
+    // Resolved once per project by the parent board (KanbanColumn.vue) via a shared Map,
+    // instead of every card independently scanning the full projects list and re-merging
+    // + re-sorting that project's assignees — real, redundant work when many cards from
+    // the same project are visible at once (e.g. clearing the tag filter).
+    documentProject: Project | null;
+    assigneeOptions: AssigneeOption[];
+}>();
 
 // Define emits to handle the keyboard and click actions consistently
 const emit = defineEmits<{
     (e: 'open', doc: ProjectDocument): void;
     (e: 'update-attribute', field: string, value: string | number | null): void;
+    (e: 'update-tags', categories: CategoryDef[]): void;
 }>();
 
 // Helper for initials
@@ -50,32 +63,25 @@ const dueDateBorder = computed(() =>
     dueDateCardBorderColor(props.doc, props.column),
 );
 
-// Mirrors DocumentSidebar.vue's project resolution — on the single-project page
-// `currentProject` already has the right client/organization/users; on the cross-project
-// Dashboard board there's no single current project, so resolve this card's own document
-// back to its project via the full `projects` list shared on every page.
-const page = usePage<AppPageProps>();
-const currentProject = computed(
-    () => (page.props as any).currentProject as Project | null,
-);
-const allProjects = computed(
-    () => (page.props as any).projects as Project[] | undefined,
-);
-const documentProject = computed(
-    () =>
-        allProjects.value?.find((p) => p.id === props.doc.project_id) ??
-        currentProject.value,
-);
+// Tags already on this task never show up again as an "add" option — only the family's
+// remaining, not-yet-applied tags do.
+const availableTagsToAdd = computed(() => {
+    const appliedIds = new Set((props.doc.categories ?? []).map((c) => c.id));
+    return (props.documentProject?.categories ?? []).filter(
+        (c) => !appliedIds.has(c.id),
+    );
+});
 
-// Real users and invited people merged into one alphabetically-sorted list, matching
-// DocumentSidebar.vue's own assignee picker — client.users (as opposed to
-// client.organization.users) is empty for most clients, so that path isn't usable here.
-const assigneeOptions = computed(() =>
-    mergeAssigneeOptions(
-        documentProject.value?.client?.organization?.users,
-        documentProject.value?.client?.organization?.invitations,
-    ),
-);
+const addTag = (category: CategoryDef) => {
+    emit('update-tags', [...(props.doc.categories ?? []), category]);
+};
+
+const removeTag = (category: CategoryDef) => {
+    emit(
+        'update-tags',
+        (props.doc.categories ?? []).filter((c) => c.id !== category.id),
+    );
+};
 
 const assigneeValue = computed(() => {
     if (props.doc.pending_assignee_invitation_id) {
@@ -98,10 +104,6 @@ const handleUpdate = (field: string, value: any) => {
         finalValue = value === '' ? null : value;
     }
 
-    if (field === 'category_id') {
-        finalValue = value === 'none' ? null : value;
-    }
-
     emit('update-attribute', field, finalValue);
 };
 </script>
@@ -121,22 +123,11 @@ const handleUpdate = (field: string, value: any) => {
         @keydown.enter.prevent="emit('open', doc)"
         @keydown.space.prevent="emit('open', doc)"
     >
-        <div
-            v-if="doc.category"
-            :class="[
-                '-mx-5 -mt-5 mb-3 rounded-t-xl px-3 py-1.5 text-center text-[10px] font-black tracking-widest uppercase',
-                kanbanSolidClasses[doc.category.color],
-            ]"
-        >
-            {{ doc.category.name }}
-        </div>
-        <div class="first:-mt-2.5 mb-0.5 flex justify-end">
+        <div class="-mt-2.5 mb-0.5 flex justify-end">
             <div @click.stop @keydown.stop class="shrink-0">
                 <Select
                     :model-value="doc.priority ?? 'low'"
-                    @update:model-value="
-                        (val) => handleUpdate('priority', val)
-                    "
+                    @update:model-value="(val) => handleUpdate('priority', val)"
                 >
                     <SelectTrigger
                         class="h-auto w-auto gap-0 border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
@@ -157,9 +148,7 @@ const handleUpdate = (field: string, value: any) => {
                             :value="key"
                             class="text-[10px] font-black uppercase"
                         >
-                            <div
-                                class="flex w-24 items-center justify-between"
-                            >
+                            <div class="flex w-24 items-center justify-between">
                                 {{ label }}
                                 <div
                                     :class="[
@@ -176,24 +165,11 @@ const handleUpdate = (field: string, value: any) => {
         <h4
             :class="[
                 KANBAN_UI.cardTitle,
-                'mb-1 transition-colors group-hover:text-projector-primary-600',
+                'mb-5 transition-colors group-hover:text-projector-primary-600',
             ]"
         >
             {{ doc.name }}
         </h4>
-        <div class="mb-5 flex items-center gap-1.5 text-xs">
-            <!-- Cards native to this board never carry is_linked at all — see
-                 Project::getKanbanDocuments() — so this only ever shows on a card that's
-                 cross-posted here from elsewhere in the project's subproject family. -->
-            <span
-                v-if="doc.is_linked"
-                :title="`Shown here from ${doc.home_project_name ?? 'another board'} — editing it updates it everywhere it's shown.`"
-                class="inline-flex items-center gap-1 rounded-full border border-projector-primary-200 bg-projector-primary-50 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-projector-primary-600 uppercase dark:border-projector-primary-800 dark:bg-projector-primary-950/40 dark:text-projector-primary-400"
-            >
-                <Link2 class="h-2.5 w-2.5" />
-                {{ doc.home_project_name }}
-            </span>
-        </div>
         <div class="flex items-center justify-between gap-x-5 gap-y-2">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <div @click.stop @keydown.stop>
@@ -299,70 +275,58 @@ const handleUpdate = (field: string, value: any) => {
 
         <div
             v-if="(documentProject?.categories?.length ?? 0) > 0"
-            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1"
+            class="mt-2 flex flex-wrap items-center gap-1.5"
+            @click.stop
+            @keydown.stop
         >
-            <div @click.stop @keydown.stop>
-                <Select
-                    :model-value="doc.category_id ?? 'none'"
-                    @update:model-value="
-                        (val) => handleUpdate('category_id', val)
-                    "
-                >
-                    <SelectTrigger
-                        class="h-auto w-auto gap-0 border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
+            <button
+                v-for="category in doc.categories ?? []"
+                :key="category.id"
+                type="button"
+                :title="`Remove '${category.name}' tag`"
+                :class="[
+                    KANBAN_UI.badge,
+                    'inline-flex items-center gap-1 hover:opacity-70',
+                ]"
+                @click="removeTag(category)"
+            >
+                <div
+                    :class="[
+                        kanbanDotClasses[category.color],
+                        'h-2 w-2 rounded-full',
+                    ]"
+                ></div>
+                {{ category.name }}
+            </button>
+
+            <Popover v-if="availableTagsToAdd.length">
+                <PopoverTrigger as-child>
+                    <button
+                        type="button"
+                        title="Add a tag"
+                        class="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
+                    >
+                        <Plus class="h-3 w-3" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent class="w-48 p-1" align="start">
+                    <button
+                        v-for="category in availableTagsToAdd"
+                        :key="category.id"
+                        type="button"
+                        class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                        @click="addTag(category)"
                     >
                         <div
-                            v-if="doc.category"
                             :class="[
-                                KANBAN_UI.badge,
-                                'inline-flex items-center gap-1',
+                                kanbanDotClasses[category.color],
+                                'h-2 w-2 shrink-0 rounded-full',
                             ]"
-                        >
-                            <div
-                                :class="[
-                                    kanbanDotClasses[doc.category.color],
-                                    'h-2 w-2 rounded-full',
-                                ]"
-                            ></div>
-                            {{ doc.category.name }}
-                        </div>
-                        <div
-                            v-else
-                            class="flex items-center gap-1 text-[10px] font-black tracking-wide text-gray-300 uppercase"
-                        >
-                            <div
-                                class="h-2 w-2 rounded-full border border-dashed border-gray-300"
-                            ></div>
-                            Tag
-                        </div>
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                        <SelectItem
-                            value="none"
-                            class="text-[10px] font-bold text-gray-400 uppercase"
-                        >
-                            No Tag
-                        </SelectItem>
-                        <SelectItem
-                            v-for="category in documentProject?.categories ??
-                            []"
-                            :key="category.id"
-                            :value="category.id"
-                            class="text-[10px] font-black uppercase"
-                        >
-                            <div class="flex items-center gap-2">
-                                <div
-                                    :class="[
-                                        kanbanDotClasses[category.color],
-                                        'h-2 w-2 rounded-full',
-                                    ]"
-                                ></div>
-                                {{ category.name }}
-                            </div>
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+                        ></div>
+                        {{ category.name }}
+                    </button>
+                </PopoverContent>
+            </Popover>
         </div>
     </div>
 </template>

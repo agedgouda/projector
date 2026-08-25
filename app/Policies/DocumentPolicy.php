@@ -74,15 +74,6 @@ class DocumentPolicy
     }
 
     /**
-     * Deciding which additional boards a task is cross-posted to — same access bar as
-     * move() and for the same reason.
-     */
-    public function manageBoards(User $user, Document $document): bool
-    {
-        return ! $document->project->inactive && $this->canAccessProject($user, $document->project);
-    }
-
-    /**
      * Any org member can update task attributes (assignee, status, due date).
      */
     public function updateAttributes(User $user, Document $document): bool

@@ -59,7 +59,6 @@ class ProjectController extends Controller
             'initialName' => $request->query('name', ''),
             'preselectedClient' => $preselectedClient?->only('id', 'company_name'),
             'parentProject' => $parentProject?->only('id', 'name', 'client_id'),
-            'projects' => $parentProject ? [] : $visibleProjects->map->only('id', 'name', 'client_id', 'parent_id')->values(),
             'backUrl' => $request->query('back', ''),
         ]);
     }
@@ -126,13 +125,9 @@ class ProjectController extends Controller
 
         // Load documents (with all needed relationships) before calling
         // getKanbanDocuments(), so it uses the already-loaded collection instead
-        // of lazy-loading documents without eager-loaded relationships. linkedDocuments
-        // gets the same relationship set as documents (getKanbanDocuments() renders both
-        // together) plus project:id,name, needed there for each linked card's
-        // home_project_name.
+        // of lazy-loading documents without eager-loaded relationships.
         $project->load([
-            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'category'])->withExists('lockedNextWorkflowStep')->latest(),
-            'linkedDocuments' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'category', 'project:id,name'])->withExists('lockedNextWorkflowStep'),
+            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'categories'])->withExists('lockedNextWorkflowStep')->latest(),
             'media',
             'parent.media',
             'parent.categories',

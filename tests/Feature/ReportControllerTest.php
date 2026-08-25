@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Category;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
@@ -252,6 +253,95 @@ it('filters by due date range', function () {
 
     expect($response->json())->toHaveCount(1)
         ->and($response->json('0.name'))->toBe('In Range');
+});
+
+it('includes a task\'s tags in the response', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $task = Document::create(['project_id' => $this->project->id, 'name' => 'Tagged Task', 'type' => 'action_items', 'content' => 'x']);
+    $task->categories()->attach($design->id);
+    Document::create(['project_id' => $this->project->id, 'name' => 'Untagged Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project))
+        ->assertOk();
+
+    $tagged = collect($response->json())->firstWhere('name', 'Tagged Task');
+    $untagged = collect($response->json())->firstWhere('name', 'Untagged Task');
+
+    expect($tagged['categories'])->toHaveCount(1)
+        ->and($tagged['categories'][0]['name'])->toBe('Design')
+        ->and($untagged['categories'])->toBe([]);
+});
+
+it('filters by tag', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
+    $designTask = Document::create(['project_id' => $this->project->id, 'name' => 'Design Task', 'type' => 'action_items', 'content' => 'x']);
+    $designTask->categories()->attach($design->id);
+    $backendTask = Document::create(['project_id' => $this->project->id, 'name' => 'Backend Task', 'type' => 'action_items', 'content' => 'x']);
+    $backendTask->categories()->attach($backend->id);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project)."?category_id[]={$design->id}")
+        ->assertOk();
+
+    expect($response->json())->toHaveCount(1)
+        ->and($response->json('0.name'))->toBe('Design Task');
+});
+
+it('filters by multiple tags at once, matching any of them', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
+    $marketing = Category::create(['project_id' => $this->project->id, 'name' => 'Marketing', 'color' => 'amber']);
+    $designTask = Document::create(['project_id' => $this->project->id, 'name' => 'Design Task', 'type' => 'action_items', 'content' => 'x']);
+    $designTask->categories()->attach($design->id);
+    $backendTask = Document::create(['project_id' => $this->project->id, 'name' => 'Backend Task', 'type' => 'action_items', 'content' => 'x']);
+    $backendTask->categories()->attach($backend->id);
+    $marketingTask = Document::create(['project_id' => $this->project->id, 'name' => 'Marketing Task', 'type' => 'action_items', 'content' => 'x']);
+    $marketingTask->categories()->attach($marketing->id);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project)."?category_id[]={$design->id}&category_id[]={$backend->id}")
+        ->assertOk();
+
+    expect(collect($response->json())->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$designTask->id, $backendTask->id])->sort()->values()->all());
+});
+
+it('filters by the no-tags sentinel alongside a real tag', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $designTask = Document::create(['project_id' => $this->project->id, 'name' => 'Design Task', 'type' => 'action_items', 'content' => 'x']);
+    $designTask->categories()->attach($design->id);
+    $untaggedTask = Document::create(['project_id' => $this->project->id, 'name' => 'Untagged Task', 'type' => 'action_items', 'content' => 'x']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project)."?category_id[]={$design->id}&category_id[]=none")
+        ->assertOk();
+
+    expect(collect($response->json())->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$designTask->id, $untaggedTask->id])->sort()->values()->all());
+});
+
+it('exports the excel with a Tags column', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $task = Document::create(['project_id' => $this->project->id, 'name' => 'Tagged Task', 'type' => 'action_items', 'content' => 'x']);
+    $task->categories()->attach($design->id);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->get(route('projects.reports.tasks.exportExcel', $this->project));
+
+    $response->assertOk();
+    expect(readExcelColumn($response->streamedContent(), 'F', 1))->toBe(['Design']);
 });
 
 it('rejects an invalid priority filter', function () {

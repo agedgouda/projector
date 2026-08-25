@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue';
+import { mergeAssigneeOptions, type AssigneeOption } from '@/lib/assignees';
 import type { KanbanProps } from './useKanbanBoard';
 
 export const ALL_PRIORITIES = ['high', 'medium', 'low'] as const;
@@ -10,6 +11,11 @@ export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'priority', label: 'Priority' },
     { value: 'created_at', label: 'Created Date' },
 ];
+
+// Multi-select tag filter: an empty selection shows everything ("All"). Otherwise a task
+// matches if any of its tags is selected, or — via the 'none' sentinel — if it has no tags
+// at all. Tag ids are UUIDs, so they never collide with the sentinel string.
+export const TAG_FILTER_NONE = 'none';
 
 const PRIORITY_WEIGHT: Record<string, number> = {
     urgent: 4,
@@ -57,9 +63,9 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
             localKanbanData.value as Record<string, ProjectDocument[]>,
         ).forEach((tasks) => {
             tasks.forEach((doc) => {
-                if (doc.category && !byId.has(doc.category.id)) {
-                    byId.set(doc.category.id, doc.category);
-                }
+                (doc.categories ?? []).forEach((category) => {
+                    if (!byId.has(category.id)) byId.set(category.id, category);
+                });
             });
         });
         return Array.from(byId.values()).sort((a, b) =>
@@ -67,67 +73,117 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
         );
     });
 
-    // Tags unchecked in the filter — empty by default, so nothing is excluded until the user
-    // deselects something (mirrors "All" being the default state). A tagged task is hidden
-    // once its tag is excluded; an untagged task always passes through, same pass-through
-    // rule the priority filter already uses for undocumented priority.
-    const excludedTagIds = ref<string[]>([]);
+    const selectedTagIds = ref<string[]>([]);
 
-    /**
-     * MEMOIZED TASK MAP
-     * We group tasks by a unique string key "rowKey|status"
-     * This turns an O(n*m) operation into an O(1) lookup.
-     */
-    const taskMap = computed(() => {
-        const map: Record<string, ProjectDocument[]> = {};
-        const query = searchQuery.value.toLowerCase().trim();
-        const priorities = new Set(selectedPriorities.value);
-        const excludedTags = new Set(excludedTagIds.value);
+    // Every task's project, by id — a KanbanCard needs its own document's project (for its
+    // tags, client, and assignable users), but doing that lookup by scanning props.projects
+    // is O(1) via this Map instead of a fresh linear .find() per card.
+    const projectsById = computed<Map<string, Project>>(() => {
+        const map = new Map<string, Project>();
+        (props.projects ?? []).forEach((project) => map.set(project.id, project));
+        return map;
+    });
 
-        Object.entries(
-            localKanbanData.value as Record<string, ProjectDocument[]>,
-        ).forEach(([rowKey, tasks]) => {
-            tasks.forEach((doc) => {
-                // 1. Calculate status (with fallback)
-                const status = (doc.task_status ||
-                    doc.status ||
-                    'todo') as TaskStatus;
-
-                // 2. Apply search filter
-                const matchesSearch =
-                    !query ||
-                    doc.name.toLowerCase().includes(query) ||
-                    doc.assignee?.name.toLowerCase().includes(query);
-
-                // 3. Apply priority filter (tasks with no priority pass through when any priority is selected)
-                const docPriority = doc.priority?.toLowerCase() as
-                    | Priority
-                    | undefined;
-                const matchesPriority =
-                    !docPriority || priorities.has(docPriority);
-
-                // 4. Apply tag filter (tasks with no tag always pass through)
-                const matchesTag =
-                    !doc.category || !excludedTags.has(doc.category.id);
-
-                if (matchesSearch && matchesPriority && matchesTag) {
-                    const compositeKey = `${rowKey}|${status}`;
-                    if (!map[compositeKey]) map[compositeKey] = [];
-                    map[compositeKey].push(doc);
-                }
-            });
+    // Assignee options are identical for every task on the same project, but merging +
+    // sorting an organization's users/invitations is real work — doing it once per project
+    // here (instead of once per KanbanCard instance, as before) avoids redoing the same
+    // merge dozens of times over when many cards from the same project are visible at once.
+    const assigneeOptionsByProjectId = computed<Map<string, AssigneeOption[]>>(() => {
+        const map = new Map<string, AssigneeOption[]>();
+        (props.projects ?? []).forEach((project) => {
+            map.set(
+                project.id,
+                mergeAssigneeOptions(
+                    project.client?.organization?.users,
+                    project.client?.organization?.invitations,
+                ),
+            );
         });
         return map;
     });
 
     /**
-     * O(1) Lookup - Super fast
+     * MEMOIZED TASK MAP
+     * We group tasks by a unique string key "rowKey|status". Deliberately NOT filtered by
+     * search/priority/tag here — every task for a given row+status is always included, so
+     * toggling a filter never changes which cards are mounted (see matchesFilters() below).
+     * Filtering out and back in used to remove/re-add cards from this map, which meant
+     * every filter change forced Vue to mount a fresh KanbanCard (and its several child
+     * Select/Popover components) for every newly-shown task — real, visible cost that scaled
+     * with how many cards a filter revealed. A hidden card costs a style recalculation now,
+     * not a mount.
+     */
+    const taskMap = computed(() => {
+        const map: Record<string, ProjectDocument[]> = {};
+
+        Object.entries(
+            localKanbanData.value as Record<string, ProjectDocument[]>,
+        ).forEach(([rowKey, tasks]) => {
+            tasks.forEach((doc) => {
+                const status = (doc.task_status ||
+                    doc.status ||
+                    'todo') as TaskStatus;
+                const compositeKey = `${rowKey}|${status}`;
+                if (!map[compositeKey]) map[compositeKey] = [];
+                map[compositeKey].push(doc);
+            });
+        });
+        return map;
+    });
+
+    // Sorted once per composite key here, memoized alongside taskMap — not inside
+    // getTasksByRowAndStatus, which the template calls afresh on every render (once for
+    // each column's card list, again for its header count), and would otherwise re-sort
+    // the same array repeatedly on every re-render.
+    const sortedTaskMap = computed(() => {
+        const map: Record<string, ProjectDocument[]> = {};
+        Object.entries(taskMap.value).forEach(([key, tasks]) => {
+            map[key] = sortTasks(tasks, sortBy.value);
+        });
+        return map;
+    });
+
+    /**
+     * O(1) Lookup - Super fast. Returns every task for this row+status (unfiltered) — the
+     * caller is responsible for hiding the ones matchesFilters() rejects, not for excluding them.
      */
     const getTasksByRowAndStatus = (rowKey: string, status: TaskStatus) => {
-        return sortTasks(
-            taskMap.value[`${rowKey}|${status}`] || [],
-            sortBy.value,
-        );
+        return sortedTaskMap.value[`${rowKey}|${status}`] || [];
+    };
+
+    // Whether a single task currently matches the search/priority/tag filters — cheap (a
+    // handful of comparisons), and cheap is the point: called once per already-mounted card
+    // on every filter change, instead of the whole board re-mounting cards to match.
+    const matchesFilters = (doc: ProjectDocument): boolean => {
+        const query = searchQuery.value.toLowerCase().trim();
+        const matchesSearch =
+            !query ||
+            doc.name.toLowerCase().includes(query) ||
+            doc.assignee?.name.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+
+        const docPriority = doc.priority?.toLowerCase() as
+            | Priority
+            | undefined;
+        const matchesPriority =
+            !docPriority || selectedPriorities.value.includes(docPriority);
+        if (!matchesPriority) return false;
+
+        if (selectedTagIds.value.length === 0) return true;
+
+        const docCategories = doc.categories ?? [];
+        if (docCategories.length === 0) {
+            return selectedTagIds.value.includes(TAG_FILTER_NONE);
+        }
+        return docCategories.some((c) => selectedTagIds.value.includes(c.id));
+    };
+
+    // Count of VISIBLE (filter-matching) tasks for a column header — deliberately re-derived
+    // from matchesFilters() rather than taskMap's raw length, since taskMap is unfiltered now.
+    const getTaskCountByRowAndStatus = (rowKey: string, status: TaskStatus) => {
+        return (taskMap.value[`${rowKey}|${status}`] || []).filter(
+            matchesFilters,
+        ).length;
     };
 
     return {
@@ -135,7 +191,11 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
         selectedPriorities,
         sortBy,
         availableTags,
-        excludedTagIds,
+        selectedTagIds,
         getTasksByRowAndStatus,
+        getTaskCountByRowAndStatus,
+        matchesFilters,
+        projectsById,
+        assigneeOptionsByProjectId,
     };
 }

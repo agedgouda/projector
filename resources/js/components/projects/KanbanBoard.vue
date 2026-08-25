@@ -10,12 +10,14 @@ import {
 import {
     ALL_PRIORITIES,
     SORT_OPTIONS,
+    TAG_FILTER_NONE,
     type Priority,
     type SortOption,
 } from '@/composables/kanban/useKanbanQueries';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { getPriorityStyles } from '@/lib/kanban-theme';
 import { kanbanDotClasses } from '@/lib/constants';
+import type { AssigneeOption } from '@/lib/assignees';
 import { ListFilter, Search } from 'lucide-vue-next';
 import KanbanRow from './KanbanRow.vue';
 
@@ -27,10 +29,15 @@ defineProps<{
         rowKey: string,
         status: TaskStatus,
     ) => ProjectDocument[];
+    getTaskCountByRowAndStatus: (rowKey: string, status: TaskStatus) => number;
+    matchesFilters: (doc: ProjectDocument) => boolean;
+    projectsById: Map<string, Project>;
+    assigneeOptionsByProjectId: Map<string, AssigneeOption[]>;
     onDragChange: (event: any, column: KanbanColumnDef, rowKey: string) => void;
     openDetail: (doc: ProjectDocument) => void;
     handleCreateNew: (rowKey: string) => void;
     updateAttribute: (docId: string | number, field: string, value: string | number | null) => void;
+    updateTags: (docId: string | number, categories: CategoryDef[]) => void;
     canViewProjectDetails?: boolean;
     canManageColumns?: boolean;
     availableTags?: CategoryDef[];
@@ -41,7 +48,7 @@ const selectedPriorities = defineModel<Priority[]>('selectedPriorities', {
     default: () => [...ALL_PRIORITIES],
 });
 const sortBy = defineModel<SortOption>('sortBy', { default: 'due_date' });
-const excludedTagIds = defineModel<string[]>('excludedTagIds', {
+const selectedTagIds = defineModel<string[]>('selectedTagIds', {
     default: () => [],
 });
 
@@ -55,13 +62,13 @@ const togglePriority = (priority: Priority) => {
     }
 };
 
-const toggleTag = (tagId: string) => {
-    const current = excludedTagIds.value;
-    const idx = current.indexOf(tagId);
+const toggleTagFilter = (value: string) => {
+    const current = selectedTagIds.value;
+    const idx = current.indexOf(value);
     if (idx === -1) {
-        excludedTagIds.value = [...current, tagId];
+        selectedTagIds.value = [...current, value];
     } else {
-        excludedTagIds.value = current.filter((id) => id !== tagId);
+        selectedTagIds.value = current.filter((v) => v !== value);
     }
 };
 </script>
@@ -114,15 +121,25 @@ const toggleTag = (tagId: string) => {
                 >
                 <button
                     type="button"
-                    @click="excludedTagIds = []"
-                    class="rounded border border-gray-200 bg-white px-2 py-1 text-[9px] font-black tracking-tighter text-gray-500 uppercase transition-all hover:border-gray-300"
+                    @click="selectedTagIds = []"
+                    :class="[
+                        'rounded border px-2 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
+                        selectedTagIds.length === 0
+                            ? 'border-gray-300 bg-gray-100 text-gray-700'
+                            : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                    ]"
                 >
                     All
                 </button>
                 <button
                     type="button"
-                    @click="excludedTagIds = availableTags.map((t) => t.id)"
-                    class="rounded border border-gray-200 bg-white px-2 py-1 text-[9px] font-black tracking-tighter text-gray-500 uppercase transition-all hover:border-gray-300"
+                    @click="toggleTagFilter(TAG_FILTER_NONE)"
+                    :class="[
+                        'rounded border px-2 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
+                        selectedTagIds.includes(TAG_FILTER_NONE)
+                            ? 'border-gray-300 bg-gray-100 text-gray-700'
+                            : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                    ]"
                 >
                     None
                 </button>
@@ -130,12 +147,12 @@ const toggleTag = (tagId: string) => {
                     v-for="tag in availableTags"
                     :key="tag.id"
                     type="button"
-                    @click="toggleTag(tag.id)"
+                    @click="toggleTagFilter(tag.id)"
                     :class="[
                         'flex items-center gap-1.5 rounded border px-2.5 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
-                        !excludedTagIds.includes(tag.id)
-                            ? 'border-gray-200 bg-white text-gray-700'
-                            : 'border-gray-200 bg-white text-gray-300 line-through',
+                        selectedTagIds.includes(tag.id)
+                            ? 'border-gray-300 bg-gray-100 text-gray-700'
+                            : 'border-gray-200 bg-white text-gray-300',
                     ]"
                 >
                     <span
@@ -177,15 +194,23 @@ const toggleTag = (tagId: string) => {
                         (rowKey, status) =>
                             getTasksByRowAndStatus(rowKey, status)
                     "
+                    :get-task-count="
+                        (rowKey, status) =>
+                            getTaskCountByRowAndStatus(rowKey, status)
+                    "
+                    :matches-filters="matchesFilters"
                     :on-drag="
                         (evt, column) => onDragChange(evt, column, row.key)
                     "
                     :on-open="openDetail"
                     :on-create="(key) => handleCreateNew(key)"
                     :on-update-attribute="updateAttribute"
+                    :on-update-tags="updateTags"
                     :can-view-project-details="canViewProjectDetails"
                     :current-project="currentProject"
                     :can-manage="canManageColumns"
+                    :projects-by-id="projectsById"
+                    :assignee-options-by-project-id="assigneeOptionsByProjectId"
                 />
             </div>
         </div>

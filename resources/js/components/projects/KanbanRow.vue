@@ -2,6 +2,7 @@
 import KanbanColumn from './KanbanColumn.vue';
 import KanbanHeader from './KanbanHeader.vue';
 import { KANBAN_UI } from '@/lib/kanban-theme';
+import type { AssigneeOption } from '@/lib/assignees';
 import { Link } from '@inertiajs/vue3';
 import { ExternalLink } from 'lucide-vue-next';
 import projectRoutes from '@/routes/projects/index';
@@ -10,16 +11,21 @@ const props = defineProps<{
     row: any;
     columns: KanbanColumnDef[];
     getTasks: (rowKey: string, status: TaskStatus) => ProjectDocument[];
+    getTaskCount: (rowKey: string, status: TaskStatus) => number;
     onDrag: (evt: any, column: KanbanColumnDef) => void;
     onOpen: (doc: ProjectDocument) => void;
     onCreate: (rowKey: string) => void;
     onUpdateAttribute: (docId: string | number, field: string, value: string | number | null) => void;
+    onUpdateTags: (docId: string | number, categories: CategoryDef[]) => void;
     canViewProjectDetails?: boolean;
     currentProject?: Project | null;
     canManage?: boolean;
+    projectsById: Map<string, Project>;
+    assigneeOptionsByProjectId: Map<string, AssigneeOption[]>;
+    matchesFilters: (doc: ProjectDocument) => boolean;
 }>();
 
-const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status).length;
+const getRowCount = (status: TaskStatus) => props.getTaskCount(props.row.key, status);
 </script>
 
 <template>
@@ -81,10 +87,15 @@ const getRowCount = (status: TaskStatus) => props.getTasks(props.row.key, status
                             :column="column"
                             :tasks="getTasks(row.key, column.key)"
                             :row-label="row.label"
+                            :projects-by-id="projectsById"
+                            :assignee-options-by-project-id="assigneeOptionsByProjectId"
+                            :current-project="currentProject"
+                            :matches-filters="matchesFilters"
                             @drag="(evt) => onDrag(evt, column)"
                             @open="onOpen"
                             @create="onCreate(row.key)"
                             @update-attribute="onUpdateAttribute"
+                            @update-tags="onUpdateTags"
                         />
                     </template>
                 </div>

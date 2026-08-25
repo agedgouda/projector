@@ -56,6 +56,34 @@ export function useKanbanActions(
         });
     };
 
+    /**
+     * Sets the complete list of tags on a task — sync semantics, like updateBoards used to
+     * be (send the full desired set, not a single add/remove). Takes the resolved CategoryDef
+     * objects (not just ids) so the optimistic local update can render pills immediately,
+     * without waiting for the round trip to bring back the relation.
+     */
+    const updateTags = (documentId: string | number, categories: CategoryDef[]) => {
+        const projectId = projectIdForDoc(documentId);
+        if (!projectId) return;
+
+        const docIdStr = String(documentId);
+        const route = projectRoutes.documents.updateCategories({
+            project: projectId,
+            document: docIdStr
+        });
+
+        router.put(route.url, { category_ids: categories.map((c) => c.id) }, {
+            preserveScroll: true,
+            preserveState: true,
+            onBefore: () => {
+                applyLocalUpdate(documentId, { categories });
+            },
+            onError: () => {
+                toast.error('Failed to save tags. Reverting...');
+            }
+        });
+    };
+
     const handleCreateNew = (projectId: string) => {
         const route = projectRoutes.documents.create({ project: projectId });
         router.visit(route.url);
@@ -70,6 +98,7 @@ export function useKanbanActions(
 
     return {
         updateAttribute,
+        updateTags,
         handleCreateNew,
         switchProject
     };

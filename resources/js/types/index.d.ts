@@ -173,7 +173,6 @@ declare global {
         due_at: string | null;
         external_due_at: string | null;
         start_at: string | null;
-        category_id: string | null;
         locked_project_type_id?: string | null;
         locked_next_workflow_step_exists?: boolean;
         children_exists?: boolean;
@@ -181,28 +180,17 @@ declare global {
         custom_prompt?: string | null;
         last_ai_template_id?: number | null;
 
-        // Only set on a Kanban board's own document list (Project::getKanbanDocuments()) —
-        // whether this card is native to that board (false) or shown here because it's
-        // linked from elsewhere in the family (true), with home_project_* naming where.
-        // Not present on a document fetched any other way (e.g. the single-document page).
-        is_linked?: boolean;
-        home_project_id?: string;
-        home_project_name?: string | null;
-
         // Relationships
         creator?: User;
         editor?: User;
         assignee?: User;
         pending_assignee?: OrganizationInvitation;
-        category?: CategoryDef | null;
+        categories?: CategoryDef[];
         project?: Partial<Project>;
         parent?: ProjectDocument | null;
         children?: ProjectDocument[];
         tasks?: Task[];
         last_ai_template?: { id: number; name: string } | null;
-        // Additional boards (beyond project_id, its home) this task is also shown on — see
-        // Document::linkedProjects(). Only loaded on the single-document page.
-        linked_projects?: BoardOption[];
 
         embedding: any | null;
         metadata: DocumentMetadata;

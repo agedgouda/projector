@@ -33,7 +33,7 @@ class ProjectCollection extends Collection
             'parent.categories',
             'tasks' => fn ($q) => $q->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
             'documents' => fn ($q) => $q->with([
-                'creator', 'editor', 'assignee', 'category',
+                'creator', 'editor', 'assignee', 'categories',
                 'tasks' => fn ($t) => $t->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
             ])->orderBy('created_at', 'desc'),
         ])->each(fn (\App\Models\Project $p) => $p->withResolvedFamilyCategories());
@@ -55,13 +55,7 @@ class ProjectCollection extends Collection
             'categories',
             'parent.categories',
             'documents' => function ($q) {
-                $q->with(['assignee', 'creator', 'category'])->withExists('lockedNextWorkflowStep')->latest();
-            },
-            // Same shape as documents — getKanbanDocuments() (via asKanbanData() below)
-            // renders both together, plus project:id,name for each linked card's
-            // home_project_name.
-            'linkedDocuments' => function ($q) {
-                $q->with(['assignee', 'creator', 'category', 'project:id,name'])->withExists('lockedNextWorkflowStep');
+                $q->with(['assignee', 'creator', 'categories'])->withExists('lockedNextWorkflowStep')->latest();
             },
         ])->each(fn (\App\Models\Project $p) => $p->withResolvedFamilyCategories());
     }

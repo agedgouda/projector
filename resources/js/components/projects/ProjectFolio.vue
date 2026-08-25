@@ -14,42 +14,22 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { usePermissions } from '@/composables/usePermissions';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import projectRoutes from '@/routes/projects/index';
-import { Link, router } from '@inertiajs/vue3';
-import {
-    AlertTriangle,
-    Files,
-    FolderTree,
-    Pencil,
-    Sparkles,
-    Trash2,
-} from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { AlertTriangle, Files, Pencil, Sparkles, Trash2 } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 const props = defineProps<{
     project: Project;
     showClient?: boolean;
     redirectTo?: string;
     isSubProject?: boolean;
-    projects?: {
-        id: string;
-        name: string;
-        client_id: string;
-        parent_id?: string | null;
-    }[];
     // Position within its list, for alternating-stripe backgrounds — matches
     // OrgUserTable.vue's rule. Omitted by callers (e.g. ClientList.vue) that don't want
     // striping, in which case the row just keeps its plain background.
     rowIndex?: number;
 }>();
-
-const { hasRole } = usePermissions();
-const canAddSubProject = computed(
-    () =>
-        !props.isSubProject && (hasRole('super-admin') || hasRole('org-admin')),
-);
 
 // --- EDIT STATE ---
 const isEditModalOpen = ref(false);
@@ -163,28 +143,6 @@ const goToProject = () => {
         </div>
 
         <TooltipProvider>
-            <div v-if="canAddSubProject" class="flex w-10 justify-end">
-                <Tooltip :delay-duration="200">
-                    <TooltipTrigger as-child>
-                        <Link
-                            :href="
-                                projectRoutes.create.url({
-                                    query: {
-                                        client: project.client.company_name,
-                                        parent_project: project.id,
-                                    },
-                                })
-                            "
-                            class="flex items-center justify-center rounded-lg p-2 text-projector-primary-600 transition-all hover:bg-projector-primary-50 dark:text-projector-primary-400 dark:hover:bg-projector-primary-500/10"
-                            @click.stop
-                        >
-                            <FolderTree class="h-3.5 w-3.5" />
-                        </Link>
-                    </TooltipTrigger>
-                    <TooltipContent>Add Sub-project</TooltipContent>
-                </Tooltip>
-            </div>
-
             <div class="flex w-10 justify-end">
                 <Tooltip :delay-duration="200">
                     <TooltipTrigger as-child>
@@ -229,7 +187,6 @@ const goToProject = () => {
 
                 <ProjectEntryForm
                     :edit-data="project"
-                    :projects="projects"
                     @success="handleEditSuccess"
                     @cancel="isEditModalOpen = false"
                 />

@@ -297,10 +297,10 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.transitionOptions');
             Route::patch('/documents/{document}/attributes', [DocumentController::class, 'updateAttributes'])
                 ->name('documents.updateAttributes');
+            Route::put('/documents/{document}/categories', [DocumentController::class, 'updateCategories'])
+                ->name('documents.updateCategories');
             Route::patch('/documents/{document}/move', [DocumentController::class, 'move'])
                 ->name('documents.move');
-            Route::put('/documents/{document}/boards', [DocumentController::class, 'updateBoards'])
-                ->name('documents.updateBoards');
             Route::get('/documents/{document}/export-pdf', [DocumentController::class, 'exportPdf'])
                 ->name('documents.exportPdf');
             Route::get('/documents/{document}/export-word', [DocumentController::class, 'exportWord'])
