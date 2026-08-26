@@ -31,7 +31,7 @@ class DocumentController extends Controller
         Gate::authorize('create', [Document::class, $project]);
 
         return inertia('Documents/Create', [
-            'project' => $project->load(['client.organization.users', 'client.organization.invitations']),
+            'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'categories', 'parent.categories'])->withResolvedFamilyCategories(),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'redirectUrl' => $request->query('redirect'),
             'defaultType' => $request->query('type'),
@@ -45,11 +45,19 @@ class DocumentController extends Controller
     {
         Gate::authorize('create', [Document::class, $project]);
 
+        $validated = $request->validated();
+        $categoryIds = $validated['category_ids'] ?? null;
+        unset($validated['category_ids']);
+
         // The document only cares about validated data
         $document = $project->documents()->create(array_merge(
-            $request->validated(),
+            $validated,
             ['creator_id' => $request->user()->id]
         ));
+
+        if ($categoryIds !== null) {
+            $document->categories()->sync(array_values(array_filter((array) $categoryIds, 'is_string')));
+        }
 
         $definition = $project->documentTypeCatalog()->get($document->type);
         $isTask = $definition instanceof \App\Models\DocumentTypeDefinition && $definition->is_task;
@@ -264,11 +272,14 @@ class DocumentController extends Controller
             abort(404);
         }
 
+        $validated = $request->validated();
+        unset($validated['category_ids']);
+
         // Track who is editing the document, and when its content last changed (as opposed to
         // updateAttributes()'s quick sidebar edits) so the frontend can offer to reprocess only
         // when there's actually new content the last AI run hasn't seen yet.
         $document->update(array_merge(
-            $request->validated(),
+            $validated,
             ['editor_id' => $request->user()->id, 'content_updated_at' => now()]
         ));
 

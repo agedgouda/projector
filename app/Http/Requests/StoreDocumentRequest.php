@@ -76,6 +76,15 @@ class StoreDocumentRequest extends FormRequest
             ],
             'metadata' => ['nullable', 'array'],
             'custom_prompt' => ['nullable', 'string'],
+            // Events mark a single occurrence on the calendar, so — unlike every other
+            // document type — only one tag makes sense; mirrors updateCategories()'s rule.
+            'category_ids' => array_filter([
+                'sometimes', 'array', $this->input('type') === 'event' ? 'max:1' : null,
+            ]),
+            'category_ids.*' => [
+                'uuid',
+                Rule::exists('categories', 'id')->where('project_id', $project?->familyRoot()->id),
+            ],
         ];
     }
 }

@@ -3,16 +3,18 @@
    1. Imports & Types
 ---------------------------- */
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { FilePlus2 } from 'lucide-vue-next';
+import { FilePlus2, Plus } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 // Layouts & Components
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { mergeMentionableUsers } from '@/lib/assignees';
+import { kanbanDotClasses } from '@/lib/constants';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
@@ -34,7 +36,7 @@ const props = defineProps<{
 /* ---------------------------
    3. Form Setup (Draft Mode)
 ---------------------------- */
-const form = useForm<DocumentForm & { project_id: string }>({
+const form = useForm<DocumentForm & { project_id: string; category_ids: string[] }>({
     name: '',
     content: '',
     type: props.defaultType ?? '',
@@ -49,6 +51,7 @@ const form = useForm<DocumentForm & { project_id: string }>({
         criteria: [] as string[],
     },
     custom_prompt: null,
+    category_ids: [],
 });
 
 /* ---------------------------
@@ -90,6 +93,31 @@ const mentionableUsers = computed(() =>
 // flight — saving before that finishes would persist content missing the file, since the
 // upload's insertion into the editor happens asynchronously after the request completes.
 const isUploading = ref(false);
+
+// Tags are picked here (before the document exists) and sent along with the create
+// request, then attached server-side once the document's been made — unlike Show.vue's
+// addTag/removeTag, which PUT to an existing document's updateCategories endpoint
+// immediately.
+const selectedCategories = computed(() =>
+    (props.project.categories ?? []).filter((c) => form.category_ids.includes(c.id)),
+);
+const availableTagsToAdd = computed(() =>
+    (props.project.categories ?? []).filter((c) => !form.category_ids.includes(c.id)),
+);
+
+// An Event marks a single occurrence on the calendar, so only one tag makes sense — unlike
+// every other document type, which can carry any number. Mirrors Show.vue's rule.
+const isSingleTagType = computed(() => form.type === 'event');
+
+const addTag = (category: CategoryDef) => {
+    form.category_ids = isSingleTagType.value
+        ? [category.id]
+        : [...form.category_ids, category.id];
+};
+
+const removeTag = (category: CategoryDef) => {
+    form.category_ids = form.category_ids.filter((id) => id !== category.id);
+};
 
 /* ---------------------------
    5. Action Handlers
@@ -213,6 +241,49 @@ const updateFormValue = (field: string, val: any) => {
                         @cancel="handleCancel"
                         @update:is-uploading="isUploading = $event"
                     />
+                </div>
+
+                <div v-if="(project.categories?.length ?? 0) > 0" class="mt-12 pt-10 border-t border-slate-100 dark:border-slate-800">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-400 mb-6 flex items-center gap-2">
+                        <div class="w-4 h-px bg-slate-400 dark:bg-slate-600"></div> Tags
+                    </h3>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            v-for="category in selectedCategories"
+                            :key="category.id"
+                            type="button"
+                            :title="`Remove '${category.name}' tag`"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                            @click="removeTag(category)"
+                        >
+                            <span :class="[kanbanDotClasses[category.color], 'h-2 w-2 shrink-0 rounded-full']"></span>
+                            {{ category.name }}
+                        </button>
+
+                        <Popover v-if="availableTagsToAdd.length">
+                            <PopoverTrigger as-child>
+                                <button
+                                    type="button"
+                                    title="Add a tag"
+                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
+                                >
+                                    <Plus class="h-3.5 w-3.5" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent class="w-48 p-1" align="start">
+                                <button
+                                    v-for="category in availableTagsToAdd"
+                                    :key="category.id"
+                                    type="button"
+                                    class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                                    @click="addTag(category)"
+                                >
+                                    <span :class="[kanbanDotClasses[category.color], 'h-2 w-2 shrink-0 rounded-full']"></span>
+                                    {{ category.name }}
+                                </button>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                 </div>
             </template>
 

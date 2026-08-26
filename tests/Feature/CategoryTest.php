@@ -190,6 +190,77 @@ it('rejects assigning an event document a second tag', function () {
     expect($document->fresh()->categories()->count())->toBe(0);
 });
 
+it('tags a document with the chosen categories at creation time', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), [
+            'name' => 'A task',
+            'type' => 'task',
+            'content' => 'content',
+            'priority' => 'low',
+            'task_status' => 'todo',
+            'category_ids' => [$design->id, $backend->id],
+        ])
+        ->assertRedirect();
+
+    $document = Document::where('name', 'A task')->firstOrFail();
+    expect($document->categories()->pluck('categories.id')->all())
+        ->toEqualCanonicalizing([$design->id, $backend->id]);
+});
+
+it('creates an untagged document when no category_ids are sent', function () {
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), [
+            'name' => 'A task',
+            'type' => 'task',
+            'content' => 'content',
+            'priority' => 'low',
+            'task_status' => 'todo',
+        ])
+        ->assertRedirect();
+
+    $document = Document::where('name', 'A task')->firstOrFail();
+    expect($document->categories()->count())->toBe(0);
+});
+
+it('rejects creating an event document with more than one tag', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), [
+            'name' => 'An event',
+            'type' => 'event',
+            'content' => 'content',
+            'priority' => 'low',
+            'task_status' => 'todo',
+            'category_ids' => [$design->id, $backend->id],
+        ])
+        ->assertSessionHasErrors('category_ids');
+
+    expect(Document::where('name', 'An event')->count())->toBe(0);
+});
+
+it('rejects tagging a document with a category from an unrelated project at creation time', function () {
+    $otherProject = Project::create(['name' => 'Other Project', 'client_id' => $this->client->id]);
+    $category = Category::create(['project_id' => $otherProject->id, 'name' => 'Design', 'color' => 'pink']);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), [
+            'name' => 'A task',
+            'type' => 'task',
+            'content' => 'content',
+            'priority' => 'low',
+            'task_status' => 'todo',
+            'category_ids' => [$category->id],
+        ])
+        ->assertSessionHasErrors('category_ids.0');
+
+    expect(Document::where('name', 'A task')->count())->toBe(0);
+});
+
 it('removes tags no longer present when syncing a document\'s tags', function () {
     $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
     $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
