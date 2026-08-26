@@ -243,6 +243,7 @@ declare global {
         priority: TaskPriority;
         task_status: TaskStatus;
         due_at: string | null;
+        start_at: string | null;
         external_due_at: string | null;
         metadata: DocumentMetadata;
         custom_prompt: string | null;

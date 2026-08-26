@@ -97,8 +97,17 @@ const availableTagsToAdd = computed(() => {
     return (props.project.categories ?? []).filter((c) => !appliedIds.has(c.id));
 });
 
+// An Event marks a single occurrence on the calendar, so only one tag makes sense — unlike
+// every other document type, which can carry any number. Picking one here swaps out
+// whatever tag it already had rather than adding a second.
+const isSingleTagType = computed(() => props.item.type === 'event');
+
 const addTag = (category: CategoryDef) =>
-    updateTags(props.item.id as string, [...(props.item.categories ?? []), category], (message) => toast.error(message));
+    updateTags(
+        props.item.id as string,
+        isSingleTagType.value ? [category] : [...(props.item.categories ?? []), category],
+        (message) => toast.error(message),
+    );
 
 const removeTag = (category: CategoryDef) =>
     updateTags(
@@ -113,6 +122,11 @@ const removeTag = (category: CategoryDef) =>
 const dueAtProxy = computed<string>({
     get: () => props.item.due_at?.substring(0, 10) ?? '',
     set: (val) => updateField(props.item.id as string, 'due_at', val)
+});
+
+const startAtProxy = computed<string>({
+    get: () => props.item.start_at?.substring(0, 10) ?? '',
+    set: (val) => updateField(props.item.id as string, 'start_at', val)
 });
 
 const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
@@ -285,6 +299,7 @@ watch(() => page.props.flash, (flash) => {
                     :processing-message="processingMessage"
                     :board-options="boardOptions"
                     v-model:dueAtProxy="dueAtProxy"
+                    v-model:startAtProxy="startAtProxy"
                     @change="(field, val) => updateField(item.id as string, field, val)"
                     @request-process="handleRequestProcess"
                     @move="handleMove"

@@ -13,6 +13,7 @@ import { INTAKE_KEY } from '@/composables/useWorkflow';
 import type { AssigneeOption } from '@/lib/assignees';
 import { FLAT_ROW_ACCENT_BAR, FLAT_ROW_SELECTED } from '@/lib/flat-ui';
 import {
+    Calendar as CalendarIcon,
     CheckSquare,
     ChevronRight,
     Eye,
@@ -66,6 +67,24 @@ const isTreeExpanded = computed(
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
 const isTask = computed(() => props.isTaskType(props.item.type));
 const isNotes = computed(() => props.item.type === INTAKE_KEY);
+
+// Non-task rows show no date info anywhere else (see below) — shown generically off
+// due_at/start_at rather than gated to a specific type, so any non-task document with dates
+// (e.g. an Event) picks this up without another hardcoded type check.
+const formatRowDate = (value: string | null | undefined): string =>
+    new Date(value as string).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+const nonTaskDateRange = computed(() => {
+    if (isTask.value) return null;
+    const start = props.item.start_at ? formatRowDate(props.item.start_at) : null;
+    const end = props.item.due_at ? formatRowDate(props.item.due_at) : null;
+    if (!start && !end) return null;
+    if (start && end && start !== end) return `${start} – ${end}`;
+    return end ?? start;
+});
 const isProcessing = computed(
     () => !!props.item.currentStatus || props.item.processed_at === null,
 );
@@ -228,6 +247,14 @@ const isPreviewOpen = ref(false);
                                 class="shrink-0 text-[9px] font-black tracking-widest text-slate-300 uppercase dark:text-slate-600"
                             >
                                 {{ getDocLabel(item.type) }}
+                            </span>
+
+                            <span
+                                v-if="nonTaskDateRange"
+                                class="flex shrink-0 items-center gap-1 text-[9px] font-black text-slate-400 dark:text-slate-500"
+                            >
+                                <CalendarIcon class="h-2.5 w-2.5" />
+                                {{ nonTaskDateRange }}
                             </span>
 
                             <span

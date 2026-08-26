@@ -39,6 +39,7 @@ const props = defineProps<{
     item: ExtendedDocument | any;
     documentTypeCatalog?: DocumentSchemaItem[];
     dueAtProxy: string;
+    startAtProxy: string;
     usesExternalDueDates?: boolean;
     isReprocessable?: boolean;
     processButtonLabel?: string;
@@ -53,12 +54,18 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'change', field: string, val: any): void;
     (e: 'update:dueAtProxy', val: string): void;
+    (e: 'update:startAtProxy', val: string): void;
     (e: 'request-process'): void;
     (e: 'move', targetProjectId: string): void;
 }>();
 
 const { getDocLabel, isTask } = useDocumentPresenter(props.documentTypeCatalog);
 const shouldShowTask = computed(() => isTask(props.item.type));
+// Events aren't tasks (no assignee/priority/status — see shouldShowTask above), but they do
+// share the start/due date fields tasks use, to mark a range on the calendar. Checked by
+// literal type key rather than a new schema flag — the one non-task type that currently
+// wants dates, kept simple until a second one shows up needing the same thing.
+const isEvent = computed(() => props.item.type === 'event');
 const hasOtherBoards = computed(() => (props.boardOptions?.length ?? 0) > 0);
 
 const assigneeValue = computed(() => {
@@ -478,6 +485,94 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col" v-if="isEvent">
+                            <div
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Start Date</span
+                                >
+                                <div
+                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
+                                    :class="
+                                        project.inactive ? 'opacity-50' : ''
+                                    "
+                                >
+                                    <span
+                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                    >
+                                        {{ formatDateDisplay(startAtProxy) }}
+                                    </span>
+                                    <CalendarIcon
+                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
+                                    />
+                                    <input
+                                        type="date"
+                                        :value="startAtProxy"
+                                        :disabled="project.inactive"
+                                        @input="
+                                            $emit(
+                                                'update:startAtProxy',
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).value,
+                                            )
+                                        "
+                                        :class="[
+                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
+                                            project.inactive
+                                                ? 'cursor-default'
+                                                : 'cursor-pointer',
+                                        ]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >End Date</span
+                                >
+                                <div
+                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
+                                    :class="
+                                        project.inactive ? 'opacity-50' : ''
+                                    "
+                                >
+                                    <span
+                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                    >
+                                        {{ formatDateDisplay(dueAtProxy) }}
+                                    </span>
+                                    <CalendarIcon
+                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
+                                    />
+                                    <input
+                                        type="date"
+                                        :value="dueAtProxy"
+                                        :disabled="project.inactive"
+                                        @input="
+                                            $emit(
+                                                'update:dueAtProxy',
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).value,
+                                            )
+                                        "
+                                        :class="[
+                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
+                                            project.inactive
+                                                ? 'cursor-default'
+                                                : 'cursor-pointer',
+                                        ]"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -51,13 +51,17 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
                     'type' => ['string', 'null'],
                     'description' => 'ISO 8601 date (YYYY-MM-DD) extracted from deadline or delivery language, or null.',
                 ],
+                'start_date' => [
+                    'type' => ['string', 'null'],
+                    'description' => 'ISO 8601 date (YYYY-MM-DD) the item begins, for something that spans a range of dates (e.g. a calendar event), or null.',
+                ],
                 'priority' => [
                     'type' => 'string',
                     'enum' => ['low', 'medium', 'high'],
                     'description' => "The item's priority level.",
                 ],
             ];
-            $required = ['title', $dynamicKey, 'criteria', 'due_date', 'priority'];
+            $required = ['title', $dynamicKey, 'criteria', 'due_date', 'start_date', 'priority'];
 
             if ($includeAssignee) {
                 $properties['assignee_name'] = [

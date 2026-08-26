@@ -160,6 +160,51 @@ it('defaults priority to medium when the AI omits it or returns an unrecognized 
     'invalid string' => ['urgent'],
 ]);
 
+it('persists the start_date the AI assigns to a generated document as start_at, alongside due_date as due_at', function () {
+    $document = createReprocessableDocument();
+
+    $this->mock(ProjectAiService::class, function ($mock) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'event',
+            'single_output' => false,
+            'mock_response' => [
+                [
+                    'title' => 'Kickoff Meeting',
+                    'event' => 'Project kickoff',
+                    'start_date' => '2026-03-10',
+                    'due_date' => '2026-03-12',
+                ],
+            ],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->start_at)->toStartWith('2026-03-10')
+        ->and($child->due_at)->toStartWith('2026-03-12');
+});
+
+it('leaves start_at null when the AI omits start_date', function () {
+    $document = createReprocessableDocument();
+
+    $this->mock(ProjectAiService::class, function ($mock) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'task',
+            'single_output' => false,
+            'mock_response' => [
+                ['title' => 'Some Task', 'task' => 'Do it'],
+            ],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    expect(Document::where('parent_id', $document->id)->firstOrFail()->start_at)->toBeNull();
+});
+
 it('converts a markdown table in single-output content to an HTML table', function () {
     $document = createReprocessableDocument();
 

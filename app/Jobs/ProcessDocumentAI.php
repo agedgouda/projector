@@ -164,6 +164,7 @@ class ProcessDocumentAI implements ShouldQueue
                     }
 
                     $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;
+                    $startAt = ! empty($data['start_date']) ? \Illuminate\Support\Carbon::parse($data['start_date'])->toDateString() : null;
 
                     // The AI is free to omit priority (e.g. templates that don't produce
                     // per-item tasks) or hallucinate an out-of-range value, so anything
@@ -178,6 +179,7 @@ class ProcessDocumentAI implements ShouldQueue
                         'name' => $data['title'] ?? 'Untitled Deliverable',
                         'content' => $content,
                         'due_at' => $dueAt,
+                        'start_at' => $startAt,
                         'priority' => $priority,
                         'assignee_id' => $data['assignee_id'] ?? null,
                         'pending_assignee_invitation_id' => $data['pending_assignee_invitation_id'] ?? null,

@@ -153,6 +153,43 @@ it('syncs a document\'s tags to the given set', function () {
         ->toEqualCanonicalizing([$design->id, $backend->id]);
 });
 
+it('allows an event document exactly one tag', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'An event',
+        'type' => 'event',
+        'content' => 'content',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => [$design->id],
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->categories()->pluck('categories.id')->all())->toBe([$design->id]);
+});
+
+it('rejects assigning an event document a second tag', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'An event',
+        'type' => 'event',
+        'content' => 'content',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => [$design->id, $backend->id],
+        ])
+        ->assertSessionHasErrors('category_ids');
+
+    expect($document->fresh()->categories()->count())->toBe(0);
+});
+
 it('removes tags no longer present when syncing a document\'s tags', function () {
     $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
     $backend = Category::create(['project_id' => $this->project->id, 'name' => 'Backend', 'color' => 'blue']);

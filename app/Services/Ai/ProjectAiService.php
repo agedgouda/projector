@@ -344,7 +344,7 @@ class ProjectAiService
         $mentionedUsers = $this->extractMentionedUsers($context);
         $images = $this->extractImages($context);
 
-        $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", \"criteria\", and \"priority\" (one of \"low\", \"medium\", or \"high\"). Also include \"due_date\" (an ISO 8601 date string YYYY-MM-DD, or null if no date is mentioned).";
+        $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", \"criteria\", and \"priority\" (one of \"low\", \"medium\", or \"high\"). Also include \"due_date\" (an ISO 8601 date string YYYY-MM-DD, or null if no date is mentioned) and \"start_date\" (an ISO 8601 date string YYYY-MM-DD, or null if the item doesn't span a range of dates — e.g. a calendar event with a beginning and end).";
 
         if (! empty($mentionedUsers)) {
             $names = implode(', ', array_map(fn (string $name): string => '"'.$name.'"', $mentionedUsers));

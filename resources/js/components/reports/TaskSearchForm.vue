@@ -90,13 +90,18 @@ watch(
     () => props.initialFilters,
     (value) => {
         if (!value) return;
-        filters.assignee = value.assignee;
-        filters.task_status = value.task_status;
-        filters.priority = value.priority;
-        filters.due_from = value.due_from;
-        filters.due_to = value.due_to;
-        filters.project_id = value.project_id;
-        filters.category_id = value.category_id;
+        // Fall back per-field rather than trusting `value` to have every key — a filter set
+        // saved (server-side preferences, see TaskReport.vue's loadPersistedFilters()) before
+        // a field like category_id existed won't have it, and an unguarded direct assignment
+        // here would leave filters.category_id undefined, crashing chipsFor()'s .includes()
+        // the moment this component re-renders.
+        filters.assignee = value.assignee ?? [];
+        filters.task_status = value.task_status ?? [];
+        filters.priority = value.priority ?? [];
+        filters.due_from = value.due_from ?? '';
+        filters.due_to = value.due_to ?? '';
+        filters.project_id = value.project_id ?? [];
+        filters.category_id = value.category_id ?? [];
     },
 );
 

@@ -156,6 +156,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         priority: item.priority,
         task_status: item.task_status,
         due_at: item.due_at,
+        start_at: item.start_at,
         custom_prompt: item.custom_prompt ?? null,
     });
 
@@ -172,12 +173,14 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             form.priority = newItem.priority;
             form.task_status = newItem.task_status;
             form.due_at = newItem.due_at;
+            form.start_at = newItem.start_at;
             form.assignee_id = newItem.assignee_id;
             form.defaults({
                 ...form.data(),
                 priority: newItem.priority,
                 task_status: newItem.task_status,
                 due_at: newItem.due_at,
+                start_at: newItem.start_at,
                 assignee_id: newItem.assignee_id,
             });
         }

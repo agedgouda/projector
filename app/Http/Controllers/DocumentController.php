@@ -321,7 +321,12 @@ class DocumentController extends Controller
         $root = $project->familyRoot();
 
         $validated = $request->validate([
-            'category_ids' => ['present', 'array'],
+            // Events mark a single occurrence on the calendar, so — unlike every other
+            // document type — only one tag makes sense; everything else keeps the normal
+            // any-number-of-tags behavior.
+            'category_ids' => array_filter([
+                'present', 'array', $document->type === 'event' ? 'max:1' : null,
+            ]),
             'category_ids.*' => ['uuid', Rule::exists('categories', 'id')->where('project_id', $root->id)],
         ]);
 

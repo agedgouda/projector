@@ -40,6 +40,7 @@ const form = useForm<DocumentForm & { project_id: string }>({
     type: props.defaultType ?? '',
     assignee_id: null,
     due_at: null,
+    start_at: null,
     external_due_at: null,
     priority: 'low',
     task_status: 'todo',
@@ -223,6 +224,8 @@ const updateFormValue = (field: string, val: any) => {
                     :uses-external-due-dates="usesExternalDueDates"
                     :dueAtProxy="form.due_at ?? ''"
                     @update:dueAtProxy="(val) => (form.due_at = val)"
+                    :startAtProxy="form.start_at ?? ''"
+                    @update:startAtProxy="(val) => (form.start_at = val)"
                     @change="updateFormValue"
                 />
             </template>

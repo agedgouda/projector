@@ -83,6 +83,25 @@ it('persists start_at when updating a document\'s attributes', function () {
     expect($document->fresh()->start_at)->toStartWith('2026-08-10');
 });
 
+it('persists start_at and due_at on a non-task document, e.g. an Event', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Kickoff',
+        'type' => 'event',
+        'content' => 'Project kickoff meeting',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'start_at' => '2026-08-10',
+            'due_at' => '2026-08-12',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->start_at)->toStartWith('2026-08-10')
+        ->and($document->fresh()->due_at)->toStartWith('2026-08-12');
+});
+
 it('leaves start_at untouched when updating an unrelated attribute', function () {
     $document = Document::create([
         'project_id' => $this->project->id,

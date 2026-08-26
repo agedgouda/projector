@@ -83,14 +83,33 @@ const filtersFromUrl = (): TaskSearchFilters | null => {
     };
 };
 
+// A filter set saved to the server (see persistFilters() below) before a field like
+// category_id existed in TaskSearchFilters won't have that key in its stored JSON — normalize
+// it back to the full shape here, at the one place a persisted blob enters the app, rather
+// than trusting every downstream reader (this component's own updateUrlFilters() below,
+// TaskSearchForm.vue's chipsFor()) to individually guard against a missing key.
+const normalizeFilters = (filters: Partial<TaskSearchFilters> | null): TaskSearchFilters | null => {
+    if (!filters) return null;
+
+    return {
+        assignee: filters.assignee ?? [],
+        task_status: filters.task_status ?? [],
+        priority: filters.priority ?? [],
+        due_from: filters.due_from ?? '',
+        due_to: filters.due_to ?? '',
+        project_id: filters.project_id ?? [],
+        category_id: filters.category_id ?? [],
+    };
+};
+
 // Remembers the last filters searched with, per project, across separate *visits* — not just
 // within one (URL-based restoration above already covers that) — and, unlike browser-local
 // storage, across separate browsers/devices too, since it's tied to the signed-in user's
 // account server-side rather than one browser's storage.
 const loadPersistedFilters = async (): Promise<TaskSearchFilters | null> => {
     try {
-        const response = await axios.get<{ filters: TaskSearchFilters | null }>(taskFilterPreferences({ project: props.project.id }).url);
-        return response.data.filters;
+        const response = await axios.get<{ filters: Partial<TaskSearchFilters> | null }>(taskFilterPreferences({ project: props.project.id }).url);
+        return normalizeFilters(response.data.filters);
     } catch {
         // A failed fetch just means nothing gets remembered for this visit — never worth
         // failing the page over.
