@@ -378,15 +378,18 @@ class Project extends Model implements HasMedia
     }
 
     /**
-     * Flattened due-date items for the calendar: this project's own documents plus
-     * its direct sub-projects' documents (2-level cap — no grandchildren exist),
-     * limited to documents that have at least one due date set.
+     * Flattened Event items for the Campaign Calendar: this project's own documents plus
+     * its direct sub-projects' documents (2-level cap — no grandchildren exist), limited to
+     * Event-type documents (see the 'event' document type definition) that have a due date
+     * set. Non-event types (tasks, notes, etc.) never appear here — the calendar is
+     * events-only.
      *
      * @return \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null,
-     *     priority: string, task_status: string
+     *     priority: string, task_status: string,
+     *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
     public function calendarItems(): \Illuminate\Support\Collection
@@ -396,7 +399,8 @@ class Project extends Model implements HasMedia
          *     id: string, name: string|null, content: string|null, type: string,
          *     project_id: string, project_name: string, is_subproject: bool,
          *     due_at: string|null, external_due_at: string|null, start_at: string|null,
-         *     priority: string, task_status: string
+         *     priority: string, task_status: string,
+         *     categories: array<int, array{id: string, name: string, color: string}>
          * }> $items
          */
         $items = [];
@@ -410,6 +414,10 @@ class Project extends Model implements HasMedia
 
         foreach ($sources as $source) {
             foreach ($source['project']->documents as $doc) {
+                if ($doc->type !== 'event') {
+                    continue;
+                }
+
                 $items[] = [
                     'id' => $doc->id,
                     'name' => $doc->name,
@@ -423,6 +431,13 @@ class Project extends Model implements HasMedia
                     'start_at' => $doc->start_at,
                     'priority' => $doc->priority,
                     'task_status' => $doc->task_status,
+                    // At most one — see DocumentController::updateCategories(), which caps
+                    // an Event to a single tag.
+                    'categories' => $doc->categories->map(fn (Category $category): array => [
+                        'id' => $category->id,
+                        'name' => $category->name,
+                        'color' => $category->color,
+                    ])->all(),
                 ];
             }
         }

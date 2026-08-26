@@ -506,7 +506,7 @@ watch(
                             : tab === 'recordings'
                               ? 'Import'
                               : tab === 'calendar'
-                                ? 'Calendar'
+                                ? 'Campaign Calendar'
                                 : tab === 'reports'
                                   ? 'Reports'
                                   : 'Tasks'

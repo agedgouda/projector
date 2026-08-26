@@ -135,7 +135,7 @@ class ProjectController extends Controller
             'currentLifecycleStep',
             'kanbanColumns',
             'categories',
-            'children.documents',
+            'children.documents.categories',
             // Populates the assignee filter on the Reports tab's task search form
             // (see resources/js/components/reports/TaskSearchForm.vue) — same
             // merged users+invitations list used by the document assignee picker.
@@ -213,8 +213,9 @@ class ProjectController extends Controller
 
     /**
      * Resolve this project's calendar items for export, respecting the sub-project
-     * filter currently applied on screen (passed as ?hidden_subprojects[]=...) and
-     * sorted chronologically.
+     * filter currently applied on screen (passed as ?hidden_subprojects[]=...), the
+     * active tag filter (passed as ?tags[]=..., with the literal value "none" matching
+     * untagged events), and sorted chronologically.
      *
      * @return \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string,
@@ -224,12 +225,24 @@ class ProjectController extends Controller
      */
     private function resolveCalendarExportItems(Request $request, Project $project): \Illuminate\Support\Collection
     {
-        $project->load(['documents', 'children.documents']);
+        $project->load(['documents.categories', 'children.documents.categories']);
 
         $hidden = array_map('strval', (array) $request->query('hidden_subprojects', []));
+        $tags = array_map('strval', (array) $request->query('tags', []));
 
         return $project->calendarItems()
             ->reject(fn (array $item) => $item['is_subproject'] && in_array($item['project_id'], $hidden, true))
+            ->reject(function (array $item) use ($tags) {
+                if ($tags === []) {
+                    return false;
+                }
+                $categoryIds = array_map(fn (array $category): string => $category['id'], $item['categories']);
+                if ($categoryIds === []) {
+                    return ! in_array('none', $tags, true);
+                }
+
+                return array_intersect($categoryIds, $tags) === [];
+            })
             ->sortBy(fn (array $item) => $item['due_at'] ?? $item['external_due_at'] ?? '')
             ->values();
     }

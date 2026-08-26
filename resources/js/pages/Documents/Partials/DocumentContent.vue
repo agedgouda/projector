@@ -14,7 +14,12 @@ import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
 import { show as showDocument } from '@/routes/projects/documents';
 import { Link, usePage, type InertiaForm } from '@inertiajs/vue3';
 import DOMPurify from 'dompurify';
-import { CheckCircle2, CornerDownRight, CornerUpLeft } from 'lucide-vue-next';
+import {
+    Calendar as CalendarIcon,
+    CheckCircle2,
+    CornerDownRight,
+    CornerUpLeft,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 // The partial metadata interface for the "View" mode section
@@ -91,6 +96,32 @@ const childTaskList = computed(() => {
 
     return children.every((child) => isTask(child.type)) ? children : [];
 });
+
+// Same idea as childTaskList above, for a source document (e.g. Meeting Notes) whose
+// generated children are all Events instead — Events aren't tasks, so they'd otherwise show
+// up nowhere at all once there's more than one of them (singleChild only covers exactly one).
+const childEventList = computed(() => {
+    const children = props.item.children ?? [];
+    if (children.length <= 1) return [];
+
+    return children.every((child) => child.type === 'event') ? children : [];
+});
+
+// Matches TraceabilityRow.vue's own non-task date-range formatting, so an event reads the
+// same way here as it does in the Documents tree.
+const formatEventDate = (value: string | null | undefined): string =>
+    new Date(value as string).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+const eventDateRange = (child: ExtendedDocument): string | null => {
+    const start = child.start_at ? formatEventDate(child.start_at) : null;
+    const end = child.due_at ? formatEventDate(child.due_at) : null;
+    if (!start && !end) return null;
+    if (start && end && start !== end) return `${start} – ${end}`;
+    return end ?? start;
+};
 
 // Lets an @-mention resolve to a pending invitee (not just a registered user with a
 // password) — mirrors the assignee picker in DocumentSidebar.vue/KanbanCard.vue, which
@@ -275,6 +306,63 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                                     "
                                 />
                             </div>
+                        </PopoverAnchor>
+                        <PopoverContent
+                            class="w-(--reka-popper-anchor-width) p-4"
+                            align="end"
+                        >
+                            <DocumentPreviewCard
+                                :name="child.name"
+                                :content="child.content"
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            </section>
+
+            <section v-if="childEventList.length">
+                <h3
+                    class="mb-6 flex items-center gap-2 text-[11px] font-black tracking-[0.2em] text-slate-700 uppercase dark:text-slate-400"
+                >
+                    <div class="h-px w-4 bg-slate-400 dark:bg-slate-600"></div>
+                    Generated Events
+                </h3>
+                <div>
+                    <Popover
+                        v-for="(child, index) in childEventList"
+                        :key="child.id"
+                        :open="openPreviewId === child.id"
+                        @update:open="
+                            (open) => handlePreviewOpenChange(child.id, open)
+                        "
+                    >
+                        <PopoverAnchor as-child>
+                            <Link
+                                :href="documentUrl(child.id)"
+                                class="group relative flex min-h-9 items-center gap-2.5 rounded-md px-2 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                                :class="
+                                    index % 2 === 1
+                                        ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                                        : ''
+                                "
+                                @mouseenter="
+                                    handlePreviewOpenChange(child.id, true)
+                                "
+                                @mouseleave="
+                                    handlePreviewOpenChange(child.id, false)
+                                "
+                            >
+                                <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
+                                    {{ child.name }}
+                                </span>
+                                <span
+                                    v-if="eventDateRange(child)"
+                                    class="flex shrink-0 items-center gap-1 text-[11px] font-bold text-slate-400 dark:text-slate-500"
+                                >
+                                    <CalendarIcon class="h-3 w-3" />
+                                    {{ eventDateRange(child) }}
+                                </span>
+                            </Link>
                         </PopoverAnchor>
                         <PopoverContent
                             class="w-(--reka-popper-anchor-width) p-4"

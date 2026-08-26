@@ -9,12 +9,12 @@ import {
     KANBAN_COLOR_PALETTE,
     kanbanClasses,
     kanbanDotClasses,
-    priorityDotClasses,
 } from '@/lib/constants';
 import { kanbanCardBg } from '@/lib/kanban-theme';
+import { TAG_FILTER_NONE } from '@/composables/kanban/useKanbanQueries';
 import projectCalendarRoutes from '@/routes/projects/calendar';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import {
     ArrowUpRight,
     CalendarDays,
@@ -31,14 +31,8 @@ const props = defineProps<{
     items: CalendarItem[];
 }>();
 
-const page = usePage();
-const usesExternalDueDates = computed(
-    () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
-);
-
 interface Marker {
     item: CalendarItem;
-    field: 'due_at' | 'external_due_at';
 }
 
 interface DayCell {
@@ -92,6 +86,36 @@ const toggleSubproject = (id: string) => {
     }
 };
 
+// Every distinct tag currently on an event in view, deduped by id — mirrors
+// KanbanBoard.vue's own availableTags/tag-filter convention (multi-select, OR semantics,
+// empty selection shows everything).
+const availableTags = computed<CategoryDef[]>(() => {
+    const byId = new Map<string, CategoryDef>();
+    props.items.forEach((item) => {
+        (item.categories ?? []).forEach((category) => {
+            if (!byId.has(category.id)) byId.set(category.id, category);
+        });
+    });
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+});
+
+const selectedTagIds = ref<string[]>([]);
+const toggleTagFilter = (value: string) => {
+    const current = selectedTagIds.value;
+    const idx = current.indexOf(value);
+    if (idx === -1) {
+        selectedTagIds.value = [...current, value];
+    } else {
+        selectedTagIds.value = current.filter((v) => v !== value);
+    }
+};
+const matchesTagFilter = (item: CalendarItem): boolean => {
+    if (selectedTagIds.value.length === 0) return true;
+    const categories = item.categories ?? [];
+    if (categories.length === 0) return selectedTagIds.value.includes(TAG_FILTER_NONE);
+    return categories.some((c) => selectedTagIds.value.includes(c.id));
+};
+
 const currentMonth = ref(new Date());
 
 const monthLabel = computed(() =>
@@ -101,11 +125,13 @@ const monthLabel = computed(() =>
     }),
 );
 
-// Exports mirror whatever's currently on screen — the visible month, and whichever
-// sub-projects are currently hidden — so the downloaded file matches the view.
+// Exports mirror whatever's currently on screen — the visible month, whichever
+// sub-projects are currently hidden, and the active tag filter — so the downloaded file
+// matches the view.
 const exportQuery = computed(() => ({
     month: `${currentMonth.value.getFullYear()}-${String(currentMonth.value.getMonth() + 1).padStart(2, '0')}`,
     hidden_subprojects: Array.from(hiddenSubprojectIds),
+    tags: selectedTagIds.value,
 }));
 const exportPdfUrl = computed(() =>
     projectCalendarRoutes.exportPdf.url(
@@ -154,14 +180,11 @@ const markersByDate = computed(() => {
         if (item.is_subproject && hiddenSubprojectIds.has(item.project_id)) {
             continue;
         }
-        if (item.due_at) {
-            push(item.due_at.slice(0, 10), { item, field: 'due_at' });
+        if (!matchesTagFilter(item)) {
+            continue;
         }
-        if (item.external_due_at && usesExternalDueDates.value) {
-            push(item.external_due_at.slice(0, 10), {
-                item,
-                field: 'external_due_at',
-            });
+        if (item.due_at) {
+            push(item.due_at.slice(0, 10), { item });
         }
     }
 
@@ -242,12 +265,8 @@ const openItem = (item: CalendarItem) => {
 };
 
 const formatMarkerDate = (marker: Marker): string => {
-    const raw =
-        marker.field === 'external_due_at'
-            ? marker.item.external_due_at
-            : marker.item.due_at;
-    if (!raw) return '';
-    return new Date(raw).toLocaleDateString(undefined, {
+    if (!marker.item.due_at) return '';
+    return new Date(marker.item.due_at).toLocaleDateString(undefined, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -271,8 +290,7 @@ const previewText = (html: string | null): string => {
 const activeMarkerKey = ref<string | null>(null);
 let closeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const markerKey = (marker: Marker): string =>
-    `${marker.item.id}-${marker.field}`;
+const markerKey = (marker: Marker): string => String(marker.item.id);
 
 const openMarkerCard = (marker: Marker) => {
     if (closeTimeout) {
@@ -305,9 +323,10 @@ const cancelCloseMarkerCard = () => {
             <div class="mb-4 rounded-2xl bg-white p-4 shadow-sm">
                 <CalendarDays class="h-8 w-8 text-gray-300" />
             </div>
-            <p class="font-bold text-gray-900">No items with due dates yet</p>
+            <p class="font-bold text-gray-900">No events yet</p>
             <p class="text-sm text-gray-500">
-                Due dates set on tasks and sub-project tasks will show up here.
+                Events with due dates, including sub-project events, will show
+                up here.
             </p>
         </div>
 
@@ -407,6 +426,60 @@ const cancelCloseMarkerCard = () => {
             </div>
 
             <div
+                v-if="availableTags.length"
+                class="flex flex-wrap items-center gap-2"
+            >
+                <span
+                    class="text-[9px] font-black tracking-widest text-gray-400 uppercase"
+                    >Tag:</span
+                >
+                <button
+                    type="button"
+                    @click="selectedTagIds = []"
+                    :class="[
+                        'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
+                        selectedTagIds.length === 0
+                            ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                    ]"
+                >
+                    All
+                </button>
+                <button
+                    type="button"
+                    @click="toggleTagFilter(TAG_FILTER_NONE)"
+                    :class="[
+                        'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
+                        selectedTagIds.includes(TAG_FILTER_NONE)
+                            ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                    ]"
+                >
+                    None
+                </button>
+                <button
+                    v-for="tag in availableTags"
+                    :key="tag.id"
+                    type="button"
+                    @click="toggleTagFilter(tag.id)"
+                    :class="[
+                        'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
+                        selectedTagIds.includes(tag.id)
+                            ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                            : 'border-gray-200 bg-white text-gray-400 dark:border-gray-800 dark:bg-transparent',
+                    ]"
+                >
+                    <span
+                        :class="[
+                            'h-1.5 w-1.5 shrink-0 rounded-full',
+                            kanbanDotClasses[tag.color],
+                        ]"
+                    ></span>
+                    {{ tag.name }}
+                </button>
+            </div>
+
+            <div
                 class="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800"
             >
                 <div
@@ -452,7 +525,7 @@ const cancelCloseMarkerCard = () => {
                         <div class="space-y-1">
                             <Popover
                                 v-for="(marker, mi) in cell.markers"
-                                :key="`${marker.item.id}-${marker.field}-${mi}`"
+                                :key="`${marker.item.id}-${mi}`"
                                 :open="activeMarkerKey === markerKey(marker)"
                             >
                                 <PopoverTrigger as-child>
@@ -472,11 +545,15 @@ const cancelCloseMarkerCard = () => {
                                             class="flex w-full items-center gap-1"
                                         >
                                             <span
+                                                v-if="
+                                                    marker.item.categories?.[0]
+                                                "
                                                 :class="[
                                                     'h-1.5 w-1.5 shrink-0 rounded-full',
-                                                    priorityDotClasses[
-                                                        marker.item.priority ??
-                                                            'low'
+                                                    kanbanDotClasses[
+                                                        marker.item
+                                                            .categories[0]
+                                                            .color
                                                     ],
                                                 ]"
                                             ></span>
@@ -484,15 +561,6 @@ const cancelCloseMarkerCard = () => {
                                                 class="flex-1 truncate text-[10px] font-bold text-gray-700 dark:text-gray-300"
                                             >
                                                 {{ marker.item.name }}
-                                            </span>
-                                            <span
-                                                v-if="
-                                                    marker.field ===
-                                                    'external_due_at'
-                                                "
-                                                class="shrink-0 text-[7px] font-black tracking-widest text-gray-400 uppercase"
-                                            >
-                                                Ext
                                             </span>
                                         </span>
                                         <span
@@ -530,22 +598,26 @@ const cancelCloseMarkerCard = () => {
                                             </span>
                                             <span
                                                 v-if="
-                                                    marker.field ===
-                                                    'external_due_at'
+                                                    marker.item.categories?.[0]
                                                 "
-                                                class="text-[8px] font-black tracking-widest text-gray-400 uppercase"
-                                            >
-                                                External Due Date
-                                            </span>
-                                            <span
-                                                v-else
-                                                class="text-[8px] font-black tracking-widest text-gray-400 uppercase"
+                                                :class="[
+                                                    'rounded px-1.5 py-0.5 text-[8px] font-black tracking-widest uppercase',
+                                                    kanbanClasses[
+                                                        marker.item
+                                                            .categories[0]
+                                                            .color
+                                                    ],
+                                                ]"
                                             >
                                                 {{
-                                                    usesExternalDueDates
-                                                        ? 'Internal Due Date'
-                                                        : 'Due Date'
+                                                    marker.item.categories[0]
+                                                        .name
                                                 }}
+                                            </span>
+                                            <span
+                                                class="text-[8px] font-black tracking-widest text-gray-400 uppercase"
+                                            >
+                                                Due Date
                                             </span>
                                             <span
                                                 class="text-[8px] font-black tracking-widest text-gray-300 uppercase"
@@ -585,17 +657,6 @@ const cancelCloseMarkerCard = () => {
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div
-                v-if="usesExternalDueDates"
-                class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-gray-400 uppercase"
-            >
-                <span
-                    class="rounded border border-gray-200 px-1 text-[7px] font-black tracking-widest text-gray-400 uppercase"
-                    >Ext</span
-                >
-                marks an external due date
             </div>
         </template>
     </div>

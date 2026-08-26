@@ -217,6 +217,8 @@ declare global {
         start_at: string | null;
         priority: TaskPriority;
         task_status: TaskStatus;
+        // At most one — Events are capped to a single tag (see DocumentController::updateCategories()).
+        categories: CategoryDef[];
     }
 
     export interface DocumentFields extends DocumentForm {
