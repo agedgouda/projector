@@ -36,7 +36,14 @@ return [
             'options' => [
                 'tls' => [],
             ],
-            'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 10_000),
+            // Default (10,000 bytes) is the stock Reverb value, but it bounds the HTTP publish
+            // request Laravel's queue worker POSTs to this server, not just messages relayed to
+            // browser clients — a DocumentProcessingUpdate broadcast carrying a newDocumentIds
+            // UUID per output document (a large AI transform can produce hundreds) blows past it
+            // and Reverb rejects the publish with "Payload too large" before it ever reaches a
+            // client. Matches max_message_size below, sized for the app's largest legitimate
+            // batch (the list importer's validated 5,000-row cap).
+            'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 1_000_000),
             'scaling' => [
                 'enabled' => env('REVERB_SCALING_ENABLED', false),
                 'channel' => env('REVERB_SCALING_CHANNEL', 'reverb'),
@@ -86,7 +93,13 @@ return [
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),
-                'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
+                // Default (10,000) is the stock Pusher-protocol value, but a DocumentProcessingUpdate
+                // broadcast for a large AI transform (e.g. "Notes to Events" against a big import
+                // record) carries a newDocumentIds UUID per output document — a few hundred outputs
+                // already exceeds 10KB, and Reverb throws "Payload too large" and silently drops that
+                // broadcast rather than truncating it. Sized to comfortably cover the app's own
+                // largest batch (the list importer's validated 5,000-row cap).
+                'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 1_000_000),
             ],
         ],
 

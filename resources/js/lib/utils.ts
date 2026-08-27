@@ -17,7 +17,9 @@ export function toUrl(href: NonNullable<InertiaLinkProps['href']>) {
     return typeof href === 'string' ? href : href?.url;
 }
 
-export function formatPhoneNumber(phoneNumberString: string | null | undefined): string {
+export function formatPhoneNumber(
+    phoneNumberString: string | null | undefined,
+): string {
     if (!phoneNumberString) return '';
 
     // Clean the input just in case it's not pure digits
@@ -34,12 +36,17 @@ export function formatPhoneNumber(phoneNumberString: string | null | undefined):
     return phoneNumberString;
 }
 
-export function formatProjectLabel(project: { name: string; client_name?: string | null }): string {
-    return project.client_name ? `${project.client_name}: ${project.name}` : project.name;
+export function formatProjectLabel(project: {
+    name: string;
+    client_name?: string | null;
+}): string {
+    return project.client_name
+        ? `${project.client_name}: ${project.name}`
+        : project.name;
 }
 
 export function formatRoleName(role: string): string {
-    return role.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return role.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function setPersistentCookie(name: string, value: string): void {
@@ -48,7 +55,10 @@ export function setPersistentCookie(name: string, value: string): void {
 
 // Strips HTML down to plain text for a short preview (e.g. a hover card) — mirrors
 // ProjectCalendar.vue's own previewText(), generalized with an optional character limit.
-export function htmlPreviewText(html: string | null | undefined, maxLength?: number): string {
+export function htmlPreviewText(
+    html: string | null | undefined,
+    maxLength?: number,
+): string {
     if (!html) return 'No description provided.';
 
     const div = document.createElement('div');
@@ -60,6 +70,25 @@ export function htmlPreviewText(html: string | null | undefined, maxLength?: num
 
     return text.slice(0, maxLength).trimEnd() + '…';
 }
+
+// Formats a calendar date (a plain `YYYY-MM-DD` value, or a timestamp whose time-of-day is
+// irrelevant — e.g. a stored due_at/start_at) as a local date without shifting it by a day.
+// `new Date('2026-09-01')` parses the string as UTC midnight, and toLocaleDateString() then
+// renders the *previous* day in any timezone behind UTC — parsing the y/m/d components
+// directly into a local Date avoids that entirely.
+export const formatDateOnly = (
+    value: string | null | undefined,
+    options?: { weekday?: boolean },
+): string => {
+    if (!value) return '';
+    const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+        ...(options?.weekday ? { weekday: 'short' as const } : {}),
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+};
 
 export const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
@@ -81,13 +110,13 @@ export const formatDate = (dateString: string | null) => {
         return date.toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
-            hour12: true
+            hour12: true,
         });
     }
 
     // Otherwise, show the date
     return new Intl.DateTimeFormat('en-US', {
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
     }).format(date);
 };

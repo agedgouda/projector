@@ -1,31 +1,43 @@
-import { ref, computed, Ref, watch, toValue } from 'vue';
 import { useDocumentTree } from '@/composables/useDocumentTree';
+import { computed, ref, Ref, toValue, watch } from 'vue';
 
 export function useProjectState(
-    initialDocs: ProjectDocument[] | Ref<ProjectDocument[]> | (() => ProjectDocument[]) = [],
-    schema: Ref<DocumentSchemaItem[]>
+    initialDocs:
+        | ProjectDocument[]
+        | Ref<ProjectDocument[]>
+        | (() => ProjectDocument[]) = [],
+    schema: Ref<DocumentSchemaItem[]>,
 ) {
     // 1. CENTRALIZED STATE
     // Initialize the Map with the current value of the docs
-    const documentsMap = ref(new Map(toValue(initialDocs).map(doc => [String(doc.id), doc])));
+    const documentsMap = ref(
+        new Map(toValue(initialDocs).map((doc) => [String(doc.id), doc])),
+    );
 
     /**
      * SYNC INTERNAL STATE:
      * When the parent (Dashboard) updates the liveDocuments array (via Echo/AI),
      * we must update our internal Map so the Hierarchy tab reflects those changes.
      */
-    watch(() => toValue(initialDocs), (newDocs) => {
-        newDocs.forEach(doc => {
-            const stringId = String(doc.id);
-            const existing = documentsMap.value.get(stringId);
+    watch(
+        () => toValue(initialDocs),
+        (newDocs) => {
+            newDocs.forEach((doc) => {
+                const stringId = String(doc.id);
+                const existing = documentsMap.value.get(stringId);
 
-            // Only update if the data has actually changed or is new
-            // This prevents unnecessary re-renders of the tree
-            if (!existing || JSON.stringify(existing) !== JSON.stringify(doc)) {
-                updateDocument(stringId, doc);
-            }
-        });
-    }, { deep: true });
+                // Only update if the data has actually changed or is new
+                // This prevents unnecessary re-renders of the tree
+                if (
+                    !existing ||
+                    JSON.stringify(existing) !== JSON.stringify(doc)
+                ) {
+                    updateDocument(stringId, doc);
+                }
+            });
+        },
+        { deep: true },
+    );
 
     /**
      * expandToParent
@@ -41,19 +53,25 @@ export function useProjectState(
     };
 
     // 2. TREE LOGIC ENCAPSULATION
-    const allDocs = computed(() => Array.from(documentsMap.value.values()) as ExtendedDocument[]);
+    const allDocs = computed(
+        () => Array.from(documentsMap.value.values()) as ExtendedDocument[],
+    );
 
     /**
      * PASSING SCHEMA:
      * We pass both the docs AND the schema to useDocumentTree.
      */
-    const { searchQuery, expandedRootIds, documentTree, toggleRoot } = useDocumentTree(allDocs, schema);
+    const { searchQuery, expandedRootIds, documentTree, toggleRoot } =
+        useDocumentTree(allDocs, schema);
 
     /**
      * updateDocument
      * THE UNIFIED FUNNEL: Every event (Echo, Form, AI) must pass through here.
      */
-    const updateDocument = (id: string | number, data: Partial<ExtendedDocument>) => {
+    const updateDocument = (
+        id: string | number,
+        data: Partial<ExtendedDocument>,
+    ) => {
         const stringId = String(id);
         const existingDoc = documentsMap.value.get(stringId);
 
@@ -62,9 +80,10 @@ export function useProjectState(
             const newDoc = {
                 ...data,
                 id: stringId,
-                metadata: typeof data.metadata === 'string'
-                    ? JSON.parse(data.metadata)
-                    : (data.metadata || {})
+                metadata:
+                    typeof data.metadata === 'string'
+                        ? JSON.parse(data.metadata)
+                        : data.metadata || {},
             } as ExtendedDocument;
 
             documentsMap.value.set(stringId, newDoc);
@@ -79,9 +98,10 @@ export function useProjectState(
         const updatedDoc = {
             ...existingDoc,
             ...data,
-            metadata: typeof data.metadata === 'string'
-                ? JSON.parse(data.metadata)
-                : (data.metadata || existingDoc.metadata)
+            metadata:
+                typeof data.metadata === 'string'
+                    ? JSON.parse(data.metadata)
+                    : data.metadata || existingDoc.metadata,
         } as ExtendedDocument;
 
         documentsMap.value.set(stringId, updatedDoc);
@@ -93,11 +113,26 @@ export function useProjectState(
 
     /**
      * removeDocuments
-     * Drops documents from the map, e.g. when reprocessing replaces a
-     * document's previously generated children.
+     * Drops every descendant of the given document from the map, e.g. when
+     * reprocessing replaces its previously generated children. Only the root
+     * id is needed (not the removed IDs themselves) — descendants are found
+     * by walking parent_id locally, mirroring the parent_id foreign key's own
+     * ON DELETE CASCADE on the backend.
      */
-    const removeDocuments = (ids: Array<string | number>) => {
-        ids.forEach(id => documentsMap.value.delete(String(id)));
+    const removeDocuments = (rootId: string | number) => {
+        const queue = Array.from(documentsMap.value.values())
+            .filter((doc) => String(doc.parent_id) === String(rootId))
+            .map((doc) => String(doc.id));
+
+        while (queue.length) {
+            const id = queue.shift()!;
+            for (const doc of documentsMap.value.values()) {
+                if (String(doc.parent_id) === id) {
+                    queue.push(String(doc.id));
+                }
+            }
+            documentsMap.value.delete(id);
+        }
     };
 
     return {
@@ -108,6 +143,6 @@ export function useProjectState(
         documentTree,
         toggleRoot,
         updateDocument,
-        removeDocuments
+        removeDocuments,
     };
 }

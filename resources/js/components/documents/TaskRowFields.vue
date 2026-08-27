@@ -42,10 +42,9 @@ const handleUpdate = (field: string, value: any) => {
         <!-- Status — fixed-width and right-justified so Due (next column) doesn't shift
              depending on label length ("TO DO" vs "IN PROGRESS"). No dot here (see
              PriorityDot.vue, rendered separately at the start of the row, before the type
-             icon — priority is the only per-row color indicator now). No @click.stop needed:
-             the row this renders inside only wires navigation to its own name text (see
-             TraceabilityRow.vue/DocumentContent.vue), not the whole row, so there's nothing
-             here to guard against. -->
+             icon — priority is the only per-row color indicator now). No @click.stop needed
+             in here: the caller (TaskRowContent.vue) puts it on its whole <TaskRowFields>
+             usage, since the row it renders inside navigates on any click. -->
         <div v-if="readOnly" class="w-28 truncate text-right text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">
             {{ currentColumn?.label ?? doc.task_status ?? 'todo' }}
         </div>
@@ -62,18 +61,22 @@ const handleUpdate = (field: string, value: any) => {
             </Select>
         </div>
 
-        <!-- Due date — fixed width, right-justified read-only, a dash when empty. -->
-        <div v-if="readOnly" class="flex w-24 items-center justify-end gap-1">
+        <!-- Due date — fixed width, right-justified read-only, a dash when empty. w-28 (not
+             w-24) because the native date input's own internal "MM/DD/YYYY" rendering plus its
+             calendar-picker icon needs ~111px alongside the Calendar icon + gap here — narrower
+             and the input either overflows the row (pre-min-w-0) or clips its own last
+             character (post-min-w-0 without the extra width). -->
+        <div v-if="readOnly" class="flex w-28 items-center justify-end gap-1">
             <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ dueValue || '--' }}</span>
             <Calendar class="h-3 w-3 shrink-0 text-slate-400" />
         </div>
-        <div v-else class="flex w-24 items-center gap-1">
+        <div v-else class="flex w-28 items-center gap-1">
             <Calendar class="h-3 w-3 shrink-0 text-slate-400" />
             <input
                 type="date"
                 :value="dueValue"
                 @change="(e) => handleUpdate(dueField, (e.target as HTMLInputElement).value)"
-                class="w-full cursor-pointer border-none bg-transparent p-0 text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 focus:ring-0"
+                class="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 focus:ring-0 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
             />
         </div>
     </div>

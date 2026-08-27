@@ -12,6 +12,7 @@ import {
     kanbanDotClasses,
 } from '@/lib/constants';
 import { kanbanCardBg } from '@/lib/kanban-theme';
+import { formatDateOnly } from '@/lib/utils';
 import projectCalendarRoutes from '@/routes/projects/calendar';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { router } from '@inertiajs/vue3';
@@ -380,16 +381,6 @@ const openItem = (item: CalendarItem) => {
     router.visit(url);
 };
 
-const formatDate = (dateStr: string | null): string => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
-};
-
 // Every item here is an Event (see Project::calendarItems() — the calendar is events-only),
 // which always has both a start and end date. When they're the same calendar day — the common
 // case, since a single-date source row defaults start to end for both the "Notes to Events"
@@ -400,12 +391,20 @@ const dateFields = (item: CalendarItem): { label: string; value: string }[] => {
     const { start_at: start, due_at: due } = item;
 
     if (!start || !due || start.slice(0, 10) === due.slice(0, 10)) {
-        return [{ label: 'Date', value: formatDate(due ?? start) }];
+        return [
+            {
+                label: 'Date',
+                value: formatDateOnly(due ?? start, { weekday: true }),
+            },
+        ];
     }
 
     return [
-        { label: 'Start Date', value: formatDate(start) },
-        { label: 'End Date', value: formatDate(due) },
+        {
+            label: 'Start Date',
+            value: formatDateOnly(start, { weekday: true }),
+        },
+        { label: 'End Date', value: formatDateOnly(due, { weekday: true }) },
     ];
 };
 

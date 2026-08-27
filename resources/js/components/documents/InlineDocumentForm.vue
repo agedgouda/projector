@@ -290,6 +290,7 @@ const updateCriterion = (index: number, value: string) =>
         </div>
 
         <div
+            v-if="mode !== 'edit'"
             class="grid gap-4 border-t border-slate-100 pt-4 dark:border-white/10"
         >
             <div class="flex items-center justify-between">

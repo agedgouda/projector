@@ -1,12 +1,15 @@
-import { ref, nextTick, onBeforeUnmount, watch } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
-import { useEcho } from '@laravel/echo-vue';
-import { toast } from 'vue-sonner';
-import axios from 'axios';
-import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { useWorkflow } from '@/composables/useWorkflow';
-import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
 import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
+import {
+    redirectIfLoggedOut,
+    redirectIfSessionExpiredError,
+} from '@/lib/sessionExpiry';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import { router, useForm } from '@inertiajs/vue3';
+import { useEcho } from '@laravel/echo-vue';
+import axios from 'axios';
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 
 // Safety net for a missed .DocumentProcessingUpdate broadcast (dropped/reconnected socket,
 // tab backgrounded during the job, etc.) — without this, isProcessingLive has no other way
@@ -69,27 +72,120 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             // Re-fetches just `item` — syncSidebarFields (called from Show.vue's watcher on
             // the replaced prop) is what actually notices processed_at advanced and clears
             // isProcessingLive; this timer's only job is to trigger that re-fetch.
-            router.reload({ only: ['item'], preserveScroll: true, preserveState: true });
+            router.reload({
+                only: ['item'],
+                preserveScroll: true,
+                preserveState: true,
+            });
         }, PROCESSING_POLL_INTERVAL_MS);
     };
+
+    // How many child documents a run against *this* document just produced, so their own
+    // embedding-progress broadcasts ("Synthesizing Document Heuristics...", "Finalizing Vector
+    // Integration...") keep updating processingMessage here too, instead of it freezing on
+    // whatever this document's own last step said — mirrors useAiProcessing.ts's batchSourceId/
+    // batchTotal, adapted from "any document in the whole tree" to "this document's own new
+    // children" since this composable only ever tracks a single document (so the source id is
+    // always just `item.id`, no separate ref needed for it). Deliberately just a count rather
+    // than the exact child IDs — a large batch (100+ generated documents) can make that array
+    // alone exceed the broadcaster's payload limit — since every per-child broadcast already
+    // carries its own parent_id, which is all that's needed to recognize membership;
+    // completedChildIds is populated purely from those broadcasts as they arrive.
+    const trackedChildTotal = ref(0);
+    const completedChildIds = ref<Set<string>>(new Set());
 
     const clearProcessingState = () => {
         isProcessingLive.value = false;
         processingMessage.value = null;
         aiProgress.value = 0;
+        trackedChildTotal.value = 0;
+        completedChildIds.value = new Set();
         stopCreep();
         stopProcessingPoll();
     };
+
+    // Summarizes each new child's own progress as "N of M" instead of parroting its raw
+    // "Synthesizing.../Finalizing..." text one child at a time with no sense of overall
+    // progress once there's more than one — exactly useAiProcessing.ts's batchProgressMessage
+    // (same "remaining of total" phrasing and per-child-name variant), just counting down from
+    // this composable's own trackedChildTotal instead of filtering a shared allDocs Map.
+    const batchProgressMessage = (
+        currentDocName?: string | null,
+    ): string | null => {
+        if (trackedChildTotal.value === 0) return null;
+        const remaining =
+            trackedChildTotal.value - completedChildIds.value.size;
+        if (remaining <= 0) return null;
+        const countLabel = `${remaining} of ${trackedChildTotal.value}`;
+        return currentDocName
+            ? `Finalizing "${currentDocName}" (${countLabel})`
+            : `Finalizing ${countLabel}`;
+    };
+
+    // Picks up an already-in-progress run at load time instead of only ever reacting to
+    // broadcasts from this point forward — otherwise a different user (or this user in a
+    // fresh tab, or after a reload) who opens this page mid-transform never sees the banner
+    // at all, since isProcessingLive above only starts true when *this* session's own
+    // confirmReprocess/confirmTransition click set it. Mirrors useAiProcessing.ts's
+    // isAiProcessing computed (item.processed_at === null || any doc unprocessed) — evaluated
+    // once here against the props this page already loaded, since the Echo listener and poll
+    // fallback below take over from here.
+    const initialChildren = item.children ?? [];
+    const hasPendingChildren = initialChildren.some(
+        (c) => c.processed_at === null,
+    );
+    if (item.processed_at === null || hasPendingChildren) {
+        isProcessingLive.value = true;
+        aiProgress.value = item.processed_at === null ? 50 : 100;
+        trackedChildTotal.value = initialChildren.length;
+        completedChildIds.value = new Set(
+            initialChildren
+                .filter((c) => c.processed_at !== null)
+                .map((c) => String(c.id)),
+        );
+        processingMessage.value = batchProgressMessage(null);
+        startProcessingPoll();
+    }
 
     onBeforeUnmount(stopProcessingPoll);
 
     useEcho(
         `project.${project.id}`,
-        ['.DocumentProcessingUpdate'],
+        ['.DocumentProcessingUpdate', '.document.vectorized'],
         (payload: any) => {
-            if (payload.document_id !== item.id || !payload.statusMessage) return;
+            // .document.vectorized: the definitive "this child has fully finished" signal
+            // (fired once GenerateDocumentEmbedding commits processed_at) — it never carries a
+            // statusMessage, unlike every DocumentProcessingUpdate broadcast (including the
+            // ones about this same child mid-embedding), which is how the two are told apart.
+            // Membership comes straight off this broadcast's own parent_id, not a pre-known ID
+            // list — see the trackedChildTotal comment above.
+            if (!payload.statusMessage && payload.document?.id) {
+                const isTrackedChild =
+                    trackedChildTotal.value > 0 &&
+                    String(payload.document.parent_id) === item.id;
+                if (isTrackedChild) {
+                    completedChildIds.value.add(String(payload.document.id));
+                    if (
+                        completedChildIds.value.size >= trackedChildTotal.value
+                    ) {
+                        clearProcessingState();
+                        router.reload();
+                    }
+                }
+                return;
+            }
 
-            const { message, newProgress, isError, isSuccess } = parseProcessingStatus(payload);
+            const isThisDoc = payload.document_id === item.id;
+            const isTrackedChild =
+                trackedChildTotal.value > 0 &&
+                payload.document?.parent_id != null &&
+                String(payload.document.parent_id) === item.id;
+            if (!payload.statusMessage || (!isThisDoc && !isTrackedChild)) {
+                return;
+            }
+
+            const { message, newProgress, isError, isSuccess } =
+                parseProcessingStatus(payload);
 
             if (isError) {
                 clearProcessingState();
@@ -103,15 +199,27 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
                 aiProgress.value = newProgress;
             }
 
-            processingMessage.value = message;
+            if (isThisDoc && payload.newDocumentCount) {
+                trackedChildTotal.value = payload.newDocumentCount;
+                completedChildIds.value = new Set();
+            }
 
-            if (isSuccess) {
+            processingMessage.value = isTrackedChild
+                ? (batchProgressMessage(payload.document?.name) ?? message)
+                : message;
+
+            // This document's own step reached 100 — if it didn't spawn any new children (a
+            // reprocess/transform that produced no new output), that's genuinely the finish
+            // line; if it did, wait for their own .document.vectorized above instead of cutting
+            // off their progress the instant this fires, same gap useAiProcessing.ts avoids on
+            // the project tree page.
+            if (isSuccess && isThisDoc && trackedChildTotal.value === 0) {
                 clearProcessingState();
                 router.reload();
             }
         },
         [project.id],
-        'private'
+        'private',
     );
 
     const { reprocessableTypes } = useWorkflow();
@@ -122,7 +230,10 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const canOfferReprocess = () => {
         const isLocked = !!item.locked_project_type_id;
 
-        return reprocessableTypes.value.has(item.type) || (isLocked && !!item.locked_next_workflow_step_exists);
+        return (
+            reprocessableTypes.value.has(item.type) ||
+            (isLocked && !!item.locked_next_workflow_step_exists)
+        );
     };
 
     // Tab detection logic
@@ -164,8 +275,18 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         // Self-correction for a missed broadcast: whenever Inertia hands us a freshly
         // replaced `item` (from the poll fallback above, or any other reload/navigation)
         // and it turns out processing has actually finished, stop showing "processing" even
-        // though the completion event itself never arrived.
-        if (isProcessingLive.value && newItem.processed_at) {
+        // though the completion event itself never arrived. newItem.processed_at only
+        // reflects *this* document's own step finishing, though — a transform that spawned
+        // children can easily still have some of them mid-embedding at that point (their own
+        // processed_at lives on the child rows, invisible here), so this only fires once any
+        // tracked batch has also fully drained; otherwise it would cut the "Finalizing N of M"
+        // progress short the next time this poll fires after the source step completes.
+        if (
+            isProcessingLive.value &&
+            newItem.processed_at &&
+            (trackedChildTotal.value === 0 ||
+                completedChildIds.value.size >= trackedChildTotal.value)
+        ) {
             clearProcessingState();
         }
 
@@ -195,7 +316,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         form.tab = getCurrentTab();
         const url = projectDocumentsRoutes.update({
             project: project.id,
-            document: item.id
+            document: item.id,
         }).url;
 
         form.put(url, {
@@ -211,7 +332,9 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         });
     };
 
-    const confirmReprocess = async (oneOffInstructions: string | null = null) => {
+    const confirmReprocess = async (
+        oneOffInstructions: string | null = null,
+    ) => {
         isReprocessing.value = true;
 
         // Flip the live status synchronously — before the network round trip — so the
@@ -222,14 +345,19 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         aiProgress.value = 5;
         startProcessingPoll();
 
-        const url = projectDocumentsRoutes.reprocess.url({ project: project.id, document: item.id });
+        const url = projectDocumentsRoutes.reprocess.url({
+            project: project.id,
+            document: item.id,
+        });
 
         // The reprocess endpoint returns plain JSON (it's also called via axios from the
         // tree/kanban views), not an Inertia response, so it can't go through router.post.
         // Once dispatched, the live status above takes over until the job's own
         // success/error broadcast arrives — no immediate reload here.
         try {
-            const response = await axios.post(url, { one_off_instructions: oneOffInstructions });
+            const response = await axios.post(url, {
+                one_off_instructions: oneOffInstructions,
+            });
             if (redirectIfLoggedOut(response)) return;
         } catch (error) {
             clearProcessingState();
@@ -243,11 +371,54 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         }
     };
 
+    const isTransitioning = ref(false);
+
+    // Mirrors confirmReprocess above — same live-status/poll/Echo machinery (that listener is
+    // generic to any AI job on this document, keyed only on document_id), just posting to the
+    // transition endpoint instead of reprocess. See TraceabilityRow.vue's Transform button for
+    // the tree-view equivalent of this same flow.
+    const confirmTransition = async (payload: {
+        toKey?: string;
+        aiTemplateId: number;
+        singleOutput?: boolean;
+        projectTypeId?: string;
+    }) => {
+        isTransitioning.value = true;
+
+        isProcessingLive.value = true;
+        processingMessage.value = 'Starting...';
+        aiProgress.value = 5;
+        startProcessingPoll();
+
+        const url = projectDocumentsRoutes.transition.url({
+            project: project.id,
+            document: item.id,
+        });
+
+        try {
+            const response = await axios.post(url, {
+                to_key: payload.toKey,
+                ai_template_id: payload.aiTemplateId,
+                single_output: payload.singleOutput,
+                project_type_id: payload.projectTypeId,
+            });
+            if (redirectIfLoggedOut(response)) return;
+        } catch (error) {
+            clearProcessingState();
+
+            if (redirectIfSessionExpiredError(error)) return;
+
+            toast.error('Failed to start transition');
+        } finally {
+            isTransitioning.value = false;
+        }
+    };
+
     const confirmDeletion = () => {
         isDeleting.value = true;
         const url = projectDocumentsRoutes.destroy({
             project: project.id,
-            document: item.id
+            document: item.id,
         }).url;
 
         router.delete(url, {
@@ -257,7 +428,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             onFinish: () => {
                 isDeleting.value = false;
                 isDeleteModalOpen.value = false;
-            }
+            },
         });
     };
 
@@ -275,6 +446,8 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         handleFormSubmit,
         confirmDeletion,
         confirmReprocess,
+        isTransitioning,
+        confirmTransition,
         getCurrentTab,
         syncSidebarFields,
     };

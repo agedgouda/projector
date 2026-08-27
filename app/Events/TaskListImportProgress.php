@@ -22,6 +22,7 @@ class TaskListImportProgress implements ShouldBroadcastNow
         public string $status,
         public ?string $redirectUrl = null,
         public ?string $message = null,
+        public ?string $warning = null,
     ) {}
 
     public function broadcastOn(): array
@@ -45,6 +46,7 @@ class TaskListImportProgress implements ShouldBroadcastNow
             'status' => $this->status,
             'redirect_url' => $this->redirectUrl,
             'message' => $this->message,
+            'warning' => $this->warning,
         ];
     }
 }

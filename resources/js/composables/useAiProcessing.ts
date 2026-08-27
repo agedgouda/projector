@@ -1,9 +1,9 @@
-import { ref, computed, watch, onBeforeUnmount, type Ref } from 'vue';
+import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
+import { globalAiState } from '@/state';
 import { router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import axios from 'axios';
-import { globalAiState } from '@/state';
-import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
+import { computed, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
 // How often to re-check server truth while something appears to be processing — a safety net
 // for a missed .DocumentProcessingUpdate broadcast. This covers a case connection-state
@@ -19,40 +19,51 @@ export function useAiProcessing(
     onDocumentUpdated?: (doc: ExtendedDocument) => void,
     onSuccess?: (message: string) => void,
     onError?: (message: string) => void,
-    onDocumentsRemoved?: (ids: Array<string | number>) => void,
-    reloadPropsOnNewDocuments?: string[]
+    onDocumentsRemoved?: (parentId: string | number) => void,
+    reloadPropsOnNewDocuments?: string[],
 ) {
     const aiStatusMessage = ref<string>('');
     const aiProgress = ref<number>(0);
     let creepInterval: ReturnType<typeof setInterval> | null = null;
 
-    // IDs of the child documents most recently created by a transform, so the generic
-    // per-child broadcasts each one sends while it finishes embedding ("Synthesizing
-    // Document Heuristics...", "Finalizing Vector Integration...") can be summarized as
-    // "N of M tasks" instead of displayed verbatim — otherwise the header just bounces
-    // between those two strings once per child with no indication of how many are left
-    // or that it's waiting on stragglers, which reads as stuck/broken near the end of a
-    // multi-task batch.
-    const batchDocIds = ref<Set<string>>(new Set());
+    // The document a batch of children was most recently generated from, plus how many
+    // children there were, so the generic per-child broadcasts each one sends while it
+    // finishes embedding ("Synthesizing Document Heuristics...", "Finalizing Vector
+    // Integration...") can be summarized as "N of M tasks" instead of displayed verbatim —
+    // otherwise the header just bounces between those two strings once per child with no
+    // indication of how many are left or that it's waiting on stragglers, which reads as
+    // stuck/broken near the end of a multi-task batch. Deliberately just the source id and a
+    // count rather than the exact child IDs — a large batch (100+ generated documents) can
+    // make that array alone exceed the broadcaster's payload limit — since every per-child
+    // broadcast already carries its own parent_id, which is all that's needed to recognize
+    // membership and to count remaining stragglers via allDocs.
+    const batchSourceId = ref<string | null>(null);
+    const batchTotal = ref(0);
 
-    const batchProgressMessage = (currentDocId?: string | number | null): string | null => {
-        if (batchDocIds.value.size === 0) return null;
+    const batchProgressMessage = (
+        currentDocId?: string | number | null,
+    ): string | null => {
+        if (!batchSourceId.value) return null;
 
         const remaining = allDocs.value.filter(
-            (d) => batchDocIds.value.has(String(d.id)) && d.processed_at === null
+            (d) =>
+                String(d.parent_id) === batchSourceId.value &&
+                d.processed_at === null,
         ).length;
 
         if (remaining === 0) return null;
 
-        const total = batchDocIds.value.size;
-        const countLabel = `${remaining} of ${total}`;
+        const countLabel = `${remaining} of ${batchTotal.value}`;
 
         // Name the specific task this broadcast is actually about, not just the count —
         // falls back to the count alone if the doc hasn't loaded into allDocs yet (a brief
         // race right after the batch-creating reload kicks off).
-        const currentDocName = currentDocId != null
-            ? allDocs.value.find((d) => String(d.id) === String(currentDocId))?.name
-            : null;
+        const currentDocName =
+            currentDocId != null
+                ? allDocs.value.find(
+                      (d) => String(d.id) === String(currentDocId),
+                  )?.name
+                : null;
 
         return currentDocName
             ? `Finalizing "${currentDocName}" (${countLabel})`
@@ -72,11 +83,11 @@ export function useAiProcessing(
     // --- 2. DERIVED STATE ---
     // AI is processing if there's an active target being created OR any document has null processed_at
     const isAiProcessing = computed(() => {
-    const isTargeting = !!targetBeingCreated.value;
-    const pendingDoc = allDocs.value.find(d => d.processed_at === null);
+        const isTargeting = !!targetBeingCreated.value;
+        const pendingDoc = allDocs.value.find((d) => d.processed_at === null);
 
-    return isTargeting || !!pendingDoc;
-});
+        return isTargeting || !!pendingDoc;
+    });
 
     // Two related self-corrections for isAiProcessing getting stuck true with nothing left to
     // resolve it, layered on top of the normal live-broadcast path:
@@ -112,54 +123,77 @@ export function useAiProcessing(
 
     const reconcileWithServer = () => {
         reconcileCount++;
-        const pendingBefore = allDocs.value.filter(d => d.processed_at === null).map(d => d.id);
+        const pendingBefore = allDocs.value
+            .filter((d) => d.processed_at === null)
+            .map((d) => d.id);
 
         router.reload({
-            ...(reloadPropsOnNewDocuments?.length ? { only: reloadPropsOnNewDocuments } : {}),
+            ...(reloadPropsOnNewDocuments?.length
+                ? { only: reloadPropsOnNewDocuments }
+                : {}),
             onSuccess: () => {
                 // Only a poll tick after the first (the immediate, mount-time-equivalent check)
                 // means a full interval passed with the live broadcast never arriving — that's
                 // the genuinely diagnostic-worthy case, not just a normal fresh load or a
                 // same-tick cache correction.
-                if (reconcileCount > 1 && !isAiProcessing.value && pendingBefore.length) {
-                    axios.post('/log-stale-processing', {
-                        project_id: projectId,
-                        document_ids: pendingBefore,
-                        stuck_for_ms: reconcileCount * PROCESSING_POLL_INTERVAL_MS,
-                    }).catch(() => {
-                        // Best-effort diagnostic logging — never block or surface an error over this.
-                    });
+                if (
+                    reconcileCount > 1 &&
+                    !isAiProcessing.value &&
+                    pendingBefore.length
+                ) {
+                    axios
+                        .post('/log-stale-processing', {
+                            project_id: projectId,
+                            document_ids: pendingBefore,
+                            stuck_for_ms:
+                                reconcileCount * PROCESSING_POLL_INTERVAL_MS,
+                        })
+                        .catch(() => {
+                            // Best-effort diagnostic logging — never block or surface an error over this.
+                        });
                 }
             },
         });
     };
 
-    watch(isAiProcessing, (isProcessing) => {
-        if (isProcessing) {
-            if (!processingPollTimer) {
-                if (!hasMounted) {
-                    reconcileWithServer();
+    watch(
+        isAiProcessing,
+        (isProcessing) => {
+            if (isProcessing) {
+                if (!processingPollTimer) {
+                    if (!hasMounted) {
+                        reconcileWithServer();
+                    }
+                    processingPollTimer = setInterval(
+                        reconcileWithServer,
+                        PROCESSING_POLL_INTERVAL_MS,
+                    );
                 }
-                processingPollTimer = setInterval(reconcileWithServer, PROCESSING_POLL_INTERVAL_MS);
+            } else {
+                stopProcessingPoll();
             }
-        } else {
-            stopProcessingPoll();
-        }
-        hasMounted = true;
-    }, { immediate: true });
+            hasMounted = true;
+        },
+        { immediate: true },
+    );
 
     onBeforeUnmount(stopProcessingPoll);
 
     // Sync Global AI State
-    watch(isAiProcessing, (newVal) => {
-        globalAiState.value.isProcessing = newVal;
-        if (!newVal) {
-            aiProgress.value = 0;
-            aiStatusMessage.value = '';
-            batchDocIds.value = new Set();
-            stopCreep();
-        }
-    }, { immediate: true });
+    watch(
+        isAiProcessing,
+        (newVal) => {
+            globalAiState.value.isProcessing = newVal;
+            if (!newVal) {
+                aiProgress.value = 0;
+                aiStatusMessage.value = '';
+                batchSourceId.value = null;
+                batchTotal.value = 0;
+                stopCreep();
+            }
+        },
+        { immediate: true },
+    );
 
     // --- 3. PROGRESS ANIMATION (The "Creep") ---
     watch(aiProgress, (newVal) => {
@@ -176,67 +210,88 @@ export function useAiProcessing(
 
     // --- 4. REAL-TIME LISTENER ---
     // Listens for both specific document updates and general processing progress
-    useEcho(`project.${projectId}`, ['.document.vectorized', '.DocumentProcessingUpdate'], (payload: any) => {
+    useEcho(
+        `project.${projectId}`,
+        ['.document.vectorized', '.DocumentProcessingUpdate'],
+        (payload: any) => {
+            // 1. HANDLE STATUS UPDATES
+            if (payload.statusMessage) {
+                const { message, newProgress, isError, isSuccess } =
+                    parseProcessingStatus(payload);
 
-        // 1. HANDLE STATUS UPDATES
-        if (payload.statusMessage) {
-            const { message, newProgress, isError, isSuccess } = parseProcessingStatus(payload);
+                if (isSuccess) {
+                    aiProgress.value = 100;
+                    onSuccess?.(message);
+                    // NOTICE: We do NOT clear targetBeingCreated or doc status here
+                } else if (isError) {
+                    aiProgress.value = 0;
+                    targetBeingCreated.value = null;
+                    aiStatusMessage.value = '';
+                    onError?.(message);
+                }
 
-            if (isSuccess) {
-                aiProgress.value = 100;
-                onSuccess?.(message);
-                // NOTICE: We do NOT clear targetBeingCreated or doc status here
-            } else if (isError) {
-                aiProgress.value = 0;
+                if (!isSuccess && newProgress > aiProgress.value) {
+                    aiProgress.value = newProgress;
+                }
+
+                // A generic per-child broadcast (not the batch's own success/error) for a
+                // document we know belongs to the just-created batch gets replaced with a
+                // "N of M tasks" summary — see batchProgressMessage above. Membership comes
+                // straight off this broadcast's own parent_id, not a pre-known ID list.
+                const isBatchChild =
+                    !isSuccess &&
+                    !isError &&
+                    batchSourceId.value != null &&
+                    payload.document?.parent_id != null &&
+                    String(payload.document.parent_id) === batchSourceId.value;
+
+                aiStatusMessage.value = isBatchChild
+                    ? (batchProgressMessage(payload.document_id) ?? message)
+                    : message;
+            }
+
+            // 2. HANDLE DATA ARRIVAL (The Finish Line)
+            if (payload.document && onDocumentUpdated) {
+                // This update will satisfy the 'processed_at === null' check
+                // and trigger the computed isAiProcessing to turn false naturally.
+                onDocumentUpdated({
+                    ...payload.document,
+                    currentStatus: null,
+                });
+
+                // Reset global tracking only after data is rendered
                 targetBeingCreated.value = null;
-                aiStatusMessage.value = '';
-                onError?.(message);
             }
 
-            if (!isSuccess && newProgress > aiProgress.value) {
-                aiProgress.value = newProgress;
+            // 3. HANDLE NEWLY CREATED CHILDREN (e.g. from reprocessing)
+            // Only a count is broadcast (the full ID list can exceed the broadcaster's payload
+            // limit for a large batch), so pull the new records in via a partial reload.
+            if (payload.newDocumentCount) {
+                batchSourceId.value = String(payload.document_id);
+                batchTotal.value = payload.newDocumentCount;
+                router.reload(
+                    reloadPropsOnNewDocuments?.length
+                        ? { only: reloadPropsOnNewDocuments }
+                        : {},
+                );
             }
 
-            // A generic per-child broadcast (not the batch's own success/error) for a
-            // document we know belongs to the just-created batch gets replaced with a
-            // "N of M tasks" summary — see batchProgressMessage above.
-            const isBatchChild = !isSuccess && !isError
-                && payload.document_id != null
-                && batchDocIds.value.has(String(payload.document_id));
-
-            aiStatusMessage.value = isBatchChild ? (batchProgressMessage(payload.document_id) ?? message) : message;
-        }
-
-        // 2. HANDLE DATA ARRIVAL (The Finish Line)
-        if (payload.document && onDocumentUpdated) {
-            // This update will satisfy the 'processed_at === null' check
-            // and trigger the computed isAiProcessing to turn false naturally.
-            onDocumentUpdated({
-                ...payload.document,
-                currentStatus: null
-            });
-
-            // Reset global tracking only after data is rendered
-            targetBeingCreated.value = null;
-        }
-
-        // 3. HANDLE NEWLY CREATED CHILDREN (e.g. from reprocessing)
-        // Only IDs are broadcast (full documents can exceed the broadcaster's
-        // payload limit), so pull the new records in via a partial reload.
-        if (Array.isArray(payload.newDocumentIds) && payload.newDocumentIds.length) {
-            batchDocIds.value = new Set(payload.newDocumentIds.map(String));
-            router.reload(reloadPropsOnNewDocuments?.length ? { only: reloadPropsOnNewDocuments } : {});
-        }
-
-        // 4. HANDLE STALE CHILDREN REMOVED BY REPROCESSING
-        if (Array.isArray(payload.deletedDocumentIds) && payload.deletedDocumentIds.length && onDocumentsRemoved) {
-            onDocumentsRemoved(payload.deletedDocumentIds);
-        }
-    }, [projectId], 'private');
+            // 4. HANDLE STALE CHILDREN REMOVED BY REPROCESSING
+            if (
+                payload.childrenReplaced &&
+                payload.document_id != null &&
+                onDocumentsRemoved
+            ) {
+                onDocumentsRemoved(payload.document_id);
+            }
+        },
+        [projectId],
+        'private',
+    );
 
     return {
         aiStatusMessage,
         aiProgress,
-        isAiProcessing
+        isAiProcessing,
     };
 }

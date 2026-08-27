@@ -1,36 +1,25 @@
 <script setup lang="ts">
-import DocumentPreviewCard from '@/components/documents/DocumentPreviewCard.vue';
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import TaskRowContent from '@/components/documents/TaskRowContent.vue';
-import {
-    Popover,
-    PopoverAnchor,
-    PopoverContent,
-} from '@/components/ui/popover';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { formatDateOnly } from '@/lib/utils';
 import { show as showDocument } from '@/routes/projects/documents';
 import { Link, usePage, type InertiaForm } from '@inertiajs/vue3';
 import DOMPurify from 'dompurify';
 import {
     Calendar as CalendarIcon,
-    CheckCircle2,
     CornerDownRight,
     CornerUpLeft,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
-
-// The partial metadata interface for the "View" mode section
-interface DocumentMetadata {
-    criteria?: string[];
-}
+import { computed } from 'vue';
 
 const props = defineProps<{
     item: ExtendedDocument;
     isEditing: boolean;
-    metadata: DocumentMetadata | null;
     project: Project;
     documentTypeCatalog?: DocumentSchemaItem[];
     form: InertiaForm<DocumentFields>;
@@ -107,14 +96,72 @@ const childEventList = computed(() => {
     return children.every((child) => child.type === 'event') ? children : [];
 });
 
+// task_list_import/event_list_import documents store their content as a JSON dump of every
+// imported row (see ImportTaskList::finish()) — shown as a formatted table below instead of
+// the raw JSON text the generic content section would otherwise render.
+const isImportRecord = computed(
+    () =>
+        props.item.type === 'task_list_import' ||
+        props.item.type === 'event_list_import',
+);
+
+interface ImportedRow {
+    [key: string]: string | null | undefined;
+}
+
+const importedRows = computed<ImportedRow[]>(() => {
+    if (!isImportRecord.value || !props.item.content) return [];
+    try {
+        const parsed = JSON.parse(props.item.content);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+});
+
+const importColumns = computed<{ key: string; label: string }[]>(() =>
+    props.item.type === 'event_list_import'
+        ? [
+              { key: 'name', label: 'Name' },
+              { key: 'tag', label: 'Tag' },
+              { key: 'start_date', label: 'Start Date' },
+              { key: 'due_date', label: 'End Date' },
+              { key: 'description', label: 'Description' },
+          ]
+        : [
+              { key: 'name', label: 'Name' },
+              { key: 'priority', label: 'Priority' },
+              { key: 'task_status', label: 'Status' },
+              { key: 'due_at', label: 'Due Date' },
+              { key: 'assignee', label: 'Assignee' },
+              { key: 'tag', label: 'Tag' },
+          ],
+);
+
+const formatImportCell = (value: string | null | undefined): string => {
+    if (!value) return '—';
+    // Only date-shaped values (due_at/start_date/due_date) get reformatted — name/tag/
+    // assignee/description etc. are already plain display text.
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) return formatEventDate(value);
+    return value;
+};
+
+const importCreatedCount = computed<number>(
+    () => props.item.metadata?.created_count ?? importedRows.value.length,
+);
+const importOriginalFilename = computed<string | null>(
+    () => props.item.metadata?.original_filename ?? null,
+);
+const importSkippedRows = computed<{ row: number; reason: string }[]>(
+    () => props.item.metadata?.skipped ?? [],
+);
+const importUntaggedRows = computed<{ row: number; tag: string }[]>(
+    () => props.item.metadata?.untagged ?? [],
+);
+
 // Matches TraceabilityRow.vue's own non-task date-range formatting, so an event reads the
 // same way here as it does in the Documents tree.
-const formatEventDate = (value: string | null | undefined): string =>
-    new Date(value as string).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
+const formatEventDate = formatDateOnly;
 const eventDateRange = (child: ExtendedDocument): string | null => {
     const start = child.start_at ? formatEventDate(child.start_at) : null;
     const end = child.due_at ? formatEventDate(child.due_at) : null;
@@ -147,17 +194,6 @@ const usesExternalDueDates = computed(
     () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
 );
 
-// A single active id (not one ref per row) since every row here is a `v-for` iteration inside
-// this one component instance, not a separate component instance the way TraceabilityRow.vue's
-// rows are — a plain ref(false) per row isn't possible without keying by id anyway.
-const openPreviewId = ref<string | number | null>(null);
-const handlePreviewOpenChange = (id: string | number, open: boolean) => {
-    if (open) {
-        openPreviewId.value = id;
-    } else if (openPreviewId.value === id) {
-        openPreviewId.value = null;
-    }
-};
 </script>
 
 <template>
@@ -208,6 +244,7 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                     </h3>
                 </div>
                 <div
+                    v-if="!isImportRecord"
                     class="max-w-none text-[15px] leading-relaxed text-slate-900 dark:text-slate-400"
                     v-html="
                         sanitize(item.content) || 'No description provided.'
@@ -215,27 +252,105 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                 ></div>
             </section>
 
-            <section v-if="metadata?.criteria?.length">
-                <h3
-                    class="mb-6 flex items-center gap-2 text-[11px] font-black tracking-[0.2em] text-slate-700 uppercase dark:text-slate-400"
+            <section v-if="isImportRecord">
+                <div
+                    class="mb-4 flex flex-wrap items-center gap-2 text-[13px] text-slate-600 dark:text-slate-400"
                 >
-                    <div class="h-px w-4 bg-slate-400 dark:bg-slate-600"></div>
-                    Success Criteria
-                </h3>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div
-                        v-for="(criterion, index) in metadata.criteria"
-                        :key="index"
-                        class="group flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-emerald-200 dark:border-white/10 dark:bg-white/5 dark:hover:border-emerald-900"
+                    <span>
+                        Imported {{ importCreatedCount }} of
+                        {{ importedRows.length }} row{{
+                            importedRows.length === 1 ? '' : 's'
+                        }}
+                    </span>
+                    <span
+                        v-if="importOriginalFilename"
+                        class="text-slate-400 dark:text-slate-500"
                     >
-                        <CheckCircle2
-                            class="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
-                        />
-                        <span
-                            class="text-[15px] leading-relaxed text-slate-900 dark:text-slate-300"
-                            >{{ criterion }}</span
+                        from {{ importOriginalFilename }}
+                    </span>
+                </div>
+
+                <div
+                    v-if="importSkippedRows.length"
+                    class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30"
+                >
+                    <p
+                        class="mb-2 text-[11px] font-black tracking-widest text-amber-700 uppercase dark:text-amber-400"
+                    >
+                        {{ importSkippedRows.length }} row{{
+                            importSkippedRows.length === 1 ? '' : 's'
+                        }}
+                        skipped
+                    </p>
+                    <ul
+                        class="space-y-1 text-[13px] text-amber-800 dark:text-amber-300"
+                    >
+                        <li
+                            v-for="skipped in importSkippedRows"
+                            :key="skipped.row"
                         >
-                    </div>
+                            Row {{ skipped.row }}: {{ skipped.reason }}
+                        </li>
+                    </ul>
+                </div>
+
+                <div
+                    v-if="importUntaggedRows.length"
+                    class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30"
+                >
+                    <p
+                        class="mb-2 text-[11px] font-black tracking-widest text-amber-700 uppercase dark:text-amber-400"
+                    >
+                        {{ importUntaggedRows.length }} row{{
+                            importUntaggedRows.length === 1 ? '' : 's'
+                        }}
+                        missing a tag
+                    </p>
+                    <ul
+                        class="space-y-1 text-[13px] text-amber-800 dark:text-amber-300"
+                    >
+                        <li
+                            v-for="untagged in importUntaggedRows"
+                            :key="untagged.row"
+                        >
+                            Row {{ untagged.row }}: "{{ untagged.tag }}" — the
+                            project ran out of available tag colors.
+                        </li>
+                    </ul>
+                </div>
+
+                <div
+                    v-if="importedRows.length"
+                    class="overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10"
+                >
+                    <table class="w-full text-[13px]">
+                        <thead class="bg-slate-50 dark:bg-white/5">
+                            <tr>
+                                <th
+                                    v-for="column in importColumns"
+                                    :key="column.key"
+                                    class="px-3 py-2 text-left font-bold text-slate-500 dark:text-slate-400"
+                                >
+                                    {{ column.label }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="(row, index) in importedRows"
+                                :key="index"
+                                class="border-t border-slate-100 dark:border-white/10"
+                            >
+                                <td
+                                    v-for="column in importColumns"
+                                    :key="column.key"
+                                    class="px-3 py-2 text-slate-700 dark:text-slate-300"
+                                >
+                                    {{ formatImportCell(row[column.key]) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
@@ -257,66 +372,35 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                     Generated Tasks
                 </h3>
                 <div>
-                    <Popover
+                    <div
                         v-for="(child, index) in childTaskList"
                         :key="child.id"
-                        :open="openPreviewId === child.id"
-                        @update:open="
-                            (open) => handlePreviewOpenChange(child.id, open)
-                        "
+                        class="group relative flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md px-2 transition-colors"
+                        :class="[
+                            FLAT_ROW_HOVER,
+                            index % 2 === 1
+                                ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                                : '',
+                        ]"
+                        @click="navigateToDetails(child.project_id, child.id)"
                     >
-                        <PopoverAnchor as-child>
-                            <div
-                                class="group relative flex min-h-9 items-center gap-2.5 rounded-md pr-2 transition-colors"
-                                :class="
-                                    index % 2 === 1
-                                        ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
-                                        : ''
-                                "
-                            >
-                                <TaskRowContent
-                                    :doc="child"
-                                    :columns="project.kanban_columns ?? []"
-                                    :assignee-options="assigneeOptions"
-                                    :uses-external-due-dates="
-                                        usesExternalDueDates
-                                    "
-                                    :read-only="project.inactive"
-                                    @update="
-                                        (field, val) =>
-                                            emit(
-                                                'update-child-task',
-                                                child.id,
-                                                field,
-                                                val,
-                                            )
-                                    "
-                                    @navigate="
-                                        navigateToDetails(
-                                            child.project_id,
-                                            child.id,
-                                        )
-                                    "
-                                    @hover-preview="
-                                        (hovering) =>
-                                            handlePreviewOpenChange(
-                                                child.id,
-                                                hovering,
-                                            )
-                                    "
-                                />
-                            </div>
-                        </PopoverAnchor>
-                        <PopoverContent
-                            class="w-(--reka-popper-anchor-width) p-4"
-                            align="end"
-                        >
-                            <DocumentPreviewCard
-                                :name="child.name"
-                                :content="child.content"
-                            />
-                        </PopoverContent>
-                    </Popover>
+                        <TaskRowContent
+                            :doc="child"
+                            :columns="project.kanban_columns ?? []"
+                            :assignee-options="assigneeOptions"
+                            :uses-external-due-dates="usesExternalDueDates"
+                            :read-only="project.inactive"
+                            @update="
+                                (field, val) =>
+                                    emit(
+                                        'update-child-task',
+                                        child.id,
+                                        field,
+                                        val,
+                                    )
+                            "
+                        />
+                    </div>
                 </div>
             </section>
 
@@ -328,52 +412,31 @@ const handlePreviewOpenChange = (id: string | number, open: boolean) => {
                     Generated Events
                 </h3>
                 <div>
-                    <Popover
+                    <Link
                         v-for="(child, index) in childEventList"
                         :key="child.id"
-                        :open="openPreviewId === child.id"
-                        @update:open="
-                            (open) => handlePreviewOpenChange(child.id, open)
-                        "
+                        :href="documentUrl(child.id)"
+                        class="group relative flex min-h-9 items-center gap-2.5 rounded-md px-2 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                        :class="[
+                            FLAT_ROW_HOVER,
+                            index % 2 === 1
+                                ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                                : '',
+                        ]"
                     >
-                        <PopoverAnchor as-child>
-                            <Link
-                                :href="documentUrl(child.id)"
-                                class="group relative flex min-h-9 items-center gap-2.5 rounded-md px-2 transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
-                                :class="
-                                    index % 2 === 1
-                                        ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
-                                        : ''
-                                "
-                                @mouseenter="
-                                    handlePreviewOpenChange(child.id, true)
-                                "
-                                @mouseleave="
-                                    handlePreviewOpenChange(child.id, false)
-                                "
-                            >
-                                <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
-                                    {{ child.name }}
-                                </span>
-                                <span
-                                    v-if="eventDateRange(child)"
-                                    class="flex shrink-0 items-center gap-1 text-[11px] font-bold text-slate-400 dark:text-slate-500"
-                                >
-                                    <CalendarIcon class="h-3 w-3" />
-                                    {{ eventDateRange(child) }}
-                                </span>
-                            </Link>
-                        </PopoverAnchor>
-                        <PopoverContent
-                            class="w-(--reka-popper-anchor-width) p-4"
-                            align="end"
+                        <span
+                            class="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-slate-100"
                         >
-                            <DocumentPreviewCard
-                                :name="child.name"
-                                :content="child.content"
-                            />
-                        </PopoverContent>
-                    </Popover>
+                            {{ child.name }}
+                        </span>
+                        <span
+                            v-if="eventDateRange(child)"
+                            class="flex shrink-0 items-center gap-1 text-[11px] font-bold text-slate-400 dark:text-slate-500"
+                        >
+                            <CalendarIcon class="h-3 w-3" />
+                            {{ eventDateRange(child) }}
+                        </span>
+                    </Link>
                 </div>
             </section>
         </div>

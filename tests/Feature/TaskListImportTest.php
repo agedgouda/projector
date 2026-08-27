@@ -487,6 +487,52 @@ it('leaves a task untagged, without failing the import, when every one of the fa
     expect($task)->not->toBeNull()
         ->and($task->categories()->count())->toBe(0)
         ->and(Category::where('project_id', $this->project->id)->count())->toBe(10);
+
+    $import = Document::where('type', 'task_list_import')->first();
+    expect($import->metadata['untagged'])->toBe([['row' => 2, 'tag' => 'Brand New Tag']]);
+});
+
+it('broadcasts a warning on the final TaskListImportProgress event when a row lost its tag to color exhaustion', function () {
+    $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+    foreach ($palette as $i => $color) {
+        Category::create(['project_id' => $this->project->id, 'name' => "Existing {$i}", 'color' => $color]);
+    }
+
+    Event::fake([TaskListImportProgress::class]);
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), importPayload([
+            'headers' => ['Name', 'Priority', 'Status', 'Due Date', 'Assignee', 'Category'],
+            'rows' => [['Write report', 'high', 'in_progress', '', '', 'Brand New Tag']],
+            'mapping' => [
+                'name' => 'Name',
+                'priority' => 'Priority',
+                'task_status' => 'Status',
+                'due_at' => 'Due Date',
+                'assignee' => 'Assignee',
+                'tag' => 'Category',
+            ],
+        ]))
+        ->assertSuccessful();
+
+    Event::assertDispatched(TaskListImportProgress::class, function (TaskListImportProgress $event) {
+        return $event->status === 'done'
+            && $event->warning !== null
+            && str_contains($event->warning, '1 task')
+            && str_contains($event->warning, 'tag colors');
+    });
+});
+
+it('does not broadcast a warning when every row either got its tag or had none requested', function () {
+    Event::fake([TaskListImportProgress::class]);
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), importPayload())
+        ->assertSuccessful();
+
+    Event::assertDispatched(TaskListImportProgress::class, function (TaskListImportProgress $event) {
+        return $event->status === 'done' && $event->warning === null;
+    });
 });
 
 it('skips a row with no name instead of failing the whole import', function () {

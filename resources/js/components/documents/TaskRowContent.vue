@@ -3,7 +3,7 @@ import AssigneeAvatar from '@/components/documents/AssigneeAvatar.vue';
 import PriorityDot from '@/components/documents/PriorityDot.vue';
 import TaskRowFields from '@/components/documents/TaskRowFields.vue';
 import type { AssigneeOption } from '@/lib/assignees';
-import { CheckSquare, Eye, RefreshCw } from 'lucide-vue-next';
+import { CheckSquare, RefreshCw } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 // The ENTIRE visual/interactive content of a task row — icon through assignee — lives here
@@ -13,13 +13,10 @@ import { computed } from 'vue';
 // mirroring changes across two separate templates, which silently drifted apart more than
 // once. A future change to what a task row shows only needs to happen here.
 //
-// The preview popover is the one exception: this only emits `hover-preview`/`navigate` from
-// the title and eye icon. The <Popover>/<PopoverAnchor>/<PopoverContent> themselves are owned
-// by the caller (see TraceabilityRow.vue/DocumentContent.vue) because the popover needs to be
-// sized to the row's own width, and only the caller has a real DOM element for "the row" — this
-// component's own root is `display:contents` precisely so it has no box of its own. What the
-// popover actually shows is still unified in one place: DocumentPreviewCard.vue, which every
-// caller renders identically.
+// Clicking anywhere in the row navigates to the document — the caller owns that (a plain
+// `@click` on its own row element, since this component's own root is `display:contents` and
+// has no box of its own), guarding each interactive control below with `.stop` so priority/
+// assignee/status/due-date edits don't also trigger navigation.
 const props = defineProps<{
     doc: ProjectDocument;
     columns: KanbanColumnDef[];
@@ -37,8 +34,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'update', field: string, value: any): void;
-    (e: 'navigate'): void;
-    (e: 'hover-preview', hovering: boolean): void;
 }>();
 
 const isProcessing = computed(
@@ -54,6 +49,8 @@ const handleUpdate = (field: string, value: any) =>
         <PriorityDot
             :priority="doc.priority"
             :read-only="readOnly"
+            class="ml-1"
+            @click.stop
             @update="(val) => handleUpdate('priority', val)"
         />
 
@@ -61,7 +58,7 @@ const handleUpdate = (field: string, value: any) =>
 
         <div class="flex min-w-0 flex-1 items-center gap-1.5">
             <span
-                class="cursor-pointer text-[13px] transition-colors hover:text-projector-primary-600 dark:hover:text-projector-primary-400"
+                class="text-[13px] transition-colors"
                 :class="[
                     bold ? 'font-bold' : 'font-medium',
                     isProcessing
@@ -73,9 +70,6 @@ const handleUpdate = (field: string, value: any) =>
                         ? 'break-words whitespace-normal'
                         : 'truncate',
                 ]"
-                @mouseenter="emit('hover-preview', true)"
-                @mouseleave="emit('hover-preview', false)"
-                @click="emit('navigate')"
             >
                 {{ doc.name }}
             </span>
@@ -88,6 +82,7 @@ const handleUpdate = (field: string, value: any) =>
                 :doc="doc"
                 :assignee-options="assigneeOptions"
                 :read-only="readOnly"
+                @click.stop
                 @update="(val) => handleUpdate('assignee_id', val)"
             />
 
@@ -102,36 +97,14 @@ const handleUpdate = (field: string, value: any) =>
             </span>
         </div>
 
-        <!-- Lets a caller inject something between the title and the fields (TraceabilityRow.vue
-             uses this for its Reprocess button, which only the tree wires up) without
-             duplicating anything else here — DocumentContent.vue's Generated Tasks list has no
-             equivalent action, so it just doesn't use the slot. -->
-        <slot name="actions" />
-
         <TaskRowFields
             :class="fieldsClass"
             :doc="doc"
             :columns="columns"
             :uses-external-due-dates="usesExternalDueDates"
             :read-only="readOnly"
+            @click.stop
             @update="(field, val) => handleUpdate(field, val)"
         />
-
-        <!-- Always visible (not hover-revealed) — an earlier version only showed this on row
-             hover, which the user said made it hard to discover it exists at all. Hovering the
-             icon itself (or the title above) opens the preview popover; clicking either one
-             navigates straight to the document instead of toggling the popover, so this is a
-             plain button rather than a PopoverTrigger — the caller drives the popover's open
-             state off `hover-preview`. -->
-        <button
-            type="button"
-            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-projector-primary-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-projector-primary-400"
-            title="Open"
-            @mouseenter="emit('hover-preview', true)"
-            @mouseleave="emit('hover-preview', false)"
-            @click="emit('navigate')"
-        >
-            <Eye class="h-3.5 w-3.5" />
-        </button>
     </div>
 </template>

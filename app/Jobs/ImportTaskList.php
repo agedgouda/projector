@@ -50,7 +50,7 @@ class ImportTaskList implements ShouldQueue
         $organization = $project->client?->organization;
 
         if ($organization === null) {
-            $this->finish($project, [], [], 0, '?tab=tasks', 'tasks');
+            $this->finish($project, [], [], [], 0, '?tab=tasks', 'tasks');
 
             return;
         }
@@ -63,6 +63,7 @@ class ImportTaskList implements ShouldQueue
 
         $normalizedRows = [];
         $skipped = [];
+        $untaggedRows = [];
         $createdCount = 0;
         $total = count($this->rows);
 
@@ -82,7 +83,11 @@ class ImportTaskList implements ShouldQueue
             $dueAt = $importService->parseDate($cell('due_at'));
             $assigneeText = $cell('assignee');
             $assignee = $importService->resolveAssignee($assigneeText ?: null, $organization->users, $organization->invitations);
-            $tag = $importService->findOrCreateTag($cell('tag') ?: null, $familyRoot, $categories);
+            $rawTag = trim($cell('tag'));
+            $tag = $importService->findOrCreateTag($rawTag ?: null, $familyRoot, $categories);
+            if ($tag === null && $rawTag !== '') {
+                $untaggedRows[] = ['row' => $index + 2, 'tag' => $rawTag];
+            }
 
             $normalizedRows[] = [
                 'name' => $name,
@@ -126,7 +131,7 @@ class ImportTaskList implements ShouldQueue
             $this->maybeBroadcastProgress($index + 1, $total);
         }
 
-        $this->finish($project, $normalizedRows, $skipped, $createdCount, '?tab=tasks', 'tasks');
+        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, '?tab=tasks', 'tasks');
     }
 
     private function importEvents(Project $project, TaskListImportService $importService): void
@@ -136,6 +141,7 @@ class ImportTaskList implements ShouldQueue
 
         $normalizedRows = [];
         $skipped = [];
+        $untaggedRows = [];
         $createdCount = 0;
         $total = count($this->rows);
 
@@ -163,7 +169,11 @@ class ImportTaskList implements ShouldQueue
                 $startAt = $dueAt;
             }
 
-            $tag = $importService->findOrCreateTag($cell('tag') ?: null, $familyRoot, $categories);
+            $rawTag = trim($cell('tag'));
+            $tag = $importService->findOrCreateTag($rawTag ?: null, $familyRoot, $categories);
+            if ($tag === null && $rawTag !== '') {
+                $untaggedRows[] = ['row' => $index + 2, 'tag' => $rawTag];
+            }
 
             $normalizedRows[] = [
                 'name' => $name,
@@ -195,7 +205,7 @@ class ImportTaskList implements ShouldQueue
             $this->maybeBroadcastProgress($index + 1, $total);
         }
 
-        $this->finish($project, $normalizedRows, $skipped, $createdCount, '?tab=calendar', 'events');
+        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, '?tab=calendar', 'events');
     }
 
     /**
@@ -220,8 +230,9 @@ class ImportTaskList implements ShouldQueue
     /**
      * @param  list<array<string, mixed>>  $normalizedRows
      * @param  list<array{row: int, reason: string}>  $skipped
+     * @param  list<array{row: int, tag: string}>  $untaggedRows
      */
-    private function finish(Project $project, array $normalizedRows, array $skipped, int $createdCount, string $redirectQuery, string $noun): void
+    private function finish(Project $project, array $normalizedRows, array $skipped, array $untaggedRows, int $createdCount, string $redirectQuery, string $noun): void
     {
         $this->importDocument->update([
             'content' => json_encode($normalizedRows, JSON_PRETTY_PRINT),
@@ -229,6 +240,7 @@ class ImportTaskList implements ShouldQueue
                 'original_filename' => $this->importDocument->metadata['original_filename'] ?? null,
                 'created_count' => $createdCount,
                 'skipped' => $skipped,
+                'untagged' => $untaggedRows,
                 'status' => $skipped === [] ? 'completed' : 'completed_with_errors',
             ],
         ]);
@@ -237,10 +249,22 @@ class ImportTaskList implements ShouldQueue
             ? "Imported {$createdCount} {$noun}."
             : "Imported {$createdCount} {$noun}, skipped ".count($skipped).' row(s) — see the import record for details.';
 
+        // findOrCreateTag() deliberately leaves a row untagged rather than failing the import
+        // once every palette color is already in use by an existing tag on the project (see
+        // TaskListImportService::findOrCreateTag()) — surfaced here as a toast (not just
+        // buried in the import record's metadata) since it silently drops data the sheet
+        // actually specified, unlike a row that was simply left blank.
+        $warning = null;
+        if ($untaggedRows !== []) {
+            $untaggedCount = count($untaggedRows);
+            $untaggedNoun = $untaggedCount === 1 ? rtrim($noun, 's') : $noun;
+            $warning = "{$untaggedCount} {$untaggedNoun} didn't get a tag — the project has used up all available tag colors. Free up a color (or add the tag manually) and try again.";
+        }
+
         $redirectUrl = route('projects.show', $project).$redirectQuery;
         $total = count($this->rows);
 
-        event(new TaskListImportProgress($this->importDocument, $total, $total, 'done', $redirectUrl, $message));
+        event(new TaskListImportProgress($this->importDocument, $total, $total, 'done', $redirectUrl, $message, $warning));
     }
 
     public function failed(Throwable $exception): void

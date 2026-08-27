@@ -14,17 +14,23 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
-     * @param  array<int, string>  $deletedDocumentIds  IDs of documents removed from the
-     *                                                  traceability tree (e.g. stale children
-     *                                                  replaced by reprocessing).
-     * @param  array<int, string>  $newDocumentIds  IDs of newly created child documents.
+     * @param  bool  $childrenReplaced  Whether this document already had children that were
+     *                                  replaced (e.g. stale output cleared by reprocessing).
+     *                                  Listeners prune their own local tree from this
+     *                                  document's id rather than being handed the removed
+     *                                  IDs directly, which for a large batch can alone exceed
+     *                                  the broadcaster's payload limit.
+     * @param  int  $newDocumentCount  Number of newly created child documents. As with
+     *                                 $childrenReplaced, listeners derive which documents
+     *                                 those are from parent_id on each child's own
+     *                                 broadcasts rather than an explicit ID list.
      */
     public function __construct(
         public Document $document,
         public string $statusMessage,
         public int $progress = 0, // Added progress property
-        public array $deletedDocumentIds = [],
-        public array $newDocumentIds = [],
+        public bool $childrenReplaced = false,
+        public int $newDocumentCount = 0,
     ) {}
 
     public function broadcastOn(): array
@@ -46,8 +52,8 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
             'document_id' => $this->document->id,
             'progress' => $this->progress,
             'document' => $this->formatDocument($this->document),
-            'deletedDocumentIds' => $this->deletedDocumentIds,
-            'newDocumentIds' => $this->newDocumentIds,
+            'childrenReplaced' => $this->childrenReplaced,
+            'newDocumentCount' => $this->newDocumentCount,
         ];
     }
 

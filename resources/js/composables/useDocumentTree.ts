@@ -1,9 +1,9 @@
-import { ref, computed, type Ref, watch } from 'vue';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
+import { computed, ref, type Ref, watch } from 'vue';
 
 export function useDocumentTree(
     allDocs: Ref<ExtendedDocument[]>,
-    schema: Ref<DocumentSchemaItem[]>
+    schema: Ref<DocumentSchemaItem[]>,
 ) {
     const searchQuery = ref('');
 
@@ -26,77 +26,66 @@ export function useDocumentTree(
      * We use window.history.replaceState to avoid polluting browser history
      * with every single click, but keep the URL current for "Back" button events.
      */
-    watch(expandedRootIds, (newSet) => {
-        if (typeof window === 'undefined') return;
+    watch(
+        expandedRootIds,
+        (newSet) => {
+            if (typeof window === 'undefined') return;
 
-        const url = new URL(window.location.href);
-        const ids = Array.from(newSet).join(',');
+            const url = new URL(window.location.href);
+            const ids = Array.from(newSet).join(',');
 
-        if (ids) {
-            url.searchParams.set('expanded', ids);
-        } else {
-            url.searchParams.delete('expanded');
-        }
+            if (ids) {
+                url.searchParams.set('expanded', ids);
+            } else {
+                url.searchParams.delete('expanded');
+            }
 
-        window.history.replaceState({}, '', url);
-    }, { deep: true });
+            window.history.replaceState({}, '', url);
+        },
+        { deep: true },
+    );
 
+    // --- 2. FLAT LIST LOGIC ---
 
-    // --- 2. TREE BUILDING LOGIC ---
-
-    const buildTree = (parentId: string | number | null = null): ExtendedDocument[] => {
-        const nodes = allDocs.value
-            .filter(d => {
-                // Events live on the Campaign Calendar, not the Documentation tab — excluded
-                // at every depth (not just the root) since this filter re-runs per parentId.
-                if (d.type === 'event') return false;
-
-                if (parentId !== null) {
-                    return d.parent_id === parentId;
-                }
-                return d.parent_id === null;
-            })
-            .map(d => ({
-                ...d,
-                children: buildTree(d.id)
-            }));
-
-        if (parentId !== null) return nodes;
-
-        // A raw transcript is just noisy source material once it's been processed — the
-        // Documentation tab should read as "what came out of this project" (Meeting Notes and
-        // beyond), so a processed transcript is replaced at the top level by its own children
-        // instead of being shown itself. An unprocessed transcript (no children yet) still has
-        // to appear, or it becomes invisible/unreachable from this tab entirely.
-        return nodes.flatMap((node) =>
-            node.type === INTAKE_KEY && node.children.length > 0 ? node.children : [node]
-        );
+    const isTaskType = (typeKey: string | null | undefined): boolean => {
+        if (!typeKey) return false;
+        return !!schema.value.find((s) => s.key === typeKey)?.is_task;
     };
 
+    // A raw transcript is just noisy source material once something's been generated from it —
+    // still excluded here even in a flat list, same as before nesting was removed. An
+    // unprocessed transcript (no children yet) still has to appear, or it becomes
+    // invisible/unreachable from this tab entirely.
+    const hasChildren = computed(() => {
+        const parentIds = new Set<string>();
+        for (const doc of allDocs.value) {
+            if (doc.parent_id != null) parentIds.add(String(doc.parent_id));
+        }
+        return parentIds;
+    });
+
+    // Every document on this tab as one flat list — Tasks (shown on the Tasks tab) and Events
+    // (shown on the Campaign Calendar) are excluded entirely, and nothing nests under its
+    // parent: the traceability chain still exists in the data (View Source/Generated X links
+    // on the document's own page), it's just not rendered as an expandable tree here.
     const documentTree = computed(() => {
         const query = searchQuery.value.toLowerCase().trim();
-        const fullTree = buildTree();
 
-        if (!query) return fullTree;
-
-        const filterNodes = (nodes: ExtendedDocument[]): ExtendedDocument[] => {
-            return nodes
-                .map((node): ExtendedDocument | null => {
-                    const filteredChildren = filterNodes(node.children || []);
-                    const nameMatch = node.name.toLowerCase().includes(query);
-
-                    if (nameMatch || filteredChildren.length > 0) {
-                        if (filteredChildren.length > 0) {
-                            expandedRootIds.value.add(node.id);
-                        }
-                        return { ...node, children: filteredChildren };
-                    }
-                    return null;
-                })
-                .filter((n): n is ExtendedDocument => n !== null);
-        };
-
-        return filterNodes(fullTree);
+        return allDocs.value
+            .filter((d) => {
+                if (d.type === 'event') return false;
+                if (isTaskType(d.type)) return false;
+                if (
+                    d.type === INTAKE_KEY &&
+                    hasChildren.value.has(String(d.id))
+                ) {
+                    return false;
+                }
+                if (query && !d.name.toLowerCase().includes(query))
+                    return false;
+                return true;
+            })
+            .map((d) => ({ ...d, children: [] as ExtendedDocument[] }));
     });
 
     // --- 3. ACTIONS ---
@@ -120,6 +109,6 @@ export function useDocumentTree(
         searchQuery,
         expandedRootIds,
         documentTree,
-        toggleRoot
+        toggleRoot,
     };
 }

@@ -106,13 +106,19 @@ class ProcessDocumentAI implements ShouldQueue
         // a non-null, non-error result. Same text as the first event, just a progress bump.
         event(new DocumentProcessingUpdate($this->document, "Generating {$typeLabel}...", 65));
 
-        $deletedDocumentIds = [];
-        $newDocumentIds = [];
+        $childrenReplaced = false;
+        $newDocumentCount = 0;
 
-        DB::transaction(function () use ($result, $outputType, $singleOutput, $lockedProjectTypeId, &$deletedDocumentIds, &$newDocumentIds) {
+        DB::transaction(function () use ($result, $outputType, $singleOutput, $lockedProjectTypeId, &$childrenReplaced, &$newDocumentCount) {
             // Reprocessing replaces all previously generated children, even if the
             // output type has changed since the last run, so nothing is left behind.
-            $deletedDocumentIds = $this->descendantIds($this->document->id);
+            // The frontend prunes its own local tree recursively from this document's
+            // id when told children were replaced (mirroring the parent_id foreign
+            // key's ON DELETE CASCADE below), so only whether any existed is needed
+            // here, not their IDs.
+            $childrenReplaced = $this->document->project->documents()
+                ->where('parent_id', $this->document->id)
+                ->exists();
 
             $this->document->project->documents()
                 ->where('parent_id', $this->document->id)
@@ -137,13 +143,14 @@ class ProcessDocumentAI implements ShouldQueue
                     $html .= '<p><img src="'.e($src).'" alt="'.e($alt).'"></p>';
                 }
 
-                $newDocumentIds[] = $this->document->project->documents()->create([
+                $this->document->project->documents()->create([
                     'parent_id' => $this->document->id,
                     'type' => $outputType,
                     'name' => $doc['title'] ?? ($this->document->name.' — Requirements'),
                     'content' => $html,
                     'locked_project_type_id' => $lockedProjectTypeId,
-                ])->id;
+                ]);
+                $newDocumentCount++;
             } else {
                 foreach ($result['mock_response'] ?? [] as $data) {
                     $content = $data[$outputType] ?? null;
@@ -189,7 +196,7 @@ class ProcessDocumentAI implements ShouldQueue
                             'category' => $data['category'] ?? 'general',
                         ],
                     ]);
-                    $newDocumentIds[] = $newDocument->id;
+                    $newDocumentCount++;
 
                     // Events mark a single occurrence on the calendar, so only one tag makes
                     // sense — same rule DocumentController::updateCategories() enforces for
@@ -215,32 +222,7 @@ class ProcessDocumentAI implements ShouldQueue
         // Same text again, not the literal word "Success" — progress hitting 100 is what the
         // frontend actually keys success handling off of (see isSuccess in useAiProcessing.ts),
         // not the message string, so this can stay consistent with the two events above it.
-        event(new DocumentProcessingUpdate($this->document, "Generating {$typeLabel}...", 100, $deletedDocumentIds, $newDocumentIds));
-    }
-
-    /**
-     * Recursively collects the IDs of every descendant of the given document,
-     * so the frontend can drop them from the traceability tree once they're deleted.
-     *
-     * @return array<int, string>
-     */
-    private function descendantIds(string $documentId): array
-    {
-        $ids = [];
-        $frontier = [$documentId];
-
-        while (true) {
-            $children = Document::query()->whereIn('parent_id', $frontier)->pluck('id')->all();
-
-            if (empty($children)) {
-                break;
-            }
-
-            $ids = array_merge($ids, $children);
-            $frontier = $children;
-        }
-
-        return $ids;
+        event(new DocumentProcessingUpdate($this->document, "Generating {$typeLabel}...", 100, $childrenReplaced, $newDocumentCount));
     }
 
     /**

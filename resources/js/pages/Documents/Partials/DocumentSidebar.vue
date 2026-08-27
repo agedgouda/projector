@@ -4,6 +4,7 @@ import {
     exportPdf,
     exportWord,
 } from '@/actions/App/Http/Controllers/DocumentController';
+import TransformPicker from '@/components/documents/TransformPicker.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -11,6 +12,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import {
     Select,
     SelectContent,
@@ -29,6 +35,7 @@ import {
     FileDown,
     FileStack,
     FileType,
+    GitBranch,
     RefreshCw,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
@@ -45,6 +52,10 @@ const props = defineProps<{
     processButtonLabel?: string;
     isProcessingLive?: boolean;
     processingMessage?: string | null;
+    // Same rule as TraceabilityRow.vue's Transform button — see Documents/Show.vue's
+    // canTransform/transformDisabled computeds for exactly what they mirror.
+    canTransform?: boolean;
+    transformDisabled?: boolean;
     // Every other board in this task's subproject family — empty for a project with no
     // parent and no siblings, in which case the Board section below just doesn't render
     // (nothing to move to). See DocumentController::show().
@@ -56,8 +67,28 @@ const emit = defineEmits<{
     (e: 'update:dueAtProxy', val: string): void;
     (e: 'update:startAtProxy', val: string): void;
     (e: 'request-process'): void;
+    (
+        e: 'run-transform',
+        payload: {
+            toKey?: string;
+            aiTemplateId: number;
+            singleOutput?: boolean;
+            projectTypeId?: string;
+        },
+    ): void;
     (e: 'move', targetProjectId: string): void;
 }>();
+
+const isTransformOpen = ref(false);
+const handleRunTransform = (payload: {
+    toKey?: string;
+    aiTemplateId: number;
+    singleOutput?: boolean;
+    projectTypeId?: string;
+}) => {
+    isTransformOpen.value = false;
+    emit('run-transform', payload);
+};
 
 const { getDocLabel, isTask } = useDocumentPresenter(props.documentTypeCatalog);
 const shouldShowTask = computed(() => isTask(props.item.type));
@@ -183,6 +214,30 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                 {{ getDocLabel(item.type) || 'New Document' }}
                             </span>
                         </div>
+
+                        <Popover
+                            v-if="canTransform"
+                            v-model:open="isTransformOpen"
+                        >
+                            <PopoverTrigger as-child>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    class="w-full"
+                                    :disabled="transformDisabled"
+                                >
+                                    <GitBranch class="h-3.5 w-3.5" />
+                                    Transform
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" class="p-0">
+                                <TransformPicker
+                                    :project-id="String(project.id)"
+                                    :document-id="String(item.id)"
+                                    @run="handleRunTransform"
+                                />
+                            </PopoverContent>
+                        </Popover>
 
                         <Button
                             v-if="isReprocessable && !isProcessingLive"

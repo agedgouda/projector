@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 interface TaskListImportProgressPayload {
     import_document_id: string;
@@ -9,6 +10,7 @@ interface TaskListImportProgressPayload {
     status: 'running' | 'done' | 'error';
     redirect_url: string | null;
     message: string | null;
+    warning: string | null;
 }
 
 /**
@@ -50,6 +52,15 @@ export function useTaskListImportProgress(projectId: string) {
             }
 
             isImporting.value = false;
+
+            // findOrCreateTag() leaves a row untagged rather than failing the import once
+            // every palette color is already in use by an existing project tag (see
+            // TaskListImportService::findOrCreateTag()) — that's silent data loss the sheet
+            // actually specified, unlike a genuinely blank tag cell, so it gets its own toast
+            // rather than being buried in the import record's metadata.
+            if (payload.status === 'done' && payload.warning) {
+                toast.error(payload.warning);
+            }
 
             if (payload.status === 'done' && payload.redirect_url) {
                 router.visit(payload.redirect_url);
