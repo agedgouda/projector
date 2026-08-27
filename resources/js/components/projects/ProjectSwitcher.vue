@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Folders, FolderOpen, Plus } from 'lucide-vue-next';
+import { Folders, FolderOpen, Plus, Star } from 'lucide-vue-next';
 import FlatSwitcherTrigger from '@/components/FlatSwitcherTrigger.vue';
 import IconTile from '@/components/IconTile.vue';
 import {
@@ -17,6 +17,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    toggleProjectFavorite,
+    useFavoriteProjectIds,
+} from '@/composables/useFavoriteProject';
 
 // Import the form component
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
@@ -61,6 +65,12 @@ const emit = defineEmits<{
     (e: 'switch', id: string): void;
 }>();
 
+// --- FAVORITE STATE ---
+const favoriteProjectIds = useFavoriteProjectIds();
+const isFavorited = (projectId: string) => favoriteProjectIds.value.has(projectId);
+const toggleFavorite = (projectId: string) =>
+    toggleProjectFavorite(projectId, isFavorited(projectId));
+
 const isModalOpen = ref(false);
 
 const handleSuccess = () => {
@@ -81,6 +91,32 @@ const handleSuccess = () => {
                 />
             </DropdownMenuTrigger>
 
+            <!-- Sibling, not nested inside FlatSwitcherTrigger's <template #trailing> slot —
+                 Reka UI's DropdownMenuTrigger as-child clones props onto FlatSwitcherTrigger's
+                 root but doesn't forward the slotted content through, so a slot there silently
+                 renders nothing. -->
+            <button
+                v-if="currentProject"
+                type="button"
+                :title="
+                    isFavorited(currentProject.id)
+                        ? 'Remove from favorites'
+                        : 'Add to favorites'
+                "
+                class="flex shrink-0 items-center justify-center rounded-lg p-1.5 transition-colors"
+                :class="
+                    isFavorited(currentProject.id)
+                        ? 'text-projector-highlight-500 hover:text-projector-highlight-600'
+                        : 'text-slate-300 hover:text-projector-highlight-400 dark:text-zinc-600'
+                "
+                @click="toggleFavorite(currentProject.id)"
+            >
+                <Star
+                    class="h-4 w-4"
+                    :class="isFavorited(currentProject.id) ? 'fill-current' : ''"
+                />
+            </button>
+
             <DropdownMenuContent align="start" class="w-72 rounded-2xl p-2 shadow-xl border-gray-100 dark:border-gray-800">
                 <div class="px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
                     Your Portfolio
@@ -93,6 +129,31 @@ const handleSuccess = () => {
                     class="p-3 cursor-pointer rounded-lg mb-1 flex items-center gap-3"
                     :class="{ 'pl-10': entry.isSubProject }"
                 >
+                    <span
+                        role="button"
+                        tabindex="0"
+                        :title="
+                            isFavorited(entry.project.id)
+                                ? 'Remove from favorites'
+                                : 'Add to favorites'
+                        "
+                        class="flex shrink-0 items-center justify-center rounded p-0.5 transition-colors"
+                        :class="
+                            isFavorited(entry.project.id)
+                                ? 'text-projector-highlight-500 hover:text-projector-highlight-600'
+                                : 'text-slate-300 hover:text-projector-highlight-400 dark:text-zinc-600'
+                        "
+                        @click.stop="toggleFavorite(entry.project.id)"
+                        @keydown.enter.stop="toggleFavorite(entry.project.id)"
+                        @keydown.space.stop.prevent="
+                            toggleFavorite(entry.project.id)
+                        "
+                    >
+                        <Star
+                            class="h-3.5 w-3.5"
+                            :class="isFavorited(entry.project.id) ? 'fill-current' : ''"
+                        />
+                    </span>
                     <IconTile :src="entry.project.logo_url" :alt="entry.project.name" :icon="FolderOpen" size="sm" tone="primary" />
                     <span class="font-bold text-sm">{{ entry.project.name }}</span>
                 </DropdownMenuItem>

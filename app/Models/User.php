@@ -97,6 +97,19 @@ class User extends Authenticatable
     }
 
     /**
+     * Projects this user has starred for quick access from the sidebar — spans every
+     * organization the user belongs to (not scoped to whichever org is currently active),
+     * since favoriting is meant to let a user jump straight to a project regardless of
+     * which org context they're presently in.
+     *
+     * @return BelongsToMany<Project, $this>
+     */
+    public function favoriteProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'favorite_project')->withTimestamps();
+    }
+
+    /**
      * Check if user is an admin of a specific organization.
      */
     public function isOrgAdmin(string $organizationId): bool

@@ -14,11 +14,22 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+    toggleProjectFavorite,
+    useFavoriteProjectIds,
+} from '@/composables/useFavoriteProject';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import projectRoutes from '@/routes/projects/index';
 import { router } from '@inertiajs/vue3';
-import { AlertTriangle, Files, Pencil, Sparkles, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import {
+    AlertTriangle,
+    Files,
+    Pencil,
+    Sparkles,
+    Star,
+    Trash2,
+} from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     project: Project;
@@ -30,6 +41,18 @@ const props = defineProps<{
     // striping, in which case the row just keeps its plain background.
     rowIndex?: number;
 }>();
+
+// --- FAVORITE STATE ---
+const favoriteProjectIds = useFavoriteProjectIds();
+const isFavorited = computed(() => favoriteProjectIds.value.has(props.project.id));
+const isTogglingFavorite = ref(false);
+
+const toggleFavorite = () => {
+    isTogglingFavorite.value = true;
+    toggleProjectFavorite(props.project.id, isFavorited.value, {
+        onFinish: () => (isTogglingFavorite.value = false),
+    });
+};
 
 // --- EDIT STATE ---
 const isEditModalOpen = ref(false);
@@ -82,6 +105,26 @@ const goToProject = () => {
         @click="goToProject"
     >
         <div class="flex min-w-0 items-center gap-4">
+            <button
+                type="button"
+                :disabled="isTogglingFavorite"
+                :title="
+                    isFavorited ? 'Remove from favorites' : 'Add to favorites'
+                "
+                class="flex shrink-0 items-center justify-center rounded-lg p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                :class="
+                    isFavorited
+                        ? 'text-projector-highlight-500 hover:text-projector-highlight-600'
+                        : 'text-slate-300 hover:text-projector-highlight-400 dark:text-zinc-600'
+                "
+                @click.stop="toggleFavorite"
+            >
+                <Star
+                    class="h-4 w-4"
+                    :class="isFavorited ? 'fill-current' : ''"
+                />
+            </button>
+
             <div
                 class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100 shadow-sm dark:border-zinc-700"
                 :class="

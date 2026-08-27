@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Organization;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ class HandleInertiaRequests extends Middleware
         $isSuperAdmin = false;
         $roles = [];
         $organizations = [];
+        $favoriteProjects = [];
 
         if ($user) {
             $rawQueryOrgId = $request->query('org');
@@ -79,6 +81,20 @@ class HandleInertiaRequests extends Middleware
             // though this is leaner than the fuller org list the Organizations page fetches.
             $organizations = Organization::accessibleBy($user)->orderBy('name')->with('media')->get(['id', 'name'])
                 ->map(fn (Organization $org) => ['id' => $org->id, 'name' => $org->name, 'logo_url' => $org->logo_url])
+                ->toArray();
+
+            // Spans every org the user belongs to (not scoped to $activeOrgId) — starring is
+            // meant to jump straight to a project regardless of which org is currently active,
+            // so this list (and the sidebar it feeds) must not disappear when switching orgs.
+            $favoriteProjects = $user->favoriteProjects()
+                ->orderBy('name')
+                ->with(['media', 'parent.media'])
+                ->get()
+                ->map(fn (Project $project) => [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'logo_url' => $project->logo_url,
+                ])
                 ->toArray();
         }
 
@@ -138,6 +154,7 @@ class HandleInertiaRequests extends Middleware
                 'impersonating' => $impersonator ? ['id' => $impersonator->id, 'name' => $impersonator->name] : null,
             ],
             'organizations' => $organizations,
+            'favoriteProjects' => $favoriteProjects,
             'orgMembership' => $orgMembership,
             'flash' => [
                 'success' => $request->session()->get('success'),

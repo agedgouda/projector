@@ -548,9 +548,9 @@ watch(
                 <button
                     v-for="tab in [
                         'tasks',
-                        'hierarchy',
                         'calendar',
                         'reports',
+                        'hierarchy',
                         'recordings',
                     ]"
                     :key="tab"

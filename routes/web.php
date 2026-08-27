@@ -23,6 +23,7 @@ use App\Http\Controllers\OrganizationPdfBrandingController;
 use App\Http\Controllers\OrganizationRegistrationController;
 use App\Http\Controllers\OrganizationSetupController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectLogoController;
 use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\ReportController;
@@ -278,6 +279,11 @@ Route::middleware(['auth'])->group(function () {
 
         Route::patch('/projects/{project}/reactivate', [ProjectController::class, 'reactivate'])
             ->name('projects.reactivate');
+
+        Route::post('/projects/{project}/favorite', [ProjectFavoriteController::class, 'store'])
+            ->name('projects.favorite.store');
+        Route::delete('/projects/{project}/favorite', [ProjectFavoriteController::class, 'destroy'])
+            ->name('projects.favorite.destroy');
 
         // 3. Project Documents & Transcripts
         Route::prefix('projects/{project}')->name('projects.')->group(function () {
