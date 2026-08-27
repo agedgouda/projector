@@ -47,6 +47,10 @@ export function useDocumentTree(
     const buildTree = (parentId: string | number | null = null): ExtendedDocument[] => {
         const nodes = allDocs.value
             .filter(d => {
+                // Events live on the Campaign Calendar, not the Documentation tab — excluded
+                // at every depth (not just the root) since this filter re-runs per parentId.
+                if (d.type === 'event') return false;
+
                 if (parentId !== null) {
                     return d.parent_id === parentId;
                 }

@@ -26,6 +26,7 @@ class StoreTaskListImportRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'list_type' => ['required', 'string', 'in:task,event'],
             'original_filename' => ['nullable', 'string', 'max:255'],
             'headers' => ['required', 'array'],
             'headers.*' => ['nullable', 'string'],
@@ -40,6 +41,9 @@ class StoreTaskListImportRequest extends FormRequest
             'mapping.task_status' => ['nullable', 'string'],
             'mapping.due_at' => ['nullable', 'string'],
             'mapping.assignee' => ['nullable', 'string'],
+            'mapping.start_date' => ['nullable', 'string'],
+            'mapping.description' => ['nullable', 'string'],
+            'mapping.tag' => ['nullable', 'string'],
         ];
     }
 

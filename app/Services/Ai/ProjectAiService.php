@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Contracts\LlmDriver;
 use App\Models\AiTemplate;
+use App\Models\Category;
 use App\Models\Document;
 use App\Models\Project;
 use App\Models\WorkflowStep;
@@ -251,6 +252,8 @@ class ProjectAiService
         $organization = $client !== null ? $client->organization : null;
         $vendorName = $organization !== null ? $organization->name : null;
 
+        $tagNames = $project->familyCategories()->map(fn (Category $category): string => (string) $category->name)->all();
+
         $replacements = [
             '{{project}}' => $project->name,
             '{{document_name}}' => $currentDoc?->name ?? 'Document',
@@ -260,6 +263,13 @@ class ProjectAiService
             '{{client_name}}' => $clientName ?? 'TBD',
             // The organization running Projector — i.e. the vendor/delivery org for this project.
             '{{vendor_name}}' => $vendorName ?? 'TBD',
+            // A template's own prompt opts into tag selection by referencing this — the app
+            // only supplies the real per-project data and the plumbing to act on the result
+            // (see the $includeTags detection in the LLM drivers and resolveTagIds() below);
+            // whether/how to ask for tags is the transformation's own call, not hardcoded here.
+            '{{available_tags}}' => empty($tagNames)
+                ? 'no tags exist for this project'
+                : implode(', ', array_map(fn (string $name): string => '"'.$name.'"', $tagNames)),
         ];
 
         if ($outputKey !== null) {
@@ -343,6 +353,13 @@ class ProjectAiService
 
         $mentionedUsers = $this->extractMentionedUsers($context);
         $images = $this->extractImages($context);
+        // Keyed by category id so resolveTagIds() can map the names the LLM picks straight
+        // back to real ids — the project's full family tag set, same list the tag picker in
+        // DocumentSidebar.vue/Create.vue offers, so a generated item can carry any tag a human
+        // could apply by hand.
+        $availableTags = $project->familyCategories()
+            ->mapWithKeys(fn (Category $category): array => [(string) $category->id => (string) $category->name])
+            ->all();
 
         $schemaInstruction = "\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{$outputKey}\", \"criteria\", and \"priority\" (one of \"low\", \"medium\", or \"high\"). Also include \"due_date\" (an ISO 8601 date string YYYY-MM-DD, or null if no date is mentioned) and \"start_date\" (an ISO 8601 date string YYYY-MM-DD, or null if the item doesn't span a range of dates — e.g. a calendar event with a beginning and end).";
 
@@ -414,6 +431,7 @@ class ProjectAiService
         $items = $this->normalizeOutputKeys($result['content'] ?? [], $outputKey);
         $items = $this->resolveAssigneeIds($items, $mentionedUsers);
         $items = $this->resolveImages($items, $images);
+        $items = $this->resolveTagIds($items, $availableTags);
 
         return [
             'project_name' => $project->name,
@@ -600,6 +618,48 @@ class ProjectAiService
                 } else {
                     $item['assignee_id'] = (int) $id;
                 }
+            }
+
+            return $item;
+        }, $items);
+    }
+
+    /**
+     * Maps each item's "tag_names" (exact category names the LLM chose from the candidate
+     * list given in the prompt) to real category ids, carried through under "_category_ids"
+     * for ProcessDocumentAI to sync onto the created document — mirrors resolveAssigneeIds()'s
+     * name-to-id matching.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<string|int, string>  $availableTags  Category id => name.
+     * @return array<int, array<string, mixed>>
+     */
+    private function resolveTagIds(array $items, array $availableTags): array
+    {
+        if (empty($availableTags)) {
+            return $items;
+        }
+
+        $idsByLowerName = [];
+        foreach ($availableTags as $id => $name) {
+            $idsByLowerName[mb_strtolower(trim($name))] = $id;
+        }
+
+        return array_map(function (array $item) use ($idsByLowerName) {
+            $names = $item['tag_names'] ?? [];
+            unset($item['tag_names']);
+
+            $ids = [];
+            if (is_array($names)) {
+                foreach ($names as $name) {
+                    if (is_string($name) && isset($idsByLowerName[mb_strtolower(trim($name))])) {
+                        $ids[] = $idsByLowerName[mb_strtolower(trim($name))];
+                    }
+                }
+            }
+
+            if (! empty($ids)) {
+                $item['_category_ids'] = array_values(array_unique($ids));
             }
 
             return $item;

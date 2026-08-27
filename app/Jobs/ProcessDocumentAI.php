@@ -173,7 +173,7 @@ class ProcessDocumentAI implements ShouldQueue
                         ? $data['priority']
                         : 'medium';
 
-                    $newDocumentIds[] = $this->document->project->documents()->create([
+                    $newDocument = $this->document->project->documents()->create([
                         'parent_id' => $this->document->id,
                         'type' => $outputType,
                         'name' => $data['title'] ?? 'Untitled Deliverable',
@@ -188,7 +188,19 @@ class ProcessDocumentAI implements ShouldQueue
                             'criteria' => $data['criteria'] ?? [],
                             'category' => $data['category'] ?? 'general',
                         ],
-                    ])->id;
+                    ]);
+                    $newDocumentIds[] = $newDocument->id;
+
+                    // Events mark a single occurrence on the calendar, so only one tag makes
+                    // sense — same rule DocumentController::updateCategories() enforces for
+                    // manual edits — everything else can carry any number the AI picked.
+                    $categoryIds = $data['_category_ids'] ?? [];
+                    if ($outputType === 'event') {
+                        $categoryIds = array_slice($categoryIds, 0, 1);
+                    }
+                    if (! empty($categoryIds)) {
+                        $newDocument->categories()->sync($categoryIds);
+                    }
                 }
             }
 

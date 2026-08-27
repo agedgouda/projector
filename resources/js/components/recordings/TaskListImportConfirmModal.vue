@@ -18,21 +18,25 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import taskListRoutes from '@/routes/projects/task-lists';
-import { useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import { computed, ref, watch } from 'vue';
 
-const props = defineProps<{
-    open: boolean;
-    projectId: string;
-    originalFilename: string | null;
-    headers: string[];
-    rows: string[][];
-    suggestedMapping: Record<string, string | null>;
-}>();
+const props = withDefaults(
+    defineProps<{
+        open: boolean;
+        projectId: string;
+        originalFilename: string | null;
+        headers: string[];
+        rows: string[][];
+        suggestedMapping: Record<string, string | null>;
+        defaultListType?: 'task' | 'event';
+    }>(),
+    { defaultListType: 'task' },
+);
 
 const emit = defineEmits<{
     (e: 'close'): void;
-    (e: 'imported'): void;
+    (e: 'started'): void;
 }>();
 
 // A <Select> can't use an empty string as a real value (Radix reserves it for "no selection"
@@ -40,17 +44,48 @@ const emit = defineEmits<{
 // null only when building the request payload.
 const IGNORE = '__ignore__';
 
-const FIELDS: {
-    key: 'name' | 'priority' | 'task_status' | 'due_at' | 'assignee';
-    label: string;
-    required?: boolean;
-}[] = [
+type FieldKey =
+    | 'name'
+    | 'priority'
+    | 'task_status'
+    | 'due_at'
+    | 'assignee'
+    | 'start_date'
+    | 'description'
+    | 'tag';
+
+const TASK_FIELDS: { key: FieldKey; label: string; required?: boolean }[] = [
     { key: 'name', label: 'Task Name', required: true },
     { key: 'priority', label: 'Priority' },
     { key: 'task_status', label: 'Status' },
     { key: 'due_at', label: 'Due Date' },
     { key: 'assignee', label: 'Assignee' },
+    { key: 'tag', label: 'Tag' },
 ];
+
+// Events don't have priority/status/assignee — they have a start and end date instead of a
+// single due date, and an optional description. Due date doubles as "End Date" here since it's
+// the same underlying field the calendar and the "Notes to Events" transformation both use.
+// Tag matches an existing project tag by name (like the AI transformation does) — it never
+// creates a new one, and only the first tag column value per row is used since events can only
+// carry a single tag.
+const EVENT_FIELDS: { key: FieldKey; label: string; required?: boolean }[] = [
+    { key: 'name', label: 'Event Name', required: true },
+    { key: 'description', label: 'Description' },
+    { key: 'start_date', label: 'Start Date' },
+    { key: 'due_at', label: 'End Date' },
+    { key: 'tag', label: 'Tag' },
+];
+
+// Seeded from defaultListType directly (not just left at a hardcoded 'task') because this
+// component only mounts once analysis() has already resolved (`v-if="analysis"` in
+// ImportTaskListOptions.vue), at which point `open` is already true on the very first render —
+// the watch() below (no `immediate`, intentionally, so it doesn't fight manual toggling while
+// the modal stays open) only re-applies the default on a later close→reopen, not this first one.
+const listType = ref<'task' | 'event'>(props.defaultListType);
+const FIELDS = computed(() =>
+    listType.value === 'task' ? TASK_FIELDS : EVENT_FIELDS,
+);
 
 const mapping = ref<Record<string, string>>({});
 
@@ -76,6 +111,7 @@ const effectiveRows = computed(() =>
 // picked, or the modal reopened) rather than carrying over edits from a previous file. Toggling
 // "no header row" also resets the mapping — the suggested mapping was matched against real
 // header text, which no longer applies once the selects switch to synthetic column labels.
+// Switching between Task/Event list also resets it — the two share a mostly disjoint field set.
 watch(
     () =>
         [
@@ -83,12 +119,13 @@ watch(
             props.headers,
             props.suggestedMapping,
             noHeaderRow.value,
+            listType.value,
         ] as const,
     () => {
         if (!props.open) return;
 
         const initial: Record<string, string> = {};
-        for (const field of FIELDS) {
+        for (const field of FIELDS.value) {
             initial[field.key] = noHeaderRow.value
                 ? IGNORE
                 : (props.suggestedMapping[field.key] ?? IGNORE);
@@ -101,7 +138,10 @@ watch(
 watch(
     () => props.open,
     (isOpen) => {
-        if (isOpen) noHeaderRow.value = false;
+        if (isOpen) {
+            noHeaderRow.value = false;
+            listType.value = props.defaultListType;
+        }
     },
 );
 
@@ -117,23 +157,18 @@ const columnValue = (row: string[], field: string): string => {
     return row[index]?.trim() || '—';
 };
 
-const form = useForm({
-    original_filename: null as string | null,
-    headers: [] as string[],
-    rows: [] as string[][],
-    mapping: {} as Record<string, string | null>,
-});
-
 const canSubmit = computed(
     () => mapping.value.name !== IGNORE && mapping.value.name !== undefined,
 );
 
+// Kicks off the import and returns immediately once the (fast) task_list_import/
+// event_list_import record exists and the real row-by-row work has been handed to a queued
+// job — the actual import runs in the background from here, reported via this project's
+// TaskListImportProgress broadcasts (see useTaskListImportProgress.ts, consumed by
+// Projects/Show.vue's top-of-page AiProcessingHeader), not by this request.
 const submit = () => {
-    form.original_filename = props.originalFilename;
-    form.headers = effectiveHeaders.value;
-    form.rows = effectiveRows.value;
-    form.mapping = Object.fromEntries(
-        FIELDS.map((field) => [
+    const mappingPayload = Object.fromEntries(
+        FIELDS.value.map((field) => [
             field.key,
             mapping.value[field.key] === IGNORE
                 ? null
@@ -141,9 +176,26 @@ const submit = () => {
         ]),
     );
 
-    form.post(taskListRoutes.store.url(props.projectId), {
-        onSuccess: () => emit('imported'),
-    });
+    // Fire both immediately, before the request even goes out — canSubmit already guarantees
+    // a name column is mapped, so there's nothing left worth waiting on-screen for here. The
+    // top-of-page banner (see useTaskListImportProgress.ts) takes over from 'started' onward.
+    emit('started');
+    emit('close');
+
+    axios
+        .post(taskListRoutes.store.url(props.projectId), {
+            list_type: listType.value,
+            original_filename: props.originalFilename,
+            headers: effectiveHeaders.value,
+            rows: effectiveRows.value,
+            mapping: mappingPayload,
+        })
+        .catch((err) => {
+            // The modal is already closed by this point, so there's no field left to attach
+            // a validation message to — this is only ever an unexpected failure (canSubmit
+            // already rules out the missing-name-mapping case client-side).
+            console.error('Failed to start list import', err);
+        });
 };
 </script>
 
@@ -151,16 +203,45 @@ const submit = () => {
     <Dialog :open="open" @update:open="emit('close')">
         <DialogContent class="sm:max-w-[640px]">
             <DialogHeader>
-                <DialogTitle>Confirm Task List Import</DialogTitle>
+                <DialogTitle>Confirm List Import</DialogTitle>
                 <DialogDescription>
                     {{ effectiveRows.length }} row{{
                         effectiveRows.length === 1 ? '' : 's'
                     }}
                     found{{
                         originalFilename ? ` in ${originalFilename}` : ''
-                    }}. Match each field to a column before importing.
+                    }}. Choose what you're importing, then match each field to a
+                    column.
                 </DialogDescription>
             </DialogHeader>
+
+            <div class="grid grid-cols-[120px_1fr] items-center gap-3">
+                <Label
+                    class="text-[11px] font-black tracking-widest text-gray-500 uppercase"
+                >
+                    Import As
+                </Label>
+                <div class="flex gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        :variant="listType === 'task' ? 'default' : 'outline'"
+                        class="h-8 flex-1 text-[11px] font-bold"
+                        @click="listType = 'task'"
+                    >
+                        Task List
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        :variant="listType === 'event' ? 'default' : 'outline'"
+                        class="h-8 flex-1 text-[11px] font-bold"
+                        @click="listType = 'event'"
+                    >
+                        Event List
+                    </Button>
+                </div>
+            </div>
 
             <Label class="flex items-center gap-2 text-xs text-gray-500">
                 <Checkbox v-model="noHeaderRow" />
@@ -199,13 +280,6 @@ const submit = () => {
                         </SelectContent>
                     </Select>
                 </div>
-
-                <p
-                    v-if="form.errors['mapping.name']"
-                    class="text-xs text-destructive"
-                >
-                    {{ form.errors['mapping.name'] }}
-                </p>
             </div>
 
             <div v-if="previewRows.length" class="space-y-2">
@@ -260,22 +334,13 @@ const submit = () => {
             </div>
 
             <DialogFooter class="gap-2 sm:gap-4">
-                <Button
-                    variant="outline"
-                    :disabled="form.processing"
-                    @click="emit('close')"
-                >
+                <Button variant="outline" @click="emit('close')">
                     Cancel
                 </Button>
-                <Button
-                    :disabled="form.processing || !canSubmit"
-                    @click="submit"
-                >
-                    {{
-                        form.processing
-                            ? 'Importing...'
-                            : `Import ${effectiveRows.length} Task${effectiveRows.length === 1 ? '' : 's'}`
-                    }}
+                <Button :disabled="!canSubmit" @click="submit">
+                    Import {{ effectiveRows.length }}
+                    {{ listType === 'task' ? 'Task' : 'Event'
+                    }}{{ effectiveRows.length === 1 ? '' : 's' }}
                 </Button>
             </DialogFooter>
         </DialogContent>

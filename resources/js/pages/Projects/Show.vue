@@ -13,8 +13,8 @@ import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptio
 import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
 import { Deferred, router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
-import { PlusIcon, RefreshCw, ShieldAlert } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { PlusIcon, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -24,7 +24,13 @@ import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
-import { useWorkflow, reprocessDescription, ACTION_ITEMS_KEY, INTAKE_KEY } from '@/composables/useWorkflow';
+import { useTaskListImportProgress } from '@/composables/useTaskListImportProgress';
+import {
+    ACTION_ITEMS_KEY,
+    INTAKE_KEY,
+    reprocessDescription,
+    useWorkflow,
+} from '@/composables/useWorkflow';
 import { setPersistentCookie } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import projectRoutes from '@/routes/projects/index';
@@ -34,10 +40,10 @@ import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
 import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
-import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import ProjectCalendar from '@/components/projects/ProjectCalendar.vue';
 import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
 import TaskReport from '@/components/reports/TaskReport.vue';
+import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 
 const props = defineProps<{
     projects: Project[];
@@ -92,21 +98,25 @@ const {
 const aiStatusMessageRef = ref('');
 const activeTab = ref(props.activeTab);
 
-// Both tabs are task-centric views, so "New Document" reads as "New Task" and defaults the
-// create form's category to Task from either one.
-const isTaskContext = computed(() => activeTab.value === 'tasks' || activeTab.value === 'calendar');
-
 // Each tab's "New Document" defaults the create form to whatever type someone creating from
-// that tab almost always wants: Meeting Notes from Documentation (its rows are effectively
-// all Meeting Notes once processed transcripts are hidden from the top level — see
-// useDocumentTree.ts), Transcription from Recordings, since that's the tab for bringing in
-// new raw source material. Falls through to isTaskContext's Task default, then to no default
-// (the create form's own type picker) for any other tab.
+// that tab almost always wants: Task from Tasks, Event from Campaign Calendar, Meeting Notes
+// from Documentation (its rows are effectively all Meeting Notes once processed transcripts
+// are hidden from the top level — see useDocumentTree.ts), Transcription from Recordings,
+// since that's the tab for bringing in new raw source material. No default (the create form's
+// own type picker) for any other tab.
 const defaultTypeForCreate = computed<string | null>(() => {
-    if (isTaskContext.value) return 'task';
+    if (activeTab.value === 'tasks') return 'task';
+    if (activeTab.value === 'calendar') return 'event';
     if (activeTab.value === 'hierarchy') return ACTION_ITEMS_KEY;
     if (activeTab.value === 'recordings') return INTAKE_KEY;
     return null;
+});
+
+// Mirrors defaultTypeForCreate's per-tab defaults in the "New ___" button's own label.
+const createButtonLabel = computed(() => {
+    if (activeTab.value === 'tasks') return 'New Task';
+    if (activeTab.value === 'calendar') return 'New Event';
+    return 'New Document';
 });
 
 // The URL only gains an explicit `?tab=` when the user clicks a tab button (see updateTab()
@@ -172,6 +182,9 @@ const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
     removeLocalDocuments,
     ['currentProject', 'kanbanData'],
 );
+
+const { isImporting, importProgress, importMessage, startImporting } =
+    useTaskListImportProgress(projectIdForEcho.value ?? 'NO_PROJECT');
 
 // --- 3. UI METHODS & BREADCRUMBS ---
 onKeyStroke('Escape', () => {
@@ -274,11 +287,16 @@ const handleTransition = (
 // the Recordings tab, data not in yet) and cleared once recordingsData actually arrives, so
 // the same "Checking…" state covers every path recordingsData can load through, not just
 // the ones this component itself triggers.
-const isRefreshingRecordings = ref(activeTab.value === 'recordings' && props.recordingsData === undefined);
+const isRefreshingRecordings = ref(
+    activeTab.value === 'recordings' && props.recordingsData === undefined,
+);
 
-watch(() => props.recordingsData, (data) => {
-    if (data !== undefined) isRefreshingRecordings.value = false;
-});
+watch(
+    () => props.recordingsData,
+    (data) => {
+        if (data !== undefined) isRefreshingRecordings.value = false;
+    },
+);
 
 const updateTab = (tab: string) => {
     activeTab.value = tab;
@@ -298,16 +316,32 @@ const updateTab = (tab: string) => {
             preserveScroll: true,
             replace: true,
             except: isRecordingsTab ? [] : ['recordingsData'],
-            onFinish: () => { isRefreshingRecordings.value = false; },
+            onFinish: () => {
+                isRefreshingRecordings.value = false;
+            },
         },
     );
+};
+
+const importTaskListOptionsRef = useTemplateRef('importTaskListOptionsRef');
+
+// The Campaign Calendar's "Import Events" button lands here — opens the native file picker
+// directly (ImportTaskListOptions is mounted via v-show, not v-if, regardless of which tab is
+// active, so its ref is valid immediately) with the confirm modal pre-set to "Event List",
+// without switching tabs — the Dialog renders via its own teleport, and the confirm/store flow
+// already redirects to the Campaign Calendar on completion (see ImportTaskList::finish()), so
+// there's nothing here that actually needs the Import tab itself to be showing.
+const openEventImport = () => {
+    importTaskListOptionsRef.value?.openEventImport();
 };
 
 const refreshRecordings = () => {
     isRefreshingRecordings.value = true;
     router.reload({
         only: ['recordingsData'],
-        onFinish: () => { isRefreshingRecordings.value = false; },
+        onFinish: () => {
+            isRefreshingRecordings.value = false;
+        },
     });
 };
 
@@ -349,7 +383,9 @@ const handleCreateNavigation = (projectId: string) => {
     router.visit(projectDocumentsRoutes.create({ project: projectId }).url, {
         data: {
             redirect: window.location.href,
-            ...(defaultTypeForCreate.value ? { type: defaultTypeForCreate.value } : {}),
+            ...(defaultTypeForCreate.value
+                ? { type: defaultTypeForCreate.value }
+                : {}),
         },
     });
 };
@@ -415,6 +451,18 @@ watch(
                 :message="aiStatusMessage"
             />
 
+            <AiProgressBar
+                :is-processing="isImporting"
+                :progress="importProgress"
+            />
+
+            <AiProcessingHeader
+                title="Import Active"
+                :is-processing="isImporting"
+                :progress="importProgress"
+                :message="importMessage"
+            />
+
             <div
                 class="flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"
             >
@@ -429,11 +477,25 @@ watch(
 
                 <div class="flex w-full items-center gap-2 sm:w-auto">
                     <Button
+                        v-if="
+                            !currentProject.inactive &&
+                            activeTab === 'calendar' &&
+                            canManageTranscripts
+                        "
+                        variant="outline"
+                        @click="openEventImport"
+                        class="h-11 rounded-xl px-6 font-bold whitespace-nowrap"
+                    >
+                        <Upload class="mr-2 h-4 w-4" />
+                        Import Events
+                    </Button>
+                    <Button
                         v-if="!currentProject.inactive"
                         @click="handleCreateNavigation(currentProject.id)"
                         class="h-11 rounded-xl bg-projector-primary-600 px-6 font-bold whitespace-nowrap text-white hover:bg-projector-primary-700"
                     >
-                        <PlusIcon class="mr-2 h-4 w-4" /> {{ isTaskContext ? 'New Task' : 'New Document' }}
+                        <PlusIcon class="mr-2 h-4 w-4" />
+                        {{ createButtonLabel }}
                     </Button>
                     <Button
                         v-else
@@ -527,14 +589,20 @@ watch(
                     :has-rows="hasRows"
                     :workflow-rows="workflowRows"
                     :get-tasks-by-row-and-status="getTasksByRowAndStatus"
-                    :get-task-count-by-row-and-status="getTaskCountByRowAndStatus"
+                    :get-task-count-by-row-and-status="
+                        getTaskCountByRowAndStatus
+                    "
                     :matches-filters="matchesFilters"
                     :on-drag-change="onDragChange"
                     :open-detail="openDetail"
                     :handle-create-new="handleCreateNew"
                     :update-attribute="
                         (docId, field, val) =>
-                            updateAttribute(docId, { [field]: val }, 'Changes saved')
+                            updateAttribute(
+                                docId,
+                                { [field]: val },
+                                'Changes saved',
+                            )
                     "
                     :update-tags="
                         (docId, categories) => updateTags(docId, categories)
@@ -547,6 +615,8 @@ watch(
                 <ProjectCalendar
                     :project-id="currentProject.id"
                     :items="calendarItems"
+                    :can-manage-imports="canManageTranscripts"
+                    @import-events="openEventImport"
                 />
             </div>
 
@@ -579,8 +649,8 @@ watch(
                             No meeting provider configured
                         </p>
                         <p class="mt-1 text-xs text-gray-400">
-                            Configure a provider in Organization Settings to import
-                            recordings.
+                            Configure a provider in Organization Settings to
+                            import recordings.
                         </p>
                     </div>
 
@@ -596,7 +666,11 @@ watch(
                                 class="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
                                 @click="refreshRecordings"
                             >
-                                {{ isRefreshingRecordings ? 'Checking…' : 'Check for New Recordings' }}
+                                {{
+                                    isRefreshingRecordings
+                                        ? 'Checking…'
+                                        : 'Check for New Recordings'
+                                }}
                             </button>
                         </div>
 
@@ -611,7 +685,9 @@ watch(
                                         <div
                                             class="h-3.5 w-3.5 shrink-0 rounded bg-gray-100 dark:bg-gray-800"
                                         />
-                                        <div class="flex flex-1 items-center gap-3">
+                                        <div
+                                            class="flex flex-1 items-center gap-3"
+                                        >
                                             <div
                                                 class="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800"
                                             />
@@ -642,7 +718,12 @@ watch(
                     </template>
                 </div>
 
-                <ImportTaskListOptions :project-id="currentProject!.id" :can-manage="canManageTranscripts" />
+                <ImportTaskListOptions
+                    ref="importTaskListOptionsRef"
+                    :project-id="currentProject!.id"
+                    :can-manage="canManageTranscripts"
+                    @started="startImporting"
+                />
             </div>
 
             <div v-show="activeTab === 'reports'">

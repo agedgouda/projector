@@ -1,10 +1,10 @@
-import '../css/app.css';
 import { createInertiaApp } from '@inertiajs/vue3';
+import { configureEcho } from '@laravel/echo-vue';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
+import '../css/app.css';
 import { initializeTheme } from './composables/useAppearance';
-import { configureEcho } from '@laravel/echo-vue';
 
 import { router } from '@inertiajs/vue3';
 declare global {
@@ -12,11 +12,23 @@ declare global {
         appHasHistory: boolean;
     }
 }
+// VITE_REVERB_HOST just inherits REVERB_HOST by default (see .env/.env.example), which is
+// "0.0.0.0" — the server's bind-all address, not a host a browser can open a WebSocket to.
+// Left as-is, every private-channel subscription silently lands in Pusher's "unavailable"
+// connection state, so AiProcessingHeader-style live progress (AI sync, list imports) never
+// updates and never fires its completion redirect, with no visible error. Fall back to the
+// page's own hostname whenever the configured value is missing or is that unroutable address.
+const reverbHost = import.meta.env.VITE_REVERB_HOST;
+const resolvedReverbHost =
+    reverbHost && reverbHost !== '0.0.0.0'
+        ? reverbHost
+        : window.location.hostname;
+
 // Keep your existing plugin config as well
 configureEcho({
     broadcaster: 'reverb',
     key: import.meta.env.VITE_REVERB_APP_KEY,
-    wsHost: import.meta.env.VITE_REVERB_HOST,
+    wsHost: resolvedReverbHost,
     wsPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
     wssPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
     forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',

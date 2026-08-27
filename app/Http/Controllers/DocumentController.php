@@ -312,7 +312,15 @@ class DocumentController extends Controller
 
         $document->update(array_merge($assigneeData, $otherValidated, ['editor_id' => $request->user()->id]));
 
-        return back()->with('success', 'Task updated.');
+        // This endpoint isn't task-only in practice — Events use it for their Start/End Date
+        // fields too (see DocumentSidebar.vue's isEvent block) — so the confirmation should
+        // name whatever type was actually just edited, not always say "Task". PHPStan flags
+        // the nullsafe below as unnecessary, but Collection::get() genuinely returns null for
+        // a type not in the catalog (confirmed at runtime) — false positive, kept intentionally.
+        // @phpstan-ignore nullsafe.neverNull
+        $typeLabel = $project->documentTypeCatalog()->get($document->type)?->label ?? 'Document';
+
+        return back()->with('success', "{$typeLabel} updated.");
     }
 
     /**

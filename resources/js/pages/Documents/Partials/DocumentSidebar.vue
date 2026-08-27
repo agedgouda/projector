@@ -68,6 +68,12 @@ const shouldShowTask = computed(() => isTask(props.item.type));
 const isEvent = computed(() => props.item.type === 'event');
 const hasOtherBoards = computed(() => (props.boardOptions?.length ?? 0) > 0);
 
+// Every date <input> below (Due/External Due/Start/End Date) saves on @change, not @input —
+// @input fires on every keystroke of a native date field, including the transient empty value
+// it reports while a segment is mid-edit, which would PATCH the date to null partway through
+// typing a new one. For an Event this silently dropped it off the Campaign Calendar until
+// (if ever) a later request happened to land last with the complete value.
+
 const assigneeValue = computed(() => {
     if (props.item.pending_assignee_invitation_id) {
         return `inv:${props.item.pending_assignee_invitation_id}`;
@@ -274,7 +280,7 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                         type="date"
                                         :value="dueAtProxy"
                                         :disabled="project.inactive"
-                                        @input="
+                                        @change="
                                             $emit(
                                                 'update:dueAtProxy',
                                                 (
@@ -334,7 +340,7 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                                 : ''
                                         "
                                         :disabled="project.inactive"
-                                        @input="
+                                        @change="
                                             $emit(
                                                 'change',
                                                 'external_due_at',
@@ -514,7 +520,7 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                         type="date"
                                         :value="startAtProxy"
                                         :disabled="project.inactive"
-                                        @input="
+                                        @change="
                                             $emit(
                                                 'update:startAtProxy',
                                                 (
@@ -557,7 +563,7 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                         type="date"
                                         :value="dueAtProxy"
                                         :disabled="project.inactive"
-                                        @input="
+                                        @change="
                                             $emit(
                                                 'update:dueAtProxy',
                                                 (

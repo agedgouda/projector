@@ -19,6 +19,9 @@ class GeminiLlmDriver extends AbstractLlmDriver
         // caller found uploaded images to match against, and strict structured-output mode
         // drops any field not declared here regardless of what the prompt text says.
         $includeImageIds = str_contains($userPrompt, '"image_ids"');
+        // Same reasoning as $includeAssignee: the prompt only asks for "tag_names" when the
+        // project has tags to choose from.
+        $includeTags = str_contains($userPrompt, '"tag_names"');
         $apiKey = config('services.gemini.key');
         // Using Gemini 2.0 or 1.5 Flash for speed and schema support
         $model = config('services.gemini.model', 'gemini-2.0-flash');
@@ -35,7 +38,7 @@ class GeminiLlmDriver extends AbstractLlmDriver
                 'generationConfig' => [
                     'temperature' => 0,
                     'responseMimeType' => 'application/json',
-                    'responseSchema' => $useCustomSchema ? $responseSchema : $this->getOutputSchema('content', $includeAssignee, $includeImageIds),
+                    'responseSchema' => $useCustomSchema ? $responseSchema : $this->getOutputSchema('content', $includeAssignee, $includeImageIds, $includeTags),
                 ],
             ]);
 

@@ -3,6 +3,7 @@
 use App\Contracts\LlmDriver;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\AiTemplate;
+use App\Models\Category;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
@@ -1000,4 +1001,196 @@ it('escapes special characters in an uploaded image\'s filename when carrying it
     $child = Document::where('parent_id', $document->id)->firstOrFail();
     expect($child->content)->toContain('alt="quote&quot;file.png"')
         ->not->toContain('alt="quote"file.png"');
+});
+
+// Whether/how to ask for tags is the transformation's own call, authored into its own
+// prompt text (like "Create Tasks" — see the 2026_08_26_120000 migration) — the app only
+// supplies the real per-project data via {{available_tags}} and reacts to whatever the
+// template's own composed prompt ends up asking for. It never injects a tag_names request
+// on its own, unlike a plain template that never mentions tags at all.
+it('substitutes {{available_tags}} with the project\'s exact tag names, for a template that asks for tag_names', function () {
+    [$document] = createActionItemsDocumentWithTemplates();
+    Category::create(['project_id' => $document->project_id, 'name' => 'Design', 'color' => 'pink']);
+    Category::create(['project_id' => $document->project_id, 'name' => 'Backend', 'color' => 'blue']);
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to Tagged Tasks',
+        'type' => 'workflow',
+        'system_prompt' => 'Extract tasks.',
+        'user_prompt' => '{{input}} Also include "tag_names" from: {{available_tags}}.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, 'tag_names')
+            && str_contains($userMessage, '"Design"')
+            && str_contains($userMessage, '"Backend"'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Item', 'task' => 'Do it', 'criteria' => []],
+            ],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
+it('does not ask about tags when the template\'s own prompt never mentions tag_names, even though the project has tags', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+    Category::create(['project_id' => $document->project_id, 'name' => 'Design', 'color' => 'pink']);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => ! str_contains($userMessage, 'tag_names') && ! str_contains($systemPrompt, 'tag_names'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Task', 'task' => 'Do it', 'criteria' => []]],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]);
+});
+
+it('substitutes a friendly fallback for {{available_tags}} when the project has no tags', function () {
+    [$document] = createActionItemsDocumentWithTemplates();
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to Tagged Tasks',
+        'type' => 'workflow',
+        'system_prompt' => 'Extract tasks.',
+        'user_prompt' => '{{input}} Also include "tag_names" from: {{available_tags}}.',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, 'no tags exist for this project'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Task', 'task' => 'Do it', 'criteria' => []]],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
+it('resolves an AI-picked tag name into the generated document\'s tags', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+    $design = Category::create(['project_id' => $document->project_id, 'name' => 'Design', 'color' => 'pink']);
+    Category::create(['project_id' => $document->project_id, 'name' => 'Backend', 'color' => 'blue']);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Redesign homepage', 'task' => 'Do it', 'criteria' => [], 'tag_names' => ['Design']],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->categories()->pluck('categories.id')->all())->toBe([$design->id]);
+});
+
+it('ignores an AI-picked tag name that was never actually offered', function () {
+    [$document, $templateA] = createActionItemsDocumentWithTemplates();
+    Category::create(['project_id' => $document->project_id, 'name' => 'Design', 'color' => 'pink']);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn([
+            'status' => 'success',
+            'content' => [
+                ['title' => 'Item', 'task' => 'Do it', 'criteria' => [], 'tag_names' => ['Nonexistent Tag']],
+            ],
+        ]);
+
+    (new ProcessDocumentAI($document, [
+        'to_key' => 'task',
+        'ai_template_id' => $templateA->id,
+    ]))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->categories()->count())->toBe(0);
+});
+
+it('the "Create Tasks" tag-selection migration adds tag_names to the template\'s own prompt, reversibly', function () {
+    $template = AiTemplate::create([
+        'name' => 'Create Tasks',
+        'type' => 'workflow',
+        'system_prompt' => '<li><p>Do not extract assignee or owner information.</p></li>',
+        'user_prompt' => "due_date: An ISO 8601 date string (YYYY-MM-DD) resolved from any deadline or delivery language in the item, or null if none.\n\nStrategic Instructions:\n\nKeys: You MUST use the exact keys \"title\", \"{{output_key}}\", \"criteria\", \"priority\", and \"due_date\".\n\nCRITICAL: You must return a JSON array. Each object in the array MUST use exactly these keys: \"title\", \"{{output_key}}\", \"criteria\", \"priority\", and \"due_date\".",
+    ]);
+
+    $migration = require database_path('migrations/2026_08_26_120000_add_tag_selection_to_create_tasks_template_prompt.php');
+
+    $migration->up();
+    $template->refresh();
+    expect($template->system_prompt)->toContain('Tags:')->toContain('{{available_tags}}')
+        ->and($template->user_prompt)->toContain('tag_names')->toContain('{{available_tags}}');
+
+    $migration->down();
+    expect($template->fresh()->system_prompt)->not->toContain('Tags:')
+        ->and($template->fresh()->user_prompt)->not->toContain('tag_names');
+});
+
+it('the "Notes to Events" tag-selection migration adds tag_names to the template\'s own prompt, reversibly', function () {
+    // Unlike "Create Tasks" (production-only data), "Notes to Events" is seeded by an earlier
+    // migration that runs in every environment including tests — already carries this
+    // migration's tags by the time the test suite boots, so this rolls it back and forward
+    // on the one real row instead of creating a same-named duplicate the where('name', ...)
+    // lookup inside the migration could pick up instead.
+    $template = AiTemplate::where('name', 'Notes to Events')->firstOrFail();
+
+    $migration = require database_path('migrations/2026_08_26_130000_add_tag_selection_to_notes_to_events_template_prompt.php');
+
+    $migration->down();
+    $template->refresh();
+    expect($template->system_prompt)->not->toContain('Tags:')
+        ->and($template->user_prompt)->not->toContain('tag_names');
+
+    $migration->up();
+    $template->refresh();
+    expect($template->system_prompt)->toContain('Tags:')->toContain('{{available_tags}}')
+        ->and($template->user_prompt)->toContain('tag_names')->toContain('{{available_tags}}')
+        ->and($template->user_prompt)->toContain('at most one');
+});
+
+it('caps a generated event\'s tags to a single one, even if the AI names more than one', function () {
+    [$document] = createActionItemsDocumentWithTemplates();
+    $design = Category::create(['project_id' => $document->project_id, 'name' => 'Design', 'color' => 'pink']);
+    $backend = Category::create(['project_id' => $document->project_id, 'name' => 'Backend', 'color' => 'blue']);
+
+    $this->mock(ProjectAiService::class, function ($mock) use ($design, $backend) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'event',
+            'single_output' => false,
+            'mock_response' => [
+                ['title' => 'Kickoff', 'event' => 'Kickoff event', '_category_ids' => [$design->id, $backend->id]],
+            ],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $child = Document::where('parent_id', $document->id)->firstOrFail();
+    expect($child->categories()->count())->toBe(1)
+        ->and($child->categories()->pluck('categories.id')->all())->toBe([$design->id]);
 });

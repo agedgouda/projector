@@ -11,7 +11,7 @@ abstract class AbstractLlmDriver implements LlmDriver
         return 1536;
     }
 
-    protected function getOutputSchema(string $outputType = 'content', bool $includeAssignee = false, bool $includeImageIds = false): array
+    protected function getOutputSchema(string $outputType = 'content', bool $includeAssignee = false, bool $includeImageIds = false, bool $includeTags = false): array
     {
         $properties = [
             'title' => ['type' => 'string'],
@@ -30,6 +30,11 @@ abstract class AbstractLlmDriver implements LlmDriver
         if ($includeImageIds) {
             $properties['image_ids'] = ['type' => 'array', 'items' => ['type' => 'integer']];
             $required[] = 'image_ids';
+        }
+
+        if ($includeTags) {
+            $properties['tag_names'] = ['type' => 'array', 'items' => ['type' => 'string']];
+            $required[] = 'tag_names';
         }
 
         return [

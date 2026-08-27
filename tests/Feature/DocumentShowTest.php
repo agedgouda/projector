@@ -223,6 +223,44 @@ it('does not stamp content_updated_at when only sidebar attributes are patched',
         ->content_updated_at->toBeNull();
 });
 
+it('flashes a "Task updated." confirmation for a task-type document', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => '',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'task_status' => 'done',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Task updated.');
+});
+
+it('flashes an "Event updated." confirmation for an event-type document, not "Task updated."', function () {
+    $event = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'An Event',
+        'type' => 'event',
+        'content' => '',
+        'due_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $event]), [
+            'due_at' => now()->addWeek()->toDateString(),
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Event updated.');
+
+    expect($event->fresh()->due_at)->not->toBeNull();
+});
+
 it('rejects a task_status that is not one of the project\'s kanban columns', function () {
     $document = Document::create([
         'project_id' => $this->project->id,

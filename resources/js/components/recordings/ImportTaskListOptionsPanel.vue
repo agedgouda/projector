@@ -6,28 +6,36 @@ import { useTemplateRef } from 'vue';
 
 // Purely presentational, mirroring ImportDocumentOptionsPanel.vue's split — the actual
 // analyze request stays in the project-scoped wrapper (Projects/Partials/ImportTaskListOptions.vue),
-// since that's what owns the modal/network state. This panel only owns the hidden file inputs
-// and emits once a file has actually been picked.
+// since that's what owns the modal/network state. This panel only owns the hidden file input
+// and emits once a file has actually been picked. One input handles both CSV and Excel — the
+// backend's analyze() endpoint already detects the format from the file itself (PhpSpreadsheet's
+// IOFactory::createReaderForFile()), so the frontend never needs to know which one it is.
 defineProps<{
     canManage: boolean;
-    isAnalyzing: 'csv' | 'xlsx' | null;
+    isAnalyzing: boolean;
 }>();
 
 const emit = defineEmits<{
-    (e: 'pick-file', file: File, kind: 'csv' | 'xlsx'): void;
+    (e: 'pick-file', file: File): void;
 }>();
 
-const csvInput = useTemplateRef('csvInput');
-const xlsxInput = useTemplateRef('xlsxInput');
+const fileInput = useTemplateRef('fileInput');
 
-const onFileChosen = (event: Event, kind: 'csv' | 'xlsx') => {
+const onFileChosen = (event: Event) => {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
 
-    emit('pick-file', file, kind);
+    emit('pick-file', file);
     input.value = '';
 };
+
+// Lets a parent (ultimately the Campaign Calendar's "Import Events" button, via
+// ImportTaskListOptions.vue) open this hidden input's native file picker directly, without the
+// user having to find and click "Choose File" themselves.
+defineExpose({
+    pickFile: () => fileInput.value?.click(),
+});
 </script>
 
 <template>
@@ -35,7 +43,7 @@ const onFileChosen = (event: Event, kind: 'csv' | 'xlsx') => {
         <h2
             class="mb-4 text-[10px] font-black tracking-widest text-gray-400 uppercase"
         >
-            Import a Task List
+            Import a List
         </h2>
 
         <div class="grid gap-0.5">
@@ -53,67 +61,28 @@ const onFileChosen = (event: Event, kind: 'csv' | 'xlsx') => {
                 <div class="min-w-0 flex-1">
                     <span
                         class="text-[13px] font-semibold text-slate-900 dark:text-slate-100"
-                        >Upload CSV (.csv)</span
+                        >Upload Task or Event List (.csv, .xlsx)</span
                     >
                 </div>
                 <input
-                    ref="csvInput"
+                    ref="fileInput"
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                     class="hidden"
-                    @change="onFileChosen($event, 'csv')"
+                    @change="onFileChosen($event)"
                 />
                 <Button
                     size="sm"
                     variant="outline"
-                    :disabled="isAnalyzing !== null"
+                    :disabled="isAnalyzing"
                     class="h-8 shrink-0 rounded-md px-3 text-[10px] font-black tracking-widest text-slate-600 uppercase dark:text-slate-300"
-                    @click="csvInput?.click()"
+                    @click="fileInput?.click()"
                 >
                     <Loader2
-                        v-if="isAnalyzing === 'csv'"
+                        v-if="isAnalyzing"
                         class="mr-1.5 h-3 w-3 animate-spin"
                     />
-                    {{ isAnalyzing === 'csv' ? 'Reading...' : 'Choose File' }}
-                </Button>
-            </div>
-
-            <div
-                :class="[
-                    'flex h-12 items-center gap-3 rounded-md px-2 transition-colors',
-                    FLAT_ROW_HOVER,
-                ]"
-            >
-                <div
-                    class="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400"
-                >
-                    <FileSpreadsheet class="h-3.5 w-3.5" />
-                </div>
-                <div class="min-w-0 flex-1">
-                    <span
-                        class="text-[13px] font-semibold text-slate-900 dark:text-slate-100"
-                        >Upload Excel (.xlsx)</span
-                    >
-                </div>
-                <input
-                    ref="xlsxInput"
-                    type="file"
-                    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    class="hidden"
-                    @change="onFileChosen($event, 'xlsx')"
-                />
-                <Button
-                    size="sm"
-                    variant="outline"
-                    :disabled="isAnalyzing !== null"
-                    class="h-8 shrink-0 rounded-md px-3 text-[10px] font-black tracking-widest text-slate-600 uppercase dark:text-slate-300"
-                    @click="xlsxInput?.click()"
-                >
-                    <Loader2
-                        v-if="isAnalyzing === 'xlsx'"
-                        class="mr-1.5 h-3 w-3 animate-spin"
-                    />
-                    {{ isAnalyzing === 'xlsx' ? 'Reading...' : 'Choose File' }}
+                    {{ isAnalyzing ? 'Reading...' : 'Choose File' }}
                 </Button>
             </div>
         </div>

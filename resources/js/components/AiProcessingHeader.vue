@@ -3,11 +3,15 @@ import { RefreshCw } from 'lucide-vue-next';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-defineProps<{
-    isProcessing: boolean;
-    progress: number;
-    message: string;
-}>();
+withDefaults(
+    defineProps<{
+        isProcessing: boolean;
+        progress: number;
+        message: string;
+        title?: string;
+    }>(),
+    { title: 'AI Sync Active' },
+);
 </script>
 
 <template>
@@ -42,7 +46,7 @@ defineProps<{
                         <AppLogoIcon class="h-10 w-10 text-projector-primary-600" />
                         <div>
                             <AlertTitle class="text-sm font-black text-projector-primary-900 animate-pulse uppercase tracking-widest">
-                                AI Sync Active
+                                {{ title }}
                             </AlertTitle>
                             <AlertDescription class="text-xs text-projector-primary-700/70 font-medium">
                                 {{ message || 'Synchronizing project mapping...' }}

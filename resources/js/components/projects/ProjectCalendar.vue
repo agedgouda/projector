@@ -5,13 +5,13 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { TAG_FILTER_NONE } from '@/composables/kanban/useKanbanQueries';
 import {
     KANBAN_COLOR_PALETTE,
     kanbanClasses,
     kanbanDotClasses,
 } from '@/lib/constants';
 import { kanbanCardBg } from '@/lib/kanban-theme';
-import { TAG_FILTER_NONE } from '@/composables/kanban/useKanbanQueries';
 import projectCalendarRoutes from '@/routes/projects/calendar';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { router } from '@inertiajs/vue3';
@@ -23,24 +23,49 @@ import {
     FileDown,
     FileSpreadsheet,
     Sheet,
+    Upload,
 } from 'lucide-vue-next';
 import { computed, reactive, ref } from 'vue';
 
 const props = defineProps<{
     projectId: string;
     items: CalendarItem[];
+    canManageImports: boolean;
 }>();
 
-interface Marker {
-    item: CalendarItem;
-}
+const emit = defineEmits<{
+    (e: 'import-events'): void;
+}>();
 
-interface DayCell {
+interface GridDay {
     date: Date;
     dateKey: string;
     inCurrentMonth: boolean;
     isToday: boolean;
-    markers: Marker[];
+}
+
+interface EventRange {
+    item: CalendarItem;
+    startKey: string;
+    endKey: string;
+}
+
+// One bar is one event's visible segment within a single week row — a multi-week event
+// produces a separate EventBar per week it crosses, all sharing the same `lane` (see
+// eventLanes below) so it renders at the same vertical row on every day and week it spans.
+interface EventBar {
+    item: CalendarItem;
+    lane: number;
+    startCol: number;
+    span: number;
+    continuesBefore: boolean;
+    continuesAfter: boolean;
+}
+
+interface WeekRow {
+    days: GridDay[];
+    bars: EventBar[];
+    laneCount: number;
 }
 
 const formatDateKey = (date: Date): string => {
@@ -96,7 +121,9 @@ const availableTags = computed<CategoryDef[]>(() => {
             if (!byId.has(category.id)) byId.set(category.id, category);
         });
     });
-    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(byId.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+    );
 });
 
 const selectedTagIds = ref<string[]>([]);
@@ -112,7 +139,8 @@ const toggleTagFilter = (value: string) => {
 const matchesTagFilter = (item: CalendarItem): boolean => {
     if (selectedTagIds.value.length === 0) return true;
     const categories = item.categories ?? [];
-    if (categories.length === 0) return selectedTagIds.value.includes(TAG_FILTER_NONE);
+    if (categories.length === 0)
+        return selectedTagIds.value.includes(TAG_FILTER_NONE);
     return categories.some((c) => selectedTagIds.value.includes(c.id));
 };
 
@@ -170,30 +198,9 @@ const goToToday = () => {
     currentMonth.value = new Date();
 };
 
-const markersByDate = computed(() => {
-    const map: Record<string, Marker[]> = {};
-    const push = (dateKey: string, marker: Marker) => {
-        (map[dateKey] ??= []).push(marker);
-    };
-
-    for (const item of props.items) {
-        if (item.is_subproject && hiddenSubprojectIds.has(item.project_id)) {
-            continue;
-        }
-        if (!matchesTagFilter(item)) {
-            continue;
-        }
-        if (item.due_at) {
-            push(item.due_at.slice(0, 10), { item });
-        }
-    }
-
-    return map;
-});
-
 const todayKey = formatDateKey(new Date());
 
-const weeks = computed<DayCell[][]>(() => {
+const gridDays = computed<GridDay[]>(() => {
     const year = currentMonth.value.getFullYear();
     const month = currentMonth.value.getMonth();
     const firstOfMonth = new Date(year, month, 1);
@@ -201,31 +208,30 @@ const weeks = computed<DayCell[][]>(() => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-    const makeCell = (date: Date, inCurrentMonth: boolean): DayCell => {
+    const makeDay = (date: Date, inCurrentMonth: boolean): GridDay => {
         const dateKey = formatDateKey(date);
         return {
             date,
             dateKey,
             inCurrentMonth,
             isToday: dateKey === todayKey,
-            markers: markersByDate.value[dateKey] ?? [],
         };
     };
 
-    const cells: DayCell[] = [];
+    const days: GridDay[] = [];
 
     for (let i = startOffset - 1; i >= 0; i--) {
-        cells.push(
-            makeCell(new Date(year, month - 1, daysInPrevMonth - i), false),
+        days.push(
+            makeDay(new Date(year, month - 1, daysInPrevMonth - i), false),
         );
     }
     for (let d = 1; d <= daysInMonth; d++) {
-        cells.push(makeCell(new Date(year, month, d), true));
+        days.push(makeDay(new Date(year, month, d), true));
     }
-    while (cells.length % 7 !== 0) {
-        const last = cells[cells.length - 1].date;
-        cells.push(
-            makeCell(
+    while (days.length % 7 !== 0) {
+        const last = days[days.length - 1].date;
+        days.push(
+            makeDay(
                 new Date(
                     last.getFullYear(),
                     last.getMonth(),
@@ -236,19 +242,129 @@ const weeks = computed<DayCell[][]>(() => {
         );
     }
 
-    const result: DayCell[][] = [];
-    for (let i = 0; i < cells.length; i += 7) {
-        result.push(cells.slice(i, i + 7));
+    return days;
+});
+
+// Every visible event's [start, end] date-key range, one entry per event regardless of how
+// many days it spans or how many weeks it crosses. A missing start_at collapses the range to
+// a single day at due_at, and a start_at after due_at (bad data) is clamped the same way
+// rather than rendering a bar that runs backwards.
+const eventRanges = computed<EventRange[]>(() => {
+    const ranges: EventRange[] = [];
+
+    for (const item of props.items) {
+        if (item.is_subproject && hiddenSubprojectIds.has(item.project_id)) {
+            continue;
+        }
+        if (!matchesTagFilter(item)) {
+            continue;
+        }
+        if (!item.due_at) {
+            continue;
+        }
+
+        const endKey = item.due_at.slice(0, 10);
+        const startKey = item.start_at ? item.start_at.slice(0, 10) : endKey;
+        ranges.push({
+            item,
+            startKey: startKey <= endKey ? startKey : endKey,
+            endKey,
+        });
     }
-    return result;
+
+    return ranges;
+});
+
+// One lane per event, assigned once via greedy interval packing (sorted by start date, ties
+// broken by longer events first) across every event touching the visible grid — not
+// per-week-independently — so a bar sits at the same vertical row on every day and every week
+// it spans, the way Google/Outlook's month view does.
+const eventLanes = computed<Map<string, number>>(() => {
+    const days = gridDays.value;
+    if (days.length === 0) return new Map();
+
+    const gridStartKey = days[0].dateKey;
+    const gridEndKey = days[days.length - 1].dateKey;
+
+    const relevant = eventRanges.value
+        .filter((r) => r.endKey >= gridStartKey && r.startKey <= gridEndKey)
+        .sort(
+            (a, b) =>
+                a.startKey.localeCompare(b.startKey) ||
+                b.endKey.localeCompare(a.endKey),
+        );
+
+    const laneEndKeys: string[] = [];
+    const lanes = new Map<string, number>();
+
+    for (const range of relevant) {
+        let lane = laneEndKeys.findIndex((endKey) => endKey < range.startKey);
+        if (lane === -1) lane = laneEndKeys.length;
+        laneEndKeys[lane] = range.endKey;
+        lanes.set(range.item.id, lane);
+    }
+
+    return lanes;
+});
+
+const weeks = computed<WeekRow[]>(() => {
+    const days = gridDays.value;
+    const rows: WeekRow[] = [];
+
+    for (let i = 0; i < days.length; i += 7) {
+        const weekDays = days.slice(i, i + 7);
+        const weekStartKey = weekDays[0].dateKey;
+        const weekEndKey = weekDays[6].dateKey;
+
+        const bars: EventBar[] = [];
+        for (const range of eventRanges.value) {
+            if (range.endKey < weekStartKey || range.startKey > weekEndKey) {
+                continue;
+            }
+            const lane = eventLanes.value.get(range.item.id);
+            if (lane === undefined) continue;
+
+            const segStartKey =
+                range.startKey > weekStartKey ? range.startKey : weekStartKey;
+            const segEndKey =
+                range.endKey < weekEndKey ? range.endKey : weekEndKey;
+            const startCol = weekDays.findIndex(
+                (d) => d.dateKey === segStartKey,
+            );
+            const endCol = weekDays.findIndex((d) => d.dateKey === segEndKey);
+
+            bars.push({
+                item: range.item,
+                lane,
+                startCol,
+                span: endCol - startCol + 1,
+                continuesBefore: range.startKey < weekStartKey,
+                continuesAfter: range.endKey > weekEndKey,
+            });
+        }
+
+        const laneCount =
+            bars.length === 0 ? 0 : Math.max(...bars.map((b) => b.lane)) + 1;
+
+        rows.push({ days: weekDays, bars, laneCount });
+    }
+
+    return rows;
 });
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const markerClasses = (marker: Marker): string => {
-    if (marker.item.is_subproject) {
+// A tagged event's bar is tinted with a light wash of its own tag color (matching the tag
+// dot right next to it) rather than the generic subproject/primary tint — Events carry at
+// most one tag (see the categories docblock on CalendarItem), so there's never a choice to
+// make between colors, only whether one is set at all.
+const barClasses = (bar: EventBar): string => {
+    const tagColor = bar.item.categories?.[0]?.color;
+    if (tagColor) return kanbanCardBg[tagColor] ?? kanbanCardBg.slate;
+
+    if (bar.item.is_subproject) {
         return kanbanCardBg[
-            subprojectColors.value[marker.item.project_id] ?? 'slate'
+            subprojectColors.value[bar.item.project_id] ?? 'slate'
         ];
     }
     return 'bg-projector-primary-50 dark:bg-projector-primary-950/30';
@@ -264,14 +380,33 @@ const openItem = (item: CalendarItem) => {
     router.visit(url);
 };
 
-const formatMarkerDate = (marker: Marker): string => {
-    if (!marker.item.due_at) return '';
-    return new Date(marker.item.due_at).toLocaleDateString(undefined, {
+const formatDate = (dateStr: string | null): string => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString(undefined, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
         year: 'numeric',
     });
+};
+
+// Every item here is an Event (see Project::calendarItems() — the calendar is events-only),
+// which always has both a start and end date. When they're the same calendar day — the common
+// case, since a single-date source row defaults start to end for both the "Notes to Events"
+// transformation and the list importer — showing "Start Date"/"End Date" as separate, identical
+// rows would be redundant, so it collapses to one plain "Date" row; only a genuine multi-day
+// Event gets distinct Start/End rows.
+const dateFields = (item: CalendarItem): { label: string; value: string }[] => {
+    const { start_at: start, due_at: due } = item;
+
+    if (!start || !due || start.slice(0, 10) === due.slice(0, 10)) {
+        return [{ label: 'Date', value: formatDate(due ?? start) }];
+    }
+
+    return [
+        { label: 'Start Date', value: formatDate(start) },
+        { label: 'End Date', value: formatDate(due) },
+    ];
 };
 
 // Strips the document's rich-text HTML down to plain text for a short preview —
@@ -287,26 +422,30 @@ const previewText = (html: string | null): string => {
 // Hover-card behavior on top of the (click-triggered by default) Popover primitive: open
 // on mouseenter, close on mouseleave, with a short grace period so moving the cursor from
 // the trigger into the popover's own content (to click "View Details") doesn't close it.
-const activeMarkerKey = ref<string | null>(null);
+// Keyed by bar (item id + week index), not just item id — a multi-week event renders one bar
+// per week it crosses, and each needs its own popover open state so hovering one segment
+// doesn't also pop open its other segment sitting in a different week row.
+const activeBarKey = ref<string | null>(null);
 let closeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const markerKey = (marker: Marker): string => String(marker.item.id);
+const barKey = (bar: EventBar, weekIndex: number): string =>
+    `${bar.item.id}-w${weekIndex}`;
 
-const openMarkerCard = (marker: Marker) => {
+const openBarCard = (bar: EventBar, weekIndex: number) => {
     if (closeTimeout) {
         clearTimeout(closeTimeout);
         closeTimeout = null;
     }
-    activeMarkerKey.value = markerKey(marker);
+    activeBarKey.value = barKey(bar, weekIndex);
 };
 
-const scheduleCloseMarkerCard = () => {
+const scheduleCloseBarCard = () => {
     closeTimeout = setTimeout(() => {
-        activeMarkerKey.value = null;
+        activeBarKey.value = null;
     }, 150);
 };
 
-const cancelCloseMarkerCard = () => {
+const cancelCloseBarCard = () => {
     if (closeTimeout) {
         clearTimeout(closeTimeout);
         closeTimeout = null;
@@ -328,6 +467,15 @@ const cancelCloseMarkerCard = () => {
                 Events with due dates, including sub-project events, will show
                 up here.
             </p>
+            <Button
+                v-if="canManageImports"
+                size="sm"
+                class="mt-4 h-8 px-3 text-[10px] font-black tracking-widest uppercase"
+                @click="emit('import-events')"
+            >
+                <Upload class="h-3.5 w-3.5" />
+                Import Events
+            </Button>
         </div>
 
         <template v-else>
@@ -336,6 +484,15 @@ const cancelCloseMarkerCard = () => {
                     {{ monthLabel }}
                 </h3>
                 <div class="flex items-center gap-2">
+                    <Button
+                        v-if="canManageImports"
+                        size="sm"
+                        class="h-8 px-3 text-[10px] font-black tracking-widest uppercase"
+                        @click="emit('import-events')"
+                    >
+                        <Upload class="h-3.5 w-3.5" />
+                        Import Events
+                    </Button>
                     <Button
                         as-child
                         variant="outline"
@@ -497,13 +654,19 @@ const cancelCloseMarkerCard = () => {
                 <div
                     v-for="(week, wi) in weeks"
                     :key="wi"
-                    class="grid grid-cols-7 border-b border-gray-100 last:border-b-0 dark:border-gray-800"
+                    class="grid border-b border-gray-100 last:border-b-0 dark:border-gray-800"
+                    :style="{
+                        gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                        gridTemplateRows: `26px repeat(${week.laneCount}, 22px) 6px`,
+                    }"
                 >
                     <div
-                        v-for="cell in week"
+                        v-for="(cell, ci) in week.days"
                         :key="cell.dateKey"
+                        :style="{ gridColumn: ci + 1, gridRow: '1 / -1' }"
                         :class="[
-                            'min-h-[110px] border-r border-gray-100 p-1.5 align-top last:border-r-0 dark:border-gray-800',
+                            'border-r border-gray-100 pt-1 pl-1.5 dark:border-gray-800',
+                            ci === 6 ? 'border-r-0' : '',
                             cell.inCurrentMonth
                                 ? 'bg-white dark:bg-transparent'
                                 : 'bg-gray-50/50 dark:bg-gray-900/30',
@@ -511,7 +674,7 @@ const cancelCloseMarkerCard = () => {
                     >
                         <span
                             :class="[
-                                'mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold',
+                                'inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold',
                                 cell.isToday
                                     ? 'bg-projector-primary-600 text-white'
                                     : cell.inCurrentMonth
@@ -521,141 +684,130 @@ const cancelCloseMarkerCard = () => {
                         >
                             {{ cell.date.getDate() }}
                         </span>
+                    </div>
 
-                        <div class="space-y-1">
-                            <Popover
-                                v-for="(marker, mi) in cell.markers"
-                                :key="`${marker.item.id}-${mi}`"
-                                :open="activeMarkerKey === markerKey(marker)"
+                    <Popover
+                        v-for="bar in week.bars"
+                        :key="barKey(bar, wi)"
+                        :open="activeBarKey === barKey(bar, wi)"
+                    >
+                        <PopoverTrigger as-child>
+                            <button
+                                type="button"
+                                @click="openItem(bar.item)"
+                                @mouseenter="openBarCard(bar, wi)"
+                                @mouseleave="scheduleCloseBarCard"
+                                @focus="openBarCard(bar, wi)"
+                                @blur="scheduleCloseBarCard"
+                                :style="{
+                                    gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
+                                    gridRow: bar.lane + 2,
+                                }"
+                                :class="[
+                                    'z-10 mx-0.5 flex items-center gap-1 self-center overflow-hidden px-1.5 py-0.5 text-left transition-colors hover:brightness-95',
+                                    barClasses(bar),
+                                    bar.continuesBefore
+                                        ? 'rounded-l-none'
+                                        : 'rounded-l',
+                                    bar.continuesAfter
+                                        ? 'rounded-r-none'
+                                        : 'rounded-r',
+                                ]"
                             >
-                                <PopoverTrigger as-child>
-                                    <button
-                                        type="button"
-                                        @click="openItem(marker.item)"
-                                        @mouseenter="openMarkerCard(marker)"
-                                        @mouseleave="scheduleCloseMarkerCard"
-                                        @focus="openMarkerCard(marker)"
-                                        @blur="scheduleCloseMarkerCard"
+                                <span
+                                    v-if="bar.item.categories?.[0]"
+                                    :class="[
+                                        'h-1.5 w-1.5 shrink-0 rounded-full',
+                                        kanbanDotClasses[
+                                            bar.item.categories[0].color
+                                        ],
+                                    ]"
+                                ></span>
+                                <span
+                                    class="flex-1 truncate text-[10px] font-bold text-gray-700 dark:text-gray-300"
+                                >
+                                    {{ bar.item.name }}
+                                </span>
+                            </button>
+                        </PopoverTrigger>
+
+                        <PopoverContent
+                            class="w-72 space-y-3 p-4"
+                            @mouseenter="cancelCloseBarCard"
+                            @mouseleave="scheduleCloseBarCard"
+                            @open-auto-focus.prevent
+                        >
+                            <div class="space-y-1">
+                                <div
+                                    class="flex flex-wrap items-center gap-1.5"
+                                >
+                                    <span
+                                        v-if="bar.item.is_subproject"
                                         :class="[
-                                            'flex w-full flex-col items-start gap-0.5 rounded px-1.5 py-1 text-left transition-colors hover:brightness-95',
-                                            markerClasses(marker),
+                                            'rounded px-1.5 py-0.5 text-[8px] font-black tracking-widest uppercase',
+                                            kanbanClasses[
+                                                subprojectColors[
+                                                    bar.item.project_id
+                                                ] ?? 'slate'
+                                            ],
                                         ]"
                                     >
+                                        {{ bar.item.project_name }}
+                                    </span>
+                                    <span
+                                        v-if="bar.item.categories?.[0]"
+                                        :class="[
+                                            'rounded px-1.5 py-0.5 text-[8px] font-black tracking-widest uppercase',
+                                            kanbanClasses[
+                                                bar.item.categories[0].color
+                                            ],
+                                        ]"
+                                    >
+                                        {{ bar.item.categories[0].name }}
+                                    </span>
+                                    <template
+                                        v-for="field in dateFields(bar.item)"
+                                        :key="field.label"
+                                    >
                                         <span
-                                            class="flex w-full items-center gap-1"
+                                            class="text-[8px] font-black tracking-widest text-gray-400 uppercase"
                                         >
-                                            <span
-                                                v-if="
-                                                    marker.item.categories?.[0]
-                                                "
-                                                :class="[
-                                                    'h-1.5 w-1.5 shrink-0 rounded-full',
-                                                    kanbanDotClasses[
-                                                        marker.item
-                                                            .categories[0]
-                                                            .color
-                                                    ],
-                                                ]"
-                                            ></span>
-                                            <span
-                                                class="flex-1 truncate text-[10px] font-bold text-gray-700 dark:text-gray-300"
-                                            >
-                                                {{ marker.item.name }}
-                                            </span>
+                                            {{ field.label }}
                                         </span>
                                         <span
-                                            v-if="marker.item.is_subproject"
-                                            class="w-full truncate pl-2.5 text-[8px] font-black tracking-widest text-gray-400 uppercase"
+                                            class="text-[8px] font-black tracking-widest text-gray-300 uppercase"
+                                            >·</span
                                         >
-                                            {{ marker.item.project_name }}
+                                        <span
+                                            class="text-[8px] font-black tracking-widest text-gray-400 uppercase"
+                                        >
+                                            {{ field.value }}
                                         </span>
-                                    </button>
-                                </PopoverTrigger>
-
-                                <PopoverContent
-                                    class="w-72 space-y-3 p-4"
-                                    @mouseenter="cancelCloseMarkerCard"
-                                    @mouseleave="scheduleCloseMarkerCard"
-                                    @open-auto-focus.prevent
+                                    </template>
+                                </div>
+                                <p
+                                    class="text-sm leading-snug font-bold text-gray-900 dark:text-white"
                                 >
-                                    <div class="space-y-1">
-                                        <div
-                                            class="flex flex-wrap items-center gap-1.5"
-                                        >
-                                            <span
-                                                v-if="marker.item.is_subproject"
-                                                :class="[
-                                                    'rounded px-1.5 py-0.5 text-[8px] font-black tracking-widest uppercase',
-                                                    kanbanClasses[
-                                                        subprojectColors[
-                                                            marker.item
-                                                                .project_id
-                                                        ] ?? 'slate'
-                                                    ],
-                                                ]"
-                                            >
-                                                {{ marker.item.project_name }}
-                                            </span>
-                                            <span
-                                                v-if="
-                                                    marker.item.categories?.[0]
-                                                "
-                                                :class="[
-                                                    'rounded px-1.5 py-0.5 text-[8px] font-black tracking-widest uppercase',
-                                                    kanbanClasses[
-                                                        marker.item
-                                                            .categories[0]
-                                                            .color
-                                                    ],
-                                                ]"
-                                            >
-                                                {{
-                                                    marker.item.categories[0]
-                                                        .name
-                                                }}
-                                            </span>
-                                            <span
-                                                class="text-[8px] font-black tracking-widest text-gray-400 uppercase"
-                                            >
-                                                Due Date
-                                            </span>
-                                            <span
-                                                class="text-[8px] font-black tracking-widest text-gray-300 uppercase"
-                                                >·</span
-                                            >
-                                            <span
-                                                class="text-[8px] font-black tracking-widest text-gray-400 uppercase"
-                                            >
-                                                {{ formatMarkerDate(marker) }}
-                                            </span>
-                                        </div>
-                                        <p
-                                            class="text-sm leading-snug font-bold text-gray-900 dark:text-white"
-                                        >
-                                            {{ marker.item.name }}
-                                        </p>
-                                    </div>
+                                    {{ bar.item.name }}
+                                </p>
+                            </div>
 
-                                    <p
-                                        class="line-clamp-4 text-xs leading-relaxed text-gray-500 dark:text-gray-400"
-                                    >
-                                        {{ previewText(marker.item.content) }}
-                                    </p>
+                            <p
+                                class="line-clamp-4 text-xs leading-relaxed text-gray-500 dark:text-gray-400"
+                            >
+                                {{ previewText(bar.item.content) }}
+                            </p>
 
-                                    <Button
-                                        size="sm"
-                                        class="h-8 w-full text-[10px] font-black tracking-widest uppercase"
-                                        @click="openItem(marker.item)"
-                                    >
-                                        View Details
-                                        <ArrowUpRight
-                                            class="ml-1 h-3.5 w-3.5"
-                                        />
-                                    </Button>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                    </div>
+                            <Button
+                                size="sm"
+                                class="h-8 w-full text-[10px] font-black tracking-widest uppercase"
+                                @click="openItem(bar.item)"
+                            >
+                                View Details
+                                <ArrowUpRight class="ml-1 h-3.5 w-3.5" />
+                            </Button>
+                        </PopoverContent>
+                    </Popover>
                 </div>
             </div>
         </template>

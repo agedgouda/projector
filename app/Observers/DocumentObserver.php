@@ -11,6 +11,16 @@ use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class DocumentObserver implements ShouldHandleEventsAfterCommit
 {
+    /**
+     * task_list_import/event_list_import documents store their content as a JSON dump of every
+     * imported row (see ImportTaskList::finish()) — not human-readable text, so embedding it is
+     * meaningless, and a large import's JSON routinely exceeds OpenAI's 8192-token embedding
+     * input limit, permanently failing GenerateDocumentEmbedding for every such import.
+     *
+     * @var list<string>
+     */
+    private const NON_VECTORIZABLE_TYPES = ['task_list_import', 'event_list_import'];
+
     public function created(Document $document): void
     {
         // 1. Priority: the universal, protocol-independent Notes -> Action Items step.
@@ -31,7 +41,7 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
 
         // 2. Secondary: Standard Vectorization
         // For manually added context, jump straight to embedding.
-        if (! empty($document->content) && is_null($document->embedding)) {
+        if (! empty($document->content) && is_null($document->embedding) && ! in_array($document->type, self::NON_VECTORIZABLE_TYPES, true)) {
             GenerateDocumentEmbedding::dispatch($document);
         }
     }
@@ -55,7 +65,7 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
     public function updated(Document $document): void
     {
         // If content is dirty, the previous embedding is now invalid (Garbage in, Garbage out)
-        if ($document->isDirty('content')) {
+        if ($document->isDirty('content') && ! in_array($document->type, self::NON_VECTORIZABLE_TYPES, true)) {
             GenerateDocumentEmbedding::dispatch($document);
         }
 

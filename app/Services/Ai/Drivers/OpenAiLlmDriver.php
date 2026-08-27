@@ -33,6 +33,9 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
             // the caller found uploaded images to match against, and strict structured-output
             // mode drops any field not declared here regardless of what the prompt text says.
             $includeImageIds = str_contains($userPrompt, '"image_ids"');
+            // Same reasoning as $includeAssignee: the prompt only asks for "tag_names" when
+            // the project has tags to choose from.
+            $includeTags = str_contains($userPrompt, '"tag_names"');
 
             $properties = [
                 'title' => [
@@ -78,6 +81,15 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
                     'description' => 'Numbers of any uploaded images from the source document, given in the prompt, that clearly belong with this item — or an empty array if none do.',
                 ];
                 $required[] = 'image_ids';
+            }
+
+            if ($includeTags) {
+                $properties['tag_names'] = [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                    'description' => 'Zero or more exact tag names from the candidate list given in the prompt that clearly apply to this item — or an empty array if none do.',
+                ];
+                $required[] = 'tag_names';
             }
 
             $jsonSchema = [
