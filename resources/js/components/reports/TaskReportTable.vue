@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { show as showDocument } from '@/routes/projects/documents';
-import { Link } from '@inertiajs/vue3';
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-vue-next';
+import { ChevronUp, ChevronDown, ChevronsUpDown, Plus } from 'lucide-vue-next';
 import { PRIORITY_LABELS, priorityDotClasses, kanbanDotClasses } from '@/lib/constants';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
-import { invitationName } from '@/lib/assignees';
+import { invitationName, type AssigneeOption } from '@/lib/assignees';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+} from '@/components/ui/select';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 
 export interface TaskReportRow {
     id: string | number;
@@ -16,6 +27,8 @@ export interface TaskReportRow {
     external_due_at: string | null;
     priority: string | null;
     task_status: string | null;
+    assignee_id: number | null;
+    pending_assignee_invitation_id: number | null;
     assignee: { id: number; name: string } | null;
     pending_assignee: { id: number; email: string; first_name: string | null; last_name: string | null } | null;
     categories: CategoryDef[];
@@ -29,10 +42,22 @@ const props = defineProps<{
     columns?: KanbanColumnDef[];
     usesExternalDueDates?: boolean;
     hasSubprojects?: boolean;
+    assigneeOptions?: AssigneeOption[];
+    // The task family's full tag catalog (see Project::familyCategories()) — offered as
+    // "add a tag" options on every row regardless of which sub-project it's on, since tags
+    // are shared at the family root (DocumentController::updateCategories() validates
+    // against $project->familyRoot(), not the task's own immediate project).
+    categories?: CategoryDef[];
 }>();
 
 const emit = defineEmits<{
     (e: 'sort-change', key: SortKey, dir: SortDir): void;
+    // Field-level edits (status/due dates/assignee/priority) — one attribute at a time,
+    // mirroring TaskRowFields.vue/AssigneeAvatar.vue/PriorityDot.vue's own 'update' event.
+    (e: 'update-field', task: TaskReportRow, field: string, value: unknown): void;
+    // Tags use sync semantics (send the full desired set), same as useDocumentActions'
+    // updateTags — a single add/remove can't be expressed as one field value.
+    (e: 'update-tags', task: TaskReportRow, categories: CategoryDef[]): void;
 }>();
 
 const statusFor = (statusKey: string | null) => props.columns?.find((c) => c.key === statusKey);
@@ -62,11 +87,6 @@ const gridColsClass = computed(() => {
     return 'md:grid-cols-[110px_100px_1fr_180px_120px_180px]';
 });
 
-const formatDueDate = (value: string | null): string => {
-    if (!value) return '—';
-    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
 const assigneeLabel = (task: TaskReportRow): string => {
     if (task.assignee) return task.assignee.name;
     if (task.pending_assignee) return invitationName(task.pending_assignee as unknown as OrganizationInvitation);
@@ -80,6 +100,37 @@ const documentUrl = (task: TaskReportRow): string => {
     const baseUrl = showDocument({ project: task.project_id, document: String(task.id) }).url;
     return `${baseUrl}?from=${encodeURIComponent(window.location.href)}`;
 };
+
+// Rows are a plain div (not a <Link>/<a>) precisely so the Select/date-input controls
+// below can live inside them — nesting interactive elements like <button> and <select>
+// inside an anchor is invalid HTML, the same reason TraceabilityRow.vue's task rows use a
+// div-plus-click here rather than a real link. Every editable control below stops its own
+// click from bubbling here (see each `@click.stop`), so only the dead space around them —
+// and the task name itself — triggers navigation.
+const goToDetails = (task: TaskReportRow) => router.visit(documentUrl(task));
+
+const dueDateInputValue = (value: string | null): string => (value ? value.slice(0, 10) : '');
+
+// Mirrors AssigneeAvatar.vue's own assigneeValue: a real user's id, an `inv:`-prefixed
+// pending-invitation id, or the unassigned sentinel — the three states the Select below
+// offers.
+const assigneeSelectValue = (task: TaskReportRow): string => {
+    if (task.pending_assignee_invitation_id) return `inv:${task.pending_assignee_invitation_id}`;
+    return task.assignee_id?.toString() ?? 'unassigned';
+};
+
+// Tags already on this task never show up again as an "add" option — same rule as
+// Documents/Show.vue's availableTagsToAdd.
+const availableTagsToAdd = (task: TaskReportRow): CategoryDef[] => {
+    const appliedIds = new Set(task.categories.map((c) => c.id));
+    return (props.categories ?? []).filter((c) => !appliedIds.has(c.id));
+};
+
+const addTag = (task: TaskReportRow, category: CategoryDef) =>
+    emit('update-tags', task, [...task.categories, category]);
+
+const removeTag = (task: TaskReportRow, category: CategoryDef) =>
+    emit('update-tags', task, task.categories.filter((c) => c.id !== category.id));
 
 const PRIORITY_WEIGHT: Record<string, number> = { low: 1, medium: 2, high: 3 };
 
@@ -223,44 +274,134 @@ const sortedTasks = computed(() => {
             </button>
         </div>
 
-        <Link
+        <div
             v-for="task in sortedTasks"
             :key="task.id"
-            :href="documentUrl(task)"
-            :class="['grid grid-cols-2 items-center gap-2 md:gap-3 rounded-md px-4 py-3 text-[13px] transition-colors', gridColsClass, FLAT_ROW_HOVER]"
+            :class="['grid grid-cols-2 items-center gap-2 md:gap-3 rounded-md px-4 py-3 text-[13px] transition-colors cursor-pointer', gridColsClass, FLAT_ROW_HOVER]"
+            @click="goToDetails(task)"
         >
             <span v-if="hasSubprojects" class="truncate text-slate-500 dark:text-slate-400">{{ task.project_name ?? '—' }}</span>
 
-            <span class="flex items-center gap-1.5">
-                <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[statusFor(task.task_status)?.color ?? 'slate']]"></span>
-                <span class="text-slate-500 dark:text-slate-400">{{ statusFor(task.task_status)?.label ?? task.task_status ?? '—' }}</span>
-            </span>
+            <Select
+                :model-value="task.task_status ?? 'todo'"
+                @update:model-value="(val) => emit('update-field', task, 'task_status', val)"
+            >
+                <SelectTrigger
+                    class="h-auto w-auto justify-start gap-1.5 border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
+                    @click.stop
+                >
+                    <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[statusFor(task.task_status)?.color ?? 'slate']]"></span>
+                    <span class="text-slate-500 dark:text-slate-400">{{ statusFor(task.task_status)?.label ?? task.task_status ?? '—' }}</span>
+                </SelectTrigger>
+                <SelectContent align="start">
+                    <SelectItem v-for="column in columns ?? []" :key="column.key" :value="column.key">
+                        <span class="flex items-center gap-1.5">
+                            <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[column.color ?? 'slate']]"></span>
+                            {{ column.label }}
+                        </span>
+                    </SelectItem>
+                </SelectContent>
+            </Select>
 
-            <span class="text-slate-500 dark:text-slate-400">{{ formatDueDate(task.due_at) }}</span>
+            <input
+                type="date"
+                :value="dueDateInputValue(task.due_at)"
+                class="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-[13px] text-slate-500 dark:text-slate-400 focus:ring-0 [&::-webkit-calendar-picker-indicator]:h-3.5 [&::-webkit-calendar-picker-indicator]:w-3.5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                @click.stop
+                @change="(e) => emit('update-field', task, 'due_at', (e.target as HTMLInputElement).value)"
+            />
 
-            <span v-if="usesExternalDueDates" class="text-slate-500 dark:text-slate-400">{{ formatDueDate(task.external_due_at) }}</span>
+            <input
+                v-if="usesExternalDueDates"
+                type="date"
+                :value="dueDateInputValue(task.external_due_at)"
+                class="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-[13px] text-slate-500 dark:text-slate-400 focus:ring-0 [&::-webkit-calendar-picker-indicator]:h-3.5 [&::-webkit-calendar-picker-indicator]:w-3.5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                @click.stop
+                @change="(e) => emit('update-field', task, 'external_due_at', (e.target as HTMLInputElement).value)"
+            />
 
-            <span class="col-span-2 md:col-span-1 text-slate-900 dark:text-slate-100 truncate">{{ task.name }}</span>
+            <span
+                class="col-span-2 md:col-span-1 text-slate-900 dark:text-slate-100 truncate"
+            >{{ task.name }}</span>
 
-            <span class="truncate text-slate-700 dark:text-slate-300">{{ assigneeLabel(task) }}</span>
+            <Select
+                :model-value="assigneeSelectValue(task)"
+                @update:model-value="(val) => emit('update-field', task, 'assignee_id', val)"
+            >
+                <SelectTrigger
+                    class="h-auto w-full justify-start border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
+                    @click.stop
+                >
+                    <span class="truncate text-slate-700 dark:text-slate-300">{{ assigneeLabel(task) }}</span>
+                </SelectTrigger>
+                <SelectContent align="start">
+                    <SelectItem value="unassigned" class="text-slate-400">Unassigned</SelectItem>
+                    <SelectItem v-for="option in assigneeOptions ?? []" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                    </SelectItem>
+                </SelectContent>
+            </Select>
 
-            <span class="flex items-center gap-1.5">
-                <span :class="['w-1.5 h-1.5 rounded-full shrink-0', priorityDotClasses[task.priority ?? 'low']]"></span>
-                <span class="text-slate-500 dark:text-slate-400">{{ task.priority ? PRIORITY_LABELS[task.priority] : '—' }}</span>
-            </span>
+            <Select
+                :model-value="task.priority ?? 'low'"
+                @update:model-value="(val) => emit('update-field', task, 'priority', val)"
+            >
+                <SelectTrigger
+                    class="h-auto w-auto justify-start gap-1.5 border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
+                    @click.stop
+                >
+                    <span :class="['w-1.5 h-1.5 rounded-full shrink-0', priorityDotClasses[task.priority ?? 'low']]"></span>
+                    <span class="text-slate-500 dark:text-slate-400">{{ task.priority ? PRIORITY_LABELS[task.priority] : '—' }}</span>
+                </SelectTrigger>
+                <SelectContent align="start">
+                    <SelectItem v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key">
+                        <span class="flex items-center gap-1.5">
+                            <span :class="['w-1.5 h-1.5 rounded-full shrink-0', priorityDotClasses[key]]"></span>
+                            {{ label }}
+                        </span>
+                    </SelectItem>
+                </SelectContent>
+            </Select>
 
-            <span class="col-span-2 md:col-span-1 flex flex-wrap items-center gap-1">
-                <span
+            <span class="col-span-2 md:col-span-1 flex flex-wrap items-center gap-1" @click.stop>
+                <button
                     v-for="category in task.categories"
                     :key="category.id"
-                    class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                    type="button"
+                    :title="`Remove '${category.name}' tag`"
+                    class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    @click="removeTag(task, category)"
                 >
                     <span :class="['w-1.5 h-1.5 rounded-full shrink-0', kanbanDotClasses[category.color]]"></span>
                     {{ category.name }}
-                </span>
-                <span v-if="task.categories.length === 0" class="text-slate-400 dark:text-slate-500">—</span>
+                </button>
+                <span v-if="task.categories.length === 0 && availableTagsToAdd(task).length === 0" class="text-slate-400 dark:text-slate-500">—</span>
+
+                <Popover v-if="availableTagsToAdd(task).length">
+                    <PopoverTrigger as-child>
+                        <button
+                            type="button"
+                            title="Add a tag"
+                            class="flex h-4 w-4 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-projector-primary-300 hover:text-projector-primary-600 dark:border-slate-600"
+                        >
+                            <Plus class="h-2.5 w-2.5" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent class="w-48 p-1" align="start">
+                        <button
+                            v-for="category in availableTagsToAdd(task)"
+                            :key="category.id"
+                            type="button"
+                            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                            @click="addTag(task, category)"
+                        >
+                            <span :class="[kanbanDotClasses[category.color], 'h-2 w-2 shrink-0 rounded-full']"></span>
+                            {{ category.name }}
+                        </button>
+                    </PopoverContent>
+                </Popover>
             </span>
-        </Link>
+        </div>
 
         <div v-if="tasks.length === 0" class="py-16 text-center rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
             <p class="text-slate-400 font-medium text-sm">No tasks match those filters.</p>
