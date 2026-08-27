@@ -66,9 +66,12 @@ const statusFor = (statusKey: string | null) => props.columns?.find((c) => c.key
 // and due date(s) need to land in the same place, which only a shared column grid
 // guarantees; sizing them tight to their actual content (rather than a wide flex group)
 // is what keeps Task Name from starting with a gap of dead space after them. "Internal"/
-// "External" stack over "Due" in the header (see template) so each due column only needs
-// to be as wide as one of those words, not the full "Internal Due" phrase. Project (when
-// shown) always leads, since it's the grouping-level field.
+// "External" stack over "Due" in the header (see template) so each due column's header
+// text only needs to fit one of those words — but the body cell below it is a native
+// `<input type="date">` (see template), which needs ~112px for its own "MM/DD/YYYY"
+// rendering plus its built-in calendar-picker icon at this row's text-[13px] size (same
+// figure TaskRowFields.vue's own date input is sized to, for the same reason). Project
+// (when shown) always leads, since it's the grouping-level field.
 //
 // All four combinations are spelled out as complete literal strings (not built via string
 // concatenation) since Tailwind's build-time scanner only picks up class names that appear
@@ -76,15 +79,15 @@ const statusFor = (statusKey: string | null) => props.columns?.find((c) => c.key
 // silently fail to generate any CSS.
 const gridColsClass = computed(() => {
     if (props.hasSubprojects && props.usesExternalDueDates) {
-        return 'md:grid-cols-[140px_110px_90px_90px_1fr_180px_120px_180px]';
+        return 'md:grid-cols-[140px_110px_112px_112px_1fr_180px_120px_180px]';
     }
     if (props.hasSubprojects) {
-        return 'md:grid-cols-[140px_110px_100px_1fr_180px_120px_180px]';
+        return 'md:grid-cols-[140px_110px_112px_1fr_180px_120px_180px]';
     }
     if (props.usesExternalDueDates) {
-        return 'md:grid-cols-[110px_90px_90px_1fr_180px_120px_180px]';
+        return 'md:grid-cols-[110px_112px_112px_1fr_180px_120px_180px]';
     }
-    return 'md:grid-cols-[110px_100px_1fr_180px_120px_180px]';
+    return 'md:grid-cols-[110px_112px_1fr_180px_120px_180px]';
 });
 
 const assigneeLabel = (task: TaskReportRow): string => {
