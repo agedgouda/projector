@@ -250,11 +250,11 @@ const handleUpdate = (field: string, value: any) => {
             </div>
 
             <div
-                class="flex items-center gap-1 text-gray-400"
+                class="-mx-1.5 -my-0.5 flex items-center gap-1.5 rounded px-1.5 py-0.5 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
                 @click.stop
                 @keydown.stop
             >
-                <Calendar class="h-3 w-3 shrink-0" />
+                <Calendar class="h-4 w-4 shrink-0" />
                 <input
                     type="date"
                     :value="doc.due_at ? doc.due_at.slice(0, 10) : ''"
@@ -265,10 +265,7 @@ const handleUpdate = (field: string, value: any) => {
                                 (e.target as HTMLInputElement).value,
                             )
                     "
-                    :class="[
-                        KANBAN_UI.subtleLabel,
-                        'w-[92px] cursor-pointer border-none bg-transparent p-0 focus:ring-0',
-                    ]"
+                    class="w-[104px] cursor-pointer border-none bg-transparent p-0 text-[13px] font-bold text-gray-700 focus:ring-0 dark:text-gray-200 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                 />
             </div>
         </div>
