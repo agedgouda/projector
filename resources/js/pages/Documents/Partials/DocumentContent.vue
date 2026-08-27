@@ -23,6 +23,9 @@ const props = defineProps<{
     project: Project;
     documentTypeCatalog?: DocumentSchemaItem[];
     form: InertiaForm<DocumentFields>;
+    categories?: CategoryDef[];
+    availableTagsToAdd?: CategoryDef[];
+    tagsReadOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -35,6 +38,8 @@ const emit = defineEmits<{
         field: string,
         value: any,
     ): void;
+    (e: 'add-tag', category: CategoryDef): void;
+    (e: 'remove-tag', category: CategoryDef): void;
 }>();
 
 const { navigateToDetails } = useDocumentActions({ project: props.project });
@@ -207,9 +212,14 @@ const usesExternalDueDates = computed(
                 :form="form"
                 :mentionable-users="mentionableUsers"
                 :project-id="project.id"
+                :categories="categories"
+                :available-tags-to-add="availableTagsToAdd"
+                :tags-read-only="tagsReadOnly"
                 @submit="handleFormSubmit"
                 @cancel="handleCancel"
                 @update:is-uploading="emit('update:isUploading', $event)"
+                @add-tag="(category) => emit('add-tag', category)"
+                @remove-tag="(category) => emit('remove-tag', category)"
             />
         </div>
 

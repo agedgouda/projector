@@ -311,16 +311,21 @@ watch(
                     :document-type-catalog="documentTypeCatalog"
                     :is-editing="isEditing"
                     :form="form"
+                    :categories="item.categories ?? []"
+                    :available-tags-to-add="availableTagsToAdd"
+                    :tags-read-only="project.inactive"
                     @submit="handleFormSubmitGuarded"
                     @cancel="toggleEdit"
                     @update:is-uploading="isUploading = $event"
                     @update-child-task="
                         (id, field, val) => updateField(String(id), field, val)
                     "
+                    @add-tag="addTag"
+                    @remove-tag="removeTag"
                 />
 
                 <div
-                    v-if="(project.categories?.length ?? 0) > 0"
+                    v-if="!isEditing && (project.categories?.length ?? 0) > 0"
                     class="mt-12 border-t border-slate-100 pt-10 dark:border-slate-800"
                 >
                     <h3

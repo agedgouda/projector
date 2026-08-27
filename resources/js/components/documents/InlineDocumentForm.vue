@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
     Select,
     SelectContent,
@@ -28,6 +29,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { kanbanDotClasses } from '@/lib/constants';
 
 const props = defineProps<{
     mode: 'create' | 'edit';
@@ -40,9 +42,22 @@ const props = defineProps<{
         last_name: string;
     }[];
     projectId: string;
+    // Tags — the caller owns both persistence (immediate PUT on an existing document in
+    // edit mode vs. staged locally until the create request in create mode) and the
+    // single-tag-per-Event rule, so this component only ever renders what it's given and
+    // emits add/remove intents rather than mutating a tag list itself.
+    categories?: CategoryDef[];
+    availableTagsToAdd?: CategoryDef[];
+    tagsReadOnly?: boolean;
 }>();
 
-const emit = defineEmits(['cancel', 'submit', 'update:isUploading']);
+const emit = defineEmits<{
+    (e: 'cancel'): void;
+    (e: 'submit'): void;
+    (e: 'update:isUploading', value: boolean): void;
+    (e: 'add-tag', category: CategoryDef): void;
+    (e: 'remove-tag', category: CategoryDef): void;
+}>();
 
 /**
  * Correct mapping for the Select dropdown
@@ -262,6 +277,51 @@ const updateCriterion = (index: number, value: string) =>
             >
                 {{ form.errors.content }}
             </p>
+        </div>
+
+        <div v-if="(categories?.length ?? 0) + (availableTagsToAdd?.length ?? 0) > 0">
+            <Label
+                class="mb-2 block text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                >Tags</Label
+            >
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                    v-for="category in categories"
+                    :key="category.id"
+                    type="button"
+                    :title="`Remove '${category.name}' tag`"
+                    :disabled="tagsReadOnly"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 disabled:pointer-events-none disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                    @click="emit('remove-tag', category)"
+                >
+                    <span :class="[kanbanDotClasses[category.color], 'h-2 w-2 shrink-0 rounded-full']"></span>
+                    {{ category.name }}
+                </button>
+
+                <Popover v-if="availableTagsToAdd?.length && !tagsReadOnly">
+                    <PopoverTrigger as-child>
+                        <button
+                            type="button"
+                            title="Add a tag"
+                            class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
+                        >
+                            <Plus class="h-3.5 w-3.5" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent class="w-48 p-1" align="start">
+                        <button
+                            v-for="category in availableTagsToAdd"
+                            :key="category.id"
+                            type="button"
+                            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                            @click="emit('add-tag', category)"
+                        >
+                            <span :class="[kanbanDotClasses[category.color], 'h-2 w-2 shrink-0 rounded-full']"></span>
+                            {{ category.name }}
+                        </button>
+                    </PopoverContent>
+                </Popover>
+            </div>
         </div>
 
         <div class="grid gap-2">

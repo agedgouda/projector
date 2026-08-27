@@ -3,18 +3,16 @@
    1. Imports & Types
 ---------------------------- */
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { FilePlus2, Plus } from 'lucide-vue-next';
+import { FilePlus2 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 // Layouts & Components
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { mergeMentionableUsers } from '@/lib/assignees';
-import { kanbanDotClasses } from '@/lib/constants';
 import AppLayout from '@/layouts/AppLayout.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
@@ -237,53 +235,14 @@ const updateFormValue = (field: string, val: any) => {
                         :document_schema="creatableDocumentTypes"
                         :mentionable-users="mentionableUsers"
                         :project-id="project.id"
+                        :categories="selectedCategories"
+                        :available-tags-to-add="availableTagsToAdd"
                         @submit="handleFormSubmit"
                         @cancel="handleCancel"
                         @update:is-uploading="isUploading = $event"
+                        @add-tag="addTag"
+                        @remove-tag="removeTag"
                     />
-                </div>
-
-                <div v-if="(project.categories?.length ?? 0) > 0" class="mt-12 pt-10 border-t border-slate-100 dark:border-slate-800">
-                    <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-400 mb-6 flex items-center gap-2">
-                        <div class="w-4 h-px bg-slate-400 dark:bg-slate-600"></div> Tags
-                    </h3>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button
-                            v-for="category in selectedCategories"
-                            :key="category.id"
-                            type="button"
-                            :title="`Remove '${category.name}' tag`"
-                            class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
-                            @click="removeTag(category)"
-                        >
-                            <span :class="[kanbanDotClasses[category.color], 'h-2 w-2 shrink-0 rounded-full']"></span>
-                            {{ category.name }}
-                        </button>
-
-                        <Popover v-if="availableTagsToAdd.length">
-                            <PopoverTrigger as-child>
-                                <button
-                                    type="button"
-                                    title="Add a tag"
-                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
-                                >
-                                    <Plus class="h-3.5 w-3.5" />
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent class="w-48 p-1" align="start">
-                                <button
-                                    v-for="category in availableTagsToAdd"
-                                    :key="category.id"
-                                    type="button"
-                                    class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
-                                    @click="addTag(category)"
-                                >
-                                    <span :class="[kanbanDotClasses[category.color], 'h-2 w-2 shrink-0 rounded-full']"></span>
-                                    {{ category.name }}
-                                </button>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
                 </div>
             </template>
 
