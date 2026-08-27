@@ -631,6 +631,8 @@ class ReportController extends Controller
             'external_due_at' => $task->external_due_at,
             'priority' => $task->priority,
             'task_status' => $task->task_status,
+            'assignee_id' => $task->assignee_id,
+            'pending_assignee_invitation_id' => $task->pending_assignee_invitation_id,
             'assignee' => $task->assignee ? [
                 'id' => $task->assignee->id,
                 'name' => $task->assignee->name,

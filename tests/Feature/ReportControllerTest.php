@@ -134,7 +134,8 @@ it('filters by assignee', function () {
 
     expect($response->json())->toHaveCount(1)
         ->and($response->json('0.id'))->toBe($assigned->id)
-        ->and($response->json('0.assignee.name'))->toBe($assignee->name);
+        ->and($response->json('0.assignee.name'))->toBe($assignee->name)
+        ->and($response->json('0.assignee_id'))->toBe($assignee->id);
 });
 
 it('filters by multiple assignees at once, matching any of them', function () {
@@ -200,7 +201,8 @@ it('filters by a pending invitation assignee', function () {
 
     expect($response->json())->toHaveCount(1)
         ->and($response->json('0.id'))->toBe($assigned->id)
-        ->and($response->json('0.pending_assignee.email'))->toBe('invited@example.com');
+        ->and($response->json('0.pending_assignee.email'))->toBe('invited@example.com')
+        ->and($response->json('0.pending_assignee_invitation_id'))->toBe($invitation->id);
 });
 
 it('filters by status and priority', function () {

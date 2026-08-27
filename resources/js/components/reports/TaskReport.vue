@@ -2,11 +2,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import { toast } from 'vue-sonner';
 import { Search, FileText, FileSpreadsheet, FileType, Table2, FileStack } from 'lucide-vue-next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import TaskSearchForm, { type TaskSearchFilters } from '@/components/reports/TaskSearchForm.vue';
 import TaskReportTable, { type TaskReportRow, type SortKey, type SortDir } from '@/components/reports/TaskReportTable.vue';
+import projectDocumentsRoutes from '@/routes/projects/documents';
+import { mergeAssigneeOptions } from '@/lib/assignees';
 import {
     projectTasks,
     exportTasksPdf,
@@ -37,6 +40,10 @@ const projectOptions = computed(() => [
 ]);
 const hasSubprojects = computed(() => projectOptions.value.length > 1);
 
+const assigneeOptions = computed(() =>
+    mergeAssigneeOptions(props.project.client?.organization?.users, props.project.client?.organization?.invitations)
+);
+
 const results = ref<TaskReportRow[]>([]);
 const loading = ref(false);
 const hasSearched = ref(false);
@@ -52,6 +59,56 @@ const activeParams = ref<Record<string, string | string[]>>({});
 const currentSort = ref<{ key: SortKey; dir: SortDir }>({ key: 'due_at', dir: 'asc' });
 const onSortChange = (key: SortKey, dir: SortDir) => {
     currentSort.value = { key, dir };
+};
+
+// Each row's inline edits hit its own task's project (a sub-project when the report spans
+// several — see hasSubprojects above), not this component's own `project` prop, so the
+// request URL is built per-task rather than reusing a single fixed project id the way
+// useDocumentActions does for a single-project document tree.
+const onUpdateField = (task: TaskReportRow, field: string, rawValue: unknown) => {
+    let normalizedValue: string | number | null = null;
+    if (rawValue === 'unassigned' || rawValue == null) normalizedValue = null;
+    else if (typeof rawValue === 'string' || typeof rawValue === 'number') normalizedValue = rawValue;
+    else return;
+
+    // Matches TaskRowFields.vue's own handleUpdate — an empty date input clears the field
+    // rather than sending an empty string, which the backend's `date` validation rejects.
+    if ((field === 'due_at' || field === 'external_due_at') && normalizedValue === '') normalizedValue = null;
+
+    const url = projectDocumentsRoutes.updateAttributes({ project: task.project_id, document: String(task.id) }).url;
+    axios.patch(url, { [field]: normalizedValue }).then(() => {
+        if (field === 'assignee_id') {
+            const isInvitation = typeof normalizedValue === 'string' && normalizedValue.startsWith('inv:');
+            const option = normalizedValue != null
+                ? assigneeOptions.value.find((o) => o.value === normalizedValue)
+                : null;
+            task.assignee = !isInvitation && option ? { id: Number(normalizedValue), name: option.label } : null;
+            // `email` holds the option's already-resolved display label, not a real email
+            // address — invitationName() falls back to it once first/last name are absent,
+            // which is all this local, display-only update needs (the next real fetch
+            // replaces it with the server's actual pending_assignee shape).
+            task.pending_assignee = isInvitation && option
+                ? { id: Number((normalizedValue as string).slice(4)), email: option.label, first_name: null, last_name: null }
+                : null;
+            task.assignee_id = !isInvitation && normalizedValue != null ? Number(normalizedValue) : null;
+            task.pending_assignee_invitation_id = isInvitation ? Number((normalizedValue as string).slice(4)) : null;
+        } else {
+            (task as unknown as Record<string, unknown>)[field] = normalizedValue;
+        }
+    }).catch(() => {
+        toast.error('Could not update this task.');
+    });
+};
+
+const onUpdateTags = (task: TaskReportRow, categories: CategoryDef[]) => {
+    const previous = task.categories;
+    task.categories = categories;
+
+    const url = projectDocumentsRoutes.updateCategories({ project: task.project_id, document: String(task.id) }).url;
+    axios.put(url, { category_ids: categories.map((c) => c.id) }).catch(() => {
+        task.categories = previous;
+        toast.error("Could not update this task's tags.");
+    });
 };
 
 const ARRAY_FILTER_KEYS = ['assignee', 'task_status', 'priority', 'project_id', 'category_id'] as const;
@@ -347,7 +404,11 @@ onMounted(async () => {
                 :columns="project.kanban_columns"
                 :uses-external-due-dates="usesExternalDueDates"
                 :has-subprojects="hasSubprojects"
+                :assignee-options="assigneeOptions"
+                :categories="project.categories"
                 @sort-change="onSortChange"
+                @update-field="onUpdateField"
+                @update-tags="onUpdateTags"
             />
         </template>
 
