@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 import { Search, FileText, FileSpreadsheet, FileType, Table2, FileStack } from 'lucide-vue-next';
@@ -65,6 +65,18 @@ const onSortChange = (key: SortKey, dir: SortDir) => {
 // several — see hasSubprojects above), not this component's own `project` prop, so the
 // request URL is built per-task rather than reusing a single fixed project id the way
 // useDocumentActions does for a single-project document tree.
+//
+// Uses Inertia's router (not plain axios) — same as useDocumentActions' patchField/updateTags
+// — because DocumentController::updateAttributes/updateCategories return back(), a 302 to the
+// referring page. Inertia's own PATCH/PUT/DELETE visits send an X-Inertia header that its
+// Laravel middleware uses to upgrade that redirect to a 303, which every client (browser and
+// axios alike) always downgrades to a GET when following it. A plain axios.patch/put has no
+// such header, so the backend leaves it a 302 — and per the Fetch spec, only POST gets
+// downgraded to GET on 301/302; PATCH/PUT are replayed with their original method. Since
+// back()'s target here is this same project's own URL (session's last non-AJAX GET — almost
+// always wherever the user is currently looking at this project from), the replayed PATCH/PUT
+// landed on ProjectController::update at that same /projects/{project} URL instead, failing
+// its unrelated "name" validation.
 const onUpdateField = (task: TaskReportRow, field: string, rawValue: unknown) => {
     let normalizedValue: string | number | null = null;
     if (rawValue === 'unassigned' || rawValue == null) normalizedValue = null;
@@ -76,27 +88,31 @@ const onUpdateField = (task: TaskReportRow, field: string, rawValue: unknown) =>
     if ((field === 'due_at' || field === 'external_due_at') && normalizedValue === '') normalizedValue = null;
 
     const url = projectDocumentsRoutes.updateAttributes({ project: task.project_id, document: String(task.id) }).url;
-    axios.patch(url, { [field]: normalizedValue }).then(() => {
-        if (field === 'assignee_id') {
-            const isInvitation = typeof normalizedValue === 'string' && normalizedValue.startsWith('inv:');
-            const option = normalizedValue != null
-                ? assigneeOptions.value.find((o) => o.value === normalizedValue)
-                : null;
-            task.assignee = !isInvitation && option ? { id: Number(normalizedValue), name: option.label } : null;
-            // `email` holds the option's already-resolved display label, not a real email
-            // address — invitationName() falls back to it once first/last name are absent,
-            // which is all this local, display-only update needs (the next real fetch
-            // replaces it with the server's actual pending_assignee shape).
-            task.pending_assignee = isInvitation && option
-                ? { id: Number((normalizedValue as string).slice(4)), email: option.label, first_name: null, last_name: null }
-                : null;
-            task.assignee_id = !isInvitation && normalizedValue != null ? Number(normalizedValue) : null;
-            task.pending_assignee_invitation_id = isInvitation ? Number((normalizedValue as string).slice(4)) : null;
-        } else {
-            (task as unknown as Record<string, unknown>)[field] = normalizedValue;
-        }
-    }).catch(() => {
-        toast.error('Could not update this task.');
+    router.patch(url, { [field]: normalizedValue }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            if (field === 'assignee_id') {
+                const isInvitation = typeof normalizedValue === 'string' && normalizedValue.startsWith('inv:');
+                const option = normalizedValue != null
+                    ? assigneeOptions.value.find((o) => o.value === normalizedValue)
+                    : null;
+                task.assignee = !isInvitation && option ? { id: Number(normalizedValue), name: option.label } : null;
+                // `email` holds the option's already-resolved display label, not a real email
+                // address — invitationName() falls back to it once first/last name are absent,
+                // which is all this local, display-only update needs (the next real fetch
+                // replaces it with the server's actual pending_assignee shape).
+                task.pending_assignee = isInvitation && option
+                    ? { id: Number((normalizedValue as string).slice(4)), email: option.label, first_name: null, last_name: null }
+                    : null;
+                task.assignee_id = !isInvitation && normalizedValue != null ? Number(normalizedValue) : null;
+                task.pending_assignee_invitation_id = isInvitation ? Number((normalizedValue as string).slice(4)) : null;
+            } else {
+                (task as unknown as Record<string, unknown>)[field] = normalizedValue;
+            }
+        },
+        onError: () => {
+            toast.error('Could not update this task.');
+        },
     });
 };
 
@@ -105,9 +121,12 @@ const onUpdateTags = (task: TaskReportRow, categories: CategoryDef[]) => {
     task.categories = categories;
 
     const url = projectDocumentsRoutes.updateCategories({ project: task.project_id, document: String(task.id) }).url;
-    axios.put(url, { category_ids: categories.map((c) => c.id) }).catch(() => {
-        task.categories = previous;
-        toast.error("Could not update this task's tags.");
+    router.put(url, { category_ids: categories.map((c) => c.id) }, {
+        preserveScroll: true,
+        onError: () => {
+            task.categories = previous;
+            toast.error("Could not update this task's tags.");
+        },
     });
 };
 
