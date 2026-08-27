@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import TaskRowContent from '@/components/documents/TaskRowContent.vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
-import { INTAKE_KEY } from '@/composables/useWorkflow';
 import type { AssigneeOption } from '@/lib/assignees';
 import {
     FLAT_ROW_ACCENT_BAR,
@@ -14,7 +13,6 @@ import {
     CheckSquare,
     ChevronRight,
     FileText,
-    Folder,
     RefreshCw,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -46,7 +44,6 @@ const isTreeExpanded = computed(
 );
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
 const isTask = computed(() => props.isTaskType(props.item.type));
-const isNotes = computed(() => props.item.type === INTAKE_KEY);
 
 // Non-task rows show no date info anywhere else (see below) — shown generically off
 // due_at/start_at rather than gated to a specific type, so any non-task document with dates
@@ -133,8 +130,7 @@ const goToDetails = () =>
                             : 'text-slate-400'
                     "
                 >
-                    <Folder v-if="isNotes" class="h-3.5 w-3.5" />
-                    <FileText v-else class="h-3.5 w-3.5" />
+                    <FileText class="h-3.5 w-3.5" />
                 </div>
 
                 <div class="flex min-w-0 flex-1 items-center gap-1.5">
