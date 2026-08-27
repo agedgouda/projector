@@ -5,7 +5,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import { type BreadcrumbItem } from '@/types';
 import projectRoutes from '@/routes/projects/index';
-import statusMeetingsRoutes from '@/routes/status-meetings/index';
 
 interface PreselectedClient {
     id: string;
