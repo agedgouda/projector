@@ -15,7 +15,6 @@ const emit = defineEmits<{
     (e: 'started'): void;
 }>();
 
-const isAnalyzing = ref(false);
 const modalOpen = ref(false);
 
 interface Analysis {
@@ -36,8 +35,6 @@ const pendingListType = ref<'task' | 'event'>('task');
 const activeListType = ref<'task' | 'event'>('task');
 
 const handleFilePicked = async (file: File) => {
-    isAnalyzing.value = true;
-
     const formData = new FormData();
     formData.append('file', file);
 
@@ -56,19 +53,22 @@ const handleFilePicked = async (file: File) => {
                 ? err.response.data.message
                 : 'Could not read that spreadsheet. Please check the file and try again.';
         toast.error(message);
-    } finally {
-        isAnalyzing.value = false;
     }
 };
 
 const panelRef = useTemplateRef('panelRef');
 
-// The Campaign Calendar's "Import Events" button (Projects/Show.vue) calls this to skip
-// straight to the native file picker with the confirm modal pre-set to "Event List", instead
-// of leaving the user to find "Upload Task or Event List" and switch the toggle themselves.
+// The Campaign Calendar's "Import Events" button and the Tasks tab's "Import Tasks" button
+// (both in Projects/Show.vue) call these to skip straight to the native file picker with the
+// confirm modal pre-set to "Event List" / "Task List", instead of leaving the user to find
+// "Upload Task or Event List" and switch the toggle themselves.
 defineExpose({
     openEventImport: () => {
         pendingListType.value = 'event';
+        panelRef.value?.pickFile();
+    },
+    openTaskImport: () => {
+        pendingListType.value = 'task';
         panelRef.value?.pickFile();
     },
 });
@@ -78,7 +78,6 @@ defineExpose({
     <ImportTaskListOptionsPanel
         ref="panelRef"
         :can-manage="canManage"
-        :is-analyzing="isAnalyzing"
         @pick-file="handleFilePicked"
     />
 

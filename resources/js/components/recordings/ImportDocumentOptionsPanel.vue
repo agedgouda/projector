@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, useTemplateRef } from 'vue';
-import { FileStack, FileType, FileText, Loader2 } from 'lucide-vue-next';
+import { FileStack, FileType, Loader2 } from 'lucide-vue-next';
 import AiInstructionsPopover from '@/components/transcripts/AiInstructionsPopover.vue';
 import { Button } from '@/components/ui/button';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
@@ -8,8 +8,8 @@ import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 // Purely presentational — the Google-connect-redirect dance and the actual route calls stay
 // in each context's thin wrapper (Projects/Partials/ImportDocumentOptions.vue,
 // Organizations/Partials/ImportDocumentOptions.vue), since those need that wrapper's own
-// composable state. This panel only owns the three prompt textareas' local values and the
-// hidden file inputs, emitting once the user has actually picked something.
+// composable state. This panel only owns the prompt textareas' local values and the hidden
+// file inputs, emitting once the user has actually picked something.
 withDefaults(defineProps<{
     canManage: boolean;
     googlePickerConfigured: boolean;
@@ -37,21 +37,26 @@ const emit = defineEmits<{
 }>();
 
 const googleDocPrompt = ref('');
-const docxPrompt = ref('');
-const txtPrompt = ref('');
+const filePrompt = ref('');
 
-const docxInput = useTemplateRef('docxInput');
-const txtInput = useTemplateRef('txtInput');
+const fileInput = useTemplateRef('fileInput');
 
-const onFileChosen = (event: Event, kind: 'docx' | 'txt') => {
+// The one hidden input accepts both .docx and .txt, so which of the two emits fires is decided
+// here from the file itself (extension, falling back to MIME type) rather than by which button
+// was clicked — there's only one button now.
+const onFileChosen = (event: Event) => {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
 
-    if (kind === 'docx') {
-        emit('pick-docx-file', file, docxPrompt.value);
+    const isDocx =
+        file.name.toLowerCase().endsWith('.docx') ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+    if (isDocx) {
+        emit('pick-docx-file', file, filePrompt.value);
     } else {
-        emit('pick-txt-file', file, txtPrompt.value);
+        emit('pick-txt-file', file, filePrompt.value);
     }
     input.value = '';
 };
@@ -59,7 +64,7 @@ const onFileChosen = (event: Event, kind: 'docx' | 'txt') => {
 
 <template>
     <section v-if="canManage" :class="spacingClass">
-        <h2 class="mb-4 text-[10px] font-black tracking-widest text-gray-400 uppercase">
+        <h2 v-if="heading" class="mb-4 text-[10px] font-black tracking-widest text-gray-400 uppercase">
             {{ heading }}
         </h2>
 
@@ -88,52 +93,25 @@ const onFileChosen = (event: Event, kind: 'docx' | 'txt') => {
                     <FileType class="h-3.5 w-3.5" />
                 </div>
                 <div class="min-w-0 flex-1">
-                    <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Upload Word Document (.docx)</span>
+                    <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Upload Word or Text File (.docx, .txt)</span>
                 </div>
-                <AiInstructionsPopover v-model="docxPrompt" />
+                <AiInstructionsPopover v-model="filePrompt" />
                 <input
-                    ref="docxInput"
+                    ref="fileInput"
                     type="file"
-                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                     class="hidden"
-                    @change="onFileChosen($event, 'docx')"
+                    @change="onFileChosen($event)"
                 />
                 <Button
                     size="sm"
                     variant="outline"
-                    :disabled="importingFile === 'docx'"
+                    :disabled="importingFile !== null"
                     class="shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300"
-                    @click="docxInput?.click()"
+                    @click="fileInput?.click()"
                 >
-                    <Loader2 v-if="importingFile === 'docx'" class="w-3 h-3 mr-1.5 animate-spin" />
-                    {{ importingFile === 'docx' ? 'Importing...' : 'Choose File' }}
-                </Button>
-            </div>
-
-            <div :class="['flex items-center gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]">
-                <div class="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400">
-                    <FileText class="h-3.5 w-3.5" />
-                </div>
-                <div class="min-w-0 flex-1">
-                    <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Upload Text File (.txt)</span>
-                </div>
-                <AiInstructionsPopover v-model="txtPrompt" />
-                <input
-                    ref="txtInput"
-                    type="file"
-                    accept=".txt,text/plain"
-                    class="hidden"
-                    @change="onFileChosen($event, 'txt')"
-                />
-                <Button
-                    size="sm"
-                    variant="outline"
-                    :disabled="importingFile === 'txt'"
-                    class="shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300"
-                    @click="txtInput?.click()"
-                >
-                    <Loader2 v-if="importingFile === 'txt'" class="w-3 h-3 mr-1.5 animate-spin" />
-                    {{ importingFile === 'txt' ? 'Importing...' : 'Choose File' }}
+                    <Loader2 v-if="importingFile !== null" class="w-3 h-3 mr-1.5 animate-spin" />
+                    {{ importingFile !== null ? 'Importing...' : 'Choose File' }}
                 </Button>
             </div>
         </div>

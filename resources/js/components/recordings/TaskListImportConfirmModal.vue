@@ -77,12 +77,9 @@ const EVENT_FIELDS: { key: FieldKey; label: string; required?: boolean }[] = [
     { key: 'tag', label: 'Tag' },
 ];
 
-// Seeded from defaultListType directly (not just left at a hardcoded 'task') because this
-// component only mounts once analysis() has already resolved (`v-if="analysis"` in
-// ImportTaskListOptions.vue), at which point `open` is already true on the very first render —
-// the watch() below (no `immediate`, intentionally, so it doesn't fight manual toggling while
-// the modal stays open) only re-applies the default on a later close→reopen, not this first one.
-const listType = ref<'task' | 'event'>(props.defaultListType);
+// Which list type this import is: entirely decided by which button opened it (Import Tasks vs
+// Import Events in Projects/Show.vue), not by anything the user chooses in this modal.
+const listType = computed(() => props.defaultListType);
 const FIELDS = computed(() =>
     listType.value === 'task' ? TASK_FIELDS : EVENT_FIELDS,
 );
@@ -140,7 +137,6 @@ watch(
     (isOpen) => {
         if (isOpen) {
             noHeaderRow.value = false;
-            listType.value = props.defaultListType;
         }
     },
 );
@@ -203,45 +199,19 @@ const submit = () => {
     <Dialog :open="open" @update:open="emit('close')">
         <DialogContent class="sm:max-w-[640px]">
             <DialogHeader>
-                <DialogTitle>Confirm List Import</DialogTitle>
+                <DialogTitle>
+                    Confirm {{ listType === 'task' ? 'Task' : 'Event' }} List
+                    Import
+                </DialogTitle>
                 <DialogDescription>
                     {{ effectiveRows.length }} row{{
                         effectiveRows.length === 1 ? '' : 's'
                     }}
                     found{{
                         originalFilename ? ` in ${originalFilename}` : ''
-                    }}. Choose what you're importing, then match each field to a
-                    column.
+                    }}. Match each field to a column.
                 </DialogDescription>
             </DialogHeader>
-
-            <div class="grid grid-cols-[120px_1fr] items-center gap-3">
-                <Label
-                    class="text-[11px] font-black tracking-widest text-gray-500 uppercase"
-                >
-                    Import As
-                </Label>
-                <div class="flex gap-2">
-                    <Button
-                        type="button"
-                        size="sm"
-                        :variant="listType === 'task' ? 'default' : 'outline'"
-                        class="h-8 flex-1 text-[11px] font-bold"
-                        @click="listType = 'task'"
-                    >
-                        Task List
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        :variant="listType === 'event' ? 'default' : 'outline'"
-                        class="h-8 flex-1 text-[11px] font-bold"
-                        @click="listType = 'event'"
-                    >
-                        Event List
-                    </Button>
-                </div>
-            </div>
 
             <Label class="flex items-center gap-2 text-xs text-gray-500">
                 <Checkbox v-model="noHeaderRow" />

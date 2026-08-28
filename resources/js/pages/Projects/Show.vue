@@ -106,7 +106,8 @@ const activeTab = ref(props.activeTab);
 // since that's the tab for bringing in new raw source material. No default (the create form's
 // own type picker) for any other tab.
 const defaultTypeForCreate = computed<string | null>(() => {
-    if (activeTab.value === 'tasks') return 'task';
+    // Reports mirrors Tasks — it's the same underlying task data, just viewed as a report.
+    if (activeTab.value === 'tasks' || activeTab.value === 'reports') return 'task';
     if (activeTab.value === 'calendar') return 'event';
     if (activeTab.value === 'hierarchy') return ACTION_ITEMS_KEY;
     if (activeTab.value === 'recordings') return INTAKE_KEY;
@@ -115,7 +116,7 @@ const defaultTypeForCreate = computed<string | null>(() => {
 
 // Mirrors defaultTypeForCreate's per-tab defaults in the "New ___" button's own label.
 const createButtonLabel = computed(() => {
-    if (activeTab.value === 'tasks') return 'New Task';
+    if (activeTab.value === 'tasks' || activeTab.value === 'reports') return 'New Task';
     if (activeTab.value === 'calendar') return 'New Event';
     return 'New Document';
 });
@@ -336,6 +337,22 @@ const openEventImport = () => {
     importTaskListOptionsRef.value?.openEventImport();
 };
 
+// The Tasks tab's "Import Tasks" button — same mechanism as openEventImport() above, pre-set
+// to "Task List" instead.
+const openTaskImport = () => {
+    importTaskListOptionsRef.value?.openTaskImport();
+};
+
+const tabActionsTarget = useTemplateRef('tabActionsTarget');
+
+const importDocumentOptionsRef = useTemplateRef('importDocumentOptionsRef');
+
+// The Documentation tab's "Import Document" button opens ImportDocumentOptions' modal, which
+// holds the Google Docs / Word / Text options that used to live inline on the Import tab.
+const openDocumentImport = () => {
+    importDocumentOptionsRef.value?.openImportModal();
+};
+
 const refreshRecordings = () => {
     isRefreshingRecordings.value = true;
     router.reload({
@@ -477,19 +494,19 @@ watch(
                 </div>
 
                 <div class="flex w-full items-center gap-2 sm:w-auto">
-                    <Button
-                        v-if="
-                            !currentProject.inactive &&
-                            activeTab === 'calendar' &&
-                            canManageTranscripts
-                        "
-                        variant="outline"
-                        @click="openEventImport"
-                        class="h-11 rounded-xl px-6 font-bold whitespace-nowrap"
-                    >
-                        <Upload class="mr-2 h-4 w-4" />
-                        Import Events
-                    </Button>
+                    <!-- Each tab teleports its own action button(s) here (see the
+                         tabActionsTarget Teleports below) instead of this header knowing every
+                         tab's buttons via a growing list of v-ifs. `display: contents` so the
+                         teleported buttons lay out as direct flex items of this row, not as
+                         children of this otherwise-empty wrapper. Bound by ref rather than a
+                         "#tab-actions-target" CSS selector, and each Teleport is gated on
+                         tabActionsTarget being set, because a selector (or an unguarded ref) can
+                         resolve before this div is actually attached to the document on first
+                         mount — Vue requires the target to already exist for a Teleport to find
+                         it, and this div is rendered by the very same mount pass as the Teleports
+                         targeting it, so without the guard the browser logs "Failed to locate
+                         Teleport target" and the button silently never appears. -->
+                    <div ref="tabActionsTarget" class="contents"></div>
                     <Button
                         v-if="!currentProject.inactive"
                         @click="handleCreateNavigation(currentProject.id)"
@@ -549,8 +566,8 @@ watch(
                 <button
                     v-for="tab in [
                         'tasks',
-                        'calendar',
                         'reports',
+                        'calendar',
                         'hierarchy',
                         'recordings',
                     ]"
@@ -567,7 +584,7 @@ watch(
                         tab === 'hierarchy'
                             ? 'Documentation'
                             : tab === 'recordings'
-                              ? 'Import'
+                              ? 'Transcripts'
                               : tab === 'calendar'
                                 ? 'Campaign Calendar'
                                 : tab === 'reports'
@@ -578,6 +595,24 @@ watch(
             </div>
 
             <div v-show="activeTab === 'tasks'">
+                <!-- Reports shows this same button (see the Reports tab further down) since
+                     it's the same underlying task data, just viewed as a report — the Teleport
+                     itself lives here regardless of which of the two tabs is active. -->
+                <Teleport
+                    v-if="tabActionsTarget"
+                    :to="tabActionsTarget"
+                    :disabled="activeTab !== 'tasks' && activeTab !== 'reports'"
+                >
+                    <Button
+                        v-if="!currentProject.inactive && canManageTranscripts"
+                        variant="outline"
+                        @click="openTaskImport"
+                        class="h-11 rounded-xl px-6 font-bold whitespace-nowrap"
+                    >
+                        <Upload class="mr-2 h-4 w-4" />
+                        Import Tasks
+                    </Button>
+                </Teleport>
                 <KanbanBoard
                     v-model:searchQuery="searchQuery"
                     v-model:selectedPriorities="selectedPriorities"
@@ -613,6 +648,21 @@ watch(
             </div>
 
             <div v-show="activeTab === 'calendar'">
+                <Teleport
+                    v-if="tabActionsTarget"
+                    :to="tabActionsTarget"
+                    :disabled="activeTab !== 'calendar'"
+                >
+                    <Button
+                        v-if="!currentProject.inactive && canManageTranscripts"
+                        variant="outline"
+                        @click="openEventImport"
+                        class="h-11 rounded-xl px-6 font-bold whitespace-nowrap"
+                    >
+                        <Upload class="mr-2 h-4 w-4" />
+                        Import Events
+                    </Button>
+                </Teleport>
                 <ProjectCalendar
                     :project-id="currentProject.id"
                     :items="calendarItems"
@@ -622,6 +672,29 @@ watch(
             </div>
 
             <div v-show="activeTab === 'hierarchy'">
+                <Teleport
+                    v-if="tabActionsTarget"
+                    :to="tabActionsTarget"
+                    :disabled="activeTab !== 'hierarchy'"
+                >
+                    <Button
+                        v-if="!currentProject.inactive && canManageTranscripts"
+                        variant="outline"
+                        @click="openDocumentImport"
+                        class="h-11 rounded-xl px-6 font-bold whitespace-nowrap"
+                    >
+                        <Upload class="mr-2 h-4 w-4" />
+                        Import Document
+                    </Button>
+                </Teleport>
+                <ImportDocumentOptions
+                    ref="importDocumentOptionsRef"
+                    :project-id="currentProject!.id"
+                    :can-manage="canManageTranscripts"
+                    :google-picker-configured="googlePickerConfigured"
+                    :google-api-key="googleApiKey"
+                    :google-app-id="googleAppId"
+                />
                 <DocumentManager
                     :project="currentProject"
                     :live-documents="currentProject.documents"
@@ -633,14 +706,6 @@ watch(
             </div>
 
             <div v-show="activeTab === 'recordings'">
-                <ImportDocumentOptions
-                    :project-id="currentProject!.id"
-                    :can-manage="canManageTranscripts"
-                    :google-picker-configured="googlePickerConfigured"
-                    :google-api-key="googleApiKey"
-                    :google-app-id="googleAppId"
-                />
-
                 <div class="mb-4">
                     <div
                         v-if="!meetingProvider"

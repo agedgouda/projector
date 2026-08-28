@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 import ImportDocumentOptionsPanel from '@/components/recordings/ImportDocumentOptionsPanel.vue';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useGooglePicker } from '@/composables/transcripts/useGooglePicker';
 import { useDocumentImportActions } from '@/composables/transcripts/useDocumentImportActions';
 import transcriptRoutes from '@/routes/projects/transcripts/index';
@@ -17,6 +18,17 @@ const props = defineProps<{
 
 const { isOpening, openPicker } = useGooglePicker();
 const { importingGoogleDoc, importGoogleDoc, importingFile, importFile } = useDocumentImportActions(props.projectId);
+
+const modalOpen = ref(false);
+
+// The Documentation tab's "Import Document" button (Projects/Show.vue) calls this to open the
+// modal — see openTaskImport()/openEventImport() in ImportTaskListOptions.vue for the same
+// pattern applied to task/event list import.
+defineExpose({
+    openImportModal: () => {
+        modalOpen.value = true;
+    },
+});
 
 // Unlike the export flows elsewhere in the app, picking a file can't survive a redirect —
 // so this always fetches (and, if needed, connects) *before* ever opening the Picker, never
@@ -54,22 +66,31 @@ onMounted(() => {
         const url = new URL(window.location.href);
         url.searchParams.delete('google_doc_import');
         window.history.replaceState(window.history.state, '', url);
+        modalOpen.value = true;
         void startGoogleDocImport('');
     }
 });
 </script>
 
 <template>
-    <ImportDocumentOptionsPanel
-        heading="Import a Transcript"
-        spacing-class="mb-4"
-        :can-manage="canManage"
-        :google-picker-configured="googlePickerConfigured"
-        :is-opening="isOpening"
-        :importing-google-doc="importingGoogleDoc"
-        :importing-file="importingFile"
-        @pick-google-doc="startGoogleDocImport"
-        @pick-docx-file="(file, prompt) => importFile(file, 'docx', prompt)"
-        @pick-txt-file="(file, prompt) => importFile(file, 'txt', prompt)"
-    />
+    <Dialog :open="modalOpen" @update:open="modalOpen = $event">
+        <DialogContent class="sm:max-w-[560px]">
+            <DialogHeader>
+                <DialogTitle>Import a Document</DialogTitle>
+            </DialogHeader>
+
+            <ImportDocumentOptionsPanel
+                heading=""
+                spacing-class=""
+                :can-manage="canManage"
+                :google-picker-configured="googlePickerConfigured"
+                :is-opening="isOpening"
+                :importing-google-doc="importingGoogleDoc"
+                :importing-file="importingFile"
+                @pick-google-doc="startGoogleDocImport"
+                @pick-docx-file="(file, prompt) => importFile(file, 'docx', prompt)"
+                @pick-txt-file="(file, prompt) => importFile(file, 'txt', prompt)"
+            />
+        </DialogContent>
+    </Dialog>
 </template>
