@@ -8,7 +8,10 @@ class Comment extends Model
 {
     protected $fillable = ['body', 'user_id', 'commentable_id', 'commentable_type'];
 
-    public function user()
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<User, $this>
+     */
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class);
     }

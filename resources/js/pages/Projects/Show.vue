@@ -80,6 +80,7 @@ const {
     matchesFilters,
     updateAttribute,
     updateTags,
+    refreshComments,
     onDragChange,
     openDetail,
     searchQuery,
@@ -747,6 +748,8 @@ watch(
                         'Changes saved',
                     )
             "
+            @update-tags="(id, categories) => updateTags(id, categories)"
+            @comments-changed="(id) => refreshComments(id)"
         />
 
         <ReprocessPromptModal

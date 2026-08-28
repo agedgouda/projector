@@ -48,6 +48,41 @@ beforeEach(function () {
     $this->client->users()->attach($this->member->id);
 });
 
+it('lists comments for a document a member has access to', function () {
+    Comment::create([
+        'body' => 'First comment',
+        'user_id' => $this->member->id,
+        'commentable_type' => Document::class,
+        'commentable_id' => $this->document->id,
+    ]);
+
+    $response = $this->actingAs($this->member)
+        ->getJson(route('comments.index', ['type' => 'document', 'id' => $this->document->id]))
+        ->assertSuccessful();
+
+    expect($response->json('comments'))->toHaveCount(1);
+    expect($response->json('comments.0.body'))->toBe('First comment');
+    expect($response->json('comments.0.user.id'))->toBe($this->member->id);
+});
+
+it('blocks a user from another org from listing comments on a document', function () {
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    $stranger = User::factory()->create();
+    $otherOrg->users()->attach($stranger->id, ['role' => 'team-member']);
+
+    $otherClient = Client::create([
+        'organization_id' => $otherOrg->id,
+        'company_name' => 'Other Client',
+        'contact_name' => 'Bob',
+        'contact_phone' => '555-0000',
+    ]);
+    $otherClient->users()->attach($stranger->id);
+
+    $this->actingAs($stranger)
+        ->getJson(route('comments.index', ['type' => 'document', 'id' => $this->document->id]))
+        ->assertNotFound();
+});
+
 it('allows a member to comment on a task they have access to', function () {
     $this->actingAs($this->member)
         ->post(route('comments.store'), [

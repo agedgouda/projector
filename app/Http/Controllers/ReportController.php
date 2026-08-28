@@ -41,7 +41,22 @@ class ReportController extends Controller
         $tasks = $query?->get([
             'id', 'project_id', 'name', 'due_at', 'external_due_at', 'priority',
             'task_status', 'assignee_id', 'pending_assignee_invitation_id',
-        ]) ?? collect();
+            'content', 'type', 'custom_prompt', 'locked_project_type_id',
+            'last_ai_template_id', 'processed_at', 'updated_at',
+        ]);
+
+        // Needed for the detail sheet's Reprocess-availability check, same as
+        // DocumentController::show()'s own loadExists() call — a locked document only has
+        // something left to (re)process if its locked protocol still defines a next step.
+        // Done here rather than folded into the `?? collect()` below so $tasks stays a real
+        // Eloquent collection (loadExists() isn't defined on the base Support\Collection
+        // collect() would otherwise widen it to).
+        if ($tasks) {
+            $tasks->loadExists('lockedNextWorkflowStep');
+            $tasks->load('comments.user');
+        } else {
+            $tasks = collect();
+        }
 
         $projectNames = $this->projectNamesMap($project);
 
@@ -633,6 +648,17 @@ class ReportController extends Controller
             'task_status' => $task->task_status,
             'assignee_id' => $task->assignee_id,
             'pending_assignee_invitation_id' => $task->pending_assignee_invitation_id,
+            // Everything below is only needed to open this task in the slide-in detail
+            // sheet (see TaskReport.vue) without a full page navigation — not shown
+            // anywhere in the report table itself.
+            'content' => $task->content,
+            'type' => $task->type,
+            'custom_prompt' => $task->custom_prompt,
+            'locked_project_type_id' => $task->locked_project_type_id,
+            'locked_next_workflow_step_exists' => $task->locked_next_workflow_step_exists,
+            'last_ai_template_id' => $task->last_ai_template_id,
+            'processed_at' => $task->processed_at,
+            'updated_at' => $task->updated_at,
             'assignee' => $task->assignee ? [
                 'id' => $task->assignee->id,
                 'name' => $task->assignee->name,
@@ -647,6 +673,21 @@ class ReportController extends Controller
                 'id' => $category->id,
                 'name' => $category->name,
                 'color' => $category->color,
+            ])->all(),
+            'comments' => $task->comments->map(fn ($comment) => [
+                'id' => $comment->id,
+                'user_id' => $comment->user_id,
+                'body' => $comment->body,
+                'commentable_type' => $comment->commentable_type,
+                'commentable_id' => $comment->commentable_id,
+                'created_at' => $comment->created_at,
+                'updated_at' => $comment->updated_at,
+                'user' => $comment->user ? [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'first_name' => $comment->user->first_name,
+                    'last_name' => $comment->user->last_name,
+                ] : null,
             ])->all(),
         ];
     }

@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
-import { show as showDocument } from '@/routes/projects/documents';
 import { ChevronUp, ChevronDown, ChevronsUpDown, Plus } from 'lucide-vue-next';
 import { PRIORITY_LABELS, priorityDotClasses, kanbanDotClasses } from '@/lib/constants';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
@@ -32,6 +30,17 @@ export interface TaskReportRow {
     assignee: { id: number; name: string } | null;
     pending_assignee: { id: number; email: string; first_name: string | null; last_name: string | null } | null;
     categories: CategoryDef[];
+    // Everything below is only used to open this row in the slide-in detail sheet (see
+    // TaskReport.vue), not rendered anywhere in the table itself.
+    content: string | null;
+    type: string;
+    custom_prompt: string | null;
+    locked_project_type_id: string | null;
+    locked_next_workflow_step_exists: boolean;
+    last_ai_template_id: number | null;
+    processed_at: string | null;
+    updated_at: string;
+    comments: Comment[];
 }
 
 export type SortKey = 'status' | 'due_at' | 'external_due_at' | 'name' | 'assignee' | 'priority' | 'project_name' | 'tags';
@@ -58,6 +67,9 @@ const emit = defineEmits<{
     // Tags use sync semantics (send the full desired set), same as useDocumentActions'
     // updateTags — a single add/remove can't be expressed as one field value.
     (e: 'update-tags', task: TaskReportRow, categories: CategoryDef[]): void;
+    // Clicking a row opens it in the slide-in detail sheet instead of navigating away —
+    // same as the Kanban board's own card click (see useKanbanState.ts's openDetail).
+    (e: 'open-detail', task: TaskReportRow): void;
 }>();
 
 const statusFor = (statusKey: string | null) => props.columns?.find((c) => c.key === statusKey);
@@ -96,21 +108,13 @@ const assigneeLabel = (task: TaskReportRow): string => {
     return 'Unassigned';
 };
 
-// Carries the current (filter-bearing) URL as `from` so the document page's own Back
-// button/breadcrumbs (see useDocumentNavigation.ts's getReturnUrl) return here exactly,
-// same convention used when opening a document from the tree/kanban views.
-const documentUrl = (task: TaskReportRow): string => {
-    const baseUrl = showDocument({ project: task.project_id, document: String(task.id) }).url;
-    return `${baseUrl}?from=${encodeURIComponent(window.location.href)}`;
-};
-
 // Rows are a plain div (not a <Link>/<a>) precisely so the Select/date-input controls
 // below can live inside them — nesting interactive elements like <button> and <select>
 // inside an anchor is invalid HTML, the same reason TraceabilityRow.vue's task rows use a
 // div-plus-click here rather than a real link. Every editable control below stops its own
 // click from bubbling here (see each `@click.stop`), so only the dead space around them —
-// and the task name itself — triggers navigation.
-const goToDetails = (task: TaskReportRow) => router.visit(documentUrl(task));
+// and the task name itself — open the row's detail sheet.
+const openDetail = (task: TaskReportRow) => emit('open-detail', task);
 
 const dueDateInputValue = (value: string | null): string => (value ? value.slice(0, 10) : '');
 
@@ -281,7 +285,7 @@ const sortedTasks = computed(() => {
             v-for="task in sortedTasks"
             :key="task.id"
             :class="['grid grid-cols-2 items-center gap-2 md:gap-3 rounded-md px-4 py-3 text-[13px] transition-colors cursor-pointer', gridColsClass, FLAT_ROW_HOVER]"
-            @click="goToDetails(task)"
+            @click="openDetail(task)"
         >
             <span v-if="hasSubprojects" class="truncate text-slate-500 dark:text-slate-400">{{ task.project_name ?? '—' }}</span>
 

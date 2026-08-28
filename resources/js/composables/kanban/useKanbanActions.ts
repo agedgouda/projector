@@ -1,4 +1,5 @@
 import { router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { toast } from 'vue-sonner';
 import type { Ref } from 'vue';
 import projectRoutes from '@/routes/projects';
@@ -84,6 +85,16 @@ export function useKanbanActions(
         });
     };
 
+    // Comments aren't part of a document's usual attribute set, so there's nothing to send
+    // an optimistic value for — just re-fetch the fresh list and patch it in like any other
+    // local update, after CommentSection.vue's Inertia form.post/delete has landed.
+    const refreshComments = async (documentId: string | number) => {
+        const response = await axios.get('/comments', {
+            params: { type: 'document', id: documentId },
+        });
+        applyLocalUpdate(documentId, { comments: response.data.comments });
+    };
+
     const handleCreateNew = (projectId: string) => {
         const route = projectRoutes.documents.create({ project: projectId });
         router.visit(route.url);
@@ -99,6 +110,7 @@ export function useKanbanActions(
     return {
         updateAttribute,
         updateTags,
+        refreshComments,
         handleCreateNew,
         switchProject
     };

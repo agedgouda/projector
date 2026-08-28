@@ -55,7 +55,7 @@ class ProjectCollection extends Collection
             'categories',
             'parent.categories',
             'documents' => function ($q) {
-                $q->with(['assignee', 'creator', 'categories'])->withExists('lockedNextWorkflowStep')->latest();
+                $q->with(['assignee', 'creator', 'categories', 'comments.user'])->withExists('lockedNextWorkflowStep')->latest();
             },
         ])->each(fn (\App\Models\Project $p) => $p->withResolvedFamilyCategories());
     }

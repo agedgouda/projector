@@ -8,8 +8,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import TaskSearchForm, { type TaskSearchFilters } from '@/components/reports/TaskSearchForm.vue';
 import TaskReportTable, { type TaskReportRow, type SortKey, type SortDir } from '@/components/reports/TaskReportTable.vue';
+import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import projectDocumentsRoutes from '@/routes/projects/documents';
 import { mergeAssigneeOptions } from '@/lib/assignees';
+import { useDocumentActions, type UIProjectDocument } from '@/composables/useDocumentActions';
+import { useWorkflow } from '@/composables/useWorkflow';
 import {
     projectTasks,
     exportTasksPdf,
@@ -128,6 +131,64 @@ const onUpdateTags = (task: TaskReportRow, categories: CategoryDef[]) => {
             toast.error("Could not update this task's tags.");
         },
     });
+};
+
+// The slide-in detail sheet — same component the Kanban board opens on a card click (see
+// useKanbanState.ts's openDetail) — instead of navigating to the full document page, so
+// checking/editing several tasks in a row from a report doesn't mean repeatedly leaving and
+// re-searching. Holds the exact row object from `results` (not a copy), so edits made
+// in-sheet (via onUpdateField/onUpdateTags above, both mutate their `task` argument in
+// place) are visible in the table underneath the instant the sheet closes.
+const selectedReportTask = ref<TaskReportRow | null>(null);
+const isReportSheetOpen = ref(false);
+const openReportDetail = (task: TaskReportRow) => {
+    selectedReportTask.value = task;
+    isReportSheetOpen.value = true;
+};
+
+// `selectedReportTask.comments` isn't a live Inertia prop, so a post/delete in the sheet's
+// Discussion section (see CommentSection.vue's `changed` emit) won't be reflected until we
+// re-fetch it ourselves — mirrors onUpdateField/onUpdateTags' mutate-in-place pattern above.
+const handleReportCommentsChanged = async (documentId: string | number) => {
+    const task = selectedReportTask.value;
+    if (!task || String(task.id) !== String(documentId)) return;
+
+    const response = await axios.get('/comments', {
+        params: { type: 'document', id: documentId },
+    });
+    task.comments = response.data.comments;
+};
+
+const { reprocessableTypes } = useWorkflow();
+
+// Only used for the Process/Reprocess button's label (see DocumentDetailSheet's own
+// processButtonLabel) — the Kanban board's version tracks every document with children
+// across the whole project tree, which the report's flat task list has no equivalent of.
+// Leaving it permanently empty just means that button reads "Process" even on a task
+// that's already been run before, a cosmetic-only gap.
+const emptyAiProcessedParentIds = new Set<string>();
+
+// Reprocess/Transform aren't scoped to a single fixed project the way useDocumentActions
+// normally is (see onUpdateField's own comment above) — each call below builds a fresh
+// instance targeting whichever sub-project the selected task actually belongs to.
+const handleReportReprocess = (id: string | number) => {
+    const task = selectedReportTask.value;
+    if (!task || task.id !== id) return;
+
+    const { setDocToProcessing } = useDocumentActions({ project: { id: task.project_id } as Project });
+    void setDocToProcessing(task as unknown as UIProjectDocument);
+};
+
+const handleReportTransition = (
+    id: string | number,
+    payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string },
+) => {
+    const task = selectedReportTask.value;
+    if (!task || task.id !== id) return;
+
+    const { setDocToTransitioning } = useDocumentActions({ project: { id: task.project_id } as Project });
+    void setDocToTransitioning(task as unknown as UIProjectDocument, payload);
+    isReportSheetOpen.value = false;
 };
 
 const ARRAY_FILTER_KEYS = ['assignee', 'task_status', 'priority', 'project_id', 'category_id'] as const;
@@ -428,6 +489,7 @@ onMounted(async () => {
                 @sort-change="onSortChange"
                 @update-field="onUpdateField"
                 @update-tags="onUpdateTags"
+                @open-detail="openReportDetail"
             />
         </template>
 
@@ -438,5 +500,22 @@ onMounted(async () => {
             <Search class="h-6 w-6 text-slate-300" />
             <p class="text-slate-400 font-medium text-sm">Set your filters and search to see matching tasks.</p>
         </div>
+
+        <DocumentDetailSheet
+            v-if="selectedReportTask"
+            v-model:open="isReportSheetOpen"
+            :document="selectedReportTask as unknown as UIProjectDocument"
+            :reprocessable-types="reprocessableTypes"
+            :ai-processed-parent-ids="emptyAiProcessedParentIds"
+            @update-attribute="
+                (field, val) => selectedReportTask && onUpdateField(selectedReportTask, field, val)
+            "
+            @update-tags="
+                (id, categories) => selectedReportTask && onUpdateTags(selectedReportTask, categories)
+            "
+            @handle-reprocess="handleReportReprocess"
+            @handle-transition="handleReportTransition"
+            @comments-changed="handleReportCommentsChanged"
+        />
     </div>
 </template>

@@ -48,6 +48,11 @@ const props = defineProps<{
     projectId: string;
 }>();
 
+// Lets a parent whose `comments` prop isn't a live Inertia page prop (e.g. the report
+// table's locally-fetched rows) know to re-fetch after the Inertia `back()` redirect below
+// lands, since that redirect's response doesn't carry the new/removed comment back to us.
+const emit = defineEmits<{ changed: [] }>();
+
 const page = usePage<AppPageProps>();
 const currentUserId = page.props.auth.user.id;
 
@@ -124,6 +129,7 @@ const submitComment = () => {
         onSuccess: () => {
             form.reset('body');
             editor.value?.commands.setContent('', { emitUpdate: false });
+            emit('changed');
         },
     });
 };
@@ -132,7 +138,10 @@ const deleteComment = (id: number) => {
     if (!confirm('Are you sure you want to delete this comment?')) return;
     form.delete(CommentRoutes.destroy(id).url, {
         preserveScroll: true,
-        onSuccess: () => toast.success('Comment deleted'),
+        onSuccess: () => {
+            toast.success('Comment deleted');
+            emit('changed');
+        },
     });
 };
 

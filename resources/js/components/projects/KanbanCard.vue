@@ -170,7 +170,7 @@ const handleUpdate = (field: string, value: any) => {
         >
             {{ doc.name }}
         </h4>
-        <div class="flex items-center justify-between gap-x-5 gap-y-2">
+        <div class="flex items-center justify-start gap-x-2 gap-y-2">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <div @click.stop @keydown.stop>
                     <Select
@@ -265,7 +265,7 @@ const handleUpdate = (field: string, value: any) => {
                                 (e.target as HTMLInputElement).value,
                             )
                     "
-                    class="w-[104px] cursor-pointer border-none bg-transparent p-0 text-[13px] font-bold text-gray-700 focus:ring-0 dark:text-gray-200 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    class="w-[122px] cursor-pointer border-none bg-transparent p-0 text-[13px] font-bold text-gray-700 uppercase focus:ring-0 dark:text-gray-200 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                 />
             </div>
         </div>

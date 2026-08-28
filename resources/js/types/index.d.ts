@@ -186,6 +186,7 @@ declare global {
         assignee?: User;
         pending_assignee?: OrganizationInvitation;
         categories?: CategoryDef[];
+        comments?: Comment[];
         project?: Partial<Project>;
         parent?: ProjectDocument | null;
         children?: ProjectDocument[];

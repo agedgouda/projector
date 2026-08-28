@@ -25,6 +25,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string|null $last_output_key
  * @property AiTemplate|null $lastAiTemplate
  * @property \Illuminate\Support\Carbon|null $content_updated_at
+ * @property-read bool $locked_next_workflow_step_exists Only present after loadExists('lockedNextWorkflowStep').
  */
 class Document extends Model implements HasMedia
 {
@@ -201,6 +202,9 @@ class Document extends Model implements HasMedia
         return $this->hasMany(Task::class, 'document_id');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany<Comment, $this>
+     */
     public function comments(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(Comment::class, 'commentable')->oldest();

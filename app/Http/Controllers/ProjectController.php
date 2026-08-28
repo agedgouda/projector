@@ -127,7 +127,7 @@ class ProjectController extends Controller
         // getKanbanDocuments(), so it uses the already-loaded collection instead
         // of lazy-loading documents without eager-loaded relationships.
         $project->load([
-            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'categories'])->withExists('lockedNextWorkflowStep')->latest(),
+            'documents' => fn ($q) => $q->with(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'categories', 'comments.user'])->withExists('lockedNextWorkflowStep')->latest(),
             'media',
             'parent.media',
             'parent.categories',

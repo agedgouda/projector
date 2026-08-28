@@ -69,6 +69,7 @@ const {
     applyLocalUpdate,
     removeLocalDocuments,
     localKanbanData,
+    refreshComments,
 } = useKanbanBoard(props);
 
 const workflowRows = computed(() =>
@@ -287,6 +288,8 @@ const aiProcessedParentIds = computed(() => {
                         'Changes saved',
                     )
             "
+            @update-tags="(id, categories) => updateTags(id, categories)"
+            @comments-changed="(id) => refreshComments(id)"
         />
     </AppLayout>
 </template>
