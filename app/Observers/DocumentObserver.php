@@ -64,8 +64,12 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
 
     public function updated(Document $document): void
     {
-        // If content is dirty, the previous embedding is now invalid (Garbage in, Garbage out)
-        if ($document->isDirty('content') && ! in_array($document->type, self::NON_VECTORIZABLE_TYPES, true)) {
+        // wasChanged(), not isDirty() — this class implements ShouldHandleEventsAfterCommit,
+        // so this listener only actually runs after the enclosing transaction commits, by
+        // which point save() has already called syncOriginal() and isDirty() would always
+        // read false. wasChanged() stays accurate post-sync, which is the whole reason it
+        // exists for use from inside a model event listener like this one.
+        if ($document->wasChanged('content') && ! in_array($document->type, self::NON_VECTORIZABLE_TYPES, true)) {
             GenerateDocumentEmbedding::dispatch($document);
         }
 

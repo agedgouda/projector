@@ -110,19 +110,9 @@ class ProcessDocumentAI implements ShouldQueue
         $newDocumentCount = 0;
 
         DB::transaction(function () use ($result, $outputType, $singleOutput, $lockedProjectTypeId, &$childrenReplaced, &$newDocumentCount) {
-            // Reprocessing replaces all previously generated children, even if the
-            // output type has changed since the last run, so nothing is left behind.
-            // The frontend prunes its own local tree recursively from this document's
-            // id when told children were replaced (mirroring the parent_id foreign
-            // key's ON DELETE CASCADE below), so only whether any existed is needed
-            // here, not their IDs.
-            $childrenReplaced = $this->document->project->documents()
+            $existingChildren = $this->document->project->documents()
                 ->where('parent_id', $this->document->id)
-                ->exists();
-
-            $this->document->project->documents()
-                ->where('parent_id', $this->document->id)
-                ->delete();
+                ->get();
 
             if ($singleOutput) {
                 $doc = $result['mock_response'] ?? [];
@@ -143,15 +133,48 @@ class ProcessDocumentAI implements ShouldQueue
                     $html .= '<p><img src="'.e($src).'" alt="'.e($alt).'"></p>';
                 }
 
-                $this->document->project->documents()->create([
-                    'parent_id' => $this->document->id,
+                // Reused in place, not deleted and recreated, when exactly one child already
+                // exists — that's either the blank placeholder MeetingTranscriptController
+                // pre-created (so the browser has somewhere stable to land right after import,
+                // before this job ever runs) or the previous run's own single output being
+                // reprocessed. Its id — and any URL already pointed at it — never changes.
+                // More than one existing child (an output-type change from a prior non-single
+                // run) has no single obvious one to reuse, so that still falls back to a full
+                // replace, same as before.
+                $target = $existingChildren->count() === 1 ? $existingChildren->first() : null;
+                $childrenReplaced = $existingChildren->isNotEmpty() && $target === null;
+
+                if ($target === null) {
+                    $this->document->project->documents()
+                        ->where('parent_id', $this->document->id)
+                        ->delete();
+
+                    $target = $this->document->project->documents()->make([
+                        'parent_id' => $this->document->id,
+                    ]);
+                }
+
+                $target->fill([
                     'type' => $outputType,
                     'name' => $doc['title'] ?? ($this->document->name.' — Requirements'),
                     'content' => $html,
                     'locked_project_type_id' => $lockedProjectTypeId,
-                ]);
+                ])->save();
                 $newDocumentCount++;
             } else {
+                // Reprocessing replaces all previously generated children, even if the
+                // output type has changed since the last run, so nothing is left behind.
+                // The frontend prunes its own local tree recursively from this document's
+                // id when told children were replaced (mirroring the parent_id foreign
+                // key's ON DELETE CASCADE below), so only whether any existed is needed
+                // here, not their IDs. Unlike single-output above, a batch has no one stable
+                // id worth preserving across runs, so this still always replaces wholesale.
+                $childrenReplaced = $existingChildren->isNotEmpty();
+
+                $this->document->project->documents()
+                    ->where('parent_id', $this->document->id)
+                    ->delete();
+
                 foreach ($result['mock_response'] ?? [] as $data) {
                     $content = $data[$outputType] ?? null;
 

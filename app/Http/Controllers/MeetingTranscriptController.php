@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ImportMeetingTranscript;
+use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
 use App\Services\Google\GoogleExportService;
@@ -105,7 +106,6 @@ class MeetingTranscriptController extends Controller
             'recording_id' => 'required|string',
             'title' => 'required|string|max:255',
             'started_at' => 'required|string',
-            'document_type' => 'sometimes|string|in:intake,requirements',
             'custom_prompt' => 'nullable|string',
         ]);
 
@@ -120,7 +120,7 @@ class MeetingTranscriptController extends Controller
         // Use processed_at = now() temporarily to prevent the DocumentObserver from
         // dispatching ProcessDocumentAI before the transcript content has been fetched.
         $document = $project->documents()->create([
-            'type' => $validated['document_type'] ?? 'intake',
+            'type' => 'intake',
             'name' => $validated['title'],
             'content' => '',
             'processed_at' => now(),
@@ -134,7 +134,32 @@ class MeetingTranscriptController extends Controller
 
         ImportMeetingTranscript::dispatch($document, $validated['recording_id']);
 
-        return back()->with('success', "Importing \"{$validated['title']}\"…");
+        // The user should never land on the raw transcript page — pre-create the Meeting
+        // Notes document it's about to generate (blank for now) and send them straight there
+        // instead. Only safe when the "Transcript to Meeting Notes" AI template is configured
+        // single_output — otherwise a transcript can produce zero, one, or many documents, so
+        // there's no single stable id to create ahead of time (falls back to the transcript
+        // page in that case, same as before). ProcessDocumentAI::handle() fills this same row
+        // in, in place, once the AI call returns (see its own comment).
+        $templateId = config('workflow.intake_to_action_items_ai_template_id');
+        $isSingleOutput = is_int($templateId) && (bool) AiTemplate::find($templateId)?->single_output;
+
+        if ($isSingleOutput) {
+            $meetingNotes = $project->documents()->create([
+                'parent_id' => $document->id,
+                'type' => config('workflow.action_items_key'),
+                'name' => $validated['title'],
+                'content' => '',
+            ]);
+
+            return redirect()
+                ->route('projects.documents.show', [$project, $meetingNotes])
+                ->with('success', "Importing \"{$validated['title']}\"…");
+        }
+
+        return redirect()
+            ->route('projects.documents.show', [$project, $document])
+            ->with('success', "Importing \"{$validated['title']}\"…");
     }
 
     /**

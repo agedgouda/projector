@@ -37,7 +37,12 @@ class ImportMeetingTranscript implements ShouldQueue
             return;
         }
 
-        event(new DocumentProcessingUpdate($this->document, 'Fetching transcript...', 15));
+        // Same "Generating Meeting Notes..." text through every step of this job (rather than
+        // phase-specific text like "Fetching transcript..."/"Saving transcript...") so the
+        // status line the user lands on right after the Import confirmation modal reads as one
+        // continuous operation — ProcessDocumentAI::handle() below keeps that same text going
+        // once it takes over for the actual note-generation step.
+        event(new DocumentProcessingUpdate($this->document, 'Generating Meeting Notes...', 15));
 
         $transcriptText = $service->fetchTranscript($organization, $this->recordingId);
 
@@ -49,7 +54,7 @@ class ImportMeetingTranscript implements ShouldQueue
             return;
         }
 
-        event(new DocumentProcessingUpdate($this->document, 'Saving transcript...', 65));
+        event(new DocumentProcessingUpdate($this->document, 'Generating Meeting Notes...', 65));
 
         // Save transcript content without triggering the observer (which would prematurely
         // dispatch GenerateDocumentEmbedding before AI processing has run).

@@ -113,6 +113,74 @@ it('deletes all previously generated children before creating new ones, even whe
     expect($document->refresh()->processed_at)->not->toBeNull();
 });
 
+it('reuses a single existing child in place for a single-output run, instead of deleting and recreating it', function () {
+    $document = createReprocessableDocument();
+
+    $existingChild = Document::create([
+        'project_id' => $document->project_id,
+        'parent_id' => $document->id,
+        'name' => 'Old Meeting Notes',
+        'type' => 'action_items',
+        'content' => 'Old content',
+    ]);
+
+    $this->mock(ProjectAiService::class, function ($mock) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'action_items',
+            'single_output' => true,
+            'mock_response' => ['title' => 'New Meeting Notes', 'content' => 'New content'],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $children = Document::where('parent_id', $document->id)->get();
+    expect($children)->toHaveCount(1);
+    expect($children->first()->id)->toBe($existingChild->id);
+    expect($children->first())
+        ->name->toBe('New Meeting Notes')
+        ->content->toContain('New content');
+});
+
+it('falls back to deleting and recreating for a single-output run when more than one child already exists', function () {
+    $document = createReprocessableDocument();
+
+    Document::create([
+        'project_id' => $document->project_id,
+        'parent_id' => $document->id,
+        'name' => 'Old Item A',
+        'type' => 'action_items',
+        'content' => 'A',
+    ]);
+    Document::create([
+        'project_id' => $document->project_id,
+        'parent_id' => $document->id,
+        'name' => 'Old Item B',
+        'type' => 'action_items',
+        'content' => 'B',
+    ]);
+
+    $this->mock(ProjectAiService::class, function ($mock) {
+        $mock->shouldReceive('process')->once()->andReturn([
+            'status' => 'success',
+            'output_type' => 'action_items',
+            'single_output' => true,
+            'mock_response' => ['title' => 'Consolidated Notes', 'content' => 'New content'],
+        ]);
+    });
+
+    (new ProcessDocumentAI($document))->handle();
+
+    $children = Document::where('parent_id', $document->id)->get();
+    expect($children)->toHaveCount(1);
+    expect($children->first())
+        ->name->toBe('Consolidated Notes')
+        ->content->toContain('New content');
+    expect(Document::where('name', 'Old Item A')->exists())->toBeFalse();
+    expect(Document::where('name', 'Old Item B')->exists())->toBeFalse();
+});
+
 it('persists the priority the AI assigns to each generated task', function () {
     $document = createReprocessableDocument();
 

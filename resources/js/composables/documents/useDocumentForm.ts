@@ -1,4 +1,4 @@
-import { useWorkflow } from '@/composables/useWorkflow';
+import { INTAKE_KEY, useWorkflow } from '@/composables/useWorkflow';
 import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
 import {
     redirectIfLoggedOut,
@@ -134,6 +134,15 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const hasPendingChildren = initialChildren.some(
         (c) => c.processed_at === null,
     );
+    // Whether *this* page is itself a not-yet-populated document that some other document
+    // (its parent) is actively generating the content for — e.g. the blank Meeting Notes
+    // page the browser lands on right after importing a recording (see
+    // MeetingTranscriptController::store()), before ImportMeetingTranscript/ProcessDocumentAI
+    // have even run. The status broadcasts describing that work are keyed to the PARENT's
+    // id, not this document's own — unlike every other case below, where `item` is the one
+    // actively being processed.
+    const isSelfPendingChild = item.parent_id != null && item.processed_at === null;
+
     if (item.processed_at === null || hasPendingChildren) {
         isProcessingLive.value = true;
         aiProgress.value = item.processed_at === null ? 50 : 100;
@@ -143,7 +152,9 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
                 .filter((c) => c.processed_at !== null)
                 .map((c) => String(c.id)),
         );
-        processingMessage.value = batchProgressMessage(null);
+        processingMessage.value = isSelfPendingChild
+            ? 'Starting...'
+            : batchProgressMessage(null);
         startProcessingPoll();
     }
 
@@ -160,6 +171,19 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             // Membership comes straight off this broadcast's own parent_id, not a pre-known ID
             // list — see the trackedChildTotal comment above.
             if (!payload.statusMessage && payload.document?.id) {
+                // Self-pending child (see isSelfPendingChild above, e.g. the blank Meeting
+                // Notes page) whose own embedding just finished — the definitive completion
+                // signal for that case, same role .document.vectorized already plays for a
+                // parent's tracked children just below.
+                if (
+                    isSelfPendingChild &&
+                    String(payload.document.id) === item.id
+                ) {
+                    clearProcessingState();
+                    router.reload();
+                    return;
+                }
+
                 const isTrackedChild =
                     trackedChildTotal.value > 0 &&
                     String(payload.document.parent_id) === item.id;
@@ -168,8 +192,27 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
                     if (
                         completedChildIds.value.size >= trackedChildTotal.value
                     ) {
+                        // A transcript that produced exactly one generated document (the
+                        // common case — see DocumentContent.vue's own singleChild/"View
+                        // Generated" link, which this mirrors) goes straight there instead of
+                        // sitting on the raw transcript once it's done. More than one generated
+                        // document has no single obvious destination — same rule that link
+                        // already follows — so that case just reloads this page as before.
+                        const goToChild =
+                            item.type === INTAKE_KEY &&
+                            trackedChildTotal.value === 1;
+                        const childId = payload.document.id;
                         clearProcessingState();
-                        router.reload();
+                        if (goToChild) {
+                            router.visit(
+                                projectDocumentsRoutes.show({
+                                    project: project.id,
+                                    document: String(childId),
+                                }).url,
+                            );
+                        } else {
+                            router.reload();
+                        }
                     }
                 }
                 return;
@@ -180,8 +223,26 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
                 trackedChildTotal.value > 0 &&
                 payload.document?.parent_id != null &&
                 String(payload.document.parent_id) === item.id;
-            if (!payload.statusMessage || (!isThisDoc && !isTrackedChild)) {
+            // Self-pending child watching progress broadcasts about the parent actually doing
+            // the work that will populate this page (see isSelfPendingChild above) — just "is
+            // this about my one and only parent", no separate id list needed.
+            const isMyParent =
+                isSelfPendingChild && payload.document_id === item.parent_id;
+            if (
+                !payload.statusMessage ||
+                (!isThisDoc && !isTrackedChild && !isMyParent)
+            ) {
                 return;
+            }
+
+            // A freshly created document (e.g. the page landed on right after the "Import
+            // Recording" redirect) starts with isProcessingLive still false — its placeholder
+            // processed_at (set by the controller purely to stop the observer firing early)
+            // makes the initial pending-detection above think there's nothing in flight yet.
+            // The first broadcast that's actually about this page is what tells us otherwise.
+            if (!isProcessingLive.value) {
+                isProcessingLive.value = true;
+                startProcessingPoll();
             }
 
             const { message, newProgress, isError, isSuccess } =

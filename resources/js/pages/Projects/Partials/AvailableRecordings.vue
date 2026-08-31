@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Download, FileText } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { Download } from 'lucide-vue-next';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import ImportRecordingConfirmModal from '@/components/recordings/ImportRecordingConfirmModal.vue';
 import RecordingsList from '@/components/recordings/RecordingsList.vue';
 import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
 
@@ -23,7 +24,6 @@ const emit = defineEmits<{
 
 const {
     importing,
-    importingAsRequirements,
     importRecording,
     isDismissRecordingOpen,
     recordingToDismiss,
@@ -36,10 +36,26 @@ const {
     onImportFailed: () => emit('importFailed'),
 });
 
-// Either button disables both (prevents double-submitting the same recording under two
-// different types at once) while only the one actually in flight shows its own spinner.
-const isBusy = (recording: Recording) =>
-    importing.value === recording.id || importingAsRequirements.value === recording.id;
+// "Import" no longer fires immediately — it opens a confirmation modal (below) with its own
+// field for any last-minute additional information, which is what actually triggers
+// importRecording() once the user clicks Save there.
+const pendingImportRecording = ref<Recording | null>(null);
+const isImportConfirmOpen = ref(false);
+
+const openImportConfirm = (recording: Recording) => {
+    pendingImportRecording.value = recording;
+    isImportConfirmOpen.value = true;
+};
+
+const closeImportConfirm = () => {
+    isImportConfirmOpen.value = false;
+};
+
+const confirmImport = (additionalInfo: string | null) => {
+    if (!pendingImportRecording.value) return;
+    importRecording(pendingImportRecording.value, additionalInfo);
+    isImportConfirmOpen.value = false;
+};
 
 const actions = computed<RecordingAction[]>(() => [
     {
@@ -47,16 +63,7 @@ const actions = computed<RecordingAction[]>(() => [
         icon: Download,
         variant: 'primary',
         loading: (recording) => importing.value === recording.id,
-        disabled: isBusy,
-        onClick: (recording, customPrompt) => importRecording(recording, 'intake', customPrompt),
-    },
-    {
-        label: 'Requirements',
-        icon: FileText,
-        variant: 'outline',
-        loading: (recording) => importingAsRequirements.value === recording.id,
-        disabled: isBusy,
-        onClick: (recording, customPrompt) => importRecording(recording, 'requirements', customPrompt),
+        onClick: (recording) => openImportConfirm(recording),
     },
 ]);
 </script>
@@ -78,5 +85,13 @@ const actions = computed<RecordingAction[]>(() => [
         :loading="dismissingRecording"
         @close="closeDismissRecording"
         @confirm="handleDismissRecording"
+    />
+
+    <ImportRecordingConfirmModal
+        :open="isImportConfirmOpen"
+        :recording-title="pendingImportRecording?.title"
+        :loading="importing === pendingImportRecording?.id"
+        @close="closeImportConfirm"
+        @confirm="confirmImport"
     />
 </template>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
 use App\Models\Document;
@@ -7,6 +8,7 @@ use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectType;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -93,6 +95,48 @@ it('does not auto-dispatch for a root document of a non-intake type', function (
     ]);
 
     Queue::assertNotPushed(ProcessDocumentAI::class, fn ($job) => $job->document->is($actionItems));
+});
+
+it('dispatches embedding generation when a document\'s content is updated', function () {
+    Queue::fake([GenerateDocumentEmbedding::class]);
+
+    $project = createProjectWithChainedWorkflow();
+    $document = $project->documents()->create([
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Original content',
+        'processed_at' => now(),
+    ]);
+    Queue::fake([GenerateDocumentEmbedding::class]);
+
+    $document->update(['content' => 'Updated content']);
+
+    Queue::assertPushed(GenerateDocumentEmbedding::class, fn ($job) => $job->document->is($document));
+});
+
+it('dispatches embedding generation for a content update made inside a DB transaction', function () {
+    // Regression test: DocumentObserver implements ShouldHandleEventsAfterCommit, so its
+    // updated() listener only actually runs after the enclosing transaction commits — by
+    // which point save() has already synced the model's original attributes. A check using
+    // isDirty() (rather than wasChanged()) would read false by then and silently never
+    // dispatch, exactly the bug this covers (see ProcessDocumentAI's single-output reuse,
+    // which updates an existing document's content from inside DB::transaction()).
+    Queue::fake([GenerateDocumentEmbedding::class]);
+
+    $project = createProjectWithChainedWorkflow();
+    $document = $project->documents()->create([
+        'name' => 'Action Items',
+        'type' => 'action_items',
+        'content' => 'Original content',
+        'processed_at' => now(),
+    ]);
+    Queue::fake([GenerateDocumentEmbedding::class]);
+
+    DB::transaction(function () use ($document) {
+        $document->update(['content' => 'Updated content']);
+    });
+
+    Queue::assertPushed(GenerateDocumentEmbedding::class, fn ($job) => $job->document->is($document));
 });
 
 it('defaults task_status to todo using the global catalog, even for a type not in the project\'s own protocol', function () {

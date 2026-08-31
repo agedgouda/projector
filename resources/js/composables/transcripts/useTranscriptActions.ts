@@ -10,18 +10,15 @@ export function useTranscriptActions(projectId: string, callbacks?: {
     // ── Import ────────────────────────────────────────────────────────────────
 
     const importing = ref<string | null>(null);
-    const importingAsRequirements = ref<string | null>(null);
 
-    const importRecording = (recording: Recording, documentType: 'intake' | 'requirements' = 'intake', customPrompt?: string | null) => {
-        const loadingRef = documentType === 'requirements' ? importingAsRequirements : importing;
-        loadingRef.value = recording.id;
+    const importRecording = (recording: Recording, customPrompt?: string | null) => {
+        importing.value = recording.id;
         callbacks?.onImportQueued?.();
 
         router.post(transcriptRoutes.store.url(projectId), {
             recording_id: recording.id,
             title: recording.title,
             started_at: recording.started_at,
-            document_type: documentType,
             custom_prompt: customPrompt || null,
         }, {
             preserveScroll: true,
@@ -29,7 +26,7 @@ export function useTranscriptActions(projectId: string, callbacks?: {
                 toast.error('Import failed', { description: Object.values(errors)[0] as string });
                 callbacks?.onImportFailed?.();
             },
-            onFinish: () => { loadingRef.value = null; },
+            onFinish: () => { importing.value = null; },
         });
     };
 
@@ -63,7 +60,6 @@ export function useTranscriptActions(projectId: string, callbacks?: {
 
     return {
         importing,
-        importingAsRequirements,
         importRecording,
         isDismissRecordingOpen,
         recordingToDismiss,

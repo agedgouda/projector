@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { EditorContent } from '@tiptap/vue-3';
 import axios from 'axios';
@@ -193,6 +193,93 @@ const cancelContentEdit = () => {
     editor.value?.commands.setContent(savedContent.value, { emitUpdate: false });
 };
 
+// Same reasoning as content above: `name` isn't in updateAttributes()'s validated field
+// list either, so this also saves directly against DocumentController::update() rather than
+// through the update-attribute emit, and — same as content — the sheet stays open since
+// there's no Inertia visit to replace the props it's reading from out from under it.
+// Displayed name when not editing. Mirrors savedContent above: the raw `document.name` prop
+// never reflects a save made through this bypass path (no Inertia visit refreshes it), so the
+// read-only span would revert to the stale prop value right after a successful save without
+// this local copy.
+const savedName = ref(props.document.name);
+const isEditingName = ref(false);
+const draftName = ref(props.document.name);
+const isSavingName = ref(false);
+const nameInput = useTemplateRef('nameInput');
+// True when saving would be a no-op (untouched, or trimmed down to nothing) — drives the
+// Save button's disabled state, same pattern as isContentDirty above but inverted.
+const isNameUnchanged = computed(() => draftName.value.trim() === savedName.value || !draftName.value.trim());
+
+// Same "different document opened in this reused sheet" case as content's own watcher above
+// — guarded so it never clobbers an edit actually in progress.
+watch(
+    () => props.document.name,
+    (val) => {
+        savedName.value = val;
+        if (!isEditingName.value) draftName.value = val;
+    },
+);
+
+// A <textarea> (not <input>) so a long title wraps instead of silently scrolling the caret
+// out of view — a single-line input left the start of a long title unreadable while editing.
+// Auto-grows to fit its content since it's standing in for a heading, not a fixed-size field.
+const resizeNameInput = () => {
+    const el = nameInput.value;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+};
+
+const startEditingName = async () => {
+    draftName.value = savedName.value;
+    isEditingName.value = true;
+    await nextTick();
+    nameInput.value?.focus();
+    nameInput.value?.select();
+    resizeNameInput();
+};
+
+const cancelEditingName = () => {
+    draftName.value = savedName.value;
+    isEditingName.value = false;
+};
+
+const saveName = async () => {
+    if (isSavingName.value) {
+        return;
+    }
+
+    // Pressing Enter with nothing changed isn't an error — just close the input, same as Cancel.
+    if (isNameUnchanged.value) {
+        isEditingName.value = false;
+        return;
+    }
+
+    const trimmed = draftName.value.trim();
+
+    if (!documentProject.value) {
+        return;
+    }
+
+    isSavingName.value = true;
+    try {
+        await axios.post(
+            projectDocumentsRoutes.update.url({
+                project: documentProject.value.id,
+                document: String(props.document.id),
+            }),
+            { name: trimmed, _method: 'put' },
+        );
+        savedName.value = trimmed;
+        toast.success('Changes saved');
+        isEditingName.value = false;
+    } catch {
+        toast.error('Could not save changes.');
+    } finally {
+        isSavingName.value = false;
+    }
+};
+
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(undefined, {
         month: 'short',
@@ -229,11 +316,53 @@ const handleUpdate = (field: string, value: any) => {
             <template v-if="document">
                 <div class="mt-8 space-y-10">
                     <SheetHeader class="space-y-0.5 text-left p-0">
-                        <SheetTitle class="mt-5 text-3xl font-bold text-gray-900 dark:text-white leading-tight">
-                            {{ document.name }}
+                        <SheetTitle
+                            class="mt-5 border-b-2 pb-1 text-xl font-bold leading-tight text-gray-900 dark:text-white"
+                            :class="isEditingName ? 'border-projector-primary-500' : 'border-gray-200 dark:border-gray-700'"
+                        >
+                            <textarea
+                                v-if="isEditingName"
+                                ref="nameInput"
+                                v-model="draftName"
+                                rows="1"
+                                :disabled="isSavingName"
+                                class="w-full resize-none overflow-hidden bg-transparent text-xl font-bold leading-tight text-gray-900 focus:outline-none dark:text-white"
+                                @input="resizeNameInput"
+                                @keydown.enter.prevent="saveName"
+                                @keydown.escape.prevent="cancelEditingName"
+                            />
+                            <span
+                                v-else
+                                class="cursor-pointer rounded transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
+                                @click="startEditingName"
+                            >{{ savedName }}</span>
                         </SheetTitle>
-                        <div class="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">
-                            <Clock class="w-3 h-3" /> Updated {{ formatDate(document.updated_at) }}
+                        <div v-if="isEditingName" class="flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                :disabled="isSavingName"
+                                class="h-8 text-[10px] font-black tracking-widest uppercase"
+                                @click="cancelEditingName"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                :disabled="isNameUnchanged || isSavingName"
+                                class="h-8 bg-projector-primary-600 text-[10px] font-black tracking-widest uppercase hover:bg-projector-primary-700"
+                                @click="saveName"
+                            >
+                                {{ isSavingName ? 'Saving…' : 'Save' }}
+                            </Button>
+                        </div>
+                        <div v-else class="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-gray-400">
+                            <span class="flex items-center gap-1.5">
+                                <Clock class="w-3 h-3" /> Updated {{ formatDate(document.updated_at) }}
+                            </span>
+                            <span class="cursor-pointer" @click="startEditingName">Click To Edit</span>
                         </div>
                     </SheetHeader>
 

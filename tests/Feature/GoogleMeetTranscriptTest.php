@@ -2,6 +2,7 @@
 
 use App\Jobs\ImportMeetingTranscript;
 use App\Jobs\ProcessDocumentAI;
+use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
@@ -324,6 +325,61 @@ it('prevents duplicate imports of the same recording', function () {
     // No new document should have been created
     expect($this->project->documents()->count())->toBe(1);
     Queue::assertNotPushed(ImportMeetingTranscript::class);
+});
+
+it('redirects to a pre-created blank Meeting Notes document when the transcript-to-notes template is single-output', function () {
+    Queue::fake();
+
+    $template = AiTemplate::create([
+        'name' => 'Transcript to Meeting Notes',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => 'y',
+        'single_output' => true,
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $template->id]);
+
+    $response = $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.store', $this->project), [
+            'recording_id' => 'conferenceRecords/abc123',
+            'title' => 'Weekly Sync — 2026-03-01',
+            'started_at' => '2026-03-01T10:00:00Z',
+        ]);
+
+    $intake = $this->project->documents()->where('type', 'intake')->firstOrFail();
+    $meetingNotes = $this->project->documents()->where('parent_id', $intake->id)->firstOrFail();
+
+    expect($meetingNotes->type)->toBe(config('workflow.action_items_key'))
+        ->and($meetingNotes->name)->toBe('Weekly Sync — 2026-03-01')
+        ->and($meetingNotes->content)->toBe('')
+        ->and($meetingNotes->processed_at)->toBeNull();
+
+    $response->assertRedirect(route('projects.documents.show', [$this->project, $meetingNotes]));
+});
+
+it('redirects straight to the transcript when the transcript-to-notes template is not single-output', function () {
+    Queue::fake();
+
+    $template = AiTemplate::create([
+        'name' => 'Transcript to Meeting Notes',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => 'y',
+        'single_output' => false,
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $template->id]);
+
+    $response = $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.store', $this->project), [
+            'recording_id' => 'conferenceRecords/abc123',
+            'title' => 'Weekly Sync — 2026-03-01',
+            'started_at' => '2026-03-01T10:00:00Z',
+        ]);
+
+    $intake = $this->project->documents()->where('type', 'intake')->firstOrFail();
+    expect($this->project->documents()->where('parent_id', $intake->id)->exists())->toBeFalse();
+
+    $response->assertRedirect(route('projects.documents.show', [$this->project, $intake]));
 });
 
 it('validates required fields on store', function () {
