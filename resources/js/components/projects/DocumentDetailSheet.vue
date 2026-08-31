@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import DOMPurify from 'dompurify';
+import { EditorContent } from '@tiptap/vue-3';
+import axios from 'axios';
+import { toast } from 'vue-sonner';
 import {
     Sheet,
     SheetContent,
@@ -16,13 +18,16 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import CommentSection from '@/components/comments/CommentSection.vue';
+import { useDocumentEditor } from '@/composables/useDocumentEditor';
+import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import {
     PRIORITY_LABELS,
     kanbanDotClasses,
     priorityDotClasses
 } from '@/lib/constants';
-import { Clock, Plus } from 'lucide-vue-next';
+import { Bold, Clock, Italic, List, ListOrdered, Paperclip, Plus } from 'lucide-vue-next';
 import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
 
 const props = defineProps<{
@@ -107,7 +112,86 @@ const addTag = (category: CategoryDef) =>
 const removeTag = (category: CategoryDef) =>
     emit('update-tags', props.document.id, (props.document.categories ?? []).filter((c) => c.id !== category.id));
 
-const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
+// Staged locally rather than emitted straight through on every keystroke (contrast
+// InlineDocumentForm.vue's editor, which writes through to its Inertia form field
+// immediately) — this sheet's content is always live/persisted data, not a draft form, so
+// edits shouldn't reach the server until Save is actually clicked. `savedContent` is the
+// last-known-persisted value, used instead of `document.content` itself for dirty-tracking —
+// see saveContent()'s own comment for why.
+const savedContent = ref(props.document.content ?? '');
+const draftContent = ref(props.document.content ?? '');
+const isContentDirty = computed(() => draftContent.value !== savedContent.value);
+
+// Same useDocumentEditor composable as every other rich-text field in the app (comments,
+// document create/edit forms) — configuring Tiptap in exactly one place means a change
+// there (extensions, upload handling, mention behavior) reaches this sheet too.
+const { editor, triggerUpload } = useDocumentEditor(
+    () => props.document.content,
+    (html) => { draftContent.value = html; },
+    mentionableUsers,
+    // Getter, not a snapshot — this sheet is reused across many different documents (and,
+    // on the Dashboard, documents from different projects) without remounting, so uploads
+    // need to target whichever document is actually showing right now.
+    () => documentProject.value?.id,
+);
+
+// Resets the draft (and its saved baseline) when a different document is opened in this
+// same (reused) sheet — not when *this* component's own save changes `content` server-side,
+// since saveContent() below deliberately never touches `document.content` itself.
+watch(
+    () => props.document.content,
+    (val) => {
+        savedContent.value = val ?? '';
+        draftContent.value = val ?? '';
+    },
+);
+
+// Deliberately not routed through the `update-attribute` emit (unlike every other field in
+// this sheet) — that funnel ultimately hits DocumentController::updateAttributes(), whose
+// validation only accepts task_status/priority/due_at/assignee_id, so a `content` key sent
+// there is silently dropped (the request still returns 200, but nothing is persisted).
+// updateAttributes() is also gated by the looser "any org member" policy check rather than
+// full project-edit access, which content edits should require — the same authorization
+// InlineDocumentForm.vue's edit flow already goes through. So this saves directly against
+// DocumentController::update() instead, matching that existing content-editing path.
+//
+// Uses axios directly rather than Inertia's router.patch() — mirroring
+// useDocumentActions.ts's updateDocument() — specifically to avoid a full-page Inertia visit:
+// this sheet is reused across the Kanban board, the Dashboard, and the Reports table, and in
+// every one of those a full visit's fresh props briefly replace the local document/task state
+// this sheet's `document` prop is sourced from, which was closing the sheet out from under
+// the user right after a successful save. Since nothing else on screen shows document content
+// (no Kanban card preview, etc.), there's nothing that actually needs that round trip — this
+// component already knows exactly what it just saved.
+const isSavingContent = ref(false);
+
+const saveContent = async () => {
+    if (!documentProject.value) {
+        return;
+    }
+
+    isSavingContent.value = true;
+    try {
+        await axios.post(
+            projectDocumentsRoutes.update.url({
+                project: documentProject.value.id,
+                document: String(props.document.id),
+            }),
+            { content: draftContent.value, _method: 'put' },
+        );
+        savedContent.value = draftContent.value;
+        toast.success('Changes saved');
+    } catch {
+        toast.error('Could not save changes.');
+    } finally {
+        isSavingContent.value = false;
+    }
+};
+
+const cancelContentEdit = () => {
+    draftContent.value = savedContent.value;
+    editor.value?.commands.setContent(savedContent.value, { emitUpdate: false });
+};
 
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(undefined, {
@@ -249,9 +333,87 @@ const handleUpdate = (field: string, value: any) => {
 
                         <h4 class="text-[11px] font-black uppercase tracking-widest text-gray-400 mt-10">Content</h4>
                         <div
-                            class="document-detail-content max-w-none text-[15px] leading-relaxed text-slate-900 dark:text-gray-300 mt-4"
-                            v-html="sanitize(document.content) || 'No content provided.'"
-                        ></div>
+                            class="document-detail-content max-w-none mt-4 overflow-hidden rounded-md border border-slate-200 transition-all focus-within:border-transparent focus-within:ring-2 focus-within:ring-projector-primary-500 dark:border-white/10 dark:bg-white/5"
+                        >
+                            <div
+                                v-if="editor"
+                                class="flex items-center gap-1 border-b border-slate-100 bg-slate-50/50 p-2 dark:border-white/10 dark:bg-white/5"
+                            >
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 dark:text-slate-300"
+                                    @click="editor.chain().focus().toggleBold().run()"
+                                    :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bold') }"
+                                >
+                                    <Bold class="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 dark:text-slate-300"
+                                    @click="editor.chain().focus().toggleItalic().run()"
+                                    :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('italic') }"
+                                >
+                                    <Italic class="h-4 w-4" />
+                                </Button>
+                                <div class="mx-1 h-4 w-px bg-slate-200 dark:bg-white/20"></div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 dark:text-slate-300"
+                                    @click="editor.chain().focus().toggleBulletList().run()"
+                                    :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('bulletList') }"
+                                >
+                                    <List class="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 dark:text-slate-300"
+                                    @click="editor.chain().focus().toggleOrderedList().run()"
+                                    :class="{ 'bg-slate-200 dark:bg-white/20': editor.isActive('orderedList') }"
+                                >
+                                    <ListOrdered class="h-4 w-4" />
+                                </Button>
+                                <div class="mx-1 h-4 w-px bg-slate-200 dark:bg-white/20"></div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 dark:text-slate-300"
+                                    @click="triggerUpload"
+                                >
+                                    <Paperclip class="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <editor-content :editor="editor" />
+                        </div>
+                        <div class="mt-3 flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                :disabled="!isContentDirty || isSavingContent"
+                                class="h-8 text-[10px] font-black tracking-widest uppercase"
+                                @click="cancelContentEdit"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                :disabled="!isContentDirty || isSavingContent"
+                                class="h-8 bg-projector-primary-600 text-[10px] font-black tracking-widest uppercase hover:bg-projector-primary-700"
+                                @click="saveContent"
+                            >
+                                {{ isSavingContent ? 'Saving…' : 'Save' }}
+                            </Button>
+                        </div>
 
                         <template v-if="documentProject">
                             <h4 class="text-[11px] font-black uppercase tracking-widest text-gray-400 mt-10 mb-4">Tags</h4>

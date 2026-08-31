@@ -152,7 +152,7 @@ export function useDocumentEditor(
     content: string | null | undefined | (() => string | null | undefined),
     onUpdate: (html: string) => void,
     users?: MentionUser[] | Ref<MentionUser[]>,
-    projectId?: string,
+    projectId?: string | (() => string | undefined),
 ) {
     // Accepting a getter (rather than only a plain string) lets the watch below track the
     // live source value — e.g. a reactive form field — instead of a one-off snapshot taken
@@ -161,6 +161,15 @@ export function useDocumentEditor(
     // remounted) never reach the editor's actual displayed content.
     const getContent = () =>
         typeof content === 'function' ? content() : content;
+
+    // Same getter-or-plain-value acceptance as content above, for the same reason: a caller
+    // whose editor outlives any single document (e.g. DocumentDetailSheet, reused across
+    // different tasks — and on the Dashboard, different tasks can belong to different
+    // projects — without remounting) needs uploads to target whichever project's document is
+    // actually showing right now, not whichever one happened to be showing when this
+    // composable was first called.
+    const getProjectId = () =>
+        typeof projectId === 'function' ? projectId() : projectId;
 
     const extensions: any[] = [StarterKit, Image.configure({ inline: true }), FileAttachment];
 
@@ -222,7 +231,8 @@ export function useDocumentEditor(
     // reuse this composable without one (e.g. AiTemplateForm.vue), and file upload has no
     // authorization scope to upload against without a project.
     function uploadFile(file: File) {
-        if (!projectId) {
+        const currentProjectId = getProjectId();
+        if (!currentProjectId) {
             return;
         }
 
@@ -238,7 +248,7 @@ export function useDocumentEditor(
         pendingUploads.value++;
 
         const upload = axios
-            .post(contentUploads.store.url({ project: projectId }), formData)
+            .post(contentUploads.store.url({ project: currentProjectId }), formData)
             .then(({ data }: { data: { url: string; name: string } }) => {
                 if (!editor.value) {
                     return;
@@ -268,7 +278,7 @@ export function useDocumentEditor(
                 console.error('Content upload failed', error);
                 axios
                     .post('/log-upload-error', {
-                        project_id: projectId,
+                        project_id: currentProjectId,
                         file_name: file.name,
                         file_size: file.size,
                         file_type: file.type,
@@ -292,7 +302,7 @@ export function useDocumentEditor(
     }
 
     function triggerUpload() {
-        if (!projectId) {
+        if (!getProjectId()) {
             return;
         }
 
@@ -314,7 +324,7 @@ export function useDocumentEditor(
             },
             handleDrop: (_view, event) => {
                 const files = (event as DragEvent).dataTransfer?.files;
-                if (!projectId || !files || files.length === 0) {
+                if (!getProjectId() || !files || files.length === 0) {
                     return false;
                 }
                 event.preventDefault();
@@ -323,7 +333,7 @@ export function useDocumentEditor(
             },
             handlePaste: (_view, event) => {
                 const files = (event as ClipboardEvent).clipboardData?.files;
-                if (!projectId || !files || files.length === 0) {
+                if (!getProjectId() || !files || files.length === 0) {
                     return false;
                 }
                 event.preventDefault();
