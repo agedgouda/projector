@@ -203,3 +203,52 @@ it('blocks a non-author non-admin from deleting a comment', function () {
 
     expect(Comment::count())->toBe(1);
 });
+
+it('allows the comment author to edit their own comment', function () {
+    $comment = Comment::create([
+        'body' => 'Original text',
+        'user_id' => $this->member->id,
+        'commentable_type' => Task::class,
+        'commentable_id' => $this->task->id,
+    ]);
+
+    $this->actingAs($this->member)
+        ->put(route('comments.update', $comment), ['body' => 'Edited text'])
+        ->assertRedirect();
+
+    expect($comment->fresh()->body)->toBe('Edited text');
+});
+
+it('blocks an org-admin from editing another member\'s comment', function () {
+    $comment = Comment::create([
+        'body' => 'Member comment',
+        'user_id' => $this->member->id,
+        'commentable_type' => Task::class,
+        'commentable_id' => $this->task->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('comments.update', $comment), ['body' => 'Rewritten by admin'])
+        ->assertNotFound();
+
+    expect($comment->fresh()->body)->toBe('Member comment');
+});
+
+it('blocks a non-author from editing a comment', function () {
+    $author = User::factory()->create();
+    $this->org->users()->attach($author->id, ['role' => 'team-member']);
+    $this->client->users()->attach($author->id);
+
+    $comment = Comment::create([
+        'body' => 'Author comment',
+        'user_id' => $author->id,
+        'commentable_type' => Task::class,
+        'commentable_id' => $this->task->id,
+    ]);
+
+    $this->actingAs($this->member)
+        ->put(route('comments.update', $comment), ['body' => 'Hijacked text'])
+        ->assertNotFound();
+
+    expect($comment->fresh()->body)->toBe('Author comment');
+});

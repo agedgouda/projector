@@ -6,6 +6,7 @@ use App\Models\Comment;
 use App\Models\Document;
 use App\Models\Task;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -77,6 +78,19 @@ class CommentController extends Controller
             'body' => $validated['body'],
             'user_id' => $request->user()->id,
         ]);
+
+        return back();
+    }
+
+    public function update(Request $request, Comment $comment): RedirectResponse
+    {
+        Gate::authorize('update', $comment);
+
+        $validated = $request->validate([
+            'body' => 'required|string',
+        ]);
+
+        $comment->update($validated);
 
         return back();
     }

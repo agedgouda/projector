@@ -13,6 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import CommentEditForm from '@/components/comments/CommentEditForm.vue';
 import { useDocumentEditor } from '@/composables/useDocumentEditor';
 import CommentRoutes from '@/routes/comments/index';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -145,6 +146,38 @@ const deleteComment = (id: number) => {
     });
 };
 
+// Only one comment can be edited at a time — clicking a different comment (or Cancel)
+// just moves this to a new id rather than tracking a set.
+const editingCommentId = ref<number | null>(null);
+
+// A separate form from the composer's own `form` above — that one owns the new-comment
+// box's live state, which editing a comment shouldn't touch.
+const editForm = useForm({ body: '' });
+
+const startEdit = (comment: Comment, event: MouseEvent) => {
+    if (comment.user_id !== currentUserId) return;
+    // Let a click on a link/mention/attachment inside the comment body navigate normally
+    // instead of entering edit mode.
+    if ((event.target as HTMLElement).closest('a')) return;
+    editingCommentId.value = comment.id;
+};
+
+const cancelEdit = () => {
+    editingCommentId.value = null;
+};
+
+const saveEdit = (comment: Comment, html: string) => {
+    editForm.body = html;
+    editForm.put(CommentRoutes.update(comment.id).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            editingCommentId.value = null;
+            emit('changed');
+        },
+        onError: () => toast.error('Could not save changes.'),
+    });
+};
+
 const timeAgo = (date: string) => {
     const seconds = Math.floor(
         (new Date().getTime() - new Date(date).getTime()) / 1000,
@@ -223,7 +256,9 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                             </span>
                         </div>
 
-                        <div v-if="comment.user_id === currentUserId">
+                        <div
+                            v-if="comment.user_id === currentUserId && editingCommentId !== comment.id"
+                        >
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button
@@ -248,8 +283,24 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                             </DropdownMenu>
                         </div>
                     </div>
+
+                    <CommentEditForm
+                        v-if="editingCommentId === comment.id"
+                        :body="comment.body"
+                        :mentionable-users="mentionableUsers"
+                        :project-id="projectId"
+                        :saving="editForm.processing"
+                        @save="(html) => saveEdit(comment, html)"
+                        @cancel="cancelEdit"
+                    />
                     <div
-                        class="rounded-2xl rounded-tl-none border border-slate-100 bg-white px-4 py-3 text-[15px] leading-relaxed text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                        v-else
+                        :class="[
+                            'rounded-2xl rounded-tl-none border border-slate-100 bg-white px-4 py-3 text-[15px] leading-relaxed text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300',
+                            comment.user_id === currentUserId &&
+                                'cursor-pointer transition-colors hover:border-projector-primary-200 dark:hover:border-projector-primary-800',
+                        ]"
+                        @click="(event) => startEdit(comment, event)"
                         v-html="sanitize(comment.body)"
                     ></div>
                 </div>
