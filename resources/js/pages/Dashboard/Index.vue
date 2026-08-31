@@ -290,6 +290,7 @@ const aiProcessedParentIds = computed(() => {
             "
             @update-tags="(id, categories) => updateTags(id, categories)"
             @comments-changed="(id) => refreshComments(id)"
+            @name-updated="(id, name) => applyLocalUpdate(id, { name })"
         />
     </AppLayout>
 </template>

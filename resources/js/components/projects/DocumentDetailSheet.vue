@@ -57,6 +57,12 @@ const emit = defineEmits<{
     // A comment was posted or deleted. `document.comments` isn't always a live Inertia prop
     // (see CommentSection.vue's own `changed` emit), so the caller needs to know to re-fetch it.
     (e: 'comments-changed', id: string | number): void;
+
+    // The title was saved (see saveName() below — it POSTs directly to
+    // DocumentController::update() rather than through the update-attribute funnel), so the
+    // Kanban card / reports row showing this same document elsewhere on screen won't pick up
+    // the new name on their own — the caller needs to patch its own copy in place.
+    (e: 'name-updated', id: string | number, name: string): void;
 }>();
 const page = usePage<AppPageProps>();
 
@@ -271,6 +277,7 @@ const saveName = async () => {
             { name: trimmed, _method: 'put' },
         );
         savedName.value = trimmed;
+        emit('name-updated', props.document.id, trimmed);
         toast.success('Changes saved');
         isEditingName.value = false;
     } catch {

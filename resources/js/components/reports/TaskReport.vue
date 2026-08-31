@@ -119,6 +119,14 @@ const onUpdateField = (task: TaskReportRow, field: string, rawValue: unknown) =>
     });
 };
 
+// DocumentDetailSheet's title editor saves directly against DocumentController::update()
+// (see its own name-updated emit comment), bypassing onUpdateField's router.patch entirely
+// — so, same as onUpdateField/onUpdateTags, the row object needs a matching in-place mutation
+// or the table underneath keeps showing the old title until the next full search.
+const onUpdateName = (task: TaskReportRow, name: string) => {
+    task.name = name;
+};
+
 const onUpdateTags = (task: TaskReportRow, categories: CategoryDef[]) => {
     const previous = task.categories;
     task.categories = categories;
@@ -512,6 +520,9 @@ onMounted(async () => {
             "
             @update-tags="
                 (id, categories) => selectedReportTask && onUpdateTags(selectedReportTask, categories)
+            "
+            @name-updated="
+                (id, name) => selectedReportTask && onUpdateName(selectedReportTask, name)
             "
             @handle-reprocess="handleReportReprocess"
             @handle-transition="handleReportTransition"
