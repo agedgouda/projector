@@ -210,15 +210,15 @@ declare global {
         name: string;
         content: string | null;
         type: string;
+        is_task: boolean;
         project_id: string;
         project_name: string;
         is_subproject: boolean;
         due_at: string | null;
         external_due_at: string | null;
         start_at: string | null;
-        priority: TaskPriority;
         task_status: TaskStatus;
-        // At most one — Events are capped to a single tag (see DocumentController::updateCategories()).
+        // Events are capped to a single tag (see DocumentController::updateCategories()); tasks can carry any number.
         categories: CategoryDef[];
     }
 

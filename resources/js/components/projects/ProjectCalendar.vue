@@ -15,7 +15,7 @@ import { kanbanCardBg } from '@/lib/kanban-theme';
 import { formatDateOnly } from '@/lib/utils';
 import projectCalendarRoutes from '@/routes/projects/calendar';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import {
     ArrowUpRight,
     CalendarDays,
@@ -37,6 +37,18 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'import-events'): void;
 }>();
+
+const page = usePage();
+// external_due_at is preferred when the org uses external due dates, but falls back to due_at
+// when it's empty — most existing tasks/events (and every Event today, which has no UI to set
+// external_due_at at all) only ever have due_at set, so a strict either/or (no fallback, like
+// TaskRowFields.vue's dense single-field row editor) made those items vanish from the calendar
+// entirely instead of just deprioritizing them.
+const usesExternalDueDates = computed(
+    () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
+);
+const effectiveDueAt = (item: CalendarItem): string | null =>
+    (usesExternalDueDates.value ? item.external_due_at : null) ?? item.due_at;
 
 interface GridDay {
     date: Date;
@@ -112,6 +124,23 @@ const toggleSubproject = (id: string) => {
     }
 };
 
+// Same multi-select/OR convention as the tag filter below: empty selection shows everything,
+// selecting one or more types shows only items of those types. Session-only, resets on reload.
+const selectedTypes = ref<('task' | 'event')[]>([]);
+const toggleTypeFilter = (type: 'task' | 'event') => {
+    const current = selectedTypes.value;
+    const idx = current.indexOf(type);
+    if (idx === -1) {
+        selectedTypes.value = [...current, type];
+    } else {
+        selectedTypes.value = current.filter((t) => t !== type);
+    }
+};
+const matchesTypeFilter = (item: CalendarItem): boolean => {
+    if (selectedTypes.value.length === 0) return true;
+    return selectedTypes.value.includes(item.is_task ? 'task' : 'event');
+};
+
 // Every distinct tag currently on an event in view, deduped by id — mirrors
 // KanbanBoard.vue's own availableTags/tag-filter convention (multi-select, OR semantics,
 // empty selection shows everything).
@@ -155,12 +184,14 @@ const monthLabel = computed(() =>
 );
 
 // Exports mirror whatever's currently on screen — the visible month, whichever
-// sub-projects are currently hidden, and the active tag filter — so the downloaded file
-// matches the view.
+// sub-projects are currently hidden, the active tag filter, and the Tasks/Events toggle —
+// so the downloaded file matches the view.
 const exportQuery = computed(() => ({
     month: `${currentMonth.value.getFullYear()}-${String(currentMonth.value.getMonth() + 1).padStart(2, '0')}`,
     hidden_subprojects: Array.from(hiddenSubprojectIds),
     tags: selectedTagIds.value,
+    show_tasks: selectedTypes.value.length === 0 || selectedTypes.value.includes('task'),
+    show_events: selectedTypes.value.length === 0 || selectedTypes.value.includes('event'),
 }));
 const exportPdfUrl = computed(() =>
     projectCalendarRoutes.exportPdf.url(
@@ -246,10 +277,11 @@ const gridDays = computed<GridDay[]>(() => {
     return days;
 });
 
-// Every visible event's [start, end] date-key range, one entry per event regardless of how
-// many days it spans or how many weeks it crosses. A missing start_at collapses the range to
-// a single day at due_at, and a start_at after due_at (bad data) is clamped the same way
-// rather than rendering a bar that runs backwards.
+// Every visible item's [start, end] date-key range, one entry per item regardless of how
+// many days it spans or how many weeks it crosses. Tasks have no start_at (the calendar only
+// shows the single day they're due), so they always collapse to a single day, same as an Event
+// with a missing start_at; a start_at after the effective due date (bad data) is clamped the
+// same way rather than rendering a bar that runs backwards.
 const eventRanges = computed<EventRange[]>(() => {
     const ranges: EventRange[] = [];
 
@@ -260,11 +292,15 @@ const eventRanges = computed<EventRange[]>(() => {
         if (!matchesTagFilter(item)) {
             continue;
         }
-        if (!item.due_at) {
+        if (!matchesTypeFilter(item)) {
+            continue;
+        }
+        const dueAt = effectiveDueAt(item);
+        if (!dueAt) {
             continue;
         }
 
-        const endKey = item.due_at.slice(0, 10);
+        const endKey = dueAt.slice(0, 10);
         const startKey = item.start_at ? item.start_at.slice(0, 10) : endKey;
         ranges.push({
             item,
@@ -355,10 +391,10 @@ const weeks = computed<WeekRow[]>(() => {
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// A tagged event's bar is tinted with a light wash of its own tag color (matching the tag
-// dot right next to it) rather than the generic subproject/primary tint — Events carry at
-// most one tag (see the categories docblock on CalendarItem), so there's never a choice to
-// make between colors, only whether one is set at all.
+// A tagged item's bar is tinted with a light wash of its first tag's color (matching the tag
+// dot right next to it) rather than the generic subproject/primary tint. Events carry at most
+// one tag (see the categories docblock on CalendarItem), so there's nothing to pick between for
+// them; a task with several tags just takes the first, same ordering as the dot beside it.
 const barClasses = (bar: EventBar): string => {
     const tagColor = bar.item.categories?.[0]?.color;
     if (tagColor) return kanbanCardBg[tagColor] ?? kanbanCardBg.slate;
@@ -381,14 +417,14 @@ const openItem = (item: CalendarItem) => {
     router.visit(url);
 };
 
-// Every item here is an Event (see Project::calendarItems() — the calendar is events-only),
-// which always has both a start and end date. When they're the same calendar day — the common
-// case, since a single-date source row defaults start to end for both the "Notes to Events"
-// transformation and the list importer — showing "Start Date"/"End Date" as separate, identical
-// rows would be redundant, so it collapses to one plain "Date" row; only a genuine multi-day
-// Event gets distinct Start/End rows.
+// Tasks have no start_at, so they always fall into the single-"Date" case below, using their
+// effective due date (see effectiveDueAt). Events default start to end for a single-date source
+// row (the "Notes to Events" transformation and the list importer both do this), so they also
+// commonly collapse to one plain "Date" row — only a genuine multi-day Event gets distinct
+// Start/End rows.
 const dateFields = (item: CalendarItem): { label: string; value: string }[] => {
-    const { start_at: start, due_at: due } = item;
+    const start = item.start_at;
+    const due = effectiveDueAt(item);
 
     if (!start || !due || start.slice(0, 10) === due.slice(0, 10)) {
         return [
@@ -461,10 +497,10 @@ const cancelCloseBarCard = () => {
             <div class="mb-4 rounded-2xl bg-white p-4 shadow-sm">
                 <CalendarDays class="h-8 w-8 text-gray-300" />
             </div>
-            <p class="font-bold text-gray-900">No events yet</p>
+            <p class="font-bold text-gray-900">No tasks or events yet</p>
             <p class="text-sm text-gray-500">
-                Events with due dates, including sub-project events, will show
-                up here.
+                Tasks and events with due dates, including sub-project items,
+                will show up here.
             </p>
             <Button
                 v-if="canManageImports"
@@ -552,6 +588,33 @@ const cancelCloseBarCard = () => {
                 </div>
             </div>
 
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    @click="toggleTypeFilter('task')"
+                    :class="[
+                        'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
+                        selectedTypes.includes('task')
+                            ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                    ]"
+                >
+                    Tasks
+                </button>
+                <button
+                    type="button"
+                    @click="toggleTypeFilter('event')"
+                    :class="[
+                        'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
+                        selectedTypes.includes('event')
+                            ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                    ]"
+                >
+                    Events
+                </button>
+            </div>
+
             <div
                 v-if="subprojects.length"
                 class="flex flex-wrap items-center gap-2"
@@ -585,10 +648,6 @@ const cancelCloseBarCard = () => {
                 v-if="availableTags.length"
                 class="flex flex-wrap items-center gap-2"
             >
-                <span
-                    class="text-[9px] font-black tracking-widest text-gray-400 uppercase"
-                    >Tag:</span
-                >
                 <button
                     type="button"
                     @click="selectedTagIds = []"

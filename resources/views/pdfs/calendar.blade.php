@@ -170,23 +170,21 @@
             color: #64748b;
         }
 
-        .marker .ext-tag {
-            font-size: 6px;
-            text-transform: uppercase;
-            color: #92400e;
-        }
-
-        .color-primary { background: #e0e7ff; }
-        .color-slate { background: #e2e8f0; }
-        .color-red { background: #fee2e2; }
-        .color-amber { background: #fef3c7; }
-        .color-emerald { background: #d1fae5; }
-        .color-blue { background: #dbeafe; }
-        .color-purple { background: #ede9fe; }
-        .color-pink { background: #fce7f3; }
-        .color-orange { background: #ffedd5; }
-        .color-indigo { background: #e0e7ff; }
-        .color-teal { background: #ccfbf1; }
+        {{-- Matches the on-screen calendar's actual bar backgrounds: the Projector primary-50
+             token for untagged/non-subproject items, and each named tag/sub-project color's own
+             10%-opacity wash (kanbanCardBg's `bg-{color}-500/10`, flattened onto white here since
+             dompdf doesn't support alpha-blended backgrounds) for everything else. --}}
+        .color-primary { background: #fdf4f1; }
+        .color-slate { background: #f0f1f3; }
+        .color-red { background: #fdecec; }
+        .color-amber { background: #fff9e9; }
+        .color-emerald { background: #e7f8f2; }
+        .color-blue { background: #ebf3fe; }
+        .color-purple { background: #f6eefe; }
+        .color-pink { background: #fdedf5; }
+        .color-orange { background: #fef1e8; }
+        .color-indigo { background: #eff0fe; }
+        .color-teal { background: #e8f8f6; }
 
         .empty {
             color: #94a3b8;
@@ -233,7 +231,7 @@
     <div class="doc-title">{{ $project->name }} Calendar</div>
     <div class="doc-meta">
         @if ($usesExternalDueDates)
-            Internal &amp; external due dates
+            External due dates
         @else
             Due dates
         @endif
@@ -262,9 +260,6 @@
                                 @foreach ($cell['markers'] as $marker)
                                     <div class="marker color-{{ $marker['color'] }}">
                                         {{ $marker['name'] }}
-                                        @if ($marker['isExternal'])
-                                            <span class="ext-tag">Ext</span>
-                                        @endif
                                         @if ($marker['isSubproject'])
                                             <div class="sub-tag">{{ $marker['projectName'] }}</div>
                                         @endif

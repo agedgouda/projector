@@ -389,28 +389,30 @@ class Project extends Model implements HasMedia
     }
 
     /**
-     * Flattened Event items for the Campaign Calendar: this project's own documents plus
-     * its direct sub-projects' documents (2-level cap — no grandchildren exist), limited to
-     * Event-type documents (see the 'event' document type definition) that have a due date
-     * set. Non-event types (tasks, notes, etc.) never appear here — the calendar is
-     * events-only.
+     * Flattened Task and Event items for the Campaign Calendar: this project's own documents
+     * plus its direct sub-projects' documents (2-level cap — no grandchildren exist), limited
+     * to Event-type documents and whichever type(s) the organization's document-type catalog
+     * flags is_task (see Project::isTaskType()) — mirrors getKanbanDocuments()'s own task
+     * filter rather than hardcoding a literal 'task' type — that have a due date set.
      *
      * @return \Illuminate\Support\Collection<int, array{
-     *     id: string, name: string|null, content: string|null, type: string,
+     *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null,
-     *     priority: string, task_status: string,
+     *     task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
     public function calendarItems(): \Illuminate\Support\Collection
     {
+        $catalog = $this->documentTypeCatalog();
+
         /**
          * @var array<int, array{
-         *     id: string, name: string|null, content: string|null, type: string,
+         *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
          *     project_id: string, project_name: string, is_subproject: bool,
          *     due_at: string|null, external_due_at: string|null, start_at: string|null,
-         *     priority: string, task_status: string,
+         *     task_status: string,
          *     categories: array<int, array{id: string, name: string, color: string}>
          * }> $items
          */
@@ -425,7 +427,8 @@ class Project extends Model implements HasMedia
 
         foreach ($sources as $source) {
             foreach ($source['project']->documents as $doc) {
-                if ($doc->type !== 'event') {
+                $isTask = $this->isTaskType($catalog, $doc->type);
+                if ($doc->type !== 'event' && ! $isTask) {
                     continue;
                 }
 
@@ -434,16 +437,16 @@ class Project extends Model implements HasMedia
                     'name' => $doc->name,
                     'content' => $doc->content,
                     'type' => $doc->type,
+                    'is_task' => $isTask,
                     'project_id' => $doc->project_id,
                     'project_name' => $source['project']->name,
                     'is_subproject' => $source['is_subproject'],
                     'due_at' => $doc->due_at,
                     'external_due_at' => $doc->external_due_at,
                     'start_at' => $doc->start_at,
-                    'priority' => $doc->priority,
                     'task_status' => $doc->task_status,
-                    // At most one — see DocumentController::updateCategories(), which caps
-                    // an Event to a single tag.
+                    // Events are capped to a single tag (see
+                    // DocumentController::updateCategories()); tasks can carry any number.
                     'categories' => $doc->categories->map(fn (Category $category): array => [
                         'id' => $category->id,
                         'name' => $category->name,
