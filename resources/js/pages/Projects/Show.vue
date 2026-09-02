@@ -694,6 +694,9 @@ watch(
                     :google-picker-configured="googlePickerConfigured"
                     :google-api-key="googleApiKey"
                     :google-app-id="googleAppId"
+                    :documents="currentProject.documents"
+                    :document-type-catalog="documentTypeCatalog"
+                    :meeting-provider="meetingProvider"
                 />
                 <DocumentManager
                     :project="currentProject"

@@ -13,6 +13,8 @@ import {
     CheckSquare,
     ChevronRight,
     FileText,
+    Folder,
+    FolderOpen,
     RefreshCw,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -22,7 +24,6 @@ const props = defineProps<{
     level: number;
     index?: number;
     expandedRootIds: Set<string | number>;
-    getDocLabel: (type: string) => string;
     isTaskType: (type: string) => boolean;
     selectedSheetId: string | number | null;
     assigneeOptions: AssigneeOption[];
@@ -43,6 +44,7 @@ const isTreeExpanded = computed(
         props.expandedRootIds.has(props.item.id),
 );
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
+const isGroup = computed(() => !!props.item.isTypeGroup);
 const isTask = computed(() => props.isTaskType(props.item.type));
 
 // Non-task rows show no date info anywhere else (see below) — shown generically off
@@ -69,6 +71,16 @@ const { navigateToDetails } = useDocumentActions({
 
 const goToDetails = () =>
     navigateToDetails(props.item.project_id, props.item.id);
+
+// A folder row has nothing to navigate to — clicking it (not just its chevron) toggles it,
+// same as clicking anywhere on a document row navigates to that document.
+const handleRowClick = () => {
+    if (isGroup.value) {
+        emit('toggleRoot', props.item.id);
+    } else {
+        goToDetails();
+    }
+};
 </script>
 
 <template>
@@ -80,12 +92,21 @@ const goToDetails = () =>
                     ? FLAT_ROW_SELECTED
                     : [
                           FLAT_ROW_HOVER,
-                          index !== undefined && index % 2 === 1
+                          // Folder rows are already visually distinct (icon, bold, count) —
+                          // stacking the children's own zebra stripe on top of them too just
+                          // clashes whenever a striped folder lands next to a striped child.
+                          // A border instead separates each folder section from what follows
+                          // (its own children, or the next folder once collapsed) without
+                          // competing with that striping.
+                          !isGroup && index !== undefined && index % 2 === 1
                               ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                              : '',
+                          isGroup
+                              ? 'border-b border-slate-200 dark:border-slate-800'
                               : '',
                       ]
             "
-            @click="goToDetails"
+            @click="handleRowClick"
         >
             <div v-if="isSelected" :class="FLAT_ROW_ACCENT_BAR"></div>
 
@@ -130,7 +151,11 @@ const goToDetails = () =>
                             : 'text-slate-400'
                     "
                 >
-                    <FileText class="h-3.5 w-3.5" />
+                    <template v-if="isGroup">
+                        <FolderOpen v-if="isTreeExpanded" class="h-3.5 w-3.5" />
+                        <Folder v-else class="h-3.5 w-3.5" />
+                    </template>
+                    <FileText v-else class="h-3.5 w-3.5" />
                 </div>
 
                 <div class="flex min-w-0 flex-1 items-center gap-1.5">
@@ -149,7 +174,8 @@ const goToDetails = () =>
                                 : 'truncate',
                         ]"
                     >
-                        {{ item.name }}
+                        {{ item.name
+                        }}<template v-if="isGroup"> ({{ item.children.length }})</template>
                     </span>
 
                     <span
@@ -179,9 +205,11 @@ const goToDetails = () =>
                     </span>
 
                     <span
-                        class="ml-auto shrink-0 text-[11px] font-black tracking-widest text-slate-500 uppercase dark:text-slate-400"
+                        v-if="!isGroup"
+                        class="ml-auto flex shrink-0 items-center gap-2.5 text-[9px] font-black text-slate-400 dark:text-slate-500"
                     >
-                        {{ getDocLabel(item.type) }}
+                        <span>Created {{ formatRowDate(item.created_at) }}</span>
+                        <span>Updated {{ formatRowDate(item.updated_at) }}</span>
                     </span>
                 </div>
             </template>
@@ -201,7 +229,6 @@ const goToDetails = () =>
                 :index="childIndex"
                 :level="level + 1"
                 :expanded-root-ids="expandedRootIds"
-                :get-doc-label="getDocLabel"
                 :is-task-type="isTaskType"
                 :selected-sheet-id="selectedSheetId"
                 :assignee-options="assigneeOptions"

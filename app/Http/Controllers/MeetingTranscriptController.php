@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Models\Project;
 use App\Services\Google\GoogleExportService;
 use App\Services\MeetingTranscriptService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +22,35 @@ class MeetingTranscriptController extends Controller
     {
         Gate::authorize('view', $project);
 
+        return inertia('Projects/Transcripts', array_merge(
+            ['project' => $project->load(['client.organization'])],
+            $this->availableRecordingsData($request, $project, $service),
+            [
+                'googlePickerConfigured' => $googleExportService->pickerConfigured(),
+                'googleApiKey' => config('services.google.api_key'),
+                'googleAppId' => config('services.google.app_id'),
+            ]
+        ));
+    }
+
+    /**
+     * Same data as index() above, as JSON — for the Document Import modal (see
+     * Projects/Partials/ImportDocumentOptions.vue), which needs this on demand whenever it
+     * opens rather than tied to whatever this page's own deferred prop last happened to load,
+     * regardless of which tab the user was on or how long the page had been open for.
+     */
+    public function available(Request $request, Project $project, MeetingTranscriptService $service): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        return response()->json($this->availableRecordingsData($request, $project, $service));
+    }
+
+    /**
+     * @return array{recordings: array<int, array<string, mixed>>, importedIds: \Illuminate\Support\Collection<int, mixed>, crossProjectImportedIds: \Illuminate\Support\Collection<int, mixed>, providerError: string|null, provider: string|null, canManageTranscripts: bool}
+     */
+    private function availableRecordingsData(Request $request, Project $project, MeetingTranscriptService $service): array
+    {
         $user = $request->user();
         $organization = $project->client->organization;
 
@@ -67,18 +97,14 @@ class MeetingTranscriptController extends Controller
             }
         }
 
-        return inertia('Projects/Transcripts', [
-            'project' => $project->load(['client.organization']),
+        return [
             'recordings' => $recordings,
             'importedIds' => $importedIds,
             'crossProjectImportedIds' => $crossProjectImportedIds,
             'providerError' => $providerError,
             'provider' => $organization?->meeting_provider,
             'canManageTranscripts' => $canManageTranscripts,
-            'googlePickerConfigured' => $googleExportService->pickerConfigured(),
-            'googleApiKey' => config('services.google.api_key'),
-            'googleAppId' => config('services.google.app_id'),
-        ]);
+        ];
     }
 
     private function authorizeManage(Request $request, Project $project): void

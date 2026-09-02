@@ -25,9 +25,19 @@ withDefaults(defineProps<{
     // list that immediately follows it, since the two now read as one visual group; every
     // other consumer keeps the original, more generous section-to-section spacing.
     spacingClass?: string;
+    // The project page's content-kind selector sets this when the user says the content is
+    // already finished (see Projects/Partials/ImportDocumentOptions.vue) — no AI call happens
+    // in that case, so the per-import instructions prompt has nothing to apply to.
+    skipProcessing?: boolean;
+    // Set while the type picker's "add new type" option is selected but not yet named — there's
+    // nothing valid to submit yet, so both buttons are held off rather than letting the request
+    // round-trip just to come back a 422.
+    disabled?: boolean;
 }>(), {
     heading: 'Import a Document',
     spacingClass: 'mb-8',
+    skipProcessing: false,
+    disabled: false,
 });
 
 const emit = defineEmits<{
@@ -76,11 +86,11 @@ const onFileChosen = (event: Event) => {
                 <div class="min-w-0 flex-1">
                     <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Import from Google Docs</span>
                 </div>
-                <AiInstructionsPopover v-model="googleDocPrompt" />
+                <AiInstructionsPopover v-if="!skipProcessing" v-model="googleDocPrompt" />
                 <Button
                     size="sm"
-                    :disabled="isOpening || importingGoogleDoc"
-                    class="shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest bg-projector-primary-600 hover:bg-projector-primary-700 text-white"
+                    :disabled="isOpening || importingGoogleDoc || disabled"
+                    class="w-28 shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest bg-projector-primary-600 hover:bg-projector-primary-700 text-white"
                     @click="emit('pick-google-doc', googleDocPrompt)"
                 >
                     <Loader2 v-if="isOpening || importingGoogleDoc" class="w-3 h-3 mr-1.5 animate-spin" />
@@ -95,7 +105,7 @@ const onFileChosen = (event: Event) => {
                 <div class="min-w-0 flex-1">
                     <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Upload Word or Text File (.docx, .txt)</span>
                 </div>
-                <AiInstructionsPopover v-model="filePrompt" />
+                <AiInstructionsPopover v-if="!skipProcessing" v-model="filePrompt" />
                 <input
                     ref="fileInput"
                     type="file"
@@ -105,9 +115,8 @@ const onFileChosen = (event: Event) => {
                 />
                 <Button
                     size="sm"
-                    variant="outline"
-                    :disabled="importingFile !== null"
-                    class="shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300"
+                    :disabled="importingFile !== null || disabled"
+                    class="w-28 shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest bg-projector-primary-600 hover:bg-projector-primary-700 text-white"
                     @click="fileInput?.click()"
                 >
                     <Loader2 v-if="importingFile !== null" class="w-3 h-3 mr-1.5 animate-spin" />

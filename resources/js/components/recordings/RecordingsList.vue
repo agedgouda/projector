@@ -44,11 +44,6 @@ const customPrompts = reactive<Record<string, string>>({});
     </div>
 
     <section v-else>
-        <h2 class="mb-4 text-[10px] font-black tracking-widest text-gray-400 uppercase">
-            Available Recordings
-            <span class="ml-2 text-gray-300">(last 30 days)</span>
-        </h2>
-
         <div
             v-if="pendingRecordings.length === 0"
             class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 py-16 dark:border-gray-700 dark:bg-gray-900/30"
@@ -64,7 +59,7 @@ const customPrompts = reactive<Record<string, string>>({});
             <div
                 v-for="recording in pendingRecordings"
                 :key="recording.id"
-                :class="['group flex items-center gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
+                :class="['group relative flex items-center gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
             >
                 <div class="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400">
                     <Video class="h-3.5 w-3.5" />
@@ -90,7 +85,7 @@ const customPrompts = reactive<Record<string, string>>({});
                         :variant="action.variant === 'outline' ? 'outline' : undefined"
                         :disabled="(action.disabled ?? action.loading)(recording)"
                         :class="[
-                            'shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest',
+                            'w-28 shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest',
                             action.variant === 'outline'
                                 ? 'text-slate-600 dark:text-slate-300'
                                 : 'bg-projector-primary-600 hover:bg-projector-primary-700 text-white',
@@ -105,7 +100,7 @@ const customPrompts = reactive<Record<string, string>>({});
                     <button
                         v-if="onDismiss"
                         type="button"
-                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+                        class="absolute top-1/2 left-full ml-1 flex h-8 w-8 shrink-0 -translate-y-1/2 items-center justify-center rounded-md text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                         title="Dismiss recording"
                         @click="onDismiss(recording)"
                     >

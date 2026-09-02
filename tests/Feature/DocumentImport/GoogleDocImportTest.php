@@ -71,6 +71,7 @@ it('creates an intake document from a picked google doc, using the picker-suppli
             'file_id' => 'doc-abc123',
             'title' => 'Weekly Sync Notes',
             'custom_prompt' => 'Summarize concisely.',
+            'type' => config('workflow.intake_key'),
         ])
         ->assertRedirect();
 
@@ -87,6 +88,107 @@ it('creates an intake document from a picked google doc, using the picker-suppli
 
     Http::assertSent(fn ($request) => str_contains($request->url(), 'doc-abc123/export')
         && $request['mimeType'] === 'text/html');
+});
+
+it('creates the document as the picked type and skips AI processing when it is not the intake type', function () {
+    Queue::fake();
+
+    // resolveDocumentType() validates a picked (non-new, non-intake) type against types
+    // actually already in use in this project, not a separate catalog — so there needs to be
+    // one already for this to be a valid choice.
+    $this->project->documents()->create([
+        'type' => config('workflow.action_items_key'),
+        'name' => 'Existing Meeting Notes',
+        'content' => 'Pre-existing.',
+        'processed_at' => now(),
+    ]);
+
+    GoogleOauthToken::factory()->create([
+        'user_id' => $this->admin->id,
+        'expires_at' => now()->addHour(),
+    ]);
+
+    Http::fake([
+        'www.googleapis.com/drive/v3/files/*/export*' => Http::response('<p>Already-finished notes.</p>', 200),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-google-doc', $this->project), [
+            'file_id' => 'doc-abc123',
+            'title' => 'Finished Notes',
+            'custom_prompt' => 'This should be ignored.',
+            'type' => config('workflow.action_items_key'),
+        ])
+        ->assertRedirect();
+
+    $document = $this->project->documents()->where('name', 'Finished Notes')->first();
+
+    expect($document)->not->toBeNull()
+        ->and($document->name)->toBe('Finished Notes')
+        ->and($document->content)->toContain('Already-finished notes.')
+        ->and($document->custom_prompt)->toBeNull()
+        ->and($document->processed_at)->not->toBeNull();
+
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('creates a new org-scoped document type and uses it when new_type_label is given', function () {
+    Queue::fake();
+
+    GoogleOauthToken::factory()->create([
+        'user_id' => $this->admin->id,
+        'expires_at' => now()->addHour(),
+    ]);
+
+    Http::fake([
+        'www.googleapis.com/drive/v3/files/*/export*' => Http::response('<p>Design brief content.</p>', 200),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-google-doc', $this->project), [
+            'file_id' => 'doc-abc123',
+            'title' => 'Design Brief',
+            'new_type_label' => 'Design Brief',
+        ])
+        ->assertRedirect();
+
+    $definition = \App\Models\DocumentTypeDefinition::where('organization_id', $this->org->id)
+        ->where('key', 'design_brief')
+        ->first();
+
+    expect($definition)->not->toBeNull()
+        ->and($definition->label)->toBe('Design Brief')
+        ->and($definition->is_task)->toBeFalse();
+
+    $document = $this->project->documents()->where('type', 'design_brief')->first();
+
+    expect($document)->not->toBeNull()
+        ->and($document->name)->toBe('Design Brief')
+        ->and($document->content)->toContain('Design brief content.')
+        ->and($document->processed_at)->not->toBeNull();
+
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('rejects a type that is not in the organization\'s document type catalog', function () {
+    GoogleOauthToken::factory()->create([
+        'user_id' => $this->admin->id,
+        'expires_at' => now()->addHour(),
+    ]);
+
+    Http::fake([
+        'www.googleapis.com/drive/v3/files/*/export*' => Http::response('<p>Content.</p>', 200),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-google-doc', $this->project), [
+            'file_id' => 'doc-abc123',
+            'title' => 'Weekly Sync Notes',
+            'type' => 'not-a-real-type',
+        ])
+        ->assertStatus(422);
+
+    expect(Document::count())->toBe(0);
 });
 
 it('forbids importing a google doc for a user without transcript-management rights', function () {

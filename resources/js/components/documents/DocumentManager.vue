@@ -46,10 +46,6 @@ const {
     removeDocuments
 } = useProjectState(() => props.liveDocuments, schema);
 
-const getDocLabel = (typeKey: string) => {
-    return schema.value.find((item: any) => item.key === typeKey)?.label || typeKey.replace(/_/g, ' ');
-};
-
 const isTaskType = (typeKey: string): boolean => {
     return schema.value.find((item: any) => item.key === typeKey)?.is_task ?? false;
 };
@@ -104,12 +100,36 @@ const onDeleteRequested = (doc: any) => {
 
 // --- 5. EXPANDED STATE + SCROLL PERSISTENCE ---
 const expandedKey = `doc_expanded_${props.project.id}`;
+const knownGroupsKey = `doc_known_groups_${props.project.id}`;
 const scrollKey = `doc_scroll_${props.project.id}`;
 
 // Save expanded IDs to sessionStorage on every change.
 watch(expandedRootIds, (newSet) => {
     sessionStorage.setItem(expandedKey, JSON.stringify(Array.from(newSet)));
 }, { deep: true });
+
+// A folder row defaults to expanded the first time it's ever seen (initial load, or a
+// brand-new document type showing up later) — collapsing it is then a deliberate action that
+// sticks. "Seen" has to survive a full page reload (not just this mount), same as
+// expandedRootIds itself above, or every reload would forget a collapse and force every
+// folder back open — so it's tracked in its own sessionStorage key, checked *before*
+// expandedRootIds is restored below (order doesn't matter — both only ever add ids).
+const knownGroupIds = new Set<string>(
+    JSON.parse(sessionStorage.getItem(knownGroupsKey) || '[]'),
+);
+watch(documentTree, (groups) => {
+    const next = new Set(expandedRootIds.value);
+    let changed = false;
+    groups.forEach((g) => {
+        if (!knownGroupIds.has(g.id)) {
+            knownGroupIds.add(g.id);
+            next.add(g.id);
+            changed = true;
+        }
+    });
+    if (changed) expandedRootIds.value = next;
+    sessionStorage.setItem(knownGroupsKey, JSON.stringify(Array.from(knownGroupIds)));
+}, { immediate: true });
 
 onMounted(() => {
     // Restore expanded IDs.
@@ -148,14 +168,13 @@ onMounted(() => {
 
         <div class="grid gap-0.5">
             <TraceabilityRow
-                v-for="(intake, index) in documentTree"
-                :key="intake.id"
-                :item="intake"
+                v-for="(group, index) in documentTree"
+                :key="group.id"
+                :item="group"
                 :index="index"
                 :level="0"
                 :selected-sheet-id="null"
                 :expanded-root-ids="expandedRootIds"
-                :get-doc-label="getDocLabel"
                 :is-task-type="isTaskType"
                 :assignee-options="assigneeOptions"
                 :uses-external-due-dates="usesExternalDueDates"

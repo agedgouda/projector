@@ -1,11 +1,13 @@
 <?php
 
+use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -50,6 +52,7 @@ it('imports an uploaded docx file as an intake document', function () {
     $this->actingAs($this->admin)
         ->post(route('projects.transcripts.import-file', $this->project), [
             'file' => fakeDocxFile('Weekly Notes.docx'),
+            'type' => config('workflow.intake_key'),
         ])
         ->assertRedirect();
 
@@ -69,6 +72,7 @@ it('imports an uploaded txt file as an intake document', function () {
     $this->actingAs($this->admin)
         ->post(route('projects.transcripts.import-file', $this->project), [
             'file' => $file,
+            'type' => config('workflow.intake_key'),
         ])
         ->assertRedirect();
 
@@ -84,7 +88,10 @@ it('escapes html special characters in an uploaded txt file', function () {
     $file = UploadedFile::fake()->createWithContent('script.txt', '<script>alert(1)</script>');
 
     $this->actingAs($this->admin)
-        ->post(route('projects.transcripts.import-file', $this->project), ['file' => $file])
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => $file,
+            'type' => config('workflow.intake_key'),
+        ])
         ->assertRedirect();
 
     $document = $this->project->documents()->where('type', config('workflow.intake_key'))->first();
@@ -120,11 +127,111 @@ it('respects a custom_prompt on file-based imports', function () {
         ->post(route('projects.transcripts.import-file', $this->project), [
             'file' => $file,
             'custom_prompt' => 'Extract only decisions.',
+            'type' => config('workflow.intake_key'),
         ])
         ->assertRedirect();
 
     $document = $this->project->documents()->where('type', config('workflow.intake_key'))->first();
     expect($document->custom_prompt)->toBe('Extract only decisions.');
+});
+
+it('creates the document as the picked type and skips AI processing when it is not the intake type', function () {
+    Queue::fake();
+
+    // resolveDocumentType() validates a picked (non-new, non-intake) type against types
+    // actually already in use in this project, not a separate catalog — so there needs to be
+    // one already for this to be a valid choice.
+    $this->project->documents()->create([
+        'type' => config('workflow.action_items_key'),
+        'name' => 'Existing Meeting Notes',
+        'content' => 'Pre-existing.',
+        'processed_at' => now(),
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('Finished Notes.txt', 'Already-finished notes.');
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => $file,
+            'custom_prompt' => 'This should be ignored.',
+            'type' => config('workflow.action_items_key'),
+        ])
+        ->assertRedirect();
+
+    $document = $this->project->documents()->where('name', 'Finished Notes')->first();
+
+    expect($document)->not->toBeNull()
+        ->and($document->name)->toBe('Finished Notes')
+        ->and($document->content)->toContain('Already-finished notes.')
+        ->and($document->custom_prompt)->toBeNull()
+        ->and($document->processed_at)->not->toBeNull();
+
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('creates a new org-scoped document type and uses it when new_type_label is given', function () {
+    Queue::fake();
+
+    $file = UploadedFile::fake()->createWithContent('Design Brief.txt', 'Design brief content.');
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => $file,
+            'new_type_label' => 'Design Brief',
+        ])
+        ->assertRedirect();
+
+    $definition = \App\Models\DocumentTypeDefinition::where('organization_id', $this->org->id)
+        ->where('key', 'design_brief')
+        ->first();
+
+    expect($definition)->not->toBeNull()
+        ->and($definition->label)->toBe('Design Brief')
+        ->and($definition->is_task)->toBeFalse();
+
+    $document = $this->project->documents()->where('type', 'design_brief')->first();
+
+    expect($document)->not->toBeNull()
+        ->and($document->processed_at)->not->toBeNull();
+
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('reuses an existing document type definition when new_type_label matches one already created', function () {
+    $existing = \App\Models\DocumentTypeDefinition::create([
+        'organization_id' => $this->org->id,
+        'key' => 'design_brief',
+        'label' => 'Design Brief',
+        'is_task' => false,
+        'order' => 1,
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('Another Brief.txt', 'More content.');
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => $file,
+            'new_type_label' => 'Design Brief',
+        ])
+        ->assertRedirect();
+
+    expect(\App\Models\DocumentTypeDefinition::where('organization_id', $this->org->id)->where('key', 'design_brief')->count())->toBe(1);
+
+    $document = $this->project->documents()->where('type', 'design_brief')->first();
+    expect($document)->not->toBeNull();
+});
+
+it('rejects a type that is not in the organization\'s document type catalog', function () {
+    $file = UploadedFile::fake()->createWithContent('notes.txt', 'Some text.');
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => $file,
+            'type' => 'not-a-real-type',
+        ])
+        ->assertStatus(422);
+
+    expect(Document::count())->toBe(0);
 });
 
 it('forbids uploading for a user without transcript-management rights', function () {
@@ -147,7 +254,10 @@ it('does not persist the uploaded file to any disk', function () {
     $file = UploadedFile::fake()->createWithContent('notes.txt', 'Some text.');
 
     $this->actingAs($this->admin)
-        ->post(route('projects.transcripts.import-file', $this->project), ['file' => $file])
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => $file,
+            'type' => config('workflow.intake_key'),
+        ])
         ->assertRedirect();
 
     expect(Storage::disk('public')->allFiles())->toBeEmpty()

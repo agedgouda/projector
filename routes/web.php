@@ -365,6 +365,8 @@ Route::middleware(['auth'])->group(function () {
 
             Route::get('/transcripts', [MeetingTranscriptController::class, 'index'])
                 ->name('transcripts.index');
+            Route::get('/transcripts/available', [MeetingTranscriptController::class, 'available'])
+                ->name('transcripts.available');
             Route::post('/transcripts', [MeetingTranscriptController::class, 'store'])
                 ->middleware('throttle:20,1')
                 ->name('transcripts.store');

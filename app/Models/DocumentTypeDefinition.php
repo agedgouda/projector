@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * @property string|null $organization_id
@@ -26,6 +28,18 @@ class DocumentTypeDefinition extends Model
         return [
             'is_task' => 'boolean',
         ];
+    }
+
+    /**
+     * Always Title Case, regardless of how it was entered/stored — every consumer (frontend
+     * catalog labels, the Document Import picker, etc.) reads a type's label through here, so
+     * normalizing it once on this side means none of them need their own title-casing logic.
+     */
+    protected function label(): Attribute
+    {
+        return Attribute::make(
+            get: fn (string $value) => Str::title($value),
+        );
     }
 
     /**
