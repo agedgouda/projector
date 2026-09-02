@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DocumentTypeDefinition;
 use App\Models\Project;
 use App\Services\DocumentFileExtractorService;
+use App\Services\DocumentTypeResolver;
 use App\Services\Google\GoogleExportService;
+use App\Services\IntakeImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class DocumentImportController extends Controller
@@ -38,7 +38,7 @@ class DocumentImportController extends Controller
     /**
      * Import a Google Doc (already picked via the Picker widget) as an intake document.
      */
-    public function importGoogleDoc(Request $request, Project $project, GoogleExportService $service): RedirectResponse
+    public function importGoogleDoc(Request $request, Project $project, GoogleExportService $service, IntakeImportService $importer, DocumentTypeResolver $typeResolver): RedirectResponse
     {
         $this->authorizeManage($request, $project);
 
@@ -60,18 +60,16 @@ class DocumentImportController extends Controller
 
         $html = $service->fetchDocAsHtml($accessToken, $validated['file_id']);
 
-        $this->createImportedDocument($project, $validated['title'], $html, $validated['custom_prompt'] ?? null, $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
+        return $this->createImportedDocument($project, $validated['title'], $html, $validated['custom_prompt'] ?? null, $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
             'import_source' => 'google_doc',
             'google_file_id' => $validated['file_id'],
-        ]);
-
-        return back()->with('success', "Imported \"{$validated['title']}\"…");
+        ], $importer, $typeResolver);
     }
 
     /**
      * Import an uploaded .docx or .txt file as an intake document.
      */
-    public function importFile(Request $request, Project $project, DocumentFileExtractorService $extractor): RedirectResponse
+    public function importFile(Request $request, Project $project, DocumentFileExtractorService $extractor, IntakeImportService $importer, DocumentTypeResolver $typeResolver): RedirectResponse
     {
         $this->authorizeManage($request, $project);
 
@@ -95,104 +93,52 @@ class DocumentImportController extends Controller
 
         // The uploaded file itself is never persisted — read from its temp upload path,
         // converted to HTML, discarded. Extraction happens synchronously in this same
-        // request, so there's no later job that would need the file to still exist.
-        $this->createImportedDocument($project, $title, $html, $validated['custom_prompt'] ?? null, $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
+        // request, so there's no later job that would need the file to still exist — a
+        // Transcription-type import still hands that already-extracted HTML off to
+        // ImportMeetingTranscript (via createImportedDocument() below) purely to keep every
+        // import source on the one shared pipeline, not because there's anything left to fetch.
+        return $this->createImportedDocument($project, $title, $html, $validated['custom_prompt'] ?? null, $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
             'import_source' => 'file_upload',
             'original_filename' => $file->getClientOriginalName(),
-        ]);
-
-        return back()->with('success', "Imported \"{$title}\"…");
+        ], $importer, $typeResolver);
     }
 
     /**
-     * Creates the imported document as whichever type the user picked — the workflow's own
-     * intake type (the default; content is assumed raw and DocumentObserver::created() will
-     * dispatch the universal Notes -> Action Items step automatically), an existing catalog
-     * type (already-finished content, e.g. notes someone already cleaned up — no AI call at
-     * all), or a brand new type the user is naming for the first time right here. Only the
-     * intake type ever triggers AI processing; every other type — including a freshly created
-     * one — skips it, so `processed_at` is stamped immediately (nothing left to wait on) and
-     * `custom_prompt` — meaningless with no AI step to apply it to — is dropped.
+     * Creates the imported document as whichever type the user picked. The workflow's own
+     * intake type (the default) hands off to IntakeImportService — the exact same pipeline the
+     * Transcripts tab's recording picker uses — so a Google Doc or file picked as "Transcription"
+     * gets the same AI processing and same redirect to the eventual Meeting Notes document that
+     * a picked recording gets, regardless of the fact that its content was already extracted
+     * synchronously above. Any other type — an existing catalog type or a brand new one the user
+     * is naming for the first time right here — is already-finished content (e.g. notes someone
+     * already cleaned up): no AI call, `processed_at` stamped immediately (its content is
+     * already fully known, unlike a recording of this same type — see MeetingTranscriptController
+     * ::store()'s own non-intake branch), and `custom_prompt` — meaningless with no AI step to
+     * apply it to — dropped. Either way the user is sent straight to the new document's own page
+     * rather than staying on the modal/tab they imported from.
      *
      * @param  array<string, string>  $metadata
      */
-    private function createImportedDocument(Project $project, string $title, string $html, ?string $customPrompt, ?string $type, ?string $newTypeLabel, array $metadata): void
+    private function createImportedDocument(Project $project, string $title, string $html, ?string $customPrompt, ?string $type, ?string $newTypeLabel, array $metadata, IntakeImportService $importer, DocumentTypeResolver $typeResolver): RedirectResponse
     {
-        $resolved = $this->resolveDocumentType($project, $type, $newTypeLabel);
-        $skipProcessing = $resolved['type'] !== config('workflow.intake_key');
+        $resolved = $typeResolver->resolve($project, $type, $newTypeLabel);
 
-        $project->documents()->create([
+        if ($resolved['type'] === config('workflow.intake_key')) {
+            return $importer->import($project, $title, null, $html, $customPrompt, $metadata);
+        }
+
+        $document = $project->documents()->create([
             'type' => $resolved['type'],
             'name' => $title,
             'content' => $html,
-            'custom_prompt' => $skipProcessing ? null : $customPrompt,
-            'processed_at' => $skipProcessing ? now() : null,
+            'custom_prompt' => null,
+            'processed_at' => now(),
             'metadata' => $metadata,
         ]);
-    }
 
-    /**
-     * Resolves the picker's choice to a real, valid type key — never trusting the frontend's
-     * `type` string directly, since it's user-editable request data. A new label creates (or,
-     * if the same label was already used by an earlier import, reuses) an org-scoped
-     * DocumentTypeDefinition; the label a picked recording never sees (Transcripts are always
-     * raw) is intentionally excluded from what a new type here can shadow.
-     *
-     * @return array{type: string}
-     */
-    private function resolveDocumentType(Project $project, ?string $type, ?string $newTypeLabel): array
-    {
-        $organizationId = $project->client?->organization_id;
-        $intakeKey = config('workflow.intake_key');
-        abort_unless(is_string($intakeKey), Response::HTTP_INTERNAL_SERVER_ERROR, 'workflow.intake_key is misconfigured.');
-
-        if (filled($newTypeLabel)) {
-            $label = trim($newTypeLabel);
-            $key = Str::slug($label, '_');
-
-            abort_if($key === '', Response::HTTP_UNPROCESSABLE_ENTITY, 'Invalid type name.');
-
-            $existingMaxOrder = DocumentTypeDefinition::where('organization_id', $organizationId)->max('order');
-            $maxOrder = is_int($existingMaxOrder) ? $existingMaxOrder : 0;
-
-            $definition = DocumentTypeDefinition::firstOrCreate(
-                ['organization_id' => $organizationId, 'key' => $key],
-                [
-                    'label' => $label,
-                    'is_task' => false,
-                    'order' => $maxOrder + 1,
-                ]
-            );
-
-            return ['type' => $definition->key];
-        }
-
-        // Matches the frontend's own source of truth (see visibleDocumentTypeKeys() in
-        // resources/js/lib/documentTypes.ts): any type already used by a document in this
-        // project is valid here, not just what's in the org's curated document_schema —
-        // that catalog and "what this project actually has" are two different lists (a type
-        // can easily exist on real documents — e.g. one this same endpoint created earlier via
-        // new_type_label — without ever being added to it). The intake type is always valid
-        // too, even for a project with none yet, so a brand new project isn't stuck with only
-        // "Other". Same "documents, not tasks or events" scope as the Documentation tab's own
-        // tree (see useDocumentTree.ts) — this endpoint only ever creates documents for that tab.
-        $catalog = DocumentTypeDefinition::catalogForOrganization($organizationId);
-        $isTaskType = function (string $key) use ($catalog): bool {
-            $definition = $catalog->get($key);
-
-            return $definition !== null && $definition->is_task;
-        };
-
-        $usedTypes = $project->documents()
-            ->select('type')
-            ->distinct()
-            ->pluck('type')
-            ->reject(fn (string $key) => $key === 'event' || $isTaskType($key))
-            ->push($intakeKey);
-
-        abort_unless(is_string($type) && $usedTypes->contains($type), Response::HTTP_UNPROCESSABLE_ENTITY, 'Invalid document type.');
-
-        return ['type' => $type];
+        return redirect()
+            ->route('projects.documents.show', [$project, $document])
+            ->with('success', "Imported \"{$title}\"…");
     }
 
     private function authorizeManage(Request $request, Project $project): void

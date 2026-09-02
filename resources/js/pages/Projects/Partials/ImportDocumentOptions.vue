@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Loader2 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
+import ImportConfirmModal from '@/components/recordings/ImportConfirmModal.vue';
 import ImportDocumentOptionsPanel from '@/components/recordings/ImportDocumentOptionsPanel.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -65,8 +66,9 @@ defineExpose({
 // with no extra bookkeeping needed. "Other" itself is always last, for naming a new one. Only
 // the intake type ever triggers the universal Notes -> Action Items AI step
 // (DocumentObserver::created()); every other type — Other's brand-new one included — is
-// treated as already-finished content and skips it (see
-// DocumentImportController::resolveDocumentType()).
+// treated as already-finished content and skips it (see DocumentTypeResolver::resolve()).
+// Applies identically to all three import sources below (Google Doc, file, recording) — see
+// handleItemPicked.
 const typeOptions = computed(() => {
     const used = visibleDocumentTypeKeys(props.documents, props.documentTypeCatalog);
     // Always offered even for a project with none currently visible (every existing one
@@ -97,11 +99,44 @@ const typeChoice = computed<ImportTypeChoice>(() =>
 // Nothing valid to submit while "Other" is picked but not yet named.
 const typeChoiceIncomplete = computed(() => isAddingNewType.value && newTypeLabel.value.trim() === '');
 
+// Every source (Google Doc, file, recording) funnels through this once we actually know what's
+// being imported — the one place that decides whether the shared confirmation dialog below is
+// needed at all. Only Transcription pauses for it (that's the only type with an AI-generation
+// step worth confirming, same reason the dialog exists on the Transcripts tab in the first
+// place); every other type imports immediately, identically across all three sources. A picked
+// recording follows this exact same rule too — see AvailableRecordings.vue's own copy of this
+// same gate, since a recording row's click can't route through this component's state directly.
+const pendingImport = ref<{ title: string; run: (prompt: string | null) => void } | null>(null);
+const isImportConfirmOpen = ref(false);
+const importConfirmLoading = computed(() => importingGoogleDoc.value || importingFile.value !== null);
+
+const handleItemPicked = (title: string, run: (prompt: string | null) => void) => {
+    if (skipProcessing.value) {
+        run(null);
+        return;
+    }
+    pendingImport.value = { title, run };
+    isImportConfirmOpen.value = true;
+};
+
+const closeImportConfirm = () => {
+    isImportConfirmOpen.value = false;
+};
+
+const confirmImport = (additionalInfo: string | null) => {
+    pendingImport.value?.run(additionalInfo);
+    isImportConfirmOpen.value = false;
+};
+
+const handleFilePicked = (file: File, kind: 'docx' | 'txt') => {
+    handleItemPicked(file.name, (prompt) => importFile(file, kind, prompt, typeChoice.value));
+};
+
 // Unlike the export flows elsewhere in the app, picking a file can't survive a redirect —
 // so this always fetches (and, if needed, connects) *before* ever opening the Picker, never
 // mid-pick. On success it opens the Picker directly, so a fresh connect only ever means one
 // extra round trip back to this exact state, not a resumed selection.
-const startGoogleDocImport = async (prompt: string) => {
+const startGoogleDocImport = async () => {
     try {
         const response = await axios.get<{ access_token: string }>(
             transcriptRoutes.googlePickerToken.url(props.projectId)
@@ -111,7 +146,7 @@ const startGoogleDocImport = async (prompt: string) => {
             accessToken: response.data.access_token,
             apiKey: props.googleApiKey ?? '',
             appId: props.googleAppId ?? '',
-            onPicked: (file) => importGoogleDoc(file, prompt, typeChoice.value),
+            onPicked: (file) => handleItemPicked(file.name, (prompt) => importGoogleDoc(file, prompt, typeChoice.value)),
         });
     } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 428 && err.response.data?.connect_url) {
@@ -134,7 +169,7 @@ onMounted(() => {
         url.searchParams.delete('google_doc_import');
         window.history.replaceState(window.history.state, '', url);
         modalOpen.value = true;
-        void startGoogleDocImport('');
+        void startGoogleDocImport();
     }
 });
 
@@ -226,21 +261,23 @@ watch(modalOpen, async (open) => {
                     :is-opening="isOpening"
                     :importing-google-doc="importingGoogleDoc"
                     :importing-file="importingFile"
-                    :skip-processing="skipProcessing"
                     :disabled="typeChoiceIncomplete"
                     @pick-google-doc="startGoogleDocImport"
-                    @pick-docx-file="(file, prompt) => importFile(file, 'docx', prompt, typeChoice)"
-                    @pick-txt-file="(file, prompt) => importFile(file, 'txt', prompt, typeChoice)"
+                    @pick-docx-file="(file) => handleFilePicked(file, 'docx')"
+                    @pick-txt-file="(file) => handleFilePicked(file, 'txt')"
                 />
 
-                <!-- Always shown whenever the org has a transcription source, unaffected by the
-                     type picker above — a picked recording is always raw, always imported as the
-                     intake type. No section heading — text and spinner while loading, then
-                     straight into the recording rows themselves. mt-0.5 matches the gap-0.5
-                     between the panel's own two rows above, so a recording row reads as one more
-                     row in that same list rather than a separate section. Reuses the exact same
-                     import flow the Transcripts tab itself uses (AvailableRecordings.vue), nothing
-                     new to keep in sync. -->
+                <!-- Always shown whenever the org has a transcription source. A picked recording
+                     goes through the same type picker above as Google Docs/files do (typeChoice
+                     below) — DocumentTypeResolver decides intake vs. everything else identically
+                     regardless of source, and AvailableRecordings.vue shows the exact same
+                     confirmation dialog (ImportConfirmModal) this component does, under the same
+                     condition, so all three sources behave identically. No section heading — text
+                     and spinner while loading, then straight into the recording rows themselves.
+                     mt-0.5 matches the gap-0.5 between the panel's own two rows above, so a
+                     recording row reads as one more row in that same list rather than a separate
+                     section. Reuses the exact same import flow the Transcripts tab itself uses
+                     (AvailableRecordings.vue), nothing new to keep in sync. -->
                 <div v-if="meetingProvider" class="mt-0.5">
                     <div v-if="recordingsState === undefined" class="flex flex-col items-center justify-center py-12">
                         <p class="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">
@@ -256,9 +293,23 @@ watch(modalOpen, async (open) => {
                         :cross-project-imported-ids="recordingsState.crossProjectImportedIds"
                         :can-manage="recordingsState.canManageTranscripts"
                         :provider-error="recordingsState.providerError"
+                        :type-choice="typeChoice"
                     />
                 </div>
             </div>
         </DialogContent>
     </Dialog>
+
+    <!-- The one confirmation dialog for Google Doc/file imports of type Transcription —
+         AvailableRecordings.vue renders its own instance of this exact same component for a
+         picked recording, under the identical condition (see handleItemPicked above), so a
+         user sees byte-for-byte the same dialog no matter which of the three sources they
+         picked. -->
+    <ImportConfirmModal
+        :open="isImportConfirmOpen"
+        :item-title="pendingImport?.title"
+        :loading="importConfirmLoading"
+        @close="closeImportConfirm"
+        @confirm="confirmImport"
+    />
 </template>

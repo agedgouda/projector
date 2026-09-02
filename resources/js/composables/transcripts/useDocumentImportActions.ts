@@ -6,8 +6,10 @@ import { type PickedGoogleDoc } from '@/composables/transcripts/useGooglePicker'
 
 // What the picker chose the imported content should become — an existing catalog type (the
 // intake type included, still the default), or a brand-new one the user is naming right now.
-// Mirrors DocumentImportController::resolveDocumentType()'s own two branches; the backend is
-// the one that actually validates/creates it, this is just how the choice travels there.
+// Mirrors DocumentTypeResolver::resolve()'s own two branches; the backend is the one that
+// actually validates/creates it, this is just how the choice travels there. Shared with
+// useTranscriptActions.ts's importRecording() — a picked recording goes through the same
+// resolver now, not just Google Doc/file.
 export type ImportTypeChoice = { type: string } | { newTypeLabel: string };
 
 export function useDocumentImportActions(projectId: string) {

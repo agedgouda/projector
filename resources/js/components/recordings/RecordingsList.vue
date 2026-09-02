@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     recordings: Recording[];
     // Caller-computed union of every reason a recording shouldn't be offered again (already
     // imported here, imported elsewhere, etc.) — keeps this component itself agnostic to
@@ -16,7 +16,15 @@ const props = defineProps<{
     providerError?: string | null;
     actions: RecordingAction[];
     onDismiss?: (recording: Recording) => void;
-}>();
+    // The org-level status-meeting import (AvailableOrgRecordings.vue) has no confirm-before-
+    // import step at all, so this inline popover is its only way to attach a custom instruction
+    // before clicking Import. The project-level Import a Document modal instead collects that
+    // same kind of note in its own shared confirmation dialog (see ImportConfirmModal.vue) —
+    // one place to enter it, not two — so it opts out here.
+    showAiPrompt?: boolean;
+}>(), {
+    showAiPrompt: true,
+});
 
 const pendingRecordings = computed(() =>
     props.recordings.filter((r) => !props.excludedIds.includes(r.id))
@@ -76,7 +84,7 @@ const customPrompts = reactive<Record<string, string>>({});
                 </div>
 
                 <template v-if="canManage">
-                    <AiInstructionsPopover v-model="customPrompts[recording.id]" />
+                    <AiInstructionsPopover v-if="showAiPrompt" v-model="customPrompts[recording.id]" />
 
                     <Button
                         v-for="action in actions"

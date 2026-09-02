@@ -327,6 +327,47 @@ it('prevents duplicate imports of the same recording', function () {
     Queue::assertNotPushed(ImportMeetingTranscript::class);
 });
 
+it('imports a recording as an existing non-intake type with no AI step, exactly like a Google Doc/file picked as that type', function () {
+    // resolveDocumentType() (via DocumentTypeResolver) validates a picked (non-new,
+    // non-intake) type against types actually already in use in this project.
+    $this->project->documents()->create([
+        'type' => config('workflow.action_items_key'),
+        'name' => 'Existing Meeting Notes',
+        'content' => 'Pre-existing.',
+        'processed_at' => now(),
+    ]);
+
+    fakeGoogleMeetApi(
+        conferences: [['name' => 'conferenceRecords/abc123', 'startTime' => '2026-03-01T10:00:00Z']],
+        entries: [['text' => 'Raw transcript text.']],
+    );
+
+    $response = $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.store', $this->project), [
+            'recording_id' => 'conferenceRecords/abc123',
+            'title' => 'Weekly Sync — 2026-03-01',
+            'started_at' => '2026-03-01T10:00:00Z',
+            'custom_prompt' => 'This should be ignored — no AI step applies.',
+            'type' => config('workflow.action_items_key'),
+        ]);
+
+    $document = $this->project->documents()->where('name', 'Weekly Sync — 2026-03-01')->firstOrFail();
+
+    expect($document->type)->toBe(config('workflow.action_items_key'))
+        ->and($document->content)->toContain('Raw transcript text.')
+        ->and($document->processed_at)->not->toBeNull()
+        ->and($document->parent_id)->toBeNull();
+
+    // No Meeting Notes child ever got pre-created for it — that pre-create-and-redirect
+    // step only exists for the intake/AI-generation branch (see ImportMeetingTranscript::
+    // handle()'s early return for a non-intake type).
+    expect($this->project->documents()->where('parent_id', $document->id)->exists())->toBeFalse();
+
+    // Sent straight to the document's own page (same as every other import source now),
+    // where the fetch finishes rather than staying on the modal/tab it was imported from.
+    $response->assertRedirect(route('projects.documents.show', [$this->project, $document]));
+});
+
 it('redirects to a pre-created blank Meeting Notes document when the transcript-to-notes template is single-output', function () {
     Queue::fake();
 

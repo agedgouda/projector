@@ -135,6 +135,36 @@ it('respects a custom_prompt on file-based imports', function () {
     expect($document->custom_prompt)->toBe('Extract only decisions.');
 });
 
+it('redirects to a pre-created blank Meeting Notes document, same as a picked recording, when imported as Transcription', function () {
+    Queue::fake();
+
+    $template = \App\Models\AiTemplate::create([
+        'name' => 'Transcript to Meeting Notes',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => 'y',
+        'single_output' => true,
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $template->id]);
+
+    $file = UploadedFile::fake()->createWithContent('Weekly Notes.txt', 'Some transcript text.');
+
+    $response = $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => $file,
+            'type' => config('workflow.intake_key'),
+        ]);
+
+    $intake = $this->project->documents()->where('type', config('workflow.intake_key'))->firstOrFail();
+    $meetingNotes = $this->project->documents()->where('parent_id', $intake->id)->firstOrFail();
+
+    expect($meetingNotes->type)->toBe(config('workflow.action_items_key'))
+        ->and($meetingNotes->name)->toBe('Weekly Notes')
+        ->and($meetingNotes->content)->toBe('');
+
+    $response->assertRedirect(route('projects.documents.show', [$this->project, $meetingNotes]));
+});
+
 it('creates the document as the picked type and skips AI processing when it is not the intake type', function () {
     Queue::fake();
 
@@ -150,13 +180,12 @@ it('creates the document as the picked type and skips AI processing when it is n
 
     $file = UploadedFile::fake()->createWithContent('Finished Notes.txt', 'Already-finished notes.');
 
-    $this->actingAs($this->admin)
+    $response = $this->actingAs($this->admin)
         ->post(route('projects.transcripts.import-file', $this->project), [
             'file' => $file,
             'custom_prompt' => 'This should be ignored.',
             'type' => config('workflow.action_items_key'),
-        ])
-        ->assertRedirect();
+        ]);
 
     $document = $this->project->documents()->where('name', 'Finished Notes')->first();
 
@@ -165,6 +194,10 @@ it('creates the document as the picked type and skips AI processing when it is n
         ->and($document->content)->toContain('Already-finished notes.')
         ->and($document->custom_prompt)->toBeNull()
         ->and($document->processed_at)->not->toBeNull();
+
+    // Sent straight to the new document's own page, same as the intake branch — not back to
+    // the tab it was imported from.
+    $response->assertRedirect(route('projects.documents.show', [$this->project, $document]));
 
     Queue::assertNotPushed(ProcessDocumentAI::class);
 });

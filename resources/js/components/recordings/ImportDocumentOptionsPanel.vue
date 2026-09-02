@@ -25,10 +25,13 @@ withDefaults(defineProps<{
     // list that immediately follows it, since the two now read as one visual group; every
     // other consumer keeps the original, more generous section-to-section spacing.
     spacingClass?: string;
-    // The project page's content-kind selector sets this when the user says the content is
-    // already finished (see Projects/Partials/ImportDocumentOptions.vue) — no AI call happens
-    // in that case, so the per-import instructions prompt has nothing to apply to.
-    skipProcessing?: boolean;
+    // The org-level consumer (Organizations/Partials/ImportDocumentOptions.vue) has no type
+    // picker and no confirm-before-import step at all — every import there always runs AI
+    // processing, so this inline popover is its only way to attach a custom instruction before
+    // clicking. The project-level consumer instead collects that same kind of note afterward,
+    // in its own shared confirmation dialog (see ImportDocumentOptions.vue's
+    // handleItemPicked) — one place to enter it, not two — so it leaves this off.
+    showPromptPopover?: boolean;
     // Set while the type picker's "add new type" option is selected but not yet named — there's
     // nothing valid to submit yet, so both buttons are held off rather than letting the request
     // round-trip just to come back a 422.
@@ -36,7 +39,7 @@ withDefaults(defineProps<{
 }>(), {
     heading: 'Import a Document',
     spacingClass: 'mb-8',
-    skipProcessing: false,
+    showPromptPopover: false,
     disabled: false,
 });
 
@@ -86,7 +89,7 @@ const onFileChosen = (event: Event) => {
                 <div class="min-w-0 flex-1">
                     <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Import from Google Docs</span>
                 </div>
-                <AiInstructionsPopover v-if="!skipProcessing" v-model="googleDocPrompt" />
+                <AiInstructionsPopover v-if="showPromptPopover" v-model="googleDocPrompt" />
                 <Button
                     size="sm"
                     :disabled="isOpening || importingGoogleDoc || disabled"
@@ -105,7 +108,7 @@ const onFileChosen = (event: Event) => {
                 <div class="min-w-0 flex-1">
                     <span class="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Upload Word or Text File (.docx, .txt)</span>
                 </div>
-                <AiInstructionsPopover v-if="!skipProcessing" v-model="filePrompt" />
+                <AiInstructionsPopover v-if="showPromptPopover" v-model="filePrompt" />
                 <input
                     ref="fileInput"
                     type="file"

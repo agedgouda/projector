@@ -2,6 +2,8 @@ import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import transcriptRoutes from '@/routes/projects/transcripts/index';
+import { type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
+import { INTAKE_KEY } from '@/composables/useWorkflow';
 
 export function useTranscriptActions(projectId: string, callbacks?: {
     onImportQueued?: () => void;
@@ -11,7 +13,12 @@ export function useTranscriptActions(projectId: string, callbacks?: {
 
     const importing = ref<string | null>(null);
 
-    const importRecording = (recording: Recording, customPrompt?: string | null) => {
+    // Which pipeline this ends up on the backend is decided purely by typeChoice, resolved the
+    // same way a Google Doc/file's is (see DocumentTypeResolver) — a recording is no longer
+    // unconditionally imported as the intake type just because it's a recording. Defaults to
+    // the intake type for the two contexts that don't offer a picker at all (the standalone
+    // Transcripts tab, Show.vue's old Recordings tab).
+    const importRecording = (recording: Recording, customPrompt?: string | null, typeChoice: ImportTypeChoice = { type: INTAKE_KEY }) => {
         importing.value = recording.id;
         callbacks?.onImportQueued?.();
 
@@ -20,6 +27,8 @@ export function useTranscriptActions(projectId: string, callbacks?: {
             title: recording.title,
             started_at: recording.started_at,
             custom_prompt: customPrompt || null,
+            type: 'type' in typeChoice ? typeChoice.type : null,
+            new_type_label: 'newTypeLabel' in typeChoice ? typeChoice.newTypeLabel : null,
         }, {
             preserveScroll: true,
             onError: (errors) => {

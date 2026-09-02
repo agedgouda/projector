@@ -2,18 +2,35 @@
 import { computed, ref } from 'vue';
 import { Download } from 'lucide-vue-next';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
-import ImportRecordingConfirmModal from '@/components/recordings/ImportRecordingConfirmModal.vue';
+import ImportConfirmModal from '@/components/recordings/ImportConfirmModal.vue';
 import RecordingsList from '@/components/recordings/RecordingsList.vue';
 import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
+import { type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
+import { INTAKE_KEY } from '@/composables/useWorkflow';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     projectId: string;
     recordings: Recording[];
     importedIds: string[];
     crossProjectImportedIds: string[];
     canManage: boolean;
     providerError?: string | null;
-}>();
+    // Which type a picked recording becomes — resolved the same way a Google Doc/file's is
+    // (see DocumentTypeResolver). Defaults to the intake type for the two contexts that don't
+    // offer a type picker at all (the standalone Transcripts tab, Show.vue's old Recordings
+    // tab) — only the Import a Document modal ever passes something else.
+    typeChoice?: ImportTypeChoice;
+}>(), {
+    typeChoice: () => ({ type: INTAKE_KEY }),
+});
+
+// Whether the picked type is Transcription — decides both whether the row's inline AI-prompt
+// popover makes sense (see RecordingsList's showAiPrompt prop) and whether importing needs a
+// confirm-first step at all: the confirmation dialog exists specifically to pause before the
+// "generate Meeting Notes via AI" step, so it has nothing to confirm for any other type — a
+// non-Transcription pick imports immediately, exactly like a Google Doc/file picked as that
+// same type does.
+const isTranscription = computed(() => 'type' in props.typeChoice && props.typeChoice.type === INTAKE_KEY);
 
 const excludedIds = computed(() => [...props.importedIds, ...props.crossProjectImportedIds]);
 
@@ -36,9 +53,9 @@ const {
     onImportFailed: () => emit('importFailed'),
 });
 
-// "Import" no longer fires immediately — it opens a confirmation modal (below) with its own
-// field for any last-minute additional information, which is what actually triggers
-// importRecording() once the user clicks Save there.
+// Import only pauses for the confirmation modal when Transcription is picked — that dialog
+// exists to confirm the AI-generation step, so any other type imports immediately on click,
+// exactly like Google Doc/file do (see ImportDocumentOptions.vue's own handleItemPicked).
 const pendingImportRecording = ref<Recording | null>(null);
 const isImportConfirmOpen = ref(false);
 
@@ -53,7 +70,7 @@ const closeImportConfirm = () => {
 
 const confirmImport = (additionalInfo: string | null) => {
     if (!pendingImportRecording.value) return;
-    importRecording(pendingImportRecording.value, additionalInfo);
+    importRecording(pendingImportRecording.value, additionalInfo, props.typeChoice);
     isImportConfirmOpen.value = false;
 };
 
@@ -63,7 +80,13 @@ const actions = computed<RecordingAction[]>(() => [
         icon: Download,
         variant: 'primary',
         loading: (recording) => importing.value === recording.id,
-        onClick: (recording) => openImportConfirm(recording),
+        onClick: (recording) => {
+            if (isTranscription.value) {
+                openImportConfirm(recording);
+                return;
+            }
+            importRecording(recording, null, props.typeChoice);
+        },
     },
 ]);
 </script>
@@ -76,6 +99,7 @@ const actions = computed<RecordingAction[]>(() => [
         :provider-error="providerError"
         :actions="actions"
         :on-dismiss="confirmDismissRecording"
+        :show-ai-prompt="false"
     />
 
     <ConfirmDeleteModal
@@ -87,9 +111,9 @@ const actions = computed<RecordingAction[]>(() => [
         @confirm="handleDismissRecording"
     />
 
-    <ImportRecordingConfirmModal
+    <ImportConfirmModal
         :open="isImportConfirmOpen"
-        :recording-title="pendingImportRecording?.title"
+        :item-title="pendingImportRecording?.title"
         :loading="importing === pendingImportRecording?.id"
         @close="closeImportConfirm"
         @confirm="confirmImport"

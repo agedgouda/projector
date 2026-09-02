@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\ImportMeetingTranscript;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
 use App\Models\Document;
@@ -77,17 +78,60 @@ it('creates an intake document from a picked google doc, using the picker-suppli
 
     $document = $this->project->documents()->where('type', config('workflow.intake_key'))->first();
 
+    // Content isn't filled in synchronously any more — a Transcription-type import now goes
+    // through the same ImportMeetingTranscript pipeline a picked recording uses, so the
+    // already-extracted html travels as that queued job's payload instead.
     expect($document)->not->toBeNull()
         ->and($document->name)->toBe('Weekly Sync Notes')
-        ->and($document->content)->toContain('Meeting notes here.')
+        ->and($document->content)->toBe('')
         ->and($document->custom_prompt)->toBe('Summarize concisely.')
         ->and($document->metadata['import_source'])->toBe('google_doc')
         ->and($document->metadata['google_file_id'])->toBe('doc-abc123');
 
-    Queue::assertPushed(ProcessDocumentAI::class, fn ($job) => $job->document->is($document));
+    Queue::assertPushed(ImportMeetingTranscript::class, fn ($job) => $job->document->is($document)
+        && $job->recordingId === null
+        && str_contains($job->content ?? '', 'Meeting notes here.'));
 
     Http::assertSent(fn ($request) => str_contains($request->url(), 'doc-abc123/export')
         && $request['mimeType'] === 'text/html');
+});
+
+it('redirects to a pre-created blank Meeting Notes document, same as a picked recording, when imported as Transcription', function () {
+    Queue::fake();
+
+    $template = \App\Models\AiTemplate::create([
+        'name' => 'Transcript to Meeting Notes',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => 'y',
+        'single_output' => true,
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $template->id]);
+
+    GoogleOauthToken::factory()->create([
+        'user_id' => $this->admin->id,
+        'expires_at' => now()->addHour(),
+    ]);
+
+    Http::fake([
+        'www.googleapis.com/drive/v3/files/*/export*' => Http::response('<p>Meeting notes here.</p>', 200),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-google-doc', $this->project), [
+            'file_id' => 'doc-abc123',
+            'title' => 'Weekly Sync Notes',
+            'type' => config('workflow.intake_key'),
+        ]);
+
+    $intake = $this->project->documents()->where('type', config('workflow.intake_key'))->firstOrFail();
+    $meetingNotes = $this->project->documents()->where('parent_id', $intake->id)->firstOrFail();
+
+    expect($meetingNotes->type)->toBe(config('workflow.action_items_key'))
+        ->and($meetingNotes->name)->toBe('Weekly Sync Notes')
+        ->and($meetingNotes->content)->toBe('');
+
+    $response->assertRedirect(route('projects.documents.show', [$this->project, $meetingNotes]));
 });
 
 it('creates the document as the picked type and skips AI processing when it is not the intake type', function () {
@@ -112,14 +156,13 @@ it('creates the document as the picked type and skips AI processing when it is n
         'www.googleapis.com/drive/v3/files/*/export*' => Http::response('<p>Already-finished notes.</p>', 200),
     ]);
 
-    $this->actingAs($this->admin)
+    $response = $this->actingAs($this->admin)
         ->post(route('projects.transcripts.import-google-doc', $this->project), [
             'file_id' => 'doc-abc123',
             'title' => 'Finished Notes',
             'custom_prompt' => 'This should be ignored.',
             'type' => config('workflow.action_items_key'),
-        ])
-        ->assertRedirect();
+        ]);
 
     $document = $this->project->documents()->where('name', 'Finished Notes')->first();
 
@@ -128,6 +171,10 @@ it('creates the document as the picked type and skips AI processing when it is n
         ->and($document->content)->toContain('Already-finished notes.')
         ->and($document->custom_prompt)->toBeNull()
         ->and($document->processed_at)->not->toBeNull();
+
+    // Sent straight to the new document's own page, same as the intake branch — not back to
+    // the tab it was imported from.
+    $response->assertRedirect(route('projects.documents.show', [$this->project, $document]));
 
     Queue::assertNotPushed(ProcessDocumentAI::class);
 });

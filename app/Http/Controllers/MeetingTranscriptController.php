@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ImportMeetingTranscript;
-use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
+use App\Services\DocumentTypeResolver;
 use App\Services\Google\GoogleExportService;
+use App\Services\IntakeImportService;
 use App\Services\MeetingTranscriptService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
@@ -122,9 +124,11 @@ class MeetingTranscriptController extends Controller
     }
 
     /**
-     * Queue an import job for a specific recording.
+     * Queue an import job for a specific recording. Which pipeline it takes is decided purely
+     * by the resolved document type, same as every other import source — see
+     * DocumentTypeResolver and ImportMeetingTranscript::handle().
      */
-    public function store(Request $request, Project $project)
+    public function store(Request $request, Project $project, IntakeImportService $importer, DocumentTypeResolver $typeResolver): RedirectResponse
     {
         $this->authorizeManage($request, $project);
 
@@ -133,6 +137,8 @@ class MeetingTranscriptController extends Controller
             'title' => 'required|string|max:255',
             'started_at' => 'required|string',
             'custom_prompt' => 'nullable|string',
+            'type' => 'nullable|string',
+            'new_type_label' => 'nullable|string|max:100',
         ]);
 
         // Prevent duplicate imports — block if imported by this or any other project
@@ -142,46 +148,48 @@ class MeetingTranscriptController extends Controller
             return back()->withErrors(['recording_id' => 'This recording has already been imported into another project.']);
         }
 
-        // Create a placeholder document immediately so the UI can track progress.
-        // Use processed_at = now() temporarily to prevent the DocumentObserver from
-        // dispatching ProcessDocumentAI before the transcript content has been fetched.
+        $metadata = [
+            'recording_id' => $validated['recording_id'],
+            'provider' => $project->client->organization->meeting_provider,
+            'meeting_date' => $validated['started_at'],
+        ];
+
+        $resolved = $typeResolver->resolve($project, $validated['type'] ?? null, $validated['new_type_label'] ?? null);
+
+        if ($resolved['type'] === config('workflow.intake_key')) {
+            return $importer->import(
+                $project,
+                $validated['title'],
+                $validated['recording_id'],
+                null,
+                $validated['custom_prompt'] ?? null,
+                $metadata,
+            );
+        }
+
+        // Not a transcript — no AI step, but the recording's content still has to be fetched
+        // from the meeting provider (unlike a Google Doc/file, which already has its content in
+        // hand the instant it's picked), so this still creates a placeholder and redirects there
+        // right away, same as the intake branch above — the user watches it finish importing on
+        // its own page instead of staying on this modal. ImportMeetingTranscript::handle() sees
+        // the non-intake type and, once the fetch completes, saves it as finished content with
+        // no AI step and no pre-created child — the exact same end state a Google Doc/file
+        // picked as this same type gets, just necessarily reached one step later.
         $document = $project->documents()->create([
-            'type' => 'intake',
+            'type' => $resolved['type'],
             'name' => $validated['title'],
             'content' => '',
+            // Suppresses DocumentObserver's auto-AI-dispatch until the fetch job fills this in
+            // — irrelevant here since it's not the intake type anyway, but kept for the same
+            // reason the intake branch needs it: nothing should touch this document as
+            // "finished" before the fetch has actually happened. The document page itself
+            // already has a fallback for this exact "looks briefly done, first broadcast
+            // corrects it" window (see useDocumentForm.ts's isProcessingLive catch-up logic).
             'processed_at' => now(),
-            'metadata' => [
-                'recording_id' => $validated['recording_id'],
-                'provider' => $project->client->organization->meeting_provider,
-                'meeting_date' => $validated['started_at'],
-            ],
-            'custom_prompt' => $validated['custom_prompt'] ?? null,
+            'metadata' => $metadata,
         ]);
 
-        ImportMeetingTranscript::dispatch($document, $validated['recording_id']);
-
-        // The user should never land on the raw transcript page — pre-create the Meeting
-        // Notes document it's about to generate (blank for now) and send them straight there
-        // instead. Only safe when the "Transcript to Meeting Notes" AI template is configured
-        // single_output — otherwise a transcript can produce zero, one, or many documents, so
-        // there's no single stable id to create ahead of time (falls back to the transcript
-        // page in that case, same as before). ProcessDocumentAI::handle() fills this same row
-        // in, in place, once the AI call returns (see its own comment).
-        $templateId = config('workflow.intake_to_action_items_ai_template_id');
-        $isSingleOutput = is_int($templateId) && (bool) AiTemplate::find($templateId)?->single_output;
-
-        if ($isSingleOutput) {
-            $meetingNotes = $project->documents()->create([
-                'parent_id' => $document->id,
-                'type' => config('workflow.action_items_key'),
-                'name' => $validated['title'],
-                'content' => '',
-            ]);
-
-            return redirect()
-                ->route('projects.documents.show', [$project, $meetingNotes])
-                ->with('success', "Importing \"{$validated['title']}\"…");
-        }
+        ImportMeetingTranscript::dispatch($document, $validated['recording_id'], null);
 
         return redirect()
             ->route('projects.documents.show', [$project, $document])

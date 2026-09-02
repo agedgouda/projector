@@ -12,9 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ref, watch } from 'vue';
 
+// Shared by every import source (Google Doc, uploaded file, picked meeting recording) whenever
+// the picked type is Transcription — same dialog, same wording, same field, regardless of
+// where the content is coming from. itemTitle is just whatever that source's own title is
+// (doc title, filename, or recording title); the sentence around it never changes.
 const props = defineProps<{
     open: boolean;
-    recordingTitle?: string;
+    itemTitle?: string;
     loading?: boolean;
 }>();
 
@@ -43,11 +47,11 @@ const save = () => {
     <Dialog :open="open" @update:open="emit('close')">
         <DialogContent class="sm:max-w-[480px]">
             <DialogHeader>
-                <DialogTitle>Import Recording?</DialogTitle>
+                <DialogTitle>Import?</DialogTitle>
                 <DialogDescription>
-                    <template v-if="recordingTitle">"{{ recordingTitle }}" will</template>
-                    <template v-else>This recording will</template>
-                    be imported and Meeting Notes will be generated from the transcript.
+                    <template v-if="itemTitle">"{{ itemTitle }}" will</template>
+                    <template v-else>This will</template>
+                    be imported and Meeting Notes will be generated from it.
                 </DialogDescription>
             </DialogHeader>
 
@@ -57,7 +61,7 @@ const save = () => {
                 </Label>
                 <Textarea
                     v-model="additionalInfo"
-                    placeholder="Anything the system should know before generating Meeting Notes from this transcript..."
+                    placeholder="Anything the system should know before generating Meeting Notes from this..."
                     class="min-h-24 text-sm"
                 />
             </div>

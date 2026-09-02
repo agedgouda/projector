@@ -64,6 +64,7 @@ onMounted(() => {
         :is-opening="isOpening"
         :importing-google-doc="importingGoogleDoc"
         :importing-file="importingFile"
+        :show-prompt-popover="true"
         @pick-google-doc="startGoogleDocImport"
         @pick-docx-file="(file, prompt) => importFile(file, 'docx', prompt)"
         @pick-txt-file="(file, prompt) => importFile(file, 'txt', prompt)"
