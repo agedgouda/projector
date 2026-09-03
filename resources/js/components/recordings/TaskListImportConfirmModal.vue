@@ -17,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { EVENT_FIELDS, IGNORE, TASK_FIELDS } from '@/lib/taskListImportFields';
 import taskListRoutes from '@/routes/projects/task-lists';
 import axios from 'axios';
 import { computed, ref, watch } from 'vue';
@@ -38,44 +39,6 @@ const emit = defineEmits<{
     (e: 'close'): void;
     (e: 'started'): void;
 }>();
-
-// A <Select> can't use an empty string as a real value (Radix reserves it for "no selection"
-// display), so an unmapped field is represented by this sentinel locally and converted back to
-// null only when building the request payload.
-const IGNORE = '__ignore__';
-
-type FieldKey =
-    | 'name'
-    | 'priority'
-    | 'task_status'
-    | 'due_at'
-    | 'assignee'
-    | 'start_date'
-    | 'description'
-    | 'tag';
-
-const TASK_FIELDS: { key: FieldKey; label: string; required?: boolean }[] = [
-    { key: 'name', label: 'Task Name', required: true },
-    { key: 'priority', label: 'Priority' },
-    { key: 'task_status', label: 'Status' },
-    { key: 'due_at', label: 'Due Date' },
-    { key: 'assignee', label: 'Assignee' },
-    { key: 'tag', label: 'Tag' },
-];
-
-// Events don't have priority/status/assignee — they have a start and end date instead of a
-// single due date, and an optional description. Due date doubles as "End Date" here since it's
-// the same underlying field the calendar and the "Notes to Events" transformation both use.
-// Tag matches an existing project tag by name (like the AI transformation does) — it never
-// creates a new one, and only the first tag column value per row is used since events can only
-// carry a single tag.
-const EVENT_FIELDS: { key: FieldKey; label: string; required?: boolean }[] = [
-    { key: 'name', label: 'Event Name', required: true },
-    { key: 'description', label: 'Description' },
-    { key: 'start_date', label: 'Start Date' },
-    { key: 'due_at', label: 'End Date' },
-    { key: 'tag', label: 'Tag' },
-];
 
 // Which list type this import is: entirely decided by which button opened it (Import Tasks vs
 // Import Events in Projects/Show.vue), not by anything the user chooses in this modal.

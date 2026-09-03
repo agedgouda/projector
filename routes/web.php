@@ -13,6 +13,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentImportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\ImportTransformationController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\KanbanColumnController;
 use App\Http\Controllers\MeetingTranscriptController;
@@ -188,6 +189,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/transformation-library/generate-prompts', [AiTemplateController::class, 'generatePrompts'])
             ->middleware('throttle:20,1')
             ->name('transformation-library.generate-prompts');
+        Route::get('/import-transformations', [ImportTransformationController::class, 'index'])
+            ->name('import-transformations.index');
         Route::resource('tasks', TaskController::class);
     });
 
@@ -318,6 +321,15 @@ Route::middleware(['auth'])->group(function () {
                 ->name('task-lists.analyze');
             Route::post('/task-lists', [TaskListImportController::class, 'store'])
                 ->name('task-lists.store');
+
+            Route::post('/import-transformations/classify', [ImportTransformationController::class, 'classifySpreadsheet'])
+                ->name('import-transformations.classify');
+            Route::post('/import-transformations/apply', [ImportTransformationController::class, 'applySpreadsheet'])
+                ->name('import-transformations.apply');
+            Route::post('/import-transformations/classify-text', [ImportTransformationController::class, 'classifyText'])
+                ->name('import-transformations.classify-text');
+            Route::post('/import-transformations/apply-text', [ImportTransformationController::class, 'applyText'])
+                ->name('import-transformations.apply-text');
 
             Route::get('/reports/tasks', [ReportController::class, 'projectTasks'])
                 ->name('reports.tasks');

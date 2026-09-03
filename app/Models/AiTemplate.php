@@ -20,12 +20,14 @@ class AiTemplate extends Model
         'system_prompt',
         'user_prompt',
         'single_output',
+        'import_config',
     ];
 
     protected function casts(): array
     {
         return [
             'single_output' => 'boolean',
+            'import_config' => 'array',
         ];
     }
 

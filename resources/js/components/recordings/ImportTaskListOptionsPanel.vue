@@ -8,13 +8,20 @@ import { useTemplateRef } from 'vue';
 // backend's analyze() endpoint already detects the format from the file itself (PhpSpreadsheet's
 // IOFactory::createReaderForFile()), so the frontend never needs to know which one it is.
 //
-// There's no visible entry point here anymore — "Import Events" (Campaign Calendar tab) and
-// "Import Tasks" (Tasks tab) in Projects/Show.vue are the only ways in, and they already know
-// which list type they want, so this panel exists purely to host the hidden file input those
-// buttons trigger via pickFile().
-defineProps<{
-    canManage: boolean;
-}>();
+// There's no visible entry point here anymore — "Import Events"/"Import Tasks" and "Import Data"
+// (both in Projects/Show.vue) are the only ways in, and they already know which mode they want,
+// so this panel exists purely to host the hidden file input those buttons trigger via pickFile()
+// — `accept` is theirs to set too, since "Import Data" additionally accepts plain text sources
+// that the single-type flows never did (see ImportTaskListOptions.vue).
+withDefaults(
+    defineProps<{
+        canManage: boolean;
+        accept?: string;
+    }>(),
+    {
+        accept: '.csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel',
+    },
+);
 
 const emit = defineEmits<{
     (e: 'pick-file', file: File): void;
@@ -44,7 +51,7 @@ defineExpose({
         v-if="canManage"
         ref="fileInput"
         type="file"
-        accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+        :accept="accept"
         class="hidden"
         @change="onFileChosen($event)"
     />

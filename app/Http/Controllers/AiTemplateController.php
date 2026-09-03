@@ -9,6 +9,7 @@ use App\Services\Ai\AiUsageLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
 
@@ -30,7 +31,16 @@ class AiTemplateController extends Controller
             })
                 // The universal Notes -> Action Items template runs automatically for every
                 // intake document and is never a manual choice — only super-admins need to see it.
-                ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'));
+                ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'))
+                // Likewise the classification/extraction templates: they're looked up internally
+                // by SpreadsheetClassificationService/TextExtractionService, never picked by
+                // hand, so they clutter this list for anyone who isn't managing system-level
+                // templates.
+                ->whereNotIn('type', [
+                    'spreadsheet_column_classification',
+                    'text_extraction_classification',
+                    'text_extraction',
+                ]);
         }
 
         $templates = $query->get()->map(function (AiTemplate $t) use ($user) {
@@ -44,6 +54,7 @@ class AiTemplateController extends Controller
                 'user_prompt' => $t->user_prompt,
                 'single_output' => $t->single_output,
                 'output_key' => $t->output_key,
+                'import_config' => $t->import_config,
                 'can_edit' => $user->can('update', $t),
             ];
         });
@@ -63,10 +74,12 @@ class AiTemplateController extends Controller
                 'name' => $aiTemplate->name,
                 'description' => $aiTemplate->description,
                 'generation_brief' => $aiTemplate->generation_brief,
+                'type' => $aiTemplate->type,
                 'system_prompt' => $aiTemplate->system_prompt,
                 'user_prompt' => $aiTemplate->user_prompt,
                 'single_output' => $aiTemplate->single_output,
                 'output_key' => $aiTemplate->output_key,
+                'import_config' => $aiTemplate->import_config,
             ],
             'canEdit' => $user->can('update', $aiTemplate),
         ]);
@@ -94,15 +107,7 @@ class AiTemplateController extends Controller
     {
         Gate::authorize('create', AiTemplate::class);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'generation_brief' => 'nullable|string|max:2000',
-            'system_prompt' => 'required|string',
-            'user_prompt' => 'required|string',
-            'single_output' => 'sometimes|boolean',
-            'output_key' => 'nullable|string|max:255|regex:/^[a-z0-9_]+$/',
-        ]);
+        $validated = $request->validate($this->rules());
 
         $user = auth()->user();
         $validated['organization_id'] = $user->hasRole('super-admin')
@@ -119,20 +124,46 @@ class AiTemplateController extends Controller
     {
         Gate::authorize('update', $aiTemplate);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'generation_brief' => 'nullable|string|max:2000',
-            'system_prompt' => 'required|string',
-            'user_prompt' => 'required|string',
-            'single_output' => 'sometimes|boolean',
-            'output_key' => 'nullable|string|max:255|regex:/^[a-z0-9_]+$/',
-        ]);
+        $validated = $request->validate($this->rules());
 
         $aiTemplate->update($validated);
 
         return redirect()->route('transformation-library.show', $aiTemplate)
             ->with('success', 'AI Template updated.');
+    }
+
+    /**
+     * Shared by store()/update(). A saved import transformation (type 'spreadsheet_import' or
+     * 'text_import') has no prompts at all — it holds import_config (one pass per detected
+     * record type) instead, so system_prompt/user_prompt/import_config swap which side is
+     * required based on `type`. Every existing caller omits `type` entirely, which behaves
+     * exactly as before: system_prompt/user_prompt required, import_config untouched, and the
+     * 'workflow' column default applies since an absent `type` never reaches AiTemplate::create().
+     *
+     * A pass's shape differs by source: 'spreadsheet_import' passes carry a `mapping` — the same
+     * shape StoreTaskListImportRequest already validates for a single-type import — while
+     * 'text_import' passes carry an `extraction_rule` string instead, since there are no columns
+     * to map against a text source.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    private function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'generation_brief' => 'nullable|string|max:2000',
+            'type' => ['sometimes', 'string', Rule::in(['workflow', 'spreadsheet_import', 'text_import'])],
+            'system_prompt' => ['required_unless:type,spreadsheet_import,text_import', 'nullable', 'string'],
+            'user_prompt' => ['required_unless:type,spreadsheet_import,text_import', 'nullable', 'string'],
+            'single_output' => 'sometimes|boolean',
+            'output_key' => 'nullable|string|max:255|regex:/^[a-z0-9_]+$/',
+            'import_config' => ['required_if:type,spreadsheet_import,text_import', 'nullable', 'array'],
+            'import_config.passes' => ['required_if:type,spreadsheet_import,text_import', 'array', 'min:1'],
+            'import_config.passes.*.list_type' => ['required_if:type,spreadsheet_import,text_import', 'string', 'in:task,event'],
+            'import_config.passes.*.mapping' => ['required_if:type,spreadsheet_import', 'array'],
+            'import_config.passes.*.extraction_rule' => ['required_if:type,text_import', 'string', 'max:2000'],
+        ];
     }
 
     /**

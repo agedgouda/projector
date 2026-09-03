@@ -107,7 +107,8 @@ const activeTab = ref(props.activeTab);
 // own type picker) for any other tab.
 const defaultTypeForCreate = computed<string | null>(() => {
     // Reports mirrors Tasks — it's the same underlying task data, just viewed as a report.
-    if (activeTab.value === 'tasks' || activeTab.value === 'reports') return 'task';
+    if (activeTab.value === 'tasks' || activeTab.value === 'reports')
+        return 'task';
     if (activeTab.value === 'calendar') return 'event';
     if (activeTab.value === 'hierarchy') return ACTION_ITEMS_KEY;
     if (activeTab.value === 'recordings') return INTAKE_KEY;
@@ -116,7 +117,8 @@ const defaultTypeForCreate = computed<string | null>(() => {
 
 // Mirrors defaultTypeForCreate's per-tab defaults in the "New ___" button's own label.
 const createButtonLabel = computed(() => {
-    if (activeTab.value === 'tasks' || activeTab.value === 'reports') return 'New Task';
+    if (activeTab.value === 'tasks' || activeTab.value === 'reports')
+        return 'New Task';
     if (activeTab.value === 'calendar') return 'New Event';
     return 'New Document';
 });
@@ -341,6 +343,13 @@ const openEventImport = () => {
 // to "Task List" instead.
 const openTaskImport = () => {
     importTaskListOptionsRef.value?.openTaskImport();
+};
+
+// "Import Data" (Tasks and Calendar tabs) — same mechanism, but opens ImportTransformationModal
+// instead of the single-type confirm modal, since one sheet's rows can become any mix of Tasks
+// and Events rather than a single fixed type.
+const openSmartImport = () => {
+    importTaskListOptionsRef.value?.openSmartImport();
 };
 
 const tabActionsTarget = useTemplateRef('tabActionsTarget');
@@ -612,6 +621,15 @@ watch(
                         <Upload class="mr-2 h-4 w-4" />
                         Import Tasks
                     </Button>
+                    <Button
+                        v-if="!currentProject.inactive && canManageTranscripts"
+                        variant="outline"
+                        @click="openSmartImport"
+                        class="h-11 rounded-xl px-6 font-bold whitespace-nowrap"
+                    >
+                        <Upload class="mr-2 h-4 w-4" />
+                        Import Data
+                    </Button>
                 </Teleport>
                 <KanbanBoard
                     v-model:searchQuery="searchQuery"
@@ -661,6 +679,15 @@ watch(
                     >
                         <Upload class="mr-2 h-4 w-4" />
                         Import Events
+                    </Button>
+                    <Button
+                        v-if="!currentProject.inactive && canManageTranscripts"
+                        variant="outline"
+                        @click="openSmartImport"
+                        class="h-11 rounded-xl px-6 font-bold whitespace-nowrap"
+                    >
+                        <Upload class="mr-2 h-4 w-4" />
+                        Import Data
                     </Button>
                 </Teleport>
                 <ProjectCalendar

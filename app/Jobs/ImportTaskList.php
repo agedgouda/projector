@@ -26,6 +26,11 @@ class ImportTaskList implements ShouldQueue
      * @param  list<string>  $headers
      * @param  list<list<string>>  $rows
      * @param  array<string, string|null>  $mapping
+     * @param  int|null  $aiTemplateId  Set when this pass was driven by a saved transformation
+     *                                  (an AiTemplate with type 'spreadsheet_import') — stamped onto every created row's
+     *                                  last_ai_template_id, the same provenance field ProcessDocumentAI already sets for
+     *                                  every other AI-produced document, so "which transformation made this" works the same
+     *                                  way here as it does everywhere else. Null for an ad-hoc (never-saved) import.
      */
     public function __construct(
         public Document $importDocument,
@@ -33,6 +38,7 @@ class ImportTaskList implements ShouldQueue
         public array $headers,
         public array $rows,
         public array $mapping,
+        public ?int $aiTemplateId = null,
     ) {}
 
     public function handle(TaskListImportService $importService): void
@@ -116,6 +122,8 @@ class ImportTaskList implements ShouldQueue
                     'assignee_id' => $assignee['assignee_id'],
                     'pending_assignee_invitation_id' => $assignee['pending_assignee_invitation_id'],
                     'metadata' => ['imported_from' => $this->importDocument->id],
+                    'last_ai_template_id' => $this->aiTemplateId,
+                    'last_output_key' => $this->aiTemplateId !== null ? $this->listType : null,
                 ]);
                 $task->save();
 
@@ -191,6 +199,8 @@ class ImportTaskList implements ShouldQueue
                     'start_at' => $startAt,
                     'due_at' => $dueAt,
                     'metadata' => ['imported_from' => $this->importDocument->id],
+                    'last_ai_template_id' => $this->aiTemplateId,
+                    'last_output_key' => $this->aiTemplateId !== null ? $this->listType : null,
                 ]);
 
                 if ($tag !== null) {

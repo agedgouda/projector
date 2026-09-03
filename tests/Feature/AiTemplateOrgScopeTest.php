@@ -449,3 +449,174 @@ it('team member cannot create a template', function () {
         ])
         ->assertNotFound();
 });
+
+it('saves a spreadsheet_import template with import_config and no prompts', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('transformation-library.store'), [
+            'name' => 'Marketing Calendar Sheet',
+            'type' => 'spreadsheet_import',
+            'import_config' => ['passes' => [
+                ['list_type' => 'event', 'mapping' => ['name' => 'Name', 'due_at' => 'End Date']],
+                ['list_type' => 'task', 'mapping' => ['name' => 'Assets Needed']],
+            ]],
+        ])
+        ->assertRedirect();
+
+    $created = AiTemplate::where('name', 'Marketing Calendar Sheet')->firstOrFail();
+    expect($created->type)->toBe('spreadsheet_import')
+        ->and($created->organization_id)->toBe($this->orgA->id)
+        ->and($created->system_prompt)->toBeNull()
+        ->and($created->import_config['passes'])->toHaveCount(2)
+        ->and($created->import_config['passes'][1]['mapping']['name'])->toBe('Assets Needed');
+});
+
+it('requires import_config.passes when creating a spreadsheet_import template', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('transformation-library.store'), [
+            'name' => 'Incomplete Transformation',
+            'type' => 'spreadsheet_import',
+        ])
+        ->assertSessionHasErrors('import_config.passes');
+});
+
+it('still requires system_prompt and user_prompt for a workflow template', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('transformation-library.store'), [
+            'name' => 'Missing Prompts',
+        ])
+        ->assertSessionHasErrors(['system_prompt', 'user_prompt']);
+});
+
+it('updates a spreadsheet_import template\'s import_config', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $template = AiTemplate::create([
+        'name' => 'Marketing Calendar Sheet',
+        'type' => 'spreadsheet_import',
+        'organization_id' => $this->orgA->id,
+        'import_config' => ['passes' => [
+            ['list_type' => 'event', 'mapping' => ['name' => 'Name']],
+        ]],
+    ]);
+
+    $this->actingAs($this->orgAAdmin)
+        ->put(route('transformation-library.update', $template), [
+            'name' => 'Marketing Calendar Sheet',
+            'type' => 'spreadsheet_import',
+            'import_config' => ['passes' => [
+                ['list_type' => 'event', 'mapping' => ['name' => 'Title']],
+                ['list_type' => 'task', 'mapping' => ['name' => 'Deliverable']],
+            ]],
+        ])
+        ->assertRedirect();
+
+    $template->refresh();
+    expect($template->import_config['passes'])->toHaveCount(2)
+        ->and($template->import_config['passes'][0]['mapping']['name'])->toBe('Title');
+});
+
+it('excludes the internal spreadsheet-classification template from an org-admin\'s listing', function () {
+    AiTemplate::create([
+        'name' => 'Spreadsheet Column Classification',
+        'type' => 'spreadsheet_column_classification',
+        'system_prompt' => 'sys',
+        'user_prompt' => 'usr',
+    ]);
+
+    setPermissionsTeamId($this->orgA->id);
+
+    $response = $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->not->toContain('Spreadsheet Column Classification');
+});
+
+it('super-admin sees the internal spreadsheet-classification template', function () {
+    AiTemplate::create([
+        'name' => 'Spreadsheet Column Classification',
+        'type' => 'spreadsheet_column_classification',
+        'system_prompt' => 'sys',
+        'user_prompt' => 'usr',
+    ]);
+
+    setPermissionsTeamId(null);
+
+    $response = $this->actingAs($this->superAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->toContain('Spreadsheet Column Classification');
+});
+
+it('saves a text_import template with import_config and no prompts', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('transformation-library.store'), [
+            'name' => 'Meeting Notes Extractor',
+            'type' => 'text_import',
+            'import_config' => ['passes' => [
+                ['list_type' => 'event', 'extraction_rule' => 'Each dated meeting is an event.'],
+                ['list_type' => 'task', 'extraction_rule' => 'Each follow-up bullet is a task.'],
+            ]],
+        ])
+        ->assertRedirect();
+
+    $created = AiTemplate::where('name', 'Meeting Notes Extractor')->firstOrFail();
+    expect($created->type)->toBe('text_import')
+        ->and($created->organization_id)->toBe($this->orgA->id)
+        ->and($created->system_prompt)->toBeNull()
+        ->and($created->import_config['passes'])->toHaveCount(2)
+        ->and($created->import_config['passes'][1]['extraction_rule'])->toBe('Each follow-up bullet is a task.');
+});
+
+it('requires import_config.passes.*.extraction_rule when creating a text_import template', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('transformation-library.store'), [
+            'name' => 'Incomplete Text Transformation',
+            'type' => 'text_import',
+            'import_config' => ['passes' => [
+                ['list_type' => 'event'],
+            ]],
+        ])
+        ->assertSessionHasErrors('import_config.passes.0.extraction_rule');
+});
+
+it('excludes the internal text-extraction templates from an org-admin\'s listing', function () {
+    AiTemplate::create([
+        'name' => 'Text Extraction Classification',
+        'type' => 'text_extraction_classification',
+        'system_prompt' => 'sys',
+        'user_prompt' => 'usr',
+    ]);
+    AiTemplate::create([
+        'name' => 'Text Extraction',
+        'type' => 'text_extraction',
+        'system_prompt' => 'sys',
+        'user_prompt' => 'usr',
+    ]);
+
+    setPermissionsTeamId($this->orgA->id);
+
+    $response = $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->not->toContain('Text Extraction Classification')
+        ->not->toContain('Text Extraction');
+});

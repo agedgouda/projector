@@ -138,6 +138,26 @@ declare global {
         color: string;
     }
 
+    // One pass turns some or all of an uploaded source into one record type (Task or Event) —
+    // see ImportTransformationModal.vue. A spreadsheet-source pass carries `mapping` (column ->
+    // field); a text-source pass carries `extraction_rule` (a plain-English rule) instead, since
+    // there are no columns to map against a text source — see SpreadsheetClassificationService
+    // vs TextExtractionService. Only one of the two is ever populated, per the modal's sourceMode.
+    export interface ImportTransformationPass {
+        list_type: 'task' | 'event';
+        mapping?: Record<string, string | null>;
+        extraction_rule?: string;
+        rationale?: string | null;
+    }
+
+    export interface SavedImportTransformation {
+        id: number;
+        name: string;
+        description: string | null;
+        type: 'spreadsheet_import' | 'text_import';
+        import_config: { passes: ImportTransformationPass[] } | null;
+    }
+
     export interface DocumentMetadata {
         criteria: string[];
         raw_data?: {
