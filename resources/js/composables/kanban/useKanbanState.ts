@@ -5,6 +5,19 @@ export function useKanbanState(props: KanbanProps) {
     const selectedDocumentId = ref<string | number | null>(null);
     const isSheetOpen = ref(false);
 
+    // Drives DocumentDetailSheet's create mode (see useKanbanActions.ts's handleCreateNew,
+    // triggered by the empty-column "+" button, and each host page's own top toolbar "New
+    // Task" button) — a separate open flag/target from the view/edit sheet above so the two
+    // never fight over which document (existing vs. none yet) the one shared sheet instance
+    // should be showing.
+    const isCreateSheetOpen = ref(false);
+    const createSheetProjectId = ref<string | null>(null);
+
+    const openCreateSheet = (projectId: string) => {
+        createSheetProjectId.value = projectId;
+        isCreateSheetOpen.value = true;
+    };
+
     // 1. Create a local copy of the kanban data for optimistic updates
     const deepCopyKanbanData = (data: Record<string, ProjectDocument[]>) =>
         Object.fromEntries(Object.entries(data).map(([k, v]) => [k, [...v]]));
@@ -146,10 +159,13 @@ export function useKanbanState(props: KanbanProps) {
         selectedDocumentId,
         selectedDocument,
         isSheetOpen,
+        isCreateSheetOpen,
+        createSheetProjectId,
         localKanbanData, // Export this so useKanbanQueries can use it
         documentsById,
         applyLocalUpdate,
         removeLocalDocuments,
         openDetail,
+        openCreateSheet,
     };
 }

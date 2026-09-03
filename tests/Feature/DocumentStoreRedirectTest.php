@@ -5,6 +5,7 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectType;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -85,4 +86,31 @@ it('ignores a protocol-relative redirect and falls back to the default', functio
     $this->actingAs($this->admin)
         ->post(route('projects.documents.store', $this->project).'?'.http_build_query(['redirect' => '//evil.example.com']), storeDocumentPayload('action_items'))
         ->assertRedirect(route('projects.show', $this->project).'?tab=hierarchy');
+});
+
+it('returns the created document as JSON for a plain axios post (no X-Inertia header)', function () {
+    // Document::create() with real content dispatches GenerateDocumentEmbedding
+    // synchronously (QUEUE_CONNECTION=sync in phpunit.xml) — faked here, same as every other
+    // feature test in this repo that creates a document with content, purely so this test
+    // doesn't make a real call to the OpenAI embeddings API.
+    Queue::fake();
+
+    $response = $this->actingAs($this->admin)
+        ->postJson(route('projects.documents.store', $this->project), storeDocumentPayload('task'));
+
+    $response->assertSuccessful();
+    $response->assertJsonPath('name', 'Save and New test');
+    $response->assertJsonPath('type', 'task');
+    expect($response->json('id'))->toBeString();
+});
+
+it('still redirects for an Inertia-flagged post even when it also wants JSON', function () {
+    Queue::fake();
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), storeDocumentPayload('task'), [
+            'X-Inertia' => 'true',
+            'Accept' => 'application/json',
+        ])
+        ->assertRedirect(route('projects.show', $this->project).'?tab=tasks');
 });

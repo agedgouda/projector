@@ -74,6 +74,9 @@ useEchoWatchdog(() => props.currentProject?.id);
 const {
     selectedDocument,
     isSheetOpen,
+    isCreateSheetOpen,
+    createSheetProjectId,
+    openCreateSheet,
     handleCreateNew,
     getTasksByRowAndStatus,
     getTaskCountByRowAndStatus,
@@ -407,6 +410,15 @@ const confirmDelete = (doc: ProjectDocument) => {
 };
 
 const handleCreateNavigation = (projectId: string) => {
+    // Tasks/Reports tabs open the create-mode sheet instead of navigating away — see
+    // DocumentDetailSheet.vue's `mode: 'create'`. Every other tab (Calendar/Documentation/
+    // Recordings) keeps the existing full-page form, since only task creation has a sheet
+    // equivalent.
+    if (defaultTypeForCreate.value === 'task') {
+        openCreateSheet(projectId);
+        return;
+    }
+
     router.visit(projectDocumentsRoutes.create({ project: projectId }).url, {
         data: {
             redirect: window.location.href,
@@ -415,6 +427,18 @@ const handleCreateNavigation = (projectId: string) => {
                 : {}),
         },
     });
+};
+
+const taskReportRef = useTemplateRef('taskReportRef');
+
+// The Kanban board's own local state (localKanbanData) is unrelated to the Reports tab's own
+// result list (see TaskReport.vue's own `results` ref) — patch both so the new task shows up
+// immediately regardless of which of the two tabs was open when "New Task" was clicked.
+const handleTaskCreated = (doc: ProjectDocument) => {
+    applyLocalUpdate(doc.id, doc);
+    if (activeTab.value === 'reports') {
+        taskReportRef.value?.refreshAfterCreate();
+    }
 };
 
 const isReactivateModalOpen = ref(false);
@@ -823,7 +847,7 @@ watch(
             </div>
 
             <div v-show="activeTab === 'reports'">
-                <TaskReport :project="currentProject" />
+                <TaskReport ref="taskReportRef" :project="currentProject" />
             </div>
         </div>
 
@@ -846,6 +870,16 @@ watch(
             @update-tags="(id, categories) => updateTags(id, categories)"
             @comments-changed="(id) => refreshComments(id)"
             @name-updated="(id, name) => applyLocalUpdate(id, { name })"
+        />
+
+        <DocumentDetailSheet
+            v-else-if="isCreateSheetOpen"
+            mode="create"
+            :project-id="createSheetProjectId ?? undefined"
+            :reprocessable-types="reprocessableTypes"
+            :ai-processed-parent-ids="aiProcessedParentIds"
+            v-model:open="isCreateSheetOpen"
+            @created="handleTaskCreated"
         />
 
         <ReprocessPromptModal

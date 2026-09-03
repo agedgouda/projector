@@ -51,6 +51,8 @@ watch(
 const {
     selectedDocument,
     isSheetOpen,
+    isCreateSheetOpen,
+    createSheetProjectId,
     handleCreateNew,
     getTasksByRowAndStatus,
     getTaskCountByRowAndStatus,
@@ -255,14 +257,20 @@ const aiProcessedParentIds = computed(() => {
                     :has-rows="hasRows"
                     :workflow-rows="workflowRows"
                     :get-tasks-by-row-and-status="getTasksByRowAndStatus"
-                    :get-task-count-by-row-and-status="getTaskCountByRowAndStatus"
+                    :get-task-count-by-row-and-status="
+                        getTaskCountByRowAndStatus
+                    "
                     :matches-filters="matchesFilters"
                     :on-drag-change="onDragChange"
                     :open-detail="openDetail"
                     :handle-create-new="handleCreateNew"
                     :update-attribute="
                         (docId, field, val) =>
-                            updateAttribute(docId, { [field]: val }, 'Changes saved')
+                            updateAttribute(
+                                docId,
+                                { [field]: val },
+                                'Changes saved',
+                            )
                     "
                     :update-tags="
                         (docId, categories) => updateTags(docId, categories)
@@ -291,6 +299,16 @@ const aiProcessedParentIds = computed(() => {
             @update-tags="(id, categories) => updateTags(id, categories)"
             @comments-changed="(id) => refreshComments(id)"
             @name-updated="(id, name) => applyLocalUpdate(id, { name })"
+        />
+
+        <DocumentDetailSheet
+            v-else-if="isCreateSheetOpen"
+            mode="create"
+            :project-id="createSheetProjectId ?? undefined"
+            :reprocessable-types="reprocessableTypes"
+            :ai-processed-parent-ids="aiProcessedParentIds"
+            v-model:open="isCreateSheetOpen"
+            @created="(doc) => applyLocalUpdate(doc.id, doc)"
         />
     </AppLayout>
 </template>

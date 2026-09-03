@@ -1,21 +1,23 @@
+import projectRoutes from '@/routes/projects';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
-import { toast } from 'vue-sonner';
 import type { Ref } from 'vue';
-import projectRoutes from '@/routes/projects';
+import { toast } from 'vue-sonner';
 import type { KanbanProps } from './useKanbanBoard';
 
 export function useKanbanActions(
     props: KanbanProps,
     applyLocalUpdate: (id: string | number, data: Record<string, any>) => void,
-    documentsById: Ref<Record<string | number, ProjectDocument>>
+    documentsById: Ref<Record<string | number, ProjectDocument>>,
+    openCreateSheet: (projectId: string) => void,
 ) {
-
     /**
      * Resolves the project ID that owns a given document.
      * Falls back to currentProject if the document isn't found in local state.
      */
-    const projectIdForDoc = (documentId: string | number): string | undefined => {
+    const projectIdForDoc = (
+        documentId: string | number,
+    ): string | undefined => {
         const doc = documentsById.value[documentId];
         return doc?.project_id ?? props.currentProject?.id;
     };
@@ -26,7 +28,7 @@ export function useKanbanActions(
     const updateAttribute = (
         documentId: string | number,
         data: Record<string, any>,
-        successMessage?: string
+        successMessage?: string,
     ) => {
         const projectId = projectIdForDoc(documentId);
         if (!projectId) return;
@@ -34,7 +36,7 @@ export function useKanbanActions(
         const docIdStr = String(documentId);
         const route = projectRoutes.documents.updateAttributes({
             project: projectId,
-            document: docIdStr
+            document: docIdStr,
         });
 
         router.patch(route.url, data, {
@@ -53,7 +55,7 @@ export function useKanbanActions(
                 // the "old" props. Our watcher in useKanbanState will see
                 // the old props and reset localKanbanData automatically.
                 toast.error('Failed to save changes. Reverting...');
-            }
+            },
         });
     };
 
@@ -63,26 +65,33 @@ export function useKanbanActions(
      * objects (not just ids) so the optimistic local update can render pills immediately,
      * without waiting for the round trip to bring back the relation.
      */
-    const updateTags = (documentId: string | number, categories: CategoryDef[]) => {
+    const updateTags = (
+        documentId: string | number,
+        categories: CategoryDef[],
+    ) => {
         const projectId = projectIdForDoc(documentId);
         if (!projectId) return;
 
         const docIdStr = String(documentId);
         const route = projectRoutes.documents.updateCategories({
             project: projectId,
-            document: docIdStr
+            document: docIdStr,
         });
 
-        router.put(route.url, { category_ids: categories.map((c) => c.id) }, {
-            preserveScroll: true,
-            preserveState: true,
-            onBefore: () => {
-                applyLocalUpdate(documentId, { categories });
+        router.put(
+            route.url,
+            { category_ids: categories.map((c) => c.id) },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onBefore: () => {
+                    applyLocalUpdate(documentId, { categories });
+                },
+                onError: () => {
+                    toast.error('Failed to save tags. Reverting...');
+                },
             },
-            onError: () => {
-                toast.error('Failed to save tags. Reverting...');
-            }
-        });
+        );
     };
 
     // Comments aren't part of a document's usual attribute set, so there's nothing to send
@@ -95,16 +104,22 @@ export function useKanbanActions(
         applyLocalUpdate(documentId, { comments: response.data.comments });
     };
 
+    // The empty-column "+" button — projectId is actually the row's key, which (in every
+    // current call site) is the owning project's id. Opens the shared DocumentDetailSheet in
+    // create mode instead of navigating to the full-page form (see Documents/Create.vue).
     const handleCreateNew = (projectId: string) => {
-        const route = projectRoutes.documents.create({ project: projectId });
-        router.visit(route.url);
+        openCreateSheet(projectId);
     };
 
     const switchProject = (projectId: string | number) => {
-        router.get('/dashboard', { project: projectId }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+        router.get(
+            '/dashboard',
+            { project: projectId },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
     };
 
     return {
@@ -112,6 +127,6 @@ export function useKanbanActions(
         updateTags,
         refreshComments,
         handleCreateNew,
-        switchProject
+        switchProject,
     };
 }

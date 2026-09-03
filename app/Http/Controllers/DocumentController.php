@@ -59,6 +59,16 @@ class DocumentController extends Controller
             $document->categories()->sync(array_values(array_filter((array) $categoryIds, 'is_string')));
         }
 
+        // The task-creation sheet (DocumentDetailSheet.vue) posts here directly via axios
+        // rather than an Inertia visit, so it can get the created document back and patch it
+        // into the current page's local state instead of a full-page redirect/reload. An
+        // Inertia visit (Documents/Create.vue) always carries the X-Inertia header, so
+        // checking for its absence is what distinguishes the two callers — wantsJson() alone
+        // isn't enough, since Inertia's own fetch also sends an Accept header matching JSON.
+        if (! $request->header('X-Inertia') && $request->wantsJson()) {
+            return response()->json($document->load(['assignee', 'pendingAssignee', 'categories']));
+        }
+
         $definition = $project->documentTypeCatalog()->get($document->type);
         $isTask = $definition instanceof \App\Models\DocumentTypeDefinition && $definition->is_task;
 

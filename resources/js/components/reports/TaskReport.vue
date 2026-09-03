@@ -1,29 +1,45 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
-import axios from 'axios';
-import { toast } from 'vue-sonner';
-import { Search, FileText, FileSpreadsheet, FileType, Table2, FileStack } from 'lucide-vue-next';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import TaskSearchForm, { type TaskSearchFilters } from '@/components/reports/TaskSearchForm.vue';
-import TaskReportTable, { type TaskReportRow, type SortKey, type SortDir } from '@/components/reports/TaskReportTable.vue';
-import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
-import projectDocumentsRoutes from '@/routes/projects/documents';
-import { mergeAssigneeOptions } from '@/lib/assignees';
-import { useDocumentActions, type UIProjectDocument } from '@/composables/useDocumentActions';
-import { useWorkflow } from '@/composables/useWorkflow';
 import {
-    projectTasks,
+    destroyTaskFilterPreferences,
+    exportTasksExcel,
+    exportTasksGoogleDoc,
+    exportTasksGoogleSheet,
     exportTasksPdf,
     exportTasksWord,
-    exportTasksExcel,
-    exportTasksGoogleSheet,
-    exportTasksGoogleDoc,
+    projectTasks,
     taskFilterPreferences,
     updateTaskFilterPreferences,
-    destroyTaskFilterPreferences,
 } from '@/actions/App/Http/Controllers/ReportController';
+import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
+import TaskReportTable, {
+    type SortDir,
+    type SortKey,
+    type TaskReportRow,
+} from '@/components/reports/TaskReportTable.vue';
+import TaskSearchForm, {
+    type TaskSearchFilters,
+} from '@/components/reports/TaskSearchForm.vue';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import {
+    useDocumentActions,
+    type UIProjectDocument,
+} from '@/composables/useDocumentActions';
+import { useWorkflow } from '@/composables/useWorkflow';
+import { mergeAssigneeOptions } from '@/lib/assignees';
+import projectDocumentsRoutes from '@/routes/projects/documents';
+import { router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
+import {
+    FileSpreadsheet,
+    FileStack,
+    FileText,
+    FileType,
+    Search,
+    Table2,
+} from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 const props = defineProps<{
     project: Project;
@@ -32,19 +48,27 @@ const props = defineProps<{
 // Same source as the document sidebar's own Internal/External Due Date split (see
 // Documents/Show.vue) — an org-wide setting, not something derived from this project.
 const page = usePage();
-const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
+const usesExternalDueDates = computed(
+    () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
+);
 
 // Reports always span this project plus its direct sub-projects (mirroring the calendar's
 // own behavior — see Project::calendarItems()), so the Project column/filter only need to
 // exist at all once there's more than just this one project in scope.
 const projectOptions = computed(() => [
     { id: props.project.id, name: props.project.name },
-    ...(props.project.children ?? []).map((child) => ({ id: child.id, name: child.name })),
+    ...(props.project.children ?? []).map((child) => ({
+        id: child.id,
+        name: child.name,
+    })),
 ]);
 const hasSubprojects = computed(() => projectOptions.value.length > 1);
 
 const assigneeOptions = computed(() =>
-    mergeAssigneeOptions(props.project.client?.organization?.users, props.project.client?.organization?.invitations)
+    mergeAssigneeOptions(
+        props.project.client?.organization?.users,
+        props.project.client?.organization?.invitations,
+    ),
 );
 
 const results = ref<TaskReportRow[]>([]);
@@ -59,7 +83,10 @@ const activeParams = ref<Record<string, string | string[]>>({});
 
 // Mirrors TaskReportTable's own default (due_at/asc) so an export triggered before the
 // user ever clicks a column header still matches what's on screen.
-const currentSort = ref<{ key: SortKey; dir: SortDir }>({ key: 'due_at', dir: 'asc' });
+const currentSort = ref<{ key: SortKey; dir: SortDir }>({
+    key: 'due_at',
+    dir: 'asc',
+});
 const onSortChange = (key: SortKey, dir: SortDir) => {
     currentSort.value = { key, dir };
 };
@@ -80,43 +107,84 @@ const onSortChange = (key: SortKey, dir: SortDir) => {
 // always wherever the user is currently looking at this project from), the replayed PATCH/PUT
 // landed on ProjectController::update at that same /projects/{project} URL instead, failing
 // its unrelated "name" validation.
-const onUpdateField = (task: TaskReportRow, field: string, rawValue: unknown) => {
+const onUpdateField = (
+    task: TaskReportRow,
+    field: string,
+    rawValue: unknown,
+) => {
     let normalizedValue: string | number | null = null;
     if (rawValue === 'unassigned' || rawValue == null) normalizedValue = null;
-    else if (typeof rawValue === 'string' || typeof rawValue === 'number') normalizedValue = rawValue;
+    else if (typeof rawValue === 'string' || typeof rawValue === 'number')
+        normalizedValue = rawValue;
     else return;
 
     // Matches TaskRowFields.vue's own handleUpdate — an empty date input clears the field
     // rather than sending an empty string, which the backend's `date` validation rejects.
-    if ((field === 'due_at' || field === 'external_due_at') && normalizedValue === '') normalizedValue = null;
+    if (
+        (field === 'due_at' || field === 'external_due_at') &&
+        normalizedValue === ''
+    )
+        normalizedValue = null;
 
-    const url = projectDocumentsRoutes.updateAttributes({ project: task.project_id, document: String(task.id) }).url;
-    router.patch(url, { [field]: normalizedValue }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            if (field === 'assignee_id') {
-                const isInvitation = typeof normalizedValue === 'string' && normalizedValue.startsWith('inv:');
-                const option = normalizedValue != null
-                    ? assigneeOptions.value.find((o) => o.value === normalizedValue)
-                    : null;
-                task.assignee = !isInvitation && option ? { id: Number(normalizedValue), name: option.label } : null;
-                // `email` holds the option's already-resolved display label, not a real email
-                // address — invitationName() falls back to it once first/last name are absent,
-                // which is all this local, display-only update needs (the next real fetch
-                // replaces it with the server's actual pending_assignee shape).
-                task.pending_assignee = isInvitation && option
-                    ? { id: Number((normalizedValue as string).slice(4)), email: option.label, first_name: null, last_name: null }
-                    : null;
-                task.assignee_id = !isInvitation && normalizedValue != null ? Number(normalizedValue) : null;
-                task.pending_assignee_invitation_id = isInvitation ? Number((normalizedValue as string).slice(4)) : null;
-            } else {
-                (task as unknown as Record<string, unknown>)[field] = normalizedValue;
-            }
+    const url = projectDocumentsRoutes.updateAttributes({
+        project: task.project_id,
+        document: String(task.id),
+    }).url;
+    router.patch(
+        url,
+        { [field]: normalizedValue },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (field === 'assignee_id') {
+                    const isInvitation =
+                        typeof normalizedValue === 'string' &&
+                        normalizedValue.startsWith('inv:');
+                    const option =
+                        normalizedValue != null
+                            ? assigneeOptions.value.find(
+                                  (o) => o.value === normalizedValue,
+                              )
+                            : null;
+                    task.assignee =
+                        !isInvitation && option
+                            ? {
+                                  id: Number(normalizedValue),
+                                  name: option.label,
+                              }
+                            : null;
+                    // `email` holds the option's already-resolved display label, not a real email
+                    // address — invitationName() falls back to it once first/last name are absent,
+                    // which is all this local, display-only update needs (the next real fetch
+                    // replaces it with the server's actual pending_assignee shape).
+                    task.pending_assignee =
+                        isInvitation && option
+                            ? {
+                                  id: Number(
+                                      (normalizedValue as string).slice(4),
+                                  ),
+                                  email: option.label,
+                                  first_name: null,
+                                  last_name: null,
+                              }
+                            : null;
+                    task.assignee_id =
+                        !isInvitation && normalizedValue != null
+                            ? Number(normalizedValue)
+                            : null;
+                    task.pending_assignee_invitation_id = isInvitation
+                        ? Number((normalizedValue as string).slice(4))
+                        : null;
+                } else {
+                    (task as unknown as Record<string, unknown>)[field] =
+                        normalizedValue;
+                }
+            },
+            onError: () => {
+                toast.error('Could not update this task.');
+            },
         },
-        onError: () => {
-            toast.error('Could not update this task.');
-        },
-    });
+    );
 };
 
 // DocumentDetailSheet's title editor saves directly against DocumentController::update()
@@ -131,14 +199,21 @@ const onUpdateTags = (task: TaskReportRow, categories: CategoryDef[]) => {
     const previous = task.categories;
     task.categories = categories;
 
-    const url = projectDocumentsRoutes.updateCategories({ project: task.project_id, document: String(task.id) }).url;
-    router.put(url, { category_ids: categories.map((c) => c.id) }, {
-        preserveScroll: true,
-        onError: () => {
-            task.categories = previous;
-            toast.error("Could not update this task's tags.");
+    const url = projectDocumentsRoutes.updateCategories({
+        project: task.project_id,
+        document: String(task.id),
+    }).url;
+    router.put(
+        url,
+        { category_ids: categories.map((c) => c.id) },
+        {
+            preserveScroll: true,
+            onError: () => {
+                task.categories = previous;
+                toast.error("Could not update this task's tags.");
+            },
         },
-    });
+    );
 };
 
 // The slide-in detail sheet — same component the Kanban board opens on a card click (see
@@ -183,23 +258,38 @@ const handleReportReprocess = (id: string | number) => {
     const task = selectedReportTask.value;
     if (!task || task.id !== id) return;
 
-    const { setDocToProcessing } = useDocumentActions({ project: { id: task.project_id } as Project });
+    const { setDocToProcessing } = useDocumentActions({
+        project: { id: task.project_id } as Project,
+    });
     void setDocToProcessing(task as unknown as UIProjectDocument);
 };
 
 const handleReportTransition = (
     id: string | number,
-    payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string },
+    payload: {
+        toKey?: string;
+        aiTemplateId: number;
+        singleOutput?: boolean;
+        projectTypeId?: string;
+    },
 ) => {
     const task = selectedReportTask.value;
     if (!task || task.id !== id) return;
 
-    const { setDocToTransitioning } = useDocumentActions({ project: { id: task.project_id } as Project });
+    const { setDocToTransitioning } = useDocumentActions({
+        project: { id: task.project_id } as Project,
+    });
     void setDocToTransitioning(task as unknown as UIProjectDocument, payload);
     isReportSheetOpen.value = false;
 };
 
-const ARRAY_FILTER_KEYS = ['assignee', 'task_status', 'priority', 'project_id', 'category_id'] as const;
+const ARRAY_FILTER_KEYS = [
+    'assignee',
+    'task_status',
+    'priority',
+    'project_id',
+    'category_id',
+] as const;
 const STRING_FILTER_KEYS = ['due_from', 'due_to'] as const;
 
 // The results/hasSearched state above is local to this component instance, which doesn't
@@ -233,7 +323,9 @@ const filtersFromUrl = (): TaskSearchFilters | null => {
 // it back to the full shape here, at the one place a persisted blob enters the app, rather
 // than trusting every downstream reader (this component's own updateUrlFilters() below,
 // TaskSearchForm.vue's chipsFor()) to individually guard against a missing key.
-const normalizeFilters = (filters: Partial<TaskSearchFilters> | null): TaskSearchFilters | null => {
+const normalizeFilters = (
+    filters: Partial<TaskSearchFilters> | null,
+): TaskSearchFilters | null => {
     if (!filters) return null;
 
     return {
@@ -253,7 +345,9 @@ const normalizeFilters = (filters: Partial<TaskSearchFilters> | null): TaskSearc
 // account server-side rather than one browser's storage.
 const loadPersistedFilters = async (): Promise<TaskSearchFilters | null> => {
     try {
-        const response = await axios.get<{ filters: Partial<TaskSearchFilters> | null }>(taskFilterPreferences({ project: props.project.id }).url);
+        const response = await axios.get<{
+            filters: Partial<TaskSearchFilters> | null;
+        }>(taskFilterPreferences({ project: props.project.id }).url);
         return normalizeFilters(response.data.filters);
     } catch {
         // A failed fetch just means nothing gets remembered for this visit — never worth
@@ -264,7 +358,10 @@ const loadPersistedFilters = async (): Promise<TaskSearchFilters | null> => {
 
 const persistFilters = async (filters: TaskSearchFilters) => {
     try {
-        await axios.put(updateTaskFilterPreferences({ project: props.project.id }).url, filters);
+        await axios.put(
+            updateTaskFilterPreferences({ project: props.project.id }).url,
+            filters,
+        );
     } catch {
         // Remembering filters is a convenience running alongside the actual search — a failed
         // save shouldn't surface as a search error.
@@ -273,7 +370,9 @@ const persistFilters = async (filters: TaskSearchFilters) => {
 
 const clearPersistedFilters = async () => {
     try {
-        await axios.delete(destroyTaskFilterPreferences({ project: props.project.id }).url);
+        await axios.delete(
+            destroyTaskFilterPreferences({ project: props.project.id }).url,
+        );
     } catch {
         // See persistFilters().
     }
@@ -311,11 +410,16 @@ const runSearch = async (filters: TaskSearchFilters) => {
     // Omit unset filters entirely rather than sending empty strings — the backend's
     // validation (e.g. priority must be low/medium/high) rejects an empty string, since
     // `nullable` only exempts an actually-absent/null value, not an empty one.
-    const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== ''));
+    const params = Object.fromEntries(
+        Object.entries(filters).filter(([, value]) => value !== ''),
+    );
     activeParams.value = params;
 
     try {
-        const response = await axios.get<TaskReportRow[]>(projectTasks({ project: props.project.id }).url, { params });
+        const response = await axios.get<TaskReportRow[]>(
+            projectTasks({ project: props.project.id }).url,
+            { params },
+        );
         results.value = response.data;
         hasSearched.value = true;
     } catch {
@@ -339,7 +443,12 @@ const onReset = (filters: TaskSearchFilters) => {
     void runSearch(filters);
 };
 
-const exportUrl = (action: typeof exportTasksPdf | typeof exportTasksWord | typeof exportTasksExcel): string => {
+const exportUrl = (
+    action:
+        | typeof exportTasksPdf
+        | typeof exportTasksWord
+        | typeof exportTasksExcel,
+): string => {
     const query: Record<string, string | string[]> = {
         ...activeParams.value,
         sort_by: currentSort.value.key,
@@ -369,14 +478,21 @@ const exportToGoogle = async (kind: 'sheet' | 'doc') => {
         query.include_details = '1';
     }
 
-    const action = kind === 'sheet' ? exportTasksGoogleSheet : exportTasksGoogleDoc;
+    const action =
+        kind === 'sheet' ? exportTasksGoogleSheet : exportTasksGoogleDoc;
     const label = kind === 'sheet' ? 'Google Sheets' : 'Google Docs';
 
     try {
-        const response = await axios.get<{ url: string }>(action({ project: props.project.id }, { query }).url);
+        const response = await axios.get<{ url: string }>(
+            action({ project: props.project.id }, { query }).url,
+        );
         window.open(response.data.url, '_blank');
     } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.status === 428 && err.response.data?.connect_url) {
+        if (
+            axios.isAxiosError(err) &&
+            err.response?.status === 428 &&
+            err.response.data?.connect_url
+        ) {
             // Not connected yet — send the user through the connect flow, then bounce them
             // straight back here (with this same export re-triggered automatically) instead
             // of dropping them on the standalone Settings > Integrations page.
@@ -384,7 +500,10 @@ const exportToGoogle = async (kind: 'sheet' | 'doc') => {
             returnUrl.searchParams.set('google_export', kind);
 
             const connectUrl = new URL(err.response.data.connect_url);
-            connectUrl.searchParams.set('return_to', returnUrl.pathname + returnUrl.search);
+            connectUrl.searchParams.set(
+                'return_to',
+                returnUrl.pathname + returnUrl.search,
+            );
 
             window.location.href = connectUrl.toString();
             return;
@@ -398,7 +517,9 @@ const exportToGoogle = async (kind: 'sheet' | 'doc') => {
 // Set when landing back here after being sent through the Google connect flow mid-export
 // above — resumed once the restored search results are in, then stripped from the URL so a
 // refresh doesn't repeat it.
-const pendingGoogleExport = new URLSearchParams(window.location.search).get('google_export');
+const pendingGoogleExport = new URLSearchParams(window.location.search).get(
+    'google_export',
+);
 
 onMounted(async () => {
     if (!initialFilters.value) {
@@ -415,11 +536,27 @@ onMounted(async () => {
         void exportToGoogle(pendingGoogleExport);
     }
 });
+
+// Called by Projects/Show.vue after a task is created from its own top toolbar "New Task"
+// button (see DocumentDetailSheet's `mode: 'create'`) while this tab is showing — `results`
+// is local to this component and unrelated to the Kanban board's own local state, so it has
+// no other way to learn about the new task. Re-running the last search (rather than trying
+// to hand-shape the created document into a TaskReportRow) is the simplest way to get it to
+// show correctly, and does nothing at all if nothing has been searched yet.
+defineExpose({
+    refreshAfterCreate: () => {
+        if (hasSearched.value) {
+            void runSearch(activeParams.value as unknown as TaskSearchFilters);
+        }
+    },
+});
 </script>
 
 <template>
     <div class="space-y-6">
-        <div class="rounded-3xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-6">
+        <div
+            class="rounded-3xl border border-slate-200 bg-slate-50 p-6 dark:border-white/10 dark:bg-white/5"
+        >
             <TaskSearchForm
                 :users="project.client.organization?.users"
                 :invitations="project.client.organization?.invitations"
@@ -438,8 +575,14 @@ onMounted(async () => {
         <template v-if="hasSearched">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
-                    <Checkbox id="report-include-details" v-model="includeDetails" />
-                    <Label for="report-include-details" class="text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                    <Checkbox
+                        id="report-include-details"
+                        v-model="includeDetails"
+                    />
+                    <Label
+                        for="report-include-details"
+                        class="text-[13px] font-medium text-slate-600 dark:text-slate-300"
+                    >
                         Include task details column in export
                     </Label>
                 </div>
@@ -447,21 +590,21 @@ onMounted(async () => {
                 <div class="flex gap-2">
                     <a
                         :href="exportUrl(exportTasksExcel)"
-                        class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-200 dark:border-white/10 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 px-3 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                     >
                         <FileSpreadsheet class="h-3.5 w-3.5" />
                         Excel
                     </a>
                     <a
                         :href="exportUrl(exportTasksWord)"
-                        class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-200 dark:border-white/10 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 px-3 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                     >
                         <FileType class="h-3.5 w-3.5" />
                         Word
                     </a>
                     <a
                         :href="exportUrl(exportTasksPdf)"
-                        class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-200 dark:border-white/10 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 px-3 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                     >
                         <FileText class="h-3.5 w-3.5" />
                         PDF
@@ -469,20 +612,28 @@ onMounted(async () => {
                     <button
                         type="button"
                         :disabled="exportingToGoogle !== null"
-                        class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-200 dark:border-white/10 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 px-3 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                         @click="exportToGoogle('sheet')"
                     >
                         <Table2 class="h-3.5 w-3.5" />
-                        {{ exportingToGoogle === 'sheet' ? 'Exporting…' : 'Google Sheets' }}
+                        {{
+                            exportingToGoogle === 'sheet'
+                                ? 'Exporting…'
+                                : 'Google Sheets'
+                        }}
                     </button>
                     <button
                         type="button"
                         :disabled="exportingToGoogle !== null"
-                        class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-200 dark:border-white/10 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 px-3 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                         @click="exportToGoogle('doc')"
                     >
                         <FileStack class="h-3.5 w-3.5" />
-                        {{ exportingToGoogle === 'doc' ? 'Exporting…' : 'Google Docs' }}
+                        {{
+                            exportingToGoogle === 'doc'
+                                ? 'Exporting…'
+                                : 'Google Docs'
+                        }}
                     </button>
                 </div>
             </div>
@@ -503,10 +654,12 @@ onMounted(async () => {
 
         <div
             v-else
-            class="flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 py-20"
+            class="flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-slate-200 py-20 dark:border-slate-800"
         >
             <Search class="h-6 w-6 text-slate-300" />
-            <p class="text-slate-400 font-medium text-sm">Set your filters and search to see matching tasks.</p>
+            <p class="text-sm font-medium text-slate-400">
+                Set your filters and search to see matching tasks.
+            </p>
         </div>
 
         <DocumentDetailSheet
@@ -516,13 +669,18 @@ onMounted(async () => {
             :reprocessable-types="reprocessableTypes"
             :ai-processed-parent-ids="emptyAiProcessedParentIds"
             @update-attribute="
-                (field, val) => selectedReportTask && onUpdateField(selectedReportTask, field, val)
+                (field, val) =>
+                    selectedReportTask &&
+                    onUpdateField(selectedReportTask, field, val)
             "
             @update-tags="
-                (id, categories) => selectedReportTask && onUpdateTags(selectedReportTask, categories)
+                (id, categories) =>
+                    selectedReportTask &&
+                    onUpdateTags(selectedReportTask, categories)
             "
             @name-updated="
-                (id, name) => selectedReportTask && onUpdateName(selectedReportTask, name)
+                (id, name) =>
+                    selectedReportTask && onUpdateName(selectedReportTask, name)
             "
             @handle-reprocess="handleReportReprocess"
             @handle-transition="handleReportTransition"
