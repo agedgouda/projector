@@ -158,3 +158,20 @@ it('defaults task_status to todo using the global catalog, even for a type not i
 
     expect($document->task_status)->toBe('todo');
 });
+
+it('preserves an explicitly-given task_status instead of resetting it to todo', function () {
+    // Regression test: the default-to-'todo' check above used to key off the legacy `status`
+    // column (see DocumentController.php's store()), which nothing ever sets — so it was
+    // always null and unconditionally overwrote task_status back to 'todo' on every creation,
+    // silently discarding whatever status the caller actually asked for.
+    $project = createProjectWithChainedWorkflow();
+
+    $document = $project->documents()->create([
+        'name' => 'A task created with a non-default status',
+        'type' => 'task',
+        'content' => 'Some content',
+        'task_status' => 'done',
+    ]);
+
+    expect($document->task_status)->toBe('done');
+});

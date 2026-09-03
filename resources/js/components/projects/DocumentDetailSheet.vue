@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CommentSection from '@/components/comments/CommentSection.vue';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { Button } from '@/components/ui/button';
 import {
     Popover,
@@ -27,7 +28,7 @@ import {
     priorityDotClasses,
 } from '@/lib/constants';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { EditorContent } from '@tiptap/vue-3';
 import axios from 'axios';
 import {
@@ -38,6 +39,7 @@ import {
     ListOrdered,
     Paperclip,
     Plus,
+    Trash2,
 } from 'lucide-vue-next';
 import { computed, nextTick, reactive, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
@@ -430,6 +432,36 @@ const saveName = async () => {
     }
 };
 
+// Delete — same ConfirmDeleteModal + confirmDeletion() shape as Documents/Show.vue's own
+// delete flow (see useDocumentForm.ts), including using a real Inertia router.delete() rather
+// than the axios bypass every other edit-mode action in this file uses: unlike an edit, a
+// deleted task shouldn't stay visible anywhere, so the normal fresh-props reload this triggers
+// is exactly what's wanted — it's what makes the task disappear from the Kanban board/report
+// underneath (and, since documentsById/selectedDocument are both derived from that same
+// localKanbanData, is also what closes this sheet on its own, no extra event needed).
+const isDeleting = ref(false);
+const isDeleteModalOpen = ref(false);
+
+const confirmDeletion = () => {
+    if (!documentProject.value) return;
+
+    isDeleting.value = true;
+    const url = projectDocumentsRoutes.destroy({
+        project: documentProject.value.id,
+        document: String(props.document!.id),
+    }).url;
+
+    router.delete(url, {
+        onSuccess: () => {
+            toast.success('Document deleted');
+        },
+        onFinish: () => {
+            isDeleting.value = false;
+            isDeleteModalOpen.value = false;
+        },
+    });
+};
+
 // Create mode: posts the whole staged draft at once via plain axios (not an Inertia visit —
 // see DocumentController::store()'s own X-Inertia check) so the caller gets the created
 // document back to patch into local state instead of a full-page redirect/reload.
@@ -520,6 +552,17 @@ const formatDate = (dateString: string) => {
     });
 };
 
+// `document.type` is a raw catalog key (e.g. "task", "action_items"), not already a display
+// label — used only for the delete confirmation's title ("Delete Task", not "Delete
+// action_items").
+const documentTypeLabel = computed(() =>
+    (props.document?.type ?? '')
+        .split('_')
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' '),
+);
+
 /**
  * Handle updates with type-casting.
  * We use 'any' for value here to accept the broad 'AcceptableValue' type
@@ -559,6 +602,17 @@ const handleUpdate = (field: string, value: any) => {
         <SheetContent
             class="overflow-y-auto border-l border-gray-100 bg-white pr-12 pl-12 shadow-2xl sm:max-w-[720px] dark:border-gray-800 dark:bg-[hsl(222_47%_6%)] dark:text-white"
         >
+            <Button
+                v-if="mode !== 'create' && document"
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="absolute top-4 right-12 flex h-8 w-8 items-center justify-center p-0 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                @click="isDeleteModalOpen = true"
+            >
+                <Trash2 class="h-4 w-4" />
+            </Button>
+
             <template v-if="document || mode === 'create'">
                 <div class="mt-8 space-y-10">
                     <SheetHeader class="space-y-0.5 p-0 text-left">
@@ -1160,6 +1214,16 @@ const handleUpdate = (field: string, value: any) => {
             </template>
         </SheetContent>
     </Sheet>
+
+    <ConfirmDeleteModal
+        v-if="mode !== 'create' && document"
+        :open="isDeleteModalOpen"
+        :title="`Delete ${documentTypeLabel}`"
+        :description="`Are you sure you want to delete '${document.name}'? This action cannot be undone.`"
+        :loading="isDeleting"
+        @confirm="confirmDeletion"
+        @close="isDeleteModalOpen = false"
+    />
 </template>
 
 <style scoped>

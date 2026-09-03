@@ -55,8 +55,17 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         $definition = $catalog->get($document->type);
         $isTask = $definition instanceof DocumentTypeDefinition && $definition->is_task;
 
-        // If it's a taskable type and status is currently empty, default to 'todo'
-        if ($isTask && is_null($document->status)) {
+        // If it's a taskable type and no status was given, default to 'todo'. Checked against
+        // task_status itself (not the legacy `status` column, which nothing sets anymore and
+        // is always null) — this used to unconditionally overwrite an explicitly-chosen
+        // task_status back to 'todo' on every single creation, since `is_null($document->status)`
+        // was always true.
+        // PHPStan infers task_status as non-nullable from the migration's DB-level NOT NULL
+        // (with a default), but that default only applies at INSERT time — on this in-memory,
+        // not-yet-created model, the attribute is genuinely unset/null whenever the caller
+        // didn't explicitly assign it, exactly the case this check exists to catch.
+        // @phpstan-ignore function.impossibleType, booleanAnd.alwaysFalse
+        if ($isTask && is_null($document->task_status)) {
             $document->status = 'todo';
             $document->task_status = 'todo'; // Keep both in sync for your board
         }
