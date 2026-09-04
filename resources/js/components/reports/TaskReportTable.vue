@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DateField from '@/components/DateField.vue';
 import {
     Select,
     SelectContent,
@@ -87,10 +88,9 @@ const statusFor = (statusKey: string | null) =>
 // and due date(s) need to land in the same place, which only a shared column grid
 // guarantees. Due date(s) sit last, all the way to the right of the row. "Internal"/
 // "External" stack over "Due" in the header (see template) so each due column's header
-// text only needs to fit one of those words — but the body cell below it is a native
-// `<input type="date">` (see template), which needs ~112px for its own "MM/DD/YYYY"
-// rendering plus its built-in calendar-picker icon at this row's text-[13px] size (same
-// figure TaskRowFields.vue's own date input is sized to, for the same reason). Project
+// text only needs to fit one of those words — the body cell below it is a DateField (see
+// template), sized ~112px so its own text has room at this row's text-[13px] size (same
+// figure TaskRowFields.vue's own date field is sized to, for the same reason). Project
 // (when shown) always leads, since it's the grouping-level field.
 //
 // All four combinations are spelled out as complete literal strings (not built via string
@@ -416,38 +416,28 @@ const sortedTasks = computed(() => {
                 </SelectContent>
             </Select>
 
-            <input
-                type="date"
-                :value="dueDateInputValue(task.due_at)"
-                class="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-[13px] text-slate-500 focus:ring-0 dark:text-slate-400 [&::-webkit-calendar-picker-indicator]:h-3.5 [&::-webkit-calendar-picker-indicator]:w-3.5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                @click.stop
-                @change="
-                    (e) =>
-                        emit(
-                            'update-field',
-                            task,
-                            'due_at',
-                            (e.target as HTMLInputElement).value,
-                        )
-                "
-            />
+            <div class="contents" @click.stop>
+                <DateField
+                    :model-value="dueDateInputValue(task.due_at)"
+                    :show-icon="false"
+                    trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
+                    @update:model-value="
+                        (val) => emit('update-field', task, 'due_at', val)
+                    "
+                />
+            </div>
 
-            <input
-                v-if="usesExternalDueDates"
-                type="date"
-                :value="dueDateInputValue(task.external_due_at)"
-                class="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-[13px] text-slate-500 focus:ring-0 dark:text-slate-400 [&::-webkit-calendar-picker-indicator]:h-3.5 [&::-webkit-calendar-picker-indicator]:w-3.5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                @click.stop
-                @change="
-                    (e) =>
-                        emit(
-                            'update-field',
-                            task,
-                            'external_due_at',
-                            (e.target as HTMLInputElement).value,
-                        )
-                "
-            />
+            <div v-if="usesExternalDueDates" class="contents" @click.stop>
+                <DateField
+                    :model-value="dueDateInputValue(task.external_due_at)"
+                    :show-icon="false"
+                    trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
+                    @update:model-value="
+                        (val) =>
+                            emit('update-field', task, 'external_due_at', val)
+                    "
+                />
+            </div>
         </div>
 
         <div

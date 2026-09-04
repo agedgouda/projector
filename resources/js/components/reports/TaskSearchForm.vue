@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import DateField from '@/components/DateField.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     MultiSelect,
@@ -240,11 +240,12 @@ const activeChips = computed<FilterChip[]>(() => [
                 class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
                 >Due From</Label
             >
-            <Input
+            <DateField
                 id="report-due-from"
                 v-model="filters.due_from"
-                type="date"
-                class="h-9 text-[13px]"
+                placeholder="MM/DD/YYYY"
+                icon-class="h-4 w-4 text-muted-foreground"
+                trigger-class="h-9 w-full justify-start rounded-md border border-input px-3 text-[13px] shadow-xs hover:bg-accent/50"
             />
         </div>
 
@@ -254,11 +255,12 @@ const activeChips = computed<FilterChip[]>(() => [
                 class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
                 >Due To</Label
             >
-            <Input
+            <DateField
                 id="report-due-to"
                 v-model="filters.due_to"
-                type="date"
-                class="h-9 text-[13px]"
+                placeholder="MM/DD/YYYY"
+                icon-class="h-4 w-4 text-muted-foreground"
+                trigger-class="h-9 w-full justify-start rounded-md border border-input px-3 text-[13px] shadow-xs hover:bg-accent/50"
             />
         </div>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CommentSection from '@/components/comments/CommentSection.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import DateField from '@/components/DateField.vue';
 import { Button } from '@/components/ui/button';
 import {
     Popover,
@@ -768,9 +769,8 @@ const handleUpdate = (field: string, value: any) => {
                                         >
                                         <template v-else>Due Date</template>
                                     </span>
-                                    <input
-                                        type="date"
-                                        :value="
+                                    <DateField
+                                        :model-value="
                                             fieldValue('due_at')
                                                 ? (
                                                       fieldValue(
@@ -779,16 +779,12 @@ const handleUpdate = (field: string, value: any) => {
                                                   ).slice(0, 10)
                                                 : ''
                                         "
-                                        @change="
-                                            (e) =>
-                                                handleUpdate(
-                                                    'due_at',
-                                                    (
-                                                        e.target as HTMLInputElement
-                                                    ).value,
-                                                )
+                                        align="end"
+                                        :show-icon="false"
+                                        trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
+                                        @update:model-value="
+                                            (val) => handleUpdate('due_at', val)
                                         "
-                                        class="w-[100px] cursor-pointer border-none bg-transparent p-0 text-right text-[10px] font-black tracking-wider text-gray-700 uppercase focus:ring-0"
                                     />
                                 </div>
 
@@ -800,9 +796,8 @@ const handleUpdate = (field: string, value: any) => {
                                         class="text-[11px] font-medium text-gray-500"
                                         >External<br />Due Date</span
                                     >
-                                    <input
-                                        type="date"
-                                        :value="
+                                    <DateField
+                                        :model-value="
                                             fieldValue('external_due_at')
                                                 ? (
                                                       fieldValue(
@@ -811,16 +806,16 @@ const handleUpdate = (field: string, value: any) => {
                                                   ).slice(0, 10)
                                                 : ''
                                         "
-                                        @change="
-                                            (e) =>
+                                        align="end"
+                                        :show-icon="false"
+                                        trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
+                                        @update:model-value="
+                                            (val) =>
                                                 handleUpdate(
                                                     'external_due_at',
-                                                    (
-                                                        e.target as HTMLInputElement
-                                                    ).value,
+                                                    val,
                                                 )
                                         "
-                                        class="w-[100px] cursor-pointer border-none bg-transparent p-0 text-right text-[10px] font-black tracking-wider text-gray-700 uppercase focus:ring-0"
                                     />
                                 </div>
                             </div>

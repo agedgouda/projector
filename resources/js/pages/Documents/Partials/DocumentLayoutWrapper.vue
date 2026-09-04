@@ -22,8 +22,7 @@
 :deep(.custom-scrollbar::-webkit-scrollbar-thumb) { background: #e2e8f0; border-radius: 10px; }
 
 :deep([data-radix-collection-item]),
-:deep(button[role="combobox"]),
-:deep(.custom-date-input:focus) {
+:deep(button[role="combobox"]) {
     outline: none !important;
     box-shadow: none !important;
     border-color: transparent !important;

@@ -14,6 +14,7 @@ use App\Http\Controllers\DocumentImportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ImportTransformationController;
+use App\Http\Controllers\ImportWizardController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\KanbanColumnController;
 use App\Http\Controllers\MeetingTranscriptController;
@@ -225,6 +226,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/status-meetings', [\App\Http\Controllers\OrgDocumentController::class, 'index'])
         ->name('status-meetings.index');
 
+    // Import Wizard (project-level, org resolved from cookie/query like Projects/Index)
+    Route::get('/import', [ImportWizardController::class, 'index'])
+        ->name('import.index');
+
     // Org Documents (status meetings CRUD, nested under org for authorization)
     Route::post('/organizations/{organization}/import-recording', [\App\Http\Controllers\OrgDocumentController::class, 'importFromRecording'])
         ->name('organizations.import-recording');
@@ -321,6 +326,9 @@ Route::middleware(['auth'])->group(function () {
                 ->name('task-lists.analyze');
             Route::post('/task-lists', [TaskListImportController::class, 'store'])
                 ->name('task-lists.store');
+
+            Route::get('/import-wizard-context', [ImportWizardController::class, 'projectContext'])
+                ->name('import-wizard-context');
 
             Route::post('/import-transformations/classify', [ImportTransformationController::class, 'classifySpreadsheet'])
                 ->name('import-transformations.classify');

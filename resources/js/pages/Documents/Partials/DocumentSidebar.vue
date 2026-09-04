@@ -5,6 +5,7 @@ import {
     exportWord,
 } from '@/actions/App/Http/Controllers/DocumentController';
 import TransformPicker from '@/components/documents/TransformPicker.vue';
+import DateField from '@/components/DateField.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -176,18 +177,6 @@ onMounted(() => {
     }
 });
 
-// The native date input's own text/icon rendering can't be pixel-matched to the Assignee
-// text above it (Chrome renders a filled value's segments differently than its placeholder
-// text with respect to letter-spacing/alignment). So the input itself is made invisible and
-// only handles the click-to-open-picker + value interaction; the visible text is this plain
-// span, styled identically to the Assignee span, which guarantees identical rendering.
-const formatDateDisplay = (val: string | null | undefined): string => {
-    if (!val) {
-        return 'MM/DD/YYYY';
-    }
-    const [year, month, day] = val.split('-');
-    return `${month}/${day}/${year}`;
-};
 </script>
 
 <template>
@@ -317,40 +306,33 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                             : 'Due Date'
                                     }}</span
                                 >
-                                <div
-                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
-                                    :class="
-                                        project.inactive ? 'opacity-50' : ''
+                                <DateField
+                                    :model-value="dueAtProxy"
+                                    :disabled="project.inactive"
+                                    format="mdy"
+                                    placeholder="MM/DD/YYYY"
+                                    align="end"
+                                    @update:model-value="
+                                        (val) => $emit('update:dueAtProxy', val)
                                     "
                                 >
-                                    <span
-                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
-                                    >
-                                        {{ formatDateDisplay(dueAtProxy) }}
-                                    </span>
-                                    <CalendarIcon
-                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
-                                    />
-                                    <input
-                                        type="date"
-                                        :value="dueAtProxy"
-                                        :disabled="project.inactive"
-                                        @change="
-                                            $emit(
-                                                'update:dueAtProxy',
-                                                (
-                                                    $event.target as HTMLInputElement
-                                                ).value,
-                                            )
-                                        "
-                                        :class="[
-                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
-                                            project.inactive
-                                                ? 'cursor-default'
-                                                : 'cursor-pointer',
-                                        ]"
-                                    />
-                                </div>
+                                    <template #default="{ display }">
+                                        <button
+                                            type="button"
+                                            :disabled="project.inactive"
+                                            class="flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 disabled:cursor-default disabled:opacity-50 dark:hover:bg-white/10"
+                                        >
+                                            <span
+                                                class="w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
+                                                {{ display }}
+                                            </span>
+                                            <CalendarIcon
+                                                class="h-4 w-4 shrink-0 text-slate-400"
+                                            />
+                                        </button>
+                                    </template>
+                                </DateField>
                             </div>
 
                             <div
@@ -361,57 +343,38 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                     class="text-[13px] text-slate-900 dark:text-slate-400"
                                     >External Due Date</span
                                 >
-                                <div
-                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
-                                    :class="
-                                        project.inactive ? 'opacity-50' : ''
+                                <DateField
+                                    :model-value="
+                                        item.external_due_at
+                                            ? item.external_due_at.substring(0, 10)
+                                            : ''
+                                    "
+                                    :disabled="project.inactive"
+                                    format="mdy"
+                                    placeholder="MM/DD/YYYY"
+                                    align="end"
+                                    @update:model-value="
+                                        (val) =>
+                                            $emit('change', 'external_due_at', val)
                                     "
                                 >
-                                    <span
-                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
-                                    >
-                                        {{
-                                            formatDateDisplay(
-                                                item.external_due_at
-                                                    ? item.external_due_at.substring(
-                                                          0,
-                                                          10,
-                                                      )
-                                                    : '',
-                                            )
-                                        }}
-                                    </span>
-                                    <CalendarIcon
-                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
-                                    />
-                                    <input
-                                        type="date"
-                                        :value="
-                                            item.external_due_at
-                                                ? item.external_due_at.substring(
-                                                      0,
-                                                      10,
-                                                  )
-                                                : ''
-                                        "
-                                        :disabled="project.inactive"
-                                        @change="
-                                            $emit(
-                                                'change',
-                                                'external_due_at',
-                                                (
-                                                    $event.target as HTMLInputElement
-                                                ).value,
-                                            )
-                                        "
-                                        :class="[
-                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
-                                            project.inactive
-                                                ? 'cursor-default'
-                                                : 'cursor-pointer',
-                                        ]"
-                                    />
-                                </div>
+                                    <template #default="{ display }">
+                                        <button
+                                            type="button"
+                                            :disabled="project.inactive"
+                                            class="flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 disabled:cursor-default disabled:opacity-50 dark:hover:bg-white/10"
+                                        >
+                                            <span
+                                                class="w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
+                                                {{ display }}
+                                            </span>
+                                            <CalendarIcon
+                                                class="h-4 w-4 shrink-0 text-slate-400"
+                                            />
+                                        </button>
+                                    </template>
+                                </DateField>
                             </div>
 
                             <div
@@ -557,40 +520,33 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                     class="text-[13px] text-slate-900 dark:text-slate-400"
                                     >Start Date</span
                                 >
-                                <div
-                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
-                                    :class="
-                                        project.inactive ? 'opacity-50' : ''
+                                <DateField
+                                    :model-value="startAtProxy"
+                                    :disabled="project.inactive"
+                                    format="mdy"
+                                    placeholder="MM/DD/YYYY"
+                                    align="end"
+                                    @update:model-value="
+                                        (val) => $emit('update:startAtProxy', val)
                                     "
                                 >
-                                    <span
-                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
-                                    >
-                                        {{ formatDateDisplay(startAtProxy) }}
-                                    </span>
-                                    <CalendarIcon
-                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
-                                    />
-                                    <input
-                                        type="date"
-                                        :value="startAtProxy"
-                                        :disabled="project.inactive"
-                                        @change="
-                                            $emit(
-                                                'update:startAtProxy',
-                                                (
-                                                    $event.target as HTMLInputElement
-                                                ).value,
-                                            )
-                                        "
-                                        :class="[
-                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
-                                            project.inactive
-                                                ? 'cursor-default'
-                                                : 'cursor-pointer',
-                                        ]"
-                                    />
-                                </div>
+                                    <template #default="{ display }">
+                                        <button
+                                            type="button"
+                                            :disabled="project.inactive"
+                                            class="flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 disabled:cursor-default disabled:opacity-50 dark:hover:bg-white/10"
+                                        >
+                                            <span
+                                                class="w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
+                                                {{ display }}
+                                            </span>
+                                            <CalendarIcon
+                                                class="h-4 w-4 shrink-0 text-slate-400"
+                                            />
+                                        </button>
+                                    </template>
+                                </DateField>
                             </div>
 
                             <div
@@ -600,40 +556,33 @@ const formatDateDisplay = (val: string | null | undefined): string => {
                                     class="text-[13px] text-slate-900 dark:text-slate-400"
                                     >End Date</span
                                 >
-                                <div
-                                    class="relative flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
-                                    :class="
-                                        project.inactive ? 'opacity-50' : ''
+                                <DateField
+                                    :model-value="dueAtProxy"
+                                    :disabled="project.inactive"
+                                    format="mdy"
+                                    placeholder="MM/DD/YYYY"
+                                    align="end"
+                                    @update:model-value="
+                                        (val) => $emit('update:dueAtProxy', val)
                                     "
                                 >
-                                    <span
-                                        class="pointer-events-none w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
-                                    >
-                                        {{ formatDateDisplay(dueAtProxy) }}
-                                    </span>
-                                    <CalendarIcon
-                                        class="pointer-events-none h-4 w-4 shrink-0 text-slate-400"
-                                    />
-                                    <input
-                                        type="date"
-                                        :value="dueAtProxy"
-                                        :disabled="project.inactive"
-                                        @change="
-                                            $emit(
-                                                'update:dueAtProxy',
-                                                (
-                                                    $event.target as HTMLInputElement
-                                                ).value,
-                                            )
-                                        "
-                                        :class="[
-                                            'custom-date-input absolute inset-0 h-full w-full border-none p-0 opacity-0',
-                                            project.inactive
-                                                ? 'cursor-default'
-                                                : 'cursor-pointer',
-                                        ]"
-                                    />
-                                </div>
+                                    <template #default="{ display }">
+                                        <button
+                                            type="button"
+                                            :disabled="project.inactive"
+                                            class="flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 disabled:cursor-default disabled:opacity-50 dark:hover:bg-white/10"
+                                        >
+                                            <span
+                                                class="w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
+                                                {{ display }}
+                                            </span>
+                                            <CalendarIcon
+                                                class="h-4 w-4 shrink-0 text-slate-400"
+                                            />
+                                        </button>
+                                    </template>
+                                </DateField>
                             </div>
                         </div>
                     </div>

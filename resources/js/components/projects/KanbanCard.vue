@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DateField from '@/components/DateField.vue';
 import {
     Popover,
     PopoverContent,
@@ -23,7 +24,7 @@ import {
     getPriorityStyles,
     kanbanCardBg,
 } from '@/lib/kanban-theme';
-import { Calendar, Plus } from 'lucide-vue-next';
+import { Plus } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 const props = defineProps<{
@@ -249,23 +250,12 @@ const handleUpdate = (field: string, value: any) => {
                 </div>
             </div>
 
-            <div
-                class="-mx-1.5 -my-0.5 flex items-center gap-1.5 rounded px-1.5 py-0.5 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
-                @click.stop
-                @keydown.stop
-            >
-                <Calendar class="h-4 w-4 shrink-0" />
-                <input
-                    type="date"
-                    :value="doc.due_at ? doc.due_at.slice(0, 10) : ''"
-                    @change="
-                        (e) =>
-                            handleUpdate(
-                                'due_at',
-                                (e.target as HTMLInputElement).value,
-                            )
-                    "
-                    class="w-[122px] cursor-pointer border-none bg-transparent p-0 text-[13px] font-bold text-gray-700 uppercase focus:ring-0 dark:text-gray-200 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+            <div @click.stop @keydown.stop>
+                <DateField
+                    :model-value="doc.due_at ? doc.due_at.slice(0, 10) : ''"
+                    icon-class="h-4 w-4 text-gray-500 dark:text-gray-400"
+                    trigger-class="-mx-1.5 -my-0.5 rounded px-1.5 py-0.5 text-[13px] font-bold text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10"
+                    @update:model-value="(val) => handleUpdate('due_at', val)"
                 />
             </div>
         </div>

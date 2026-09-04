@@ -111,6 +111,25 @@ const passes = ref<EditablePass[]>([]);
 const classifying = ref(false);
 const classifyError = ref<string | null>(null);
 
+// Which pass is currently shown — passes.length is almost always 1 or 2 (one record type per
+// pass, and a sheet/document practically never gets classified into more than a couple), so one
+// full-width editor at a time reads far better than the same two squeezed into this dialog's
+// fixed width side by side. Clamped (not just reset) wherever passes.value changes size, so
+// removing the pass being viewed lands on a still-valid neighbor instead of an out-of-range page.
+const currentPassIndex = ref(0);
+const currentPass = computed(() => passes.value[currentPassIndex.value]);
+
+// Which pages have actually been viewed — Import stays disabled (see canImport below) until
+// every pass has been, even once all of them are validly mapped, so a multi-pass import can't
+// be started without the user having actually looked at each one. Reset (not just re-seeded
+// with 0) wherever passes.value is replaced wholesale, since a stale index from a previous set
+// of passes means nothing once the passes themselves are different.
+const visitedPassIndices = ref<Set<number>>(new Set([0]));
+watch(currentPassIndex, (index) => visitedPassIndices.value.add(index));
+const allPagesVisited = computed(() =>
+    passes.value.every((_, index) => visitedPassIndices.value.has(index)),
+);
+
 // Every mapped header must actually exist on THIS sheet — a saved transformation's mapping was
 // matched against whatever sheet it was created from, which a new upload's headers may not
 // exactly match (renamed/reordered columns). A stale reference just falls back to unmapped
@@ -167,6 +186,8 @@ const runClassification = async () => {
 const applySource = (source: string) => {
     selectedSource.value = source;
     classifyError.value = null;
+    currentPassIndex.value = 0;
+    visitedPassIndices.value = new Set([0]);
 
     if (source === SOURCE_FRESH) {
         void runClassification();
@@ -207,24 +228,35 @@ watch(noHeaderRow, () => {
     applySource(selectedSource.value);
 });
 
-const updatePassMapping = (index: number, mapping: Record<string, string>) => {
+const updateCurrentPassMapping = (mapping: Record<string, string>) => {
     const next = [...passes.value];
-    next[index] = { ...next[index], mapping };
+    next[currentPassIndex.value] = { ...next[currentPassIndex.value], mapping };
     passes.value = next;
 };
 
-const updatePassExtractionRule = (index: number, extractionRule: string) => {
+const updateCurrentPassExtractionRule = (extractionRule: string) => {
     const next = [...passes.value];
-    next[index] = { ...next[index], extractionRule };
+    next[currentPassIndex.value] = {
+        ...next[currentPassIndex.value],
+        extractionRule,
+    };
     passes.value = next;
 };
 
-const removePass = (index: number) => {
+// Only ever called for the pass currently on screen (see :removable and @remove below) — lands
+// on the pass now occupying this same page position, or the last remaining one if this was it.
+const removeCurrentPass = () => {
+    const index = currentPassIndex.value;
     passes.value = passes.value.filter((_, i) => i !== index);
+    currentPassIndex.value = Math.min(index, Math.max(0, passes.value.length - 1));
+    // Indices shift under the removed pass, so which of the old ones were genuinely visited no
+    // longer lines up — simplest to just require the remaining pages be (re)confirmed.
+    visitedPassIndices.value = new Set([currentPassIndex.value]);
 };
 
 const canImport = computed(() => {
     if (passes.value.length === 0) return false;
+    if (!allPagesVisited.value) return false;
 
     if (props.sourceMode === 'text') {
         return passes.value.every((pass) => pass.extractionRule.trim() !== '');
@@ -412,35 +444,44 @@ const saveAsTransformation = async () => {
                 {{ sourceMode === 'spreadsheet' ? 'sheet' : 'document' }}.
             </div>
 
-            <div v-else class="space-y-4">
-                <template v-if="sourceMode === 'spreadsheet'">
-                    <ImportTransformationPassEditor
+            <div v-else class="space-y-3">
+                <div v-if="passes.length > 1" class="flex items-center gap-3">
+                    <span
                         v-for="(pass, index) in passes"
                         :key="index"
-                        :list-type="pass.list_type"
-                        :headers="effectiveHeaders"
-                        :rows="effectiveRows"
-                        :mapping="pass.mapping"
-                        :rationale="pass.rationale"
-                        :removable="passes.length > 1"
-                        @update:mapping="(m) => updatePassMapping(index, m)"
-                        @remove="removePass(index)"
-                    />
-                </template>
-                <template v-else>
-                    <TextExtractionPassEditor
-                        v-for="(pass, index) in passes"
-                        :key="index"
-                        :list-type="pass.list_type"
-                        :extraction-rule="pass.extractionRule"
-                        :rationale="pass.rationale"
-                        :removable="passes.length > 1"
-                        @update:extraction-rule="
-                            (rule) => updatePassExtractionRule(index, rule)
-                        "
-                        @remove="removePass(index)"
-                    />
-                </template>
+                        :class="[
+                            'text-sm',
+                            index === currentPassIndex
+                                ? 'font-black text-slate-900 dark:text-slate-100'
+                                : 'text-gray-300 dark:text-gray-700',
+                        ]"
+                    >
+                        {{ pass.list_type === 'task' ? 'Task' : 'Event' }}
+                    </span>
+                </div>
+
+                <ImportTransformationPassEditor
+                    v-if="sourceMode === 'spreadsheet' && currentPass"
+                    :key="currentPassIndex"
+                    :list-type="currentPass.list_type"
+                    :headers="effectiveHeaders"
+                    :rows="effectiveRows"
+                    :mapping="currentPass.mapping"
+                    :rationale="currentPass.rationale"
+                    :removable="passes.length > 1"
+                    @update:mapping="updateCurrentPassMapping"
+                    @remove="removeCurrentPass"
+                />
+                <TextExtractionPassEditor
+                    v-else-if="currentPass"
+                    :key="currentPassIndex"
+                    :list-type="currentPass.list_type"
+                    :extraction-rule="currentPass.extractionRule"
+                    :rationale="currentPass.rationale"
+                    :removable="passes.length > 1"
+                    @update:extraction-rule="updateCurrentPassExtractionRule"
+                    @remove="removeCurrentPass"
+                />
             </div>
 
             <div
@@ -495,12 +536,21 @@ const saveAsTransformation = async () => {
                 <Button variant="outline" @click="emit('close')">
                     Cancel
                 </Button>
-                <Button :disabled="!canImport || importing" @click="runImport">
-                    {{
-                        importing
-                            ? 'Importing…'
-                            : `Import ${passes.length} Pass${passes.length === 1 ? '' : 'es'}`
-                    }}
+                <Button
+                    v-if="currentPassIndex > 0"
+                    variant="outline"
+                    @click="currentPassIndex -= 1"
+                >
+                    Previous
+                </Button>
+                <Button
+                    v-if="currentPassIndex < passes.length - 1"
+                    @click="currentPassIndex += 1"
+                >
+                    Next
+                </Button>
+                <Button v-else :disabled="!canImport || importing" @click="runImport">
+                    {{ importing ? 'Importing…' : 'Import' }}
                 </Button>
             </DialogFooter>
         </DialogContent>

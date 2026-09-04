@@ -16,6 +16,7 @@ import {
 
 // 1. Import your Wayfinder routes
 import { dashboard } from '@/routes';
+import importWizardRoutes from '@/routes/import/index';
 import organizationRoutes from '@/routes/organizations/index';
 import projectRoutes from '@/routes/projects/index';
 import statusMeetingsRoutes from '@/routes/status-meetings/index';
@@ -35,6 +36,7 @@ import {
     HelpCircle,
     LayoutGrid,
     TriangleAlert,
+    Upload,
     Users,
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
@@ -78,6 +80,12 @@ const mainNavItems: NavItem[] = [
         title: 'Projects',
         href: projectRoutes.index(),
         icon: Users,
+    },
+    {
+        title: 'Import',
+        href: importWizardRoutes.index(),
+        icon: Upload,
+        hidden: !canSeeStatusMeetings.value,
     },
     {
         title: 'Organizations',
