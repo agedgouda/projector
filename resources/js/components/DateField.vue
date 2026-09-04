@@ -64,22 +64,29 @@ const selectCalendarDate = (value: DateValue | DateValue[] | undefined) => {
     open.value = false;
 };
 
-// Edited independently of modelValue until Enter/blur commits a valid date — a v-model
-// bound straight to the parsed value would fight every keystroke of a partially-typed date.
-const textValue = ref(props.modelValue ?? '');
-watch(
-    () => props.modelValue,
-    (value) => {
-        textValue.value = value ?? '';
-    },
-);
-
 const mdyToIso = (raw: string): string => {
     const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (!match) throw new Error('Not a recognized date');
     const [, month, day, year] = match;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
+
+const isoToMdy = (iso: string): string => {
+    const [year, month, day] = iso.split('-');
+    return `${month}/${day}/${year}`;
+};
+
+// Edited independently of modelValue until Enter/blur commits a valid date — a v-model
+// bound straight to the parsed value would fight every keystroke of a partially-typed date.
+// Always shown as MM/DD/YYYY, regardless of the `format` this field displays its trigger
+// in — the ISO value underneath is an implementation detail no one types or reads directly.
+const textValue = ref(props.modelValue ? isoToMdy(props.modelValue) : '');
+watch(
+    () => props.modelValue,
+    (value) => {
+        textValue.value = value ? isoToMdy(value) : '';
+    },
+);
 
 const commitText = () => {
     const raw = textValue.value.trim();
@@ -92,7 +99,8 @@ const commitText = () => {
         parseDate(iso); // Throws on a calendar date that doesn't exist (e.g. Feb 30).
         emit('update:modelValue', iso);
     } catch {
-        textValue.value = props.modelValue ?? ''; // Revert rather than emit garbage.
+        // Revert rather than emit garbage.
+        textValue.value = props.modelValue ? isoToMdy(props.modelValue) : '';
     }
 };
 

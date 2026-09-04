@@ -171,7 +171,7 @@ const handleUpdate = (field: string, value: any) => {
         >
             {{ doc.name }}
         </h4>
-        <div class="flex items-center justify-start gap-x-2 gap-y-2">
+        <div class="flex items-center justify-between gap-x-2 gap-y-2">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <div @click.stop @keydown.stop>
                     <Select
@@ -253,6 +253,7 @@ const handleUpdate = (field: string, value: any) => {
             <div @click.stop @keydown.stop>
                 <DateField
                     :model-value="doc.due_at ? doc.due_at.slice(0, 10) : ''"
+                    format="mdy"
                     icon-class="h-4 w-4 text-gray-500 dark:text-gray-400"
                     trigger-class="-mx-1.5 -my-0.5 rounded px-1.5 py-0.5 text-[13px] font-bold text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10"
                     @update:model-value="(val) => handleUpdate('due_at', val)"

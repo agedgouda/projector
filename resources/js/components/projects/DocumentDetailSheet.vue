@@ -780,7 +780,8 @@ const handleUpdate = (field: string, value: any) => {
                                                 : ''
                                         "
                                         align="end"
-                                        :show-icon="false"
+                                        format="mdy"
+                                        icon-class="h-3.5 w-3.5 text-gray-400"
                                         trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
                                         @update:model-value="
                                             (val) => handleUpdate('due_at', val)
@@ -807,7 +808,8 @@ const handleUpdate = (field: string, value: any) => {
                                                 : ''
                                         "
                                         align="end"
-                                        :show-icon="false"
+                                        format="mdy"
+                                        icon-class="h-3.5 w-3.5 text-gray-400"
                                         trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
                                         @update:model-value="
                                             (val) =>
