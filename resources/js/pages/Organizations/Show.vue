@@ -6,6 +6,7 @@ import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import OrgInvitationTable from '@/components/user/OrgInvitationTable.vue';
 import ClientList from '@/components/clients/ClientList.vue';
 import OrganizationForm from './Partials/OrganizationForm.vue';
+import SlackIntegration from './Partials/SlackIntegration.vue';
 import { Head, Link, usePage, useForm } from '@inertiajs/vue3';
 import { Building2, Globe, Mail, Plus, UserPlus, Users, SlidersHorizontal, Briefcase, Cpu, AlertTriangle } from 'lucide-vue-next';
 import type { BreadcrumbItem, AppPageProps } from '@/types';
@@ -50,6 +51,13 @@ const props = defineProps<{
         cost_usd: number;
         projects: { project_id: string; documents_processed: number; cost_usd: number }[];
     }>;
+    slackConnected: boolean;
+    slackTeamName?: string;
+    slackConfigured: boolean;
+    slackBindings: { id: string; channel_id: string; channel_name: string; project: { id: string; name: string } }[];
+    slackAvailableChannels: { id: string; name: string }[];
+    slackProjects: { id: string; name: string }[];
+    status?: string;
 }>();
 
 const page = usePage<AppPageProps>();
@@ -349,11 +357,22 @@ const submitInvite = (orgId: string) => {
                 </div>
 
                 <!-- Configuration Tab -->
-                <div v-if="activeTab === 'configuration'" class="pt-6">
+                <div v-if="activeTab === 'configuration'" class="pt-6 space-y-6">
                     <OrganizationForm
                         :organization="currentOrg"
                         @success="() => {}"
                         @cancel="() => {}"
+                    />
+
+                    <SlackIntegration
+                        :organization-id="currentOrg.id"
+                        :slack-connected="slackConnected"
+                        :slack-team-name="slackTeamName"
+                        :slack-configured="slackConfigured"
+                        :slack-bindings="slackBindings"
+                        :slack-available-channels="slackAvailableChannels"
+                        :slack-projects="slackProjects"
+                        :status="status"
                     />
                 </div>
 

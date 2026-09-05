@@ -15,7 +15,9 @@ class IntegrationsController extends Controller
     private const GOOGLE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
     /**
-     * Show the user's integrations settings page.
+     * Show the user's integrations settings page. Slack is an organization-level connection, not
+     * a per-user one — it's managed from Organization settings instead (see
+     * OrganizationSlackController), not here.
      */
     public function edit(Request $request): Response
     {

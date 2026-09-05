@@ -9,10 +9,14 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
+use App\Models\SlackChannelBinding;
+use App\Models\SlackWorkspace;
 use App\Models\User;
+use App\Services\Slack\SlackChannelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class OrganizationController extends Controller
@@ -22,6 +26,7 @@ class OrganizationController extends Controller
      */
     public function index(Request $request)
     {
+        /** @var User $user */
         $user = $request->user();
 
         // 1. Fetch available organizations using the 'accessibleBy' scope
@@ -125,6 +130,9 @@ class OrganizationController extends Controller
 
         cookie()->queue(cookie()->forever('last_org_id', (string) $currentOrg->id));
 
+        $slackWorkspace = $currentOrg->slackWorkspace;
+        [$slackBindings, $slackAvailableChannels] = $this->slackChannelData($slackWorkspace, $user, $currentOrg);
+
         return Inertia::render('Organizations/Show', [
             'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
                 'logo_url' => $currentOrg->logo_url,
@@ -146,7 +154,52 @@ class OrganizationController extends Controller
             'clients' => $clients,
             'usageTotals' => $usageTotals,
             'usageByClient' => $usageByClient,
+            'slackConnected' => (bool) $slackWorkspace,
+            'slackTeamName' => $slackWorkspace?->team_name,
+            'slackConfigured' => filled(config('services.slack.client_id')) && filled(config('services.slack.client_secret')) && filled(config('services.slack.signing_secret')),
+            'slackBindings' => $slackBindings,
+            'slackAvailableChannels' => $slackAvailableChannels,
+            'slackProjects' => $slackWorkspace ? Project::visibleTo($user, $currentOrg->id)->where('inactive', false)->orderBy('name')->get(['id', 'name']) : [],
+            'status' => session('status'),
         ]);
+    }
+
+    /**
+     * The channel-binding data the Configuration tab's inline Slack section needs. Kept separate
+     * from index() so a Slack API failure (revoked token, Slack outage) degrades to an empty
+     * channel list — with the org's existing bindings still shown — rather than a 500 on the
+     * whole organization dashboard.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function slackChannelData(?SlackWorkspace $workspace, User $user, Organization $organization): array
+    {
+        if ($workspace === null) {
+            return [collect(), collect()];
+        }
+
+        $bindings = $workspace->channelBindings()->with('project:id,name')->get();
+
+        $bindingData = $bindings->map(fn (SlackChannelBinding $binding) => [
+            'id' => $binding->id,
+            'channel_id' => $binding->channel_id,
+            'channel_name' => $binding->channel_name,
+            'project' => ['id' => $binding->project->id, 'name' => $binding->project->name],
+        ]);
+
+        try {
+            $boundChannelIds = $bindings->pluck('channel_id');
+
+            $availableChannels = collect(app(SlackChannelService::class)->listChannels($workspace))
+                ->reject(fn (array $channel) => $boundChannelIds->contains($channel['id']))
+                ->values();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to list Slack channels for organization dashboard', ['organization_id' => $organization->id, 'message' => $e->getMessage()]);
+
+            $availableChannels = collect();
+        }
+
+        return [$bindingData, $availableChannels];
     }
 
     /**

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
@@ -396,5 +397,13 @@ class Organization extends Model implements HasMedia
     public function dismissedRecordings(): HasMany
     {
         return $this->hasMany(DismissedOrgRecording::class, 'organization_id');
+    }
+
+    /**
+     * @return HasOne<SlackWorkspace, $this>
+     */
+    public function slackWorkspace(): HasOne
+    {
+        return $this->hasOne(SlackWorkspace::class);
     }
 }

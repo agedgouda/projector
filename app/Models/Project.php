@@ -139,6 +139,14 @@ class Project extends Model implements HasMedia
     }
 
     /**
+     * @return HasMany<SlackChannelBinding, $this>
+     */
+    public function slackChannelBindings(): HasMany
+    {
+        return $this->hasMany(SlackChannelBinding::class);
+    }
+
+    /**
      * Get the lifecycle (stage) template this project follows.
      *
      * @return BelongsTo<LifecycleTemplate, $this>

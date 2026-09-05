@@ -244,6 +244,22 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('throttle:20,1')
         ->name('organizations.import-file');
 
+    // Slack integration (org-level, unlike Google which is per-user under settings/integrations).
+    // The callback is deliberately NOT under /organizations/{organization}/... like its
+    // siblings — Slack requires an exact, pre-registered redirect_uri with no room for a
+    // per-organization segment, so it has to be one fixed URL shared by every organization
+    // (see OrganizationSlackController::connect()'s docblock).
+    Route::get('/organizations/{organization}/slack/connect', [\App\Http\Controllers\OrganizationSlackController::class, 'connect'])
+        ->name('organizations.slack.connect');
+    Route::get('/organizations/slack/callback', [\App\Http\Controllers\OrganizationSlackController::class, 'callback'])
+        ->name('organizations.slack.callback');
+    Route::delete('/organizations/{organization}/slack', [\App\Http\Controllers\OrganizationSlackController::class, 'disconnect'])
+        ->name('organizations.slack.disconnect');
+    Route::post('/organizations/{organization}/slack/channels', [\App\Http\Controllers\OrganizationSlackChannelsController::class, 'store'])
+        ->name('organizations.slack.channels.store');
+    Route::delete('/organizations/{organization}/slack/channels/{binding}', [\App\Http\Controllers\OrganizationSlackChannelsController::class, 'destroy'])
+        ->name('organizations.slack.channels.destroy');
+
     Route::prefix('organizations/{organization}/documents')->name('organizations.documents.')->group(function () {
         Route::get('/create', [\App\Http\Controllers\OrgDocumentController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\OrgDocumentController::class, 'store'])->name('store');
@@ -452,3 +468,4 @@ Route::middleware(['auth'])->prefix('app')->name('mobile.')->group(function () {
 });
 
 require __DIR__.'/settings.php';
+require __DIR__.'/slack.php';
