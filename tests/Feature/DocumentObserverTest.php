@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\DocumentProcessingUpdate;
 use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
@@ -9,6 +10,7 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectType;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -174,4 +176,97 @@ it('preserves an explicitly-given task_status instead of resetting it to todo', 
     ]);
 
     expect($document->task_status)->toBe('done');
+});
+
+// ── Live Kanban broadcast for root-level tasks ──────────────────────────────
+
+it('stamps processed_at on a root-level task, since it is never waiting on an AI step', function () {
+    $project = createProjectWithChainedWorkflow();
+
+    $document = $project->documents()->create([
+        'name' => 'A manually entered task',
+        'type' => 'task',
+        'content' => 'Some content',
+    ]);
+
+    expect($document->processed_at)->not->toBeNull();
+});
+
+it('broadcasts a DocumentProcessingUpdate for a root-level task creation', function () {
+    Event::fake([DocumentProcessingUpdate::class]);
+
+    $project = createProjectWithChainedWorkflow();
+
+    $document = $project->documents()->create([
+        'name' => 'A manually entered task',
+        'type' => 'task',
+        'content' => 'Some content',
+    ]);
+
+    Event::assertDispatched(DocumentProcessingUpdate::class, fn ($event) => $event->document->is($document)
+        && $event->statusMessage === ''
+        && $event->newDocumentCount === 0);
+});
+
+it('does not broadcast or stamp processed_at for a non-task document', function () {
+    Event::fake([DocumentProcessingUpdate::class]);
+
+    $project = createProjectWithChainedWorkflow();
+
+    $note = $project->documents()->create([
+        'name' => 'Meeting Notes',
+        'type' => 'intake',
+        'content' => 'Some notes',
+        'processed_at' => now(),
+    ]);
+
+    // Scoped to statusMessage === '' (this observer's own signature) rather than "no
+    // DocumentProcessingUpdate for this document at all" — GenerateDocumentEmbedding
+    // legitimately broadcasts its own (differently-worded) progress events for this same note
+    // once vectorization kicks in, which isn't what this test is about.
+    Event::assertNotDispatched(DocumentProcessingUpdate::class, fn ($event) => $event->document->is($note) && $event->statusMessage === '');
+});
+
+it('does not broadcast or auto-stamp processed_at for an AI-generated child task', function () {
+    // Mirrors "does not cascade AI processing to a workflow-generated child document" above —
+    // a child task's processed_at is ProcessDocumentAI/GenerateDocumentEmbedding's own to set,
+    // once that document's own generation actually finishes, not this observer's.
+    Event::fake([DocumentProcessingUpdate::class]);
+
+    $project = createProjectWithChainedWorkflow();
+    $note = $project->documents()->create([
+        'name' => 'Meeting Notes',
+        'type' => 'intake',
+        'content' => 'Some notes',
+        'processed_at' => now(),
+    ]);
+
+    $childTask = Document::create([
+        'project_id' => $project->id,
+        'parent_id' => $note->id,
+        'name' => 'Follow up with the client',
+        'type' => 'task',
+        'content' => 'Follow up with the client',
+    ]);
+
+    expect($childTask->processed_at)->toBeNull();
+    // Scoped to statusMessage === '' — see the note above about GenerateDocumentEmbedding's own
+    // legitimate broadcasts for this same document.
+    Event::assertNotDispatched(DocumentProcessingUpdate::class, fn ($event) => $event->document->is($childTask) && $event->statusMessage === '');
+});
+
+it('does not overwrite an explicitly-given processed_at on a root-level task', function () {
+    $project = createProjectWithChainedWorkflow();
+    $explicit = now()->subDay();
+
+    $document = $project->documents()->create([
+        'name' => 'A task imported with a known processed time',
+        'type' => 'task',
+        'content' => 'Some content',
+        'processed_at' => $explicit,
+    ]);
+
+    // toDateTimeString() rather than eq(): the DB round-trip truncates sub-second precision,
+    // so an exact Carbon comparison would fail on microseconds this test never cared about.
+    expect($document->processed_at->toDateTimeString())->toBe($explicit->toDateTimeString());
 });

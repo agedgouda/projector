@@ -41,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // can't carry one.
         $middleware->validateCsrfTokens(except: [
             'slack/events',
+            'slack/commands',
+            'slack/interactivity',
         ]);
 
         $middleware->web(append: [

@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Events\DocumentProcessingUpdate;
 use App\Events\DocumentVectorized;
 use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\ProcessDocumentAI;
@@ -44,16 +45,25 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         if (! empty($document->content) && is_null($document->embedding) && ! in_array($document->type, self::NON_VECTORIZABLE_TYPES, true)) {
             GenerateDocumentEmbedding::dispatch($document);
         }
+
+        // 3. Live Kanban update: a root-level task (manually entered via the UI, or created via
+        // a Slack slash command/shortcut) has no page load of its own to carry it onto an
+        // already-open board — broadcast it the same way ProcessDocumentAI already does for
+        // AI-generated tasks, so useAiProcessing.ts's onDocumentUpdated patches it in live.
+        // Scoped to $document->parent_id === null so this never double-fires alongside
+        // ProcessDocumentAI's own batch broadcast for AI-generated child tasks (which always
+        // have a parent_id) — those already have their own dedicated progress/reload path.
+        // An empty statusMessage deliberately skips every progress/success/error branch in the
+        // listener (parseProcessingStatus treats a falsy statusMessage as "nothing to report") —
+        // there's no AI process happening here to narrate, just a document to add to the board.
+        if ($this->isTaskType($document) && is_null($document->parent_id)) {
+            event(new DocumentProcessingUpdate($document, '', 0));
+        }
     }
 
     public function creating(Document $document): void
     {
-        // Determine if this type is a task from the shared document type catalog — not the
-        // project's own protocol, since a document can be produced by any protocol's recipe
-        // regardless of which protocol its project uses.
-        $catalog = DocumentTypeDefinition::catalogForOrganization($document->project?->organization_id);
-        $definition = $catalog->get($document->type);
-        $isTask = $definition instanceof DocumentTypeDefinition && $definition->is_task;
+        $isTask = $this->isTaskType($document);
 
         // If it's a taskable type and no status was given, default to 'todo'. Checked against
         // task_status itself (not the legacy `status` column, which nothing sets anymore and
@@ -69,6 +79,29 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
             $document->status = 'todo';
             $document->task_status = 'todo'; // Keep both in sync for your board
         }
+
+        // A root-level task's content is complete the moment it's typed/entered — it's never
+        // waiting on an AI step the way a generated child document is — so it should never read
+        // as "processing" to useAiProcessing.ts's `processed_at === null` check. Root-level only
+        // (matching the created() broadcast above): an AI-generated child task deliberately
+        // starts with processed_at null, since ProcessDocumentAI/GenerateDocumentEmbedding own
+        // stamping it once *that* document's own generation actually finishes.
+        if ($isTask && is_null($document->parent_id) && is_null($document->processed_at)) {
+            $document->processed_at = now();
+        }
+    }
+
+    /**
+     * Determine if this type is a task from the shared document type catalog — not the
+     * project's own protocol, since a document can be produced by any protocol's recipe
+     * regardless of which protocol its project uses.
+     */
+    private function isTaskType(Document $document): bool
+    {
+        $catalog = DocumentTypeDefinition::catalogForOrganization($document->project?->organization_id);
+        $definition = $catalog->get($document->type);
+
+        return $definition instanceof DocumentTypeDefinition && $definition->is_task;
     }
 
     public function updated(Document $document): void

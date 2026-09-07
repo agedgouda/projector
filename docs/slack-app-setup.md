@@ -2,7 +2,7 @@
 
 This guide covers how to configure a Slack app so an organization can connect its Slack workspace to Projector — creating tasks and events, and importing files, from Slack. Unlike [Google Drive export](google-drive-export-setup.md) (a per-user connection), this is a **per-organization connection**: one org-admin installs the app into the org's Slack workspace from that organization's own settings page, and every bound channel then acts on behalf of that organization.
 
-This first phase only covers connecting a workspace. Slash commands, message shortcuts, and file import land in later phases and will extend the same app rather than requiring a new one.
+File import lands in a later phase and will extend the same app rather than requiring a new one.
 
 ---
 
@@ -20,9 +20,30 @@ features:
   bot_user:
     display_name: Projector
     always_online: true
+  slash_commands:
+    - command: /task
+      url: https://your-domain.com/slack/commands
+      description: Create a task from text
+      usage_hint: "[description] — e.g. /task follow up with the client by Friday"
+      should_escape: false
+    - command: /events
+      url: https://your-domain.com/slack/commands
+      description: Create an event from text
+      usage_hint: "[description] — e.g. /events team offsite next Thursday"
+      should_escape: false
+  shortcuts:
+    - name: Create Task
+      type: message
+      callback_id: create_task
+      description: Create a Projector task from this message
+    - name: Create Event
+      type: message
+      callback_id: create_event
+      description: Create a Projector event from this message
 oauth_config:
   redirect_urls:
     - https://your-domain.com/organizations/slack/callback
+    - https://your-domain.com/settings/integrations/slack/callback
   scopes:
     bot:
       - chat:write
@@ -32,9 +53,15 @@ oauth_config:
       - channels:read
       - groups:read
       - users:read
+    user:
+      - identity.basic
+      - identity.team
 settings:
   event_subscriptions:
     request_url: https://your-domain.com/slack/events
+  interactivity:
+    is_enabled: true
+    request_url: https://your-domain.com/slack/interactivity
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
@@ -49,6 +76,8 @@ Replace `your-domain.com` with your real domain — see **Testing locally** belo
 **About `features.bot_user`:** Slack requires an app to have a bot user defined before it will grant any bot token scopes (`chat:write`, `commands`, etc.) — without it, OAuth fails with "requires a bot_user for the bot scope". `display_name` is just what shows up in Slack's UI (e.g. in the app directory and DMs); it doesn't have to match anything in this codebase.
 
 **About the Event Subscriptions Request URL:** Slack sends a one-time verification handshake to this URL the moment you enter it, and refuses to save it unless Projector answers correctly. `/slack/events` already implements this handshake, so the URL should verify successfully as soon as `SLACK_SIGNING_SECRET` (Step 3) is set — even though no real event types are subscribed to yet.
+
+**About the Interactivity Request URL:** unlike Event Subscriptions, Slack doesn't verify this one with a handshake when you save it — it's only hit later, when someone actually invokes a shortcut or submits a modal. `/slack/interactivity` handles both the "Create Task"/"Create Event" message shortcuts and the modal they open.
 
 ---
 
@@ -79,7 +108,7 @@ SLACK_SIGNING_SECRET=your-signing-secret
 As with Google, **`http://projector.test` (or `https://projector.test`) cannot be used as Slack's redirect URL or Events Request URL** — both must be a real, publicly reachable HTTPS address. Use Herd's **Share** feature the same way the [Google setup guide](google-drive-export-setup.md#testing-the-connect-flow-locally) describes:
 
 1. Herd menu bar app → **projector** site → **Share**, to get a temporary public HTTPS URL.
-2. Update the app's **OAuth & Permissions > Redirect URLs** and **Event Subscriptions > Request URL** (api.slack.com/apps) to that URL's `/organizations/slack/callback` and `/slack/events` paths.
+2. Update the app's **OAuth & Permissions > Redirect URLs**, **Event Subscriptions > Request URL**, **Slash Commands** (each command's Request URL), and **Interactivity & Shortcuts > Request URL** (api.slack.com/apps) to that URL's `/organizations/slack/callback`, `/settings/integrations/slack/callback`, `/slack/events`, `/slack/commands`, and `/slack/interactivity` paths.
 3. Restart the site's process from the Herd app (Octane keeps config in memory, so an `.env` edit alone doesn't take effect until restart).
 4. Test via the Herd Share URL, not `projector.test`.
 
@@ -91,6 +120,57 @@ Share URLs change each new session, so step 2 needs repeating for further local 
 
 1. In Projector, go to that organization's settings/edit page (as an org-admin).
 2. Click **Connect Slack Workspace** and approve the install on Slack's consent screen.
-3. The page will show the connected workspace's name, and a link to manage channel bindings.
+3. The page will show the connected workspace's name, its bound channels, and the form to bind more.
+
+---
+
+## Step 5: Link Your Own Slack Identity
+
+Separate from the org-level bot install above: each Projector user who wants Slack-triggered actions (slash commands, message shortcuts) attributed to their own account needs to link their own Slack identity once. This uses `user_scope` only (`identity.basic`, `identity.team`) — no bot `scope` — so it works for any team member, not just org-admins, and never touches the bot install.
+
+1. In Projector, go to **Settings > Integrations**.
+2. Click **Connect Slack Account** and approve on Slack's consent screen — this shows a lighter "Sign in with Slack"-style prompt, not the full bot-permission screen from Step 4.
+3. Projector checks that the Slack workspace you signed in with matches one already connected to an organization you belong to (Step 4 must happen first, for at least one organization); if it doesn't recognize the workspace, the link is rejected rather than silently accepted.
+4. The page will show your connected identity (Slack username + workspace name). You can link identities for more than one workspace if you belong to multiple organizations, each with its own connected Slack workspace.
 
 Disconnecting (from the same page) deletes the stored bot token from Projector; it does not uninstall the app from the Slack workspace's side — do that from Slack's own **Apps** settings if you want to fully remove it.
+
+---
+
+## Step 6: Create a Task with `/task`
+
+Once a channel is bound to a project (Step 4) and you've linked your Slack identity (Step 5), run `/task <description>` in that channel — e.g. `/task follow up with the client about the contract by Friday, high priority`.
+
+What happens:
+
+1. You immediately see an ephemeral "⏳ Creating task…" (only you see this).
+2. Projector sends the text to the same AI extraction used for document-based task imports, pulling out a title, description, assignee (matched by name against the project's org members), due date, priority, and tag.
+3. Once done, a message is posted **in the channel** (visible to everyone) linking to the created task.
+
+If the AI extraction fails for any reason, a task is still created — titled with your raw command text — rather than the command silently doing nothing.
+
+Two error cases reply immediately, ephemerally, without creating anything:
+- The channel isn't bound to a project yet (an org-admin needs to bind it first).
+- You haven't linked your Slack identity yet (Step 5).
+
+---
+
+## Step 7: Create an Event with `/events`
+
+Same setup and flow as `/task` — run `/events <description>` in a bound channel, e.g. `/events team offsite next Thursday`.
+
+The one real difference: events aren't assigned to a person, so there's no name-matching step — Projector instead pulls out a title, description, start/due dates (including relative ones like "next Thursday"), and a tag. A Slack identity link is still required, since the event's *creator* (not an assignee) is still attributed to you.
+
+---
+
+## Step 8: Create a Task or Event from a Message with Shortcuts
+
+Instead of retyping a message into `/task` or `/events`, use the message itself: hover a message in a bound channel, click **More actions** (the `⋯` icon), and choose **Create Task** or **Create Event**.
+
+What happens:
+
+1. A modal opens immediately, pre-filled with the message's text in an editable field — edit it before submitting if you want to trim it down or add detail the AI should pick up on.
+2. Click **Create**. The modal closes right away; extraction runs the same way it does for the slash commands.
+3. Once done, the bot posts the result **in the channel** (not just to you), since there's no `response_url` for a modal submission to reply through — it uses `chat.postMessage` as itself instead.
+
+The same two requirements apply as the slash commands: the channel must be bound to a project, and you must have linked your Slack identity (Step 5) — either one missing shows an explanatory modal instead of the edit form.

@@ -33,13 +33,15 @@ class AiTemplateController extends Controller
                 // intake document and is never a manual choice — only super-admins need to see it.
                 ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'))
                 // Likewise the classification/extraction templates: they're looked up internally
-                // by SpreadsheetClassificationService/TextExtractionService, never picked by
-                // hand, so they clutter this list for anyone who isn't managing system-level
-                // templates.
+                // by SpreadsheetClassificationService/TextExtractionService/
+                // CreateTaskFromSlackCommand, never picked by hand, so they clutter this list for
+                // anyone who isn't managing system-level templates.
                 ->whereNotIn('type', [
                     'spreadsheet_column_classification',
                     'text_extraction_classification',
                     'text_extraction',
+                    'slack_task_extraction',
+                    'slack_event_extraction',
                 ]);
         }
 

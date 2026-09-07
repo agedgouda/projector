@@ -31,4 +31,8 @@ Route::middleware('auth')->group(function () {
     Route::get('settings/integrations/google/connect', [IntegrationsController::class, 'connectGoogle'])->name('integrations.google.connect');
     Route::get('settings/integrations/google/callback', [IntegrationsController::class, 'googleCallback'])->name('integrations.google.callback');
     Route::delete('settings/integrations/google', [IntegrationsController::class, 'disconnectGoogle'])->name('integrations.google.disconnect');
+
+    Route::get('settings/integrations/slack/connect', [IntegrationsController::class, 'connectSlack'])->name('integrations.slack.connect');
+    Route::get('settings/integrations/slack/callback', [IntegrationsController::class, 'slackCallback'])->name('integrations.slack.callback');
+    Route::delete('settings/integrations/slack/{identity}', [IntegrationsController::class, 'disconnectSlack'])->name('integrations.slack.disconnect');
 });

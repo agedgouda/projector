@@ -90,9 +90,22 @@ const globalTemplates = computed(() =>
     filtered.value.filter((t) => !t.organization_id),
 );
 
+// Looked up internally by their respective services (TextExtractionService,
+// SpreadsheetClassificationService, CreateTaskFromSlackCommand), never picked by hand — the
+// backend only ever sends these to a super-admin (see AiTemplateController::index()), so this
+// group only ever renders for that viewer.
+const SYSTEM_TEMPLATE_TYPES = [
+    'text_extraction',
+    'text_extraction_classification',
+    'spreadsheet_column_classification',
+    'slack_task_extraction',
+    'slack_event_extraction',
+];
+
 const buildSection = (items: AiTemplateWithPerms[]) => {
     const workflows = items.filter((t) => t.type === 'workflow');
     const orgExtraction = items.filter((t) => t.type === 'org_extraction');
+    const systemTemplates = items.filter((t) => SYSTEM_TEMPLATE_TYPES.includes(t.type));
     const result: any[] = [];
 
     if (workflows.length) {
@@ -112,6 +125,14 @@ const buildSection = (items: AiTemplateWithPerms[]) => {
             count: orgExtraction.length,
         });
         orgExtraction.forEach((t, i) => result.push({ ...t, isHeader: false, rowIndex: i }));
+    }
+    if (systemTemplates.length) {
+        result.push({
+            isHeader: true,
+            name: 'System Templates (Internal)',
+            count: systemTemplates.length,
+        });
+        systemTemplates.forEach((t, i) => result.push({ ...t, isHeader: false, rowIndex: i }));
     }
     return result;
 };

@@ -620,3 +620,83 @@ it('excludes the internal text-extraction templates from an org-admin\'s listing
     expect($names)->not->toContain('Text Extraction Classification')
         ->not->toContain('Text Extraction');
 });
+
+it('excludes the internal slack task-extraction template from an org-admin\'s listing', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $response = $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->not->toContain('Slack /task Extraction Rule');
+});
+
+it('super-admin sees the internal slack task-extraction template', function () {
+    setPermissionsTeamId(null);
+
+    $response = $this->actingAs($this->superAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->toContain('Slack /task Extraction Rule');
+});
+
+it('super-admin can edit the slack task-extraction rule', function () {
+    setPermissionsTeamId(null);
+
+    $template = AiTemplate::where('type', 'slack_task_extraction')->firstOrFail();
+
+    $this->actingAs($this->superAdmin)
+        ->put(route('transformation-library.update', $template), [
+            'name' => $template->name,
+            'system_prompt' => $template->system_prompt,
+            'user_prompt' => 'Extract only a title, nothing else.',
+        ])
+        ->assertRedirect();
+
+    expect($template->fresh()->user_prompt)->toBe('Extract only a title, nothing else.');
+});
+
+it('excludes the internal slack event-extraction template from an org-admin\'s listing', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $response = $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->not->toContain('Slack /events Extraction Rule');
+});
+
+it('super-admin sees the internal slack event-extraction template', function () {
+    setPermissionsTeamId(null);
+
+    $response = $this->actingAs($this->superAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->toContain('Slack /events Extraction Rule');
+});
+
+it('super-admin can edit the slack event-extraction rule', function () {
+    setPermissionsTeamId(null);
+
+    $template = AiTemplate::where('type', 'slack_event_extraction')->firstOrFail();
+
+    $this->actingAs($this->superAdmin)
+        ->put(route('transformation-library.update', $template), [
+            'name' => $template->name,
+            'system_prompt' => $template->system_prompt,
+            'user_prompt' => 'Extract only a title, nothing else.',
+        ])
+        ->assertRedirect();
+
+    expect($template->fresh()->user_prompt)->toBe('Extract only a title, nothing else.');
+});
