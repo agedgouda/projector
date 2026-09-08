@@ -111,6 +111,11 @@ it('returns the bootstrap data an import needs for a manageable project', functi
         'type' => config('workflow.intake_key'),
         'name' => 'Some Notes',
         'content' => 'hello',
+        // Prevents DocumentObserver's auto-dispatch of ProcessDocumentAI for a root intake
+        // document with no processed_at — this test doesn't mock the LLM driver or fake the
+        // queue, so under sync queue that dispatch would run for real and (when it happens to
+        // succeed) create a child document, breaking the "exactly 1 document" assertion below.
+        'processed_at' => now(),
     ]);
 
     $response = $this->actingAs($this->admin)

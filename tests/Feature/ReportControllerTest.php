@@ -87,7 +87,10 @@ it('requires authentication', function () {
 
 it('returns only task-type documents for the project', function () {
     Document::create(['project_id' => $this->project->id, 'name' => 'A Task', 'type' => 'action_items', 'content' => 'x']);
-    Document::create(['project_id' => $this->project->id, 'name' => 'Not A Task', 'type' => 'intake', 'content' => 'x']);
+    // processed_at set to prevent DocumentObserver's auto-dispatch of ProcessDocumentAI for
+    // this root intake document — this test doesn't mock the LLM driver or fake the queue, so
+    // under sync queue that dispatch would run for real.
+    Document::create(['project_id' => $this->project->id, 'name' => 'Not A Task', 'type' => 'intake', 'content' => 'x', 'processed_at' => now()]);
 
     setPermissionsTeamId($this->org->id);
 

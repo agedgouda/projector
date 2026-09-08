@@ -149,6 +149,8 @@ it('404s a status check when the document does not belong to the given project',
         'type' => config('workflow.intake_key'),
         'name' => 'Recording',
         'content' => '',
+        // Prevents DocumentObserver's real (unmocked) ProcessDocumentAI auto-dispatch.
+        'processed_at' => now(),
     ]);
 
     $this->actingAs($this->user)

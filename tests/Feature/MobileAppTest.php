@@ -342,6 +342,8 @@ it('returns 404 for a note index requested on a document that is not itself a ro
         'type' => config('workflow.intake_key'),
         'name' => 'Kickoff Notes',
         'content' => 'Full transcript.',
+        // Prevents DocumentObserver's real (unmocked) ProcessDocumentAI auto-dispatch.
+        'processed_at' => now(),
     ]);
     $child = Document::create([
         'project_id' => $this->project->id,
@@ -366,6 +368,8 @@ it('returns 404 when the note does not belong to the given project on mobile', f
         'type' => config('workflow.intake_key'),
         'name' => 'Notes',
         'content' => '',
+        // Prevents DocumentObserver's real (unmocked) ProcessDocumentAI auto-dispatch.
+        'processed_at' => now(),
     ]);
 
     $this->actingAs($this->user)

@@ -2,7 +2,7 @@
 
 This guide covers how to configure a Slack app so an organization can connect its Slack workspace to Projector — creating tasks and events, and importing files, from Slack. Unlike [Google Drive export](google-drive-export-setup.md) (a per-user connection), this is a **per-organization connection**: one org-admin installs the app into the org's Slack workspace from that organization's own settings page, and every bound channel then acts on behalf of that organization.
 
-File import lands in a later phase and will extend the same app rather than requiring a new one. Outbound messages (the daily digest, Step 9) use only the `chat:write` scope already listed below — no manifest change is needed for that feature specifically.
+Outbound messages (the daily digest, Step 9) use only the `chat:write` scope already listed below — no manifest change is needed for that feature specifically.
 
 ---
 
@@ -59,6 +59,8 @@ oauth_config:
 settings:
   event_subscriptions:
     request_url: https://your-domain.com/slack/events
+    bot_events:
+      - message.channels
   interactivity:
     is_enabled: true
     request_url: https://your-domain.com/slack/interactivity
@@ -75,7 +77,9 @@ Replace `your-domain.com` with your real domain — see **Testing locally** belo
 
 **About `features.bot_user`:** Slack requires an app to have a bot user defined before it will grant any bot token scopes (`chat:write`, `commands`, etc.) — without it, OAuth fails with "requires a bot_user for the bot scope". `display_name` is just what shows up in Slack's UI (e.g. in the app directory and DMs); it doesn't have to match anything in this codebase.
 
-**About the Event Subscriptions Request URL:** Slack sends a one-time verification handshake to this URL the moment you enter it, and refuses to save it unless Projector answers correctly. `/slack/events` already implements this handshake, so the URL should verify successfully as soon as `SLACK_SIGNING_SECRET` (Step 3) is set — even though no real event types are subscribed to yet.
+**About the Event Subscriptions Request URL:** Slack sends a one-time verification handshake to this URL the moment you enter it, and refuses to save it unless Projector answers correctly. `/slack/events` already implements this handshake, so the URL should verify successfully as soon as `SLACK_SIGNING_SECRET` (Step 3) is set.
+
+**About the `message.channels` bot event:** this is the coarsest subscription Slack offers for detecting a file dropped into a channel — every message posted in every channel the bot is in arrives at `/slack/events`, not just file uploads. `EventsController` only acts on the one shape it cares about (a `message` event with `subtype: file_share`) and quietly logs anything else; nothing about this changes what Projector actually does with a normal text message.
 
 **About the Interactivity Request URL:** unlike Event Subscriptions, Slack doesn't verify this one with a handshake when you save it — it's only hit later, when someone actually invokes a shortcut or submits a modal. `/slack/interactivity` handles both the "Create Task"/"Create Event" message shortcuts and the modal they open.
 
@@ -189,3 +193,19 @@ Every org-admin who's linked their Slack identity (Step 5) automatically gets a 
 An admin who administers more than one organization gets one separate DM per organization, each sent through that organization's own connected workspace. An admin with no linked Slack identity is silently skipped — they simply don't receive anything until they complete Step 5.
 
 **Mechanics, for anyone debugging this:** `routes/console.php` schedules `app:send-slack-daily-digest` to run hourly (there's no single UTC time that's 8am for every admin, so the command itself checks each admin's local hour on every run). A `slack_digest_sends` row records each (organization, admin, local calendar day) it actually dispatches for, so an admin never gets two digests in the same local day even if the scheduler's hourly run ever overlaps itself.
+
+---
+
+## Step 10: Import Events by Uploading a File
+
+Drop a CSV, TXT, XLSX, or XLS file straight into a bound channel and Projector imports it as events on that channel's project — no slash command, no shortcut, nothing to click first.
+
+What happens:
+
+1. As soon as the file finishes uploading, Projector downloads it and detects the header row automatically (same column-matching the web Import Wizard uses — headers like "Name"/"Event"/"Title", "Start Date", "Due Date", "Tag", etc.). There's no confirmation step: the best-guess column mapping is used immediately, matching how `/task` and `/events` also skip a review step in favor of just showing the result.
+2. Once done, the bot replies **in the channel**: how many events were created, and a link to the project's calendar.
+3. A file with no name/title column detected, no rows, or over 5,000 rows gets a clear explanation instead of a half-finished import.
+
+Same two requirements as everything else: the channel must be bound to a project, and you (the uploader) must have linked your Slack identity (Step 5) — the bot will tell you if the latter's missing. Any other file type (images, PDFs, etc.) is silently ignored — nothing about this changes how a normal file share in the channel behaves.
+
+Task-list import (as opposed to event-list) isn't wired up for Slack yet — only events, as the simplest first case.

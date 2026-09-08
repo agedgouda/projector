@@ -30,6 +30,11 @@ beforeEach(function () {
         'name' => 'Intake Document',
         'type' => 'intake',
         'content' => 'Test content',
+        // Prevents DocumentObserver's auto-dispatch of ProcessDocumentAI for a root intake
+        // document with no processed_at — these tests don't mock the LLM driver or fake the
+        // queue, so under sync queue that dispatch would run for real and (when it happens to
+        // succeed) create a child document, breaking assertions that expect exactly one.
+        'processed_at' => now(),
     ]);
 });
 
