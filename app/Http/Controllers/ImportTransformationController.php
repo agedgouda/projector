@@ -9,6 +9,8 @@ use App\Jobs\ImportTaskList;
 use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
+use App\Models\ProjectImportMapping;
+use App\Models\User;
 use App\Services\Ai\SpreadsheetClassificationService;
 use App\Services\Ai\TextExtractionService;
 use Illuminate\Http\JsonResponse;
@@ -60,11 +62,20 @@ class ImportTransformationController extends Controller
      * `ai_template_id` names a saved transformation, every row created by every pass is stamped
      * with it (see ImportTaskList's aiTemplateId param) so it shows up as that document's
      * originating transformation like any other AI-produced document.
+     *
+     * A human has just looked at (and confirmed or edited) every pass's mapping by the time
+     * this runs, regardless of whether they got here via a plain manual upload or by resolving
+     * a Slack-queued file — recording each one via ProjectImportMapping is what lets
+     * ImportSlackFile recognize this exact mapping as already-validated for this project next
+     * time, instead of queuing it for review again.
      */
     public function applySpreadsheet(ApplyImportTransformationRequest $request, Project $project): JsonResponse
     {
         /** @var array{original_filename: string|null, headers: list<string>, rows: list<list<string>>, ai_template_id: int|null, passes: list<array{list_type: string, mapping: array<string, string|null>}>} $validated */
         $validated = $request->validated();
+
+        /** @var User $user */
+        $user = $request->user();
 
         $results = [];
 
@@ -91,6 +102,8 @@ class ImportTransformationController extends Controller
                 $pass['mapping'],
                 $validated['ai_template_id'] ?? null,
             );
+
+            ProjectImportMapping::record($project, $pass['list_type'], $pass['mapping'], $user);
 
             $results[] = [
                 'list_type' => $pass['list_type'],

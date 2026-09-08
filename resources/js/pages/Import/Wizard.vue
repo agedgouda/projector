@@ -160,11 +160,14 @@ const dismissPendingImport = async (item: PendingImport) => {
                 </p>
             </div>
 
-            <!-- Files dropped in a bound Slack channel that ImportSlackFile couldn't
-                 confidently tell were a task list, an event list, or which column has the
-                 name/title — parked here (SlackPendingImport) instead of guessing. Clicking one
+            <!-- Files dropped in a bound Slack channel that ImportSlackFile parked here
+                 (SlackPendingImport) instead of auto-importing — either it couldn't confidently
+                 tell what the file even was, or it could, but that column mapping has never been
+                 confirmed for this project before (see item.note for which). Clicking one
                  re-parses the already-downloaded file and opens the same AI-assisted mapping
-                 modal a manually-picked "smart" import uses. -->
+                 modal a manually-picked "smart" import uses; completing it there both imports
+                 the file and teaches the project this mapping, so the same layout auto-imports
+                 next time. -->
             <div v-if="pendingImportsList.length > 0" class="space-y-2">
                 <Label
                     class="mb-2 flex items-center gap-1.5 text-[10px] font-black tracking-widest text-amber-600 uppercase dark:text-amber-400"
@@ -199,7 +202,14 @@ const dismissPendingImport = async (item: PendingImport) => {
                                         — uploaded by
                                         {{ item.uploaded_by }}</template
                                     >
-                                    —
+                                </p>
+                                <p
+                                    v-if="item.note"
+                                    class="truncate text-xs text-amber-700 dark:text-amber-500"
+                                >
+                                    {{ item.note }}
+                                </p>
+                                <p class="text-xs text-gray-400">
                                     {{
                                         reviewLoading === item.id
                                             ? 'Loading…'

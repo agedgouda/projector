@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
+use App\Models\ProjectImportMapping;
 use App\Models\SlackPendingImport;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
@@ -78,10 +79,12 @@ function fakeClassification(array $passes): void
 
 const EMPTY_MAPPING = ['name' => null, 'priority' => null, 'task_status' => null, 'due_at' => null, 'assignee' => null, 'start_date' => null, 'description' => null, 'tag' => null];
 
-// ── Successful classification ───────────────────────────────────────────────
+// ── Successful classification (mapping already confirmed for this project) ─
 
 it('imports events from a downloaded csv and posts a summary in the channel', function () {
     $csv = "Name,Start Date,Due Date,Tag\nTeam Offsite,2026-09-10,2026-09-10,offsite\nQuarterly Review,2026-09-15,,";
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Due Date', 'start_date' => 'Start Date', 'tag' => 'Tag']);
+    ProjectImportMapping::record($this->project, 'event', $mapping);
 
     Http::fake([
         'files.slack.com/*' => Http::response($csv, 200),
@@ -89,7 +92,7 @@ it('imports events from a downloaded csv and posts a summary in the channel', fu
     ]);
 
     fakeClassification([
-        ['list_type' => 'event', 'mapping' => array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Due Date', 'start_date' => 'Start Date', 'tag' => 'Tag'])],
+        ['list_type' => 'event', 'mapping' => $mapping],
     ]);
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
@@ -113,6 +116,8 @@ it('imports events from a downloaded csv and posts a summary in the channel', fu
 
 it('imports tasks from a downloaded csv when classified as a task list', function () {
     $csv = "Name,Assignee,Priority\nFollow up with client,Jane,high\nSend invoice,,low";
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'assignee' => 'Assignee', 'priority' => 'Priority']);
+    ProjectImportMapping::record($this->project, 'task', $mapping);
 
     Http::fake([
         'files.slack.com/*' => Http::response($csv, 200),
@@ -120,7 +125,7 @@ it('imports tasks from a downloaded csv when classified as a task list', functio
     ]);
 
     fakeClassification([
-        ['list_type' => 'task', 'mapping' => array_merge(EMPTY_MAPPING, ['name' => 'Name', 'assignee' => 'Assignee', 'priority' => 'Priority'])],
+        ['list_type' => 'task', 'mapping' => $mapping],
     ]);
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'tasks.csv']), 'xoxb-fake-token', 'C123');
@@ -135,6 +140,10 @@ it('imports tasks from a downloaded csv when classified as a task list', functio
 
 it('imports both tasks and events from a single file with a mixed classification', function () {
     $csv = "Name,Assignee,Start Date\nFollow up with client,Jane,\nTeam Offsite,,2026-09-10";
+    $taskMapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'assignee' => 'Assignee']);
+    $eventMapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date']);
+    ProjectImportMapping::record($this->project, 'task', $taskMapping);
+    ProjectImportMapping::record($this->project, 'event', $eventMapping);
 
     Http::fake([
         'files.slack.com/*' => Http::response($csv, 200),
@@ -142,8 +151,8 @@ it('imports both tasks and events from a single file with a mixed classification
     ]);
 
     fakeClassification([
-        ['list_type' => 'task', 'mapping' => array_merge(EMPTY_MAPPING, ['name' => 'Name', 'assignee' => 'Assignee'])],
-        ['list_type' => 'event', 'mapping' => array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date'])],
+        ['list_type' => 'task', 'mapping' => $taskMapping],
+        ['list_type' => 'event', 'mapping' => $eventMapping],
     ]);
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
@@ -154,6 +163,57 @@ it('imports both tasks and events from a single file with a mixed classification
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
         && str_contains($request['text'], 'task(s)')
         && str_contains($request['text'], 'event(s)'));
+});
+
+// ── Mapping not yet confirmed for this project → queued for validation ─────
+
+it('queues the file for validation when the mapping has never been confirmed for this project', function () {
+    Http::fake([
+        'files.slack.com/*' => Http::response("Name,Start Date\nTeam Offsite,2026-09-10", 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    fakeClassification([
+        ['list_type' => 'event', 'mapping' => array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date'])],
+    ]);
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
+
+    $pending = SlackPendingImport::where('project_id', $this->project->id)->first();
+    expect($pending)->not->toBeNull()
+        ->and($pending->note)->toContain("hasn't been confirmed for this project before");
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && str_contains($request['text'], 'Document Placed In Validation Queue')
+        && str_contains($request['text'], route('import.index')));
+});
+
+it('queues the whole file for validation when only one of several passes has an unconfirmed mapping', function () {
+    $taskMapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'assignee' => 'Assignee']);
+    $eventMapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date']);
+    // Only the task mapping has been confirmed before — the event mapping is new.
+    ProjectImportMapping::record($this->project, 'task', $taskMapping);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response("Name,Assignee,Start Date\nFollow up,Jane,\nTeam Offsite,,2026-09-10", 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    fakeClassification([
+        ['list_type' => 'task', 'mapping' => $taskMapping],
+        ['list_type' => 'event', 'mapping' => $eventMapping],
+    ]);
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    expect(Document::where('project_id', $this->project->id)->where('type', 'task')->count())->toBe(0)
+        ->and(Document::where('project_id', $this->project->id)->where('type', 'event')->count())->toBe(0)
+        ->and(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && str_contains($request['text'], 'Document Placed In Validation Queue'));
 });
 
 // ── Can't confidently classify → queued for review ──────────────────────────
@@ -247,12 +307,15 @@ it('ignores a file whose extension is not importable', function () {
 });
 
 it('logs a warning without throwing when the summary chat.postMessage fails', function () {
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Start Date']);
+    ProjectImportMapping::record($this->project, 'event', $mapping);
+
     Http::fake([
         'files.slack.com/*' => Http::response("Name,Start Date\nTeam Offsite,2026-09-10", 200),
         'slack.com/api/chat.postMessage' => Http::response(['ok' => false, 'error' => 'not_in_channel'], 200),
     ]);
     fakeClassification([
-        ['list_type' => 'event', 'mapping' => array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Start Date'])],
+        ['list_type' => 'event', 'mapping' => $mapping],
     ]);
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');

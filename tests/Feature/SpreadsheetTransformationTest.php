@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
+use App\Models\ProjectImportMapping;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 
@@ -158,6 +159,34 @@ it('creates fully separate task and event documents from the same sheet via appl
     // No DB relationship between the two — each is its own independent document, tied only to
     // the project, never to each other.
     expect($tasks->first()->parent_id)->toBeNull();
+});
+
+it('records each applied pass\'s mapping as confirmed for the project', function () {
+    expect(ProjectImportMapping::isKnown($this->project, 'event', ['name' => 'Name', 'start_date' => 'Start Date', 'due_at' => 'End Date', 'tag' => 'Category']))->toBeFalse();
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.apply', $this->project), [
+            'original_filename' => 'marketing.csv',
+            'headers' => ['Name', 'Category', 'Start Date', 'End Date', 'Assets Needed'],
+            'rows' => [
+                ['AFA Conference', 'Partner', '2026-09-16', '2026-09-16', 'Image Release'],
+            ],
+            'passes' => [
+                [
+                    'list_type' => 'event',
+                    'mapping' => ['name' => 'Name', 'start_date' => 'Start Date', 'due_at' => 'End Date', 'tag' => 'Category'],
+                ],
+                [
+                    'list_type' => 'task',
+                    'mapping' => ['name' => 'Assets Needed', 'due_at' => 'End Date'],
+                ],
+            ],
+        ])
+        ->assertOk();
+
+    expect(ProjectImportMapping::isKnown($this->project, 'event', ['name' => 'Name', 'start_date' => 'Start Date', 'due_at' => 'End Date', 'tag' => 'Category']))->toBeTrue()
+        ->and(ProjectImportMapping::isKnown($this->project, 'task', ['name' => 'Assets Needed', 'due_at' => 'End Date']))->toBeTrue()
+        ->and(ProjectImportMapping::where('project_id', $this->project->id)->first()->confirmed_by_user_id)->toBe($this->admin->id);
 });
 
 it('stamps last_ai_template_id and last_output_key when applying a saved transformation', function () {

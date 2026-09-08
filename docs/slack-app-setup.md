@@ -202,12 +202,17 @@ Drop a CSV, TXT, XLSX, or XLS file straight into a bound channel and Projector i
 
 What happens:
 
-1. As soon as the file finishes uploading, Projector downloads it and runs it through the same AI classification the web Import Wizard's "Import Data" (smart) option already uses — it reads the actual headers and sample rows to decide whether the file is tasks, events, or a genuine mix of both, proposing its own column mapping for each. There's no confirmation step: the AI's mapping is used immediately, matching how `/task` and `/events` also skip a review step in favor of just showing the result.
-2. Once done, the bot replies **in the channel**: how many tasks and/or events were created, and a link to the project.
-3. A file with no rows, or over 5,000 rows, gets a clear explanation instead of a half-finished import.
+1. As soon as the file finishes uploading, Projector downloads it and runs it through the same AI classification the web Import Wizard's "Import Data" (smart) option already uses — it reads the actual headers and sample rows to decide whether the file is tasks, events, or a genuine mix of both, proposing its own column mapping for each.
+2. **The first time a project sees a given column mapping**, it isn't auto-imported — see "Needs Review" below instead. Once that same mapping has been confirmed for the project once (by anyone completing that review, whether it started from Slack or a plain manual upload), a future file with that same layout imports immediately with no confirmation step, matching how `/task` and `/events` also skip a review step in favor of just showing the result.
+3. Once an auto-import completes, the bot replies **in the channel**: how many tasks and/or events were created, and a link to the project.
+4. A file with no rows, or over 5,000 rows, gets a clear explanation instead of a half-finished import.
 
-**When the AI can't confidently tell what the file is** (no usable name/title column found for any record type, or the classification call itself fails), nothing is imported — instead the file is added to a **Needs Review** queue on the Import Wizard landing page (`/import`), visible to anyone who can manage imports for that project. The bot's reply links straight there. Opening a queued file re-parses it and opens the same AI-assisted mapping modal a manually-picked "smart" import uses, so a human finishes the classification/mapping by hand — the file itself doesn't need to be re-uploaded, since it was already downloaded and stored when it was queued.
+**Needs Review**: two different situations park a file here instead of importing it, each with its own reply in the channel:
+- The AI couldn't confidently tell what the file even is (no usable name/title column found for any record type, or the classification call itself failed) — the bot explains it couldn't figure out how to import the file.
+- The AI *could* classify it, but this project has never had a human confirm this particular column mapping before — the bot replies "Document Placed In Validation Queue — Click Here to Review".
+
+Either way, the file shows up on the Import Wizard landing page (`/import`) under **Needs Review**, visible to anyone who can manage imports for that project. Opening a queued file re-parses it and opens the same AI-assisted mapping modal a manually-picked "smart" import uses, so a human finishes (or confirms) the mapping by hand — the file itself doesn't need to be re-uploaded, since it was already downloaded and stored when it was queued. Completing that review both imports the file and teaches the project that mapping, so the same layout auto-imports next time without a trip through the queue.
 
 Same two requirements as everything else: the channel must be bound to a project, and you (the uploader) must have linked your Slack identity (Step 5) — the bot will tell you if the latter's missing. Any other file type (images, PDFs, etc.) is silently ignored — nothing about this changes how a normal file share in the channel behaves.
 
-A future version will let someone upload a file and manually name the column mapping directly from Slack, without needing to visit the Import Wizard at all — for now, an ambiguous file always lands in the Needs Review queue.
+A future version will let someone upload a file and manually name the column mapping directly from Slack, without needing to visit the Import Wizard at all — for now, review always happens there.

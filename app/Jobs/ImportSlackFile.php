@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Project;
+use App\Models\ProjectImportMapping;
 use App\Models\SlackPendingImport;
 use App\Models\User;
 use App\Services\Ai\SpreadsheetClassificationService;
@@ -24,9 +25,11 @@ use Throwable;
  * SpreadsheetClassificationService::classify() decides whether it's tasks, events, or a mix of
  * both (one "pass" per record type it finds) — same AI classification, no confirmation-modal
  * step, matching how /task and /events also skip any human-review step in favor of immediate
- * feedback in the channel. When classification can't confidently name even one column mapping
- * for any pass, the file is parked as a SlackPendingImport instead of guessing — visible on the
- * Import Wizard landing page for a human to resolve manually.
+ * feedback in the channel, PROVIDED every pass's mapping is one this project has already had a
+ * human confirm before (ProjectImportMapping). Two distinct reasons park a file as a
+ * SlackPendingImport instead of auto-importing — visible on the Import Wizard landing page for
+ * a human to resolve manually: classification couldn't confidently name even one column mapping
+ * at all, or it could, but the mapping is new for this project and hasn't been validated yet.
  */
 class ImportSlackFile implements ShouldQueue
 {
@@ -54,9 +57,9 @@ class ImportSlackFile implements ShouldQueue
 
     /**
      * @param  array{name: string, url_private_download: string, mimetype: string|null}  $slackFile  The
-     *         relevant subset of the Slack file object from the message event's `files` array —
-     *         passed as a plain array (not re-fetched via files.info) since the file_share
-     *         message event already carries everything this needs.
+     *                                                                                               relevant subset of the Slack file object from the message event's `files` array —
+     *                                                                                               passed as a plain array (not re-fetched via files.info) since the file_share
+     *                                                                                               message event already carries everything this needs.
      */
     public function __construct(
         public Project $project,
@@ -107,7 +110,22 @@ class ImportSlackFile implements ShouldQueue
             $usablePasses = $this->classify($classificationService, $analysis['headers'], $analysis['rows']);
 
             if ($usablePasses === []) {
-                $this->queueForReview($uploadedFile);
+                $this->queueUnclassifiable($uploadedFile);
+
+                return;
+            }
+
+            $unconfirmedPasses = array_values(array_filter(
+                $usablePasses,
+                fn (array $pass) => ! ProjectImportMapping::isKnown($this->project, $pass['list_type'], $pass['mapping'])
+            ));
+
+            // Even one pass with a mapping this project hasn't confirmed before holds up the
+            // whole file rather than auto-importing the known passes and queuing only the rest
+            // — a file either imports cleanly on its own, or a human reviews all of it at once,
+            // never a partial silent import alongside a partial queue.
+            if ($unconfirmedPasses !== []) {
+                $this->queueForValidation($uploadedFile, $usablePasses);
 
                 return;
             }
@@ -182,19 +200,40 @@ class ImportSlackFile implements ShouldQueue
         $this->reply('✅ Imported '.implode(' and ', $parts)." from \"{$this->slackFile['name']}\": {$url}");
     }
 
-    private function queueForReview(UploadedFile $uploadedFile): void
+    private function queueUnclassifiable(UploadedFile $uploadedFile): void
+    {
+        $this->storeAsPendingImport($uploadedFile, "Uploaded via Slack — couldn't automatically tell whether this is a task list, an event list, or which column has the name/title.");
+
+        $url = route('import.index');
+        $this->reply("Couldn't automatically tell how to import \"{$this->slackFile['name']}\" — added it to the review queue in Projector's Import Wizard: {$url}");
+    }
+
+    /**
+     * @param  list<array{list_type: string, mapping: array<string, string|null>}>  $passes
+     */
+    private function queueForValidation(UploadedFile $uploadedFile, array $passes): void
+    {
+        $types = implode(' and ', array_unique(array_map(fn (array $pass) => $pass['list_type'].'(s)', $passes)));
+        $this->storeAsPendingImport($uploadedFile, "Uploaded via Slack — classified as {$types}, but this column mapping hasn't been confirmed for this project before.");
+
+        $url = route('import.index');
+        $this->reply("\"{$this->slackFile['name']}\" — Document Placed In Validation Queue. <{$url}|Click Here to Review>");
+    }
+
+    // Named to avoid colliding with Queueable::queue() (the trait Laravel's own dispatcher
+    // calls to push this job onto its queue connection) — a same-named private method here
+    // shadows it and breaks dispatch entirely, even though PHP's visibility rules would
+    // normally let a private method share a name with an unrelated public one.
+    private function storeAsPendingImport(UploadedFile $uploadedFile, string $note): void
     {
         $pendingImport = SlackPendingImport::create([
             'project_id' => $this->project->id,
             'original_filename' => $this->slackFile['name'],
             'uploaded_by_user_id' => $this->user->id,
-            'note' => "Uploaded via Slack — couldn't automatically tell whether this is a task list, an event list, or which column has the name/title.",
+            'note' => $note,
         ]);
 
         $pendingImport->addMedia($uploadedFile)->toMediaCollection('file');
-
-        $url = route('import.index');
-        $this->reply("Couldn't automatically tell how to import \"{$this->slackFile['name']}\" — added it to the review queue in Projector's Import Wizard: {$url}");
     }
 
     private function reply(string $text): void
