@@ -155,6 +155,43 @@ it('does not store a workspace when slack reports a failed exchange', function (
         ->and(SlackWorkspace::where('organization_id', $this->org->id)->exists())->toBeFalse();
 });
 
+// ── Multiple organizations, same real Slack workspace ──────────────────────
+
+it('lets a second organization connect the same slack team as an existing organization', function () {
+    SlackWorkspace::factory()->create([
+        'organization_id' => $this->org->id,
+        'team_id' => 'T123',
+    ]);
+
+    $secondOrg = Organization::create(['name' => 'Second Org']);
+    $secondUser = User::factory()->create();
+    $secondOrg->users()->attach($secondUser->id, ['role' => 'org-admin']);
+
+    Http::fake([
+        'slack.com/api/oauth.v2.access' => Http::response([
+            'ok' => true,
+            'access_token' => 'xoxb-second-token',
+            'bot_user_id' => 'U123',
+            'scope' => 'chat:write,commands',
+            'team' => ['id' => 'T123', 'name' => 'Acme Corp'],
+        ], 200),
+    ]);
+
+    $this->withSession([
+        'slack_connect_state' => 'abc123',
+        'slack_connect_organization_id' => $secondOrg->id,
+    ])
+        ->actingAs($secondUser)
+        ->get(route('organizations.slack.callback', ['code' => 'fake-code', 'state' => 'abc123']))
+        ->assertRedirect(route('organizations.index', ['org' => $secondOrg->id]));
+
+    expect(SlackWorkspace::where('team_id', 'T123')->count())->toBe(2)
+        ->and(SlackWorkspace::where('organization_id', $secondOrg->id)->first()->bot_access_token)->toBe('xoxb-second-token')
+        ->and(SlackWorkspace::where('organization_id', $this->org->id)->exists())->toBeTrue();
+
+    expect(session('status'))->toBe('slack-connected');
+});
+
 // ── Disconnect ──────────────────────────────────────────────────────────────
 
 it('deletes the workspace on disconnect', function () {

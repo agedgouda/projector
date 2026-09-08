@@ -206,6 +206,27 @@ it('repoints the same user\'s existing identity for a team rather than duplicati
         ->and(SlackUserIdentity::where('user_id', $this->user->id)->first()->slack_user_id)->toBe('U-new');
 });
 
+it('links the identity for a user who belongs only to the second of two organizations sharing this slack team', function () {
+    $secondOrg = Organization::create(['name' => 'Second Org']);
+    SlackWorkspace::factory()->create([
+        'organization_id' => $secondOrg->id,
+        'team_id' => 'T123',
+    ]);
+
+    $secondOrgOnlyUser = User::factory()->create();
+    $secondOrg->users()->attach($secondOrgOnlyUser->id, ['role' => 'org-admin']);
+
+    fakeSlackIdentityExchange();
+
+    $this->withSession(['slack_identity_state' => 'abc123'])
+        ->actingAs($secondOrgOnlyUser)
+        ->get(route('integrations.slack.callback', ['code' => 'fake-code', 'state' => 'abc123']))
+        ->assertRedirect(route('integrations.edit'));
+
+    expect(session('status'))->toBe('slack-connected')
+        ->and(SlackUserIdentity::where('user_id', $secondOrgOnlyUser->id)->exists())->toBeTrue();
+});
+
 // ── Disconnect ──────────────────────────────────────────────────────────────
 
 it('deletes the identity on disconnect', function () {

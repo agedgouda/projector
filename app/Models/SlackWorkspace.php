@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
+ * organization_id is unique (one row per org), but team_id is deliberately not — two different
+ * Projector organizations can both connect the same real Slack workspace (e.g. an agency's
+ * client orgs all living in one Slack team), so a lookup by team_id alone can match more than
+ * one row and needs a channel binding, organization membership, or similar to disambiguate.
+ *
  * @property string $id
  * @property string $organization_id
  * @property string $team_id

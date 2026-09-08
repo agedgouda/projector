@@ -122,6 +122,8 @@ Share URLs change each new session, so step 2 needs repeating for further local 
 2. Click **Connect Slack Workspace** and approve the install on Slack's consent screen.
 3. The page will show the connected workspace's name, its bound channels, and the form to bind more.
 
+**More than one Projector organization can connect the same real Slack workspace** — e.g. an agency running several client organizations, all in the agency's own Slack team. Each organization gets its own row, its own bot token, and its own channel bindings; which organization a Slack event belongs to is resolved from the specific channel it happened in (via that channel's binding), never assumed from the Slack team alone. A per-user Slack identity link (Step 5) works the same way across every organization connected to that team — link once, and it's recognized in all of them you belong to.
+
 ---
 
 ## Step 5: Link Your Own Slack Identity

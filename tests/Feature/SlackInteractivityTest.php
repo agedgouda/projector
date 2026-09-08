@@ -229,6 +229,25 @@ it('does nothing for an unknown callback_id', function () {
     Http::assertNothingSent();
 });
 
+it('uses the bound channel\'s own organization workspace token, not another organization\'s, when two share this slack team', function () {
+    // A second organization can connect this exact same real Slack team (see
+    // drop_team_id_unique_from_slack_workspaces_table) — its workspace row must never be the
+    // one whose bot token gets used for a shortcut on a channel bound to the FIRST organization.
+    $otherOrg = Organization::create(['name' => 'Other Org']);
+    SlackWorkspace::factory()->create([
+        'organization_id' => $otherOrg->id,
+        'team_id' => 'T123',
+        'bot_access_token' => 'xoxb-other-org-token',
+    ]);
+
+    Http::fake(['slack.com/api/views.open' => Http::response(['ok' => true], 200)]);
+
+    postSlackInteractivity(messageShortcutPayload())->assertOk();
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/views.open'
+        && $request->hasHeader('Authorization', 'Bearer xoxb-fake-token'));
+});
+
 // ── View submission → job dispatch ──────────────────────────────────────────
 
 it('dispatches the task job from a view submission, replying via chat.postMessage', function () {

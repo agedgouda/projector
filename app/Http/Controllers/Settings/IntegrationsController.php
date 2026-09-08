@@ -190,9 +190,13 @@ class IntegrationsController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $workspace = SlackWorkspace::where('team_id', $teamId)->first();
+        // More than one organization can have this same Slack team connected (e.g. an agency's
+        // client orgs all living in one Slack workspace) — checking membership against every
+        // organization_id tied to this team_id, not just one arbitrarily-picked workspace row,
+        // is what makes the identity link succeed for a user who belongs to any of them.
+        $connectedOrganizationIds = SlackWorkspace::where('team_id', $teamId)->pluck('organization_id');
 
-        if ($workspace === null || ! $user->organizations()->where('organizations.id', $workspace->organization_id)->exists()) {
+        if ($connectedOrganizationIds->isEmpty() || ! $user->organizations()->whereIn('organizations.id', $connectedOrganizationIds)->exists()) {
             return to_route('integrations.edit')->with('status', 'slack-team-not-connected');
         }
 

@@ -84,15 +84,23 @@ class InteractivityController extends Controller
             return $this->ack();
         }
 
-        $workspace = SlackWorkspace::where('team_id', $teamId)->first();
+        $binding = $this->resolveBinding($teamId, $channelId);
+        $identity = $this->resolveIdentity($teamId, $slackUserId);
 
-        // Can't open any modal at all without the workspace's bot token to call views.open with.
+        // More than one organization can share the same real Slack team (see
+        // drop_team_id_unique_from_slack_workspaces_table), so the binding — which points at
+        // one specific organization's own project — is what the bot token has to come from
+        // when it's available, rather than an arbitrary same-team workspace row. Only the
+        // "channel isn't bound to anything yet" case has no binding to resolve it from; any
+        // workspace row for this team still opens the (generic, not org-specific) error modal.
+        $workspace = $binding !== null
+            ? $binding->slackWorkspace
+            : SlackWorkspace::where('team_id', $teamId)->first();
+
+        // Can't open any modal at all without a bot token to call views.open with.
         if ($workspace === null) {
             return $this->ack();
         }
-
-        $binding = $this->resolveBinding($teamId, $channelId);
-        $identity = $this->resolveIdentity($teamId, $slackUserId);
 
         if ($binding === null) {
             $view = $this->errorView($shortcut['title'], "This channel isn't bound to a project yet — an org-admin can bind it from the organization's Configuration tab in Projector.");
@@ -140,13 +148,18 @@ class InteractivityController extends Controller
             return $this->ack();
         }
 
-        $workspace = SlackWorkspace::where('team_id', $teamId)->first();
         $binding = $this->resolveBinding($teamId, $channelId);
         $identity = $this->resolveIdentity($teamId, $slackUserId);
 
-        if ($workspace === null || $binding === null || $identity === null) {
+        if ($binding === null || $identity === null) {
             return $this->ack();
         }
+
+        // Comes from the binding (this specific organization's own workspace row), not a
+        // team_id-only lookup — see handleShortcut()'s comment for why that matters once more
+        // than one organization can share the same real Slack team. slack_workspace_id is a
+        // non-nullable, cascade-deleting foreign key, so a binding can't outlive its workspace.
+        $workspace = $binding->slackWorkspace;
 
         if ($command === '/task') {
             CreateTaskFromSlackCommand::dispatch($binding->project, $identity->user, trim($text), null, $workspace->bot_access_token, $channelId);
