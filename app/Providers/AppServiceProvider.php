@@ -22,7 +22,9 @@ use App\Services\Vectors\GeminiDriver;
 use App\Services\Vectors\OllamaDriver;
 use App\Services\VectorService;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use PhpOffice\PhpWord\Settings as PhpWordSettings;
@@ -82,6 +84,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force the root URL only around actual queued-job execution — every route()/url()
+        // call a job makes (Slack messages, digests, etc.) runs with no bound request at all,
+        // so without this it falls back to whatever host the worker process happened to boot
+        // with. Deliberately scoped to JobProcessing rather than applied unconditionally in
+        // boot(): this app serves real web traffic through Octane, which — like Horizon — is a
+        // long-lived CLI process, so `runningInConsole()` can't tell the two apart, and boot()
+        // itself only ever runs once per process anyway. Forcing it unconditionally there once
+        // clobbered asset/page URL generation for every real visitor for the process's entire
+        // lifetime when APP_URL didn't exactly match how the app is actually reached. This way
+        // real web requests (Octane) are never touched — only a job's own execution inside a
+        // queue worker (Horizon) is affected.
+        Event::listen(JobProcessing::class, function (): void {
+            $appUrl = config('app.url');
+            URL::forceRootUrl(is_string($appUrl) ? $appUrl : 'http://localhost');
+        });
+
         // Force HTTPS in production for secure API callbacks
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
