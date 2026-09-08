@@ -208,6 +208,22 @@ it('broadcasts a DocumentProcessingUpdate for a root-level task creation', funct
         && $event->newDocumentCount === 0);
 });
 
+it('broadcasts a DocumentProcessingUpdate on both the project and organization channels', function () {
+    $project = createProjectWithChainedWorkflow();
+
+    $document = $project->documents()->create([
+        'name' => 'A manually entered task',
+        'type' => 'task',
+        'content' => 'Some content',
+    ]);
+
+    $channelNames = collect((new DocumentProcessingUpdate($document, 'Processing...'))->broadcastOn())
+        ->map(fn ($channel) => $channel->name);
+
+    expect($channelNames)->toContain('private-project.'.$project->id)
+        ->toContain('private-organization.'.$project->organization_id);
+});
+
 it('does not broadcast or stamp processed_at for a non-task document', function () {
     Event::fake([DocumentProcessingUpdate::class]);
 

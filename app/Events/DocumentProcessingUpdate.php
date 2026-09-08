@@ -33,11 +33,20 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
         public int $newDocumentCount = 0,
     ) {}
 
+    /**
+     * Also broadcast org-wide, on top of the project channel, so a global "something's
+     * processing" indicator (see useGlobalImportActivity.ts) can show on every page, not just
+     * whichever project happens to be open right now.
+     */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('project.'.$this->document->project_id),
-        ];
+        $channels = [new PrivateChannel('project.'.$this->document->project_id)];
+
+        if ($organizationId = $this->document->project?->organization_id) {
+            $channels[] = new PrivateChannel('organization.'.$organizationId);
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string

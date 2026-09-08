@@ -290,6 +290,20 @@ it('broadcasts a final TaskListImportProgress event pointing at the tasks tab on
     });
 });
 
+it('broadcasts a TaskListImportProgress on both the project and organization channels', function () {
+    $import = $this->project->documents()->create([
+        'name' => 'Import',
+        'type' => 'task_list_import',
+        'content' => '',
+    ]);
+
+    $channelNames = collect((new TaskListImportProgress($import, 1, 1, 'running'))->broadcastOn())
+        ->map(fn ($channel) => $channel->name);
+
+    expect($channelNames)->toContain('private-project.'.$this->project->id)
+        ->toContain('private-organization.'.$this->project->organization_id);
+});
+
 it('broadcasts a running TaskListImportProgress update for each row, ahead of the final done event', function () {
     Event::fake([TaskListImportProgress::class]);
 

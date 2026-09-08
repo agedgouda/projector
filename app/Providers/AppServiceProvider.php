@@ -82,6 +82,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Explicit rather than relying on route()/url()'s implicit fallback to the current
+        // request's host — every route() call a queued job makes (Slack messages, digests,
+        // etc.) runs with no bound request at all, and both Horizon and Octane are long-lived
+        // processes that read config once at boot, so making this explicit here is what
+        // guarantees it's always APP_URL, not whatever host happened to be live when the
+        // process last started.
+        $appUrl = config('app.url');
+        URL::forceRootUrl(is_string($appUrl) ? $appUrl : 'http://localhost');
+
         // Force HTTPS in production for secure API callbacks
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
