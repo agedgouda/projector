@@ -24,6 +24,7 @@ interface AuthProps {
             name: string;
             email: string;
             email_verified_at: string | null;
+            timezone: string | null;
         };
     };
     [key: string]: any;
@@ -32,6 +33,7 @@ interface AuthProps {
 interface Props {
     mustVerifyEmail: boolean;
     status?: string;
+    timezones: string[];
 }
 
 defineProps<Props>();
@@ -107,6 +109,28 @@ const user = page.props.auth.user;
                             placeholder="Email address"
                         />
                         <InputError class="mt-2" :message="errors.email" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="timezone">Timezone</Label>
+                        <select
+                            id="timezone"
+                            name="timezone"
+                            class="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                        >
+                            <option
+                                v-for="tz in timezones"
+                                :key="tz"
+                                :value="tz"
+                                :selected="tz === (user.timezone ?? 'UTC')"
+                            >
+                                {{ tz }}
+                            </option>
+                        </select>
+                        <p class="text-sm text-muted-foreground">
+                            Used to send you things like the Slack daily digest at your own local morning.
+                        </p>
+                        <InputError class="mt-2" :message="errors.timezone" />
                     </div>
 
                     <div v-if="mustVerifyEmail && !user.email_verified_at">

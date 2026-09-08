@@ -2,7 +2,7 @@
 
 This guide covers how to configure a Slack app so an organization can connect its Slack workspace to Projector — creating tasks and events, and importing files, from Slack. Unlike [Google Drive export](google-drive-export-setup.md) (a per-user connection), this is a **per-organization connection**: one org-admin installs the app into the org's Slack workspace from that organization's own settings page, and every bound channel then acts on behalf of that organization.
 
-File import lands in a later phase and will extend the same app rather than requiring a new one.
+File import lands in a later phase and will extend the same app rather than requiring a new one. Outbound messages (the daily digest, Step 9) use only the `chat:write` scope already listed below — no manifest change is needed for that feature specifically.
 
 ---
 
@@ -174,3 +174,16 @@ What happens:
 3. Once done, the bot posts the result **in the channel** (not just to you), since there's no `response_url` for a modal submission to reply through — it uses `chat.postMessage` as itself instead.
 
 The same two requirements apply as the slash commands: the channel must be bound to a project, and you must have linked your Slack identity (Step 5) — either one missing shows an explanatory modal instead of the edit form.
+
+---
+
+## Step 9: The Daily Digest
+
+Every org-admin who's linked their Slack identity (Step 5) automatically gets a Slack DM once a day, at 8am in *their own* local time: tasks due today across every project in that organization, or — if nothing's due today — the next 5 upcoming deliverables (overdue ones first). This is a background feature, not something a user has to turn on; the only setup involved is each admin setting their own timezone.
+
+1. In Projector, go to **Settings > Profile** and set the **Timezone** field (defaults to UTC).
+2. That's it — no Slack-side configuration, no new scopes, no manifest change. The digest reuses the same bot token and `chat.postMessage` delivery already set up for message shortcuts (Step 8).
+
+An admin who administers more than one organization gets one separate DM per organization, each sent through that organization's own connected workspace. An admin with no linked Slack identity is silently skipped — they simply don't receive anything until they complete Step 5.
+
+**Mechanics, for anyone debugging this:** `routes/console.php` schedules `app:send-slack-daily-digest` to run hourly (there's no single UTC time that's 8am for every admin, so the command itself checks each admin's local hour on every run). A `slack_digest_sends` row records each (organization, admin, local calendar day) it actually dispatches for, so an admin never gets two digests in the same local day even if the scheduler's hourly run ever overlaps itself.

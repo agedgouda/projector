@@ -10,6 +10,7 @@ declare global {
         email: string;
         avatar?: string;
         email_verified_at: string | null;
+        timezone?: string | null;
         roles: string[];
         clients: string[];
         permissions: string[];

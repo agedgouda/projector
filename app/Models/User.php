@@ -34,6 +34,7 @@ class User extends Authenticatable
         'last_name',
         'email',
         'password',
+        'timezone',
     ];
 
     /**
@@ -67,6 +68,16 @@ class User extends Authenticatable
     public function getNameAttribute()
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * The timezone to interpret "local time" in for this user (e.g. the Slack daily digest's
+     * send hour) — falls back to UTC for a user who has never set one, rather than treating a
+     * null timezone as an error case callers need to handle themselves.
+     */
+    public function effectiveTimezone(): string
+    {
+        return $this->timezone ?? 'UTC';
     }
 
     public function clients(): BelongsToMany

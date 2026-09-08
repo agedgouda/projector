@@ -145,6 +145,7 @@ class HandleInertiaRequests extends Middleware
                     'last_name' => $user->last_name,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'timezone' => $user->timezone,
                     'is_super' => $isSuperAdmin,
                     'roles' => $roles,
                     'organizations' => $user->organizations->pluck('id')->map(fn ($id) => (string) $id),
