@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ImportEventsFromSlackFile;
+use App\Jobs\ImportSlackFile;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
@@ -134,7 +134,7 @@ it('dispatches an import job for a spreadsheet file shared in a bound channel by
         ->postJson('/slack/events', $payload)
         ->assertNoContent();
 
-    Bus::assertDispatched(ImportEventsFromSlackFile::class, function ($job) use ($fixture) {
+    Bus::assertDispatched(ImportSlackFile::class, function ($job) use ($fixture) {
         return $job->project->is($fixture['project'])
             && $job->user->is($fixture['user'])
             && $job->slackFile['name'] === 'events.csv'
@@ -153,7 +153,7 @@ it('ignores a non-spreadsheet file shared in a bound channel', function () {
         ->postJson('/slack/events', $payload)
         ->assertNoContent();
 
-    Bus::assertNotDispatched(ImportEventsFromSlackFile::class);
+    Bus::assertNotDispatched(ImportSlackFile::class);
 });
 
 it('ignores a file shared in an unbound channel', function () {
@@ -165,7 +165,7 @@ it('ignores a file shared in an unbound channel', function () {
         ->postJson('/slack/events', $payload)
         ->assertNoContent();
 
-    Bus::assertNotDispatched(ImportEventsFromSlackFile::class);
+    Bus::assertNotDispatched(ImportSlackFile::class);
 });
 
 it('tells an unlinked uploader to connect their slack account instead of importing', function () {
@@ -178,7 +178,7 @@ it('tells an unlinked uploader to connect their slack account instead of importi
         ->postJson('/slack/events', $payload)
         ->assertNoContent();
 
-    Bus::assertNotDispatched(ImportEventsFromSlackFile::class);
+    Bus::assertNotDispatched(ImportSlackFile::class);
     Http::assertSent(function ($request) {
         return $request->url() === 'https://slack.com/api/chat.postMessage'
             && $request['channel'] === 'C123'

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Slack;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ImportEventsFromSlackFile;
+use App\Jobs\ImportSlackFile;
 use App\Models\SlackChannelBinding;
 use App\Models\SlackUserIdentity;
 use Illuminate\Http\JsonResponse;
@@ -51,10 +51,11 @@ class EventsController extends Controller
     }
 
     /**
-     * Imports the first spreadsheet-like file in a file_share message as events, silently
-     * ignoring anything that doesn't have a clear enough destination to act on (an unbound
-     * channel, a non-spreadsheet file) — the same restraint /task and /events use for text that
-     * doesn't look like a command, rather than commenting on every file anyone ever shares.
+     * Imports the first spreadsheet-like file in a file_share message as tasks and/or events
+     * (ImportSlackFile classifies which), silently ignoring anything that doesn't have a clear
+     * enough destination to act on (an unbound channel, a non-spreadsheet file) — the same
+     * restraint /task and /events use for text that doesn't look like a command, rather than
+     * commenting on every file anyone ever shares.
      * Unlike a slash command or shortcut, there's no interactive context to reply ephemerally
      * through here, so the one case worth telling someone about (an unlinked Slack identity)
      * has to go in-channel instead — CommandsController/InteractivityController's ephemeral
@@ -110,7 +111,7 @@ class EventsController extends Controller
             return;
         }
 
-        ImportEventsFromSlackFile::dispatch(
+        ImportSlackFile::dispatch(
             $binding->project,
             $identity->user,
             ['name' => $name, 'url_private_download' => $urlPrivateDownload, 'mimetype' => $mimetype],

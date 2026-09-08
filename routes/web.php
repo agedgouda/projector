@@ -24,6 +24,7 @@ use App\Http\Controllers\OrganizationLogoController;
 use App\Http\Controllers\OrganizationPdfBrandingController;
 use App\Http\Controllers\OrganizationRegistrationController;
 use App\Http\Controllers\OrganizationSetupController;
+use App\Http\Controllers\PendingImportController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectLogoController;
@@ -229,6 +230,10 @@ Route::middleware(['auth'])->group(function () {
     // Import Wizard (project-level, org resolved from cookie/query like Projects/Index)
     Route::get('/import', [ImportWizardController::class, 'index'])
         ->name('import.index');
+    Route::get('/import/pending/{pendingImport}', [PendingImportController::class, 'show'])
+        ->name('import.pending.show');
+    Route::delete('/import/pending/{pendingImport}', [PendingImportController::class, 'destroy'])
+        ->name('import.pending.destroy');
 
     // Org Documents (status meetings CRUD, nested under org for authorization)
     Route::post('/organizations/{organization}/import-recording', [\App\Http\Controllers\OrgDocumentController::class, 'importFromRecording'])

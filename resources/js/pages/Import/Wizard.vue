@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import ImportKindStep from '@/pages/Import/Partials/ImportKindStep.vue';
+import IconTile from '@/components/IconTile.vue';
+import ImportTransformationModal from '@/components/recordings/ImportTransformationModal.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import IconTile from '@/components/IconTile.vue';
-import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
-import { type BreadcrumbItem } from '@/types';
-import importWizardRoutes from '@/routes/import/index';
-import { Head } from '@inertiajs/vue3';
-import { ArrowLeft, Files, Search } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import ImportKindStep from '@/pages/Import/Partials/ImportKindStep.vue';
+import importWizardRoutes from '@/routes/import/index';
+import pendingImportRoutes from '@/routes/import/pending';
+import { type BreadcrumbItem } from '@/types';
+import { Head } from '@inertiajs/vue3';
+import axios from 'axios';
+import { AlertCircle, ArrowLeft, Files, Search, X } from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 interface WizardProject {
     id: string;
@@ -18,8 +22,19 @@ interface WizardProject {
     logo_url: string | null;
 }
 
+interface PendingImport {
+    id: string;
+    project_id: string;
+    project_name: string | null;
+    original_filename: string;
+    uploaded_by: string | null;
+    note: string | null;
+    created_at: string | null;
+}
+
 const props = defineProps<{
     projects: WizardProject[];
+    pendingImports: PendingImport[];
     googlePickerConfigured: boolean;
     googleApiKey: string | null;
     googleAppId: string | null;
@@ -36,7 +51,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 const selectedProjectId = ref<string | null>(null);
 
 onMounted(() => {
-    selectedProjectId.value = new URLSearchParams(window.location.search).get('project');
+    selectedProjectId.value = new URLSearchParams(window.location.search).get(
+        'project',
+    );
 });
 
 const selectedProject = computed<WizardProject | null>(
@@ -69,6 +86,61 @@ const filteredProjects = computed(() => {
     if (!q) return props.projects;
     return props.projects.filter((p) => p.name.toLowerCase().includes(q));
 });
+
+// ── Needs Review: files ImportSlackFile couldn't confidently classify on its own ────────────
+
+const pendingImportsList = ref<PendingImport[]>([...props.pendingImports]);
+
+interface PendingImportAnalysis {
+    headers: string[];
+    rows: string[][];
+    original_filename: string | null;
+    project_id: string;
+}
+
+const reviewOpen = ref(false);
+const reviewLoading = ref<string | null>(null);
+const reviewAnalysis = ref<PendingImportAnalysis | null>(null);
+const reviewingPendingImportId = ref<string | null>(null);
+
+const openPendingImport = async (item: PendingImport) => {
+    reviewLoading.value = item.id;
+    try {
+        const response = await axios.get<PendingImportAnalysis>(
+            pendingImportRoutes.show.url(item.id),
+        );
+        reviewAnalysis.value = response.data;
+        reviewingPendingImportId.value = item.id;
+        reviewOpen.value = true;
+    } catch {
+        toast.error(
+            "Couldn't load that file. It may have already been resolved.",
+        );
+        pendingImportsList.value = pendingImportsList.value.filter(
+            (p) => p.id !== item.id,
+        );
+    } finally {
+        reviewLoading.value = null;
+    }
+};
+
+const removePendingImport = async (id: string) => {
+    await axios.delete(pendingImportRoutes.destroy.url(id));
+    pendingImportsList.value = pendingImportsList.value.filter(
+        (p) => p.id !== id,
+    );
+};
+
+const handleImported = () => {
+    if (reviewingPendingImportId.value) {
+        removePendingImport(reviewingPendingImportId.value);
+    }
+};
+
+const dismissPendingImport = async (item: PendingImport) => {
+    await removePendingImport(item.id);
+    toast.success(`Dismissed "${item.original_filename}".`);
+};
 </script>
 
 <template>
@@ -77,33 +149,106 @@ const filteredProjects = computed(() => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="w-full space-y-8 p-6">
             <div>
-                <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
+                <h1
+                    class="text-2xl font-black tracking-tight text-gray-900 dark:text-white"
+                >
                     Import
                 </h1>
                 <p class="mt-0.5 text-sm text-gray-500">
-                    Bring a document, task list, event list, or meeting recording into one of
-                    your projects.
+                    Bring a document, task list, event list, or meeting
+                    recording into one of your projects.
                 </p>
+            </div>
+
+            <!-- Files dropped in a bound Slack channel that ImportSlackFile couldn't
+                 confidently tell were a task list, an event list, or which column has the
+                 name/title — parked here (SlackPendingImport) instead of guessing. Clicking one
+                 re-parses the already-downloaded file and opens the same AI-assisted mapping
+                 modal a manually-picked "smart" import uses. -->
+            <div v-if="pendingImportsList.length > 0" class="space-y-2">
+                <Label
+                    class="mb-2 flex items-center gap-1.5 text-[10px] font-black tracking-widest text-amber-600 uppercase dark:text-amber-400"
+                >
+                    <AlertCircle class="h-3.5 w-3.5" />
+                    Needs Review ({{ pendingImportsList.length }})
+                </Label>
+
+                <div class="grid gap-0.5">
+                    <div
+                        v-for="item in pendingImportsList"
+                        :key="item.id"
+                        :class="[
+                            'flex min-w-0 items-center gap-3 rounded-md border border-amber-200 bg-amber-50/50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-950/20',
+                        ]"
+                    >
+                        <button
+                            type="button"
+                            :disabled="reviewLoading === item.id"
+                            class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-50"
+                            @click="openPendingImport(item)"
+                        >
+                            <div class="min-w-0">
+                                <p
+                                    class="truncate text-sm font-bold text-slate-900 dark:text-slate-100"
+                                >
+                                    {{ item.original_filename }}
+                                </p>
+                                <p class="truncate text-xs text-gray-500">
+                                    {{ item.project_name }}
+                                    <template v-if="item.uploaded_by">
+                                        — uploaded by
+                                        {{ item.uploaded_by }}</template
+                                    >
+                                    —
+                                    {{
+                                        reviewLoading === item.id
+                                            ? 'Loading…'
+                                            : 'Click to review and import'
+                                    }}
+                                </p>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded p-1 text-gray-400 hover:bg-amber-100 hover:text-gray-600 dark:hover:bg-amber-900/40"
+                            title="Dismiss without importing"
+                            @click="dismissPendingImport(item)"
+                        >
+                            <X class="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Step 1: choose a project -->
             <div v-if="!selectedProject" class="space-y-4">
-                <Label class="mb-2 block text-[10px] font-black tracking-widest text-gray-400 uppercase">
+                <Label
+                    class="mb-2 block text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
                     1. Choose a Project
                 </Label>
 
                 <div class="relative max-w-sm">
-                    <Search class="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                    <Input v-model="search" placeholder="Search projects…" class="h-9 pl-9 text-[13px]" />
+                    <Search
+                        class="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+                    />
+                    <Input
+                        v-model="search"
+                        placeholder="Search projects…"
+                        class="h-9 pl-9 text-[13px]"
+                    />
                 </div>
 
                 <div
                     v-if="projects.length === 0"
                     class="rounded-2xl border-2 border-dashed border-gray-100 py-16 text-center dark:border-gray-800/50"
                 >
-                    <p class="font-bold text-gray-500">No projects available to import into</p>
+                    <p class="font-bold text-gray-500">
+                        No projects available to import into
+                    </p>
                     <p class="mt-1 text-sm text-gray-400">
-                        You need to be an org admin or project lead on a project to import data into it.
+                        You need to be an org admin or project lead on a project
+                        to import data into it.
                     </p>
                 </div>
 
@@ -112,16 +257,28 @@ const filteredProjects = computed(() => {
                         v-for="project in filteredProjects"
                         :key="project.id"
                         type="button"
-                        :class="['flex h-12 min-w-0 items-center gap-3 rounded-md px-2 text-left transition-colors', FLAT_ROW_HOVER]"
+                        :class="[
+                            'flex h-12 min-w-0 items-center gap-3 rounded-md px-2 text-left transition-colors',
+                            FLAT_ROW_HOVER,
+                        ]"
                         @click="selectProject(project)"
                     >
-                        <IconTile :src="project.logo_url" :icon="Files" size="sm" />
-                        <span class="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                        <IconTile
+                            :src="project.logo_url"
+                            :icon="Files"
+                            size="sm"
+                        />
+                        <span
+                            class="truncate text-sm font-bold text-slate-900 dark:text-slate-100"
+                        >
                             {{ project.name }}
                         </span>
                     </button>
 
-                    <p v-if="filteredProjects.length === 0" class="px-2 py-6 text-sm text-gray-400">
+                    <p
+                        v-if="filteredProjects.length === 0"
+                        class="px-2 py-6 text-sm text-gray-400"
+                    >
                         No projects match "{{ search }}".
                     </p>
                 </div>
@@ -129,14 +286,28 @@ const filteredProjects = computed(() => {
 
             <!-- Step 2+: choose what to import, then the existing panels/modals take over -->
             <div v-else class="space-y-4">
-                <Button variant="ghost" size="sm" class="-ml-2 h-8 px-2 text-gray-500" @click="changeProject">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="-ml-2 h-8 px-2 text-gray-500"
+                    @click="changeProject"
+                >
                     <ArrowLeft class="mr-1.5 h-3.5 w-3.5" />
-                    <span class="text-[10px] font-black tracking-widest uppercase">Change Project</span>
+                    <span
+                        class="text-[10px] font-black tracking-widest uppercase"
+                        >Change Project</span
+                    >
                 </Button>
 
                 <div class="flex items-center gap-3">
-                    <IconTile :src="selectedProject.logo_url" :icon="Files" size="md" />
-                    <h2 class="text-lg font-black tracking-tight text-gray-900 dark:text-white">
+                    <IconTile
+                        :src="selectedProject.logo_url"
+                        :icon="Files"
+                        size="md"
+                    />
+                    <h2
+                        class="text-lg font-black tracking-tight text-gray-900 dark:text-white"
+                    >
                         {{ selectedProject.name }}
                     </h2>
                 </div>
@@ -150,5 +321,17 @@ const filteredProjects = computed(() => {
                 />
             </div>
         </div>
+
+        <ImportTransformationModal
+            v-if="reviewAnalysis"
+            :open="reviewOpen"
+            :project-id="reviewAnalysis.project_id"
+            :original-filename="reviewAnalysis.original_filename"
+            source-mode="spreadsheet"
+            :headers="reviewAnalysis.headers"
+            :rows="reviewAnalysis.rows"
+            @close="reviewOpen = false"
+            @imported="handleImported"
+        />
     </AppLayout>
 </template>

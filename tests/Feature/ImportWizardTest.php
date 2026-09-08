@@ -97,6 +97,37 @@ it('requires authentication', function () {
     expect($response->headers->get('Location'))->toStartWith(route('login'));
 });
 
+it('includes a pending import queued from a slack upload for a manageable project', function () {
+    $pending = \App\Models\SlackPendingImport::create([
+        'project_id' => $this->project->id,
+        'original_filename' => 'export.csv',
+        'uploaded_by_user_id' => $this->admin->id,
+        'note' => "Couldn't tell what this was.",
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('import.index'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->has('pendingImports', 1)
+        ->where('pendingImports.0.id', $pending->id)
+        ->where('pendingImports.0.project_id', $this->project->id)
+        ->where('pendingImports.0.project_name', 'Test Project')
+        ->where('pendingImports.0.original_filename', 'export.csv')
+        ->where('pendingImports.0.uploaded_by', $this->admin->name)
+    );
+});
+
+it('excludes a pending import for a project the user can\'t manage', function () {
+    \App\Models\SlackPendingImport::create([
+        'project_id' => $this->project->id,
+        'original_filename' => 'export.csv',
+    ]);
+
+    $response = $this->actingAs($this->member)->get(route('import.index'));
+
+    $response->assertInertia(fn ($page) => $page->has('pendingImports', 0));
+});
+
 // ── projectContext() ─────────────────────────────────────────────────────────────
 
 it('returns the bootstrap data an import needs for a manageable project', function () {

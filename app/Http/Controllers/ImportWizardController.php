@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\SlackPendingImport;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,22 +35,41 @@ class ImportWizardController extends Controller
         $orgId = $request->query('org') ?? $request->cookie('last_org_id') ?? getPermissionsTeamId();
         $orgId = is_string($orgId) ? $orgId : null;
 
-        $projects = Project::visibleTo($user, $orgId)
+        $manageableProjects = Project::visibleTo($user, $orgId)
             ->where('inactive', false)
             ->whereHas('client', fn ($q) => $q->where('inactive', false))
             ->with(['client.organization', 'media'])
             ->latest()
             ->get()
             ->filter(fn (Project $project) => $this->canManage($user, $project))
-            ->values()
-            ->map(fn (Project $project) => [
-                'id' => $project->id,
-                'name' => $project->name,
-                'logo_url' => $project->logo_url,
+            ->values();
+
+        $projects = $manageableProjects->map(fn (Project $project) => [
+            'id' => $project->id,
+            'name' => $project->name,
+            'logo_url' => $project->logo_url,
+        ]);
+
+        // Files ImportSlackFile downloaded but couldn't confidently classify on its own — only
+        // ever shown for a project this user can already manage imports for, the same gate
+        // PendingImportController re-checks before letting anyone actually open one.
+        $pendingImports = SlackPendingImport::whereIn('project_id', $manageableProjects->pluck('id'))
+            ->with('uploadedBy:id,first_name,last_name')
+            ->latest()
+            ->get()
+            ->map(fn (SlackPendingImport $pendingImport) => [
+                'id' => $pendingImport->id,
+                'project_id' => $pendingImport->project_id,
+                'project_name' => $manageableProjects->firstWhere('id', $pendingImport->project_id)?->name,
+                'original_filename' => $pendingImport->original_filename,
+                'uploaded_by' => $pendingImport->uploadedBy?->name,
+                'note' => $pendingImport->note,
+                'created_at' => $pendingImport->created_at?->toIso8601String(),
             ]);
 
         return Inertia::render('Import/Wizard', [
             'projects' => $projects,
+            'pendingImports' => $pendingImports,
             'googlePickerConfigured' => filled(config('services.google.client_id'))
                 && filled(config('services.google.client_secret'))
                 && filled(config('services.google.api_key'))

@@ -77,7 +77,7 @@ Add the following to `.env`:
 ```
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_REDIRECT_URI=https://your-domain.com/settings/integrations/google/callback
+GOOGLE_REDIRECT_URI=https://projecthq.app/settings/integrations/google/callback
 ```
 
 `GOOGLE_REDIRECT_URI` must exactly match one of the redirect URIs authorized in Step 3.

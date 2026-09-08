@@ -22,12 +22,12 @@ features:
     always_online: true
   slash_commands:
     - command: /task
-      url: https://your-domain.com/slack/commands
+      url: https://projecthq.app/slack/commands
       description: Create a task from text
       usage_hint: "[description] — e.g. /task follow up with the client by Friday"
       should_escape: false
     - command: /events
-      url: https://your-domain.com/slack/commands
+      url: https://projecthq.app/slack/commands
       description: Create an event from text
       usage_hint: "[description] — e.g. /events team offsite next Thursday"
       should_escape: false
@@ -42,8 +42,8 @@ features:
       description: Create a Projector event from this message
 oauth_config:
   redirect_urls:
-    - https://your-domain.com/organizations/slack/callback
-    - https://your-domain.com/settings/integrations/slack/callback
+    - https://projecthq.app/organizations/slack/callback
+    - https://projecthq.app/settings/integrations/slack/callback
   scopes:
     bot:
       - chat:write
@@ -58,18 +58,18 @@ oauth_config:
       - identity.team
 settings:
   event_subscriptions:
-    request_url: https://your-domain.com/slack/events
+    request_url: https://projecthq.app/slack/events
     bot_events:
       - message.channels
   interactivity:
     is_enabled: true
-    request_url: https://your-domain.com/slack/interactivity
+    request_url: https://projecthq.app/slack/interactivity
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
 ```
 
-Replace `your-domain.com` with your real domain — see **Testing locally** below for local development, since Slack (like Google) requires a public HTTPS URL it can reach.
+For local development, see **Testing locally** below — Slack (like Google) requires a public HTTPS URL it can reach, which `projecthq.app` only is in production.
 
 **About the redirect URL having no organization in it:** Slack requires `redirect_uri` to exactly match one of the app's own pre-registered URLs — there's no wildcard support, so a per-organization path (e.g. `/organizations/{id}/slack/callback`) can't be registered ahead of time for every organization that will ever connect. Instead, one fixed callback URL is shared by every organization, and Projector tracks which organization started the flow via session state (the same `state` parameter that also guards against CSRF) rather than the URL itself. This is also why there's no `SLACK_REDIRECT_URI` env var to configure — the app derives this fixed URL from its own route rather than a per-environment setting, so it's automatically correct on whatever domain you're testing through.
 
@@ -196,16 +196,18 @@ An admin who administers more than one organization gets one separate DM per org
 
 ---
 
-## Step 10: Import Events by Uploading a File
+## Step 10: Import Tasks or Events by Uploading a File
 
-Drop a CSV, TXT, XLSX, or XLS file straight into a bound channel and Projector imports it as events on that channel's project — no slash command, no shortcut, nothing to click first.
+Drop a CSV, TXT, XLSX, or XLS file straight into a bound channel and Projector imports it — no slash command, no shortcut, nothing to click first, and no need to say whether it's a task list or an event list.
 
 What happens:
 
-1. As soon as the file finishes uploading, Projector downloads it and detects the header row automatically (same column-matching the web Import Wizard uses — headers like "Name"/"Event"/"Title", "Start Date", "Due Date", "Tag", etc.). There's no confirmation step: the best-guess column mapping is used immediately, matching how `/task` and `/events` also skip a review step in favor of just showing the result.
-2. Once done, the bot replies **in the channel**: how many events were created, and a link to the project's calendar.
-3. A file with no name/title column detected, no rows, or over 5,000 rows gets a clear explanation instead of a half-finished import.
+1. As soon as the file finishes uploading, Projector downloads it and runs it through the same AI classification the web Import Wizard's "Import Data" (smart) option already uses — it reads the actual headers and sample rows to decide whether the file is tasks, events, or a genuine mix of both, proposing its own column mapping for each. There's no confirmation step: the AI's mapping is used immediately, matching how `/task` and `/events` also skip a review step in favor of just showing the result.
+2. Once done, the bot replies **in the channel**: how many tasks and/or events were created, and a link to the project.
+3. A file with no rows, or over 5,000 rows, gets a clear explanation instead of a half-finished import.
+
+**When the AI can't confidently tell what the file is** (no usable name/title column found for any record type, or the classification call itself fails), nothing is imported — instead the file is added to a **Needs Review** queue on the Import Wizard landing page (`/import`), visible to anyone who can manage imports for that project. The bot's reply links straight there. Opening a queued file re-parses it and opens the same AI-assisted mapping modal a manually-picked "smart" import uses, so a human finishes the classification/mapping by hand — the file itself doesn't need to be re-uploaded, since it was already downloaded and stored when it was queued.
 
 Same two requirements as everything else: the channel must be bound to a project, and you (the uploader) must have linked your Slack identity (Step 5) — the bot will tell you if the latter's missing. Any other file type (images, PDFs, etc.) is silently ignored — nothing about this changes how a normal file share in the channel behaves.
 
-Task-list import (as opposed to event-list) isn't wired up for Slack yet — only events, as the simplest first case.
+A future version will let someone upload a file and manually name the column mapping directly from Slack, without needing to visit the Import Wizard at all — for now, an ambiguous file always lands in the Needs Review queue.
