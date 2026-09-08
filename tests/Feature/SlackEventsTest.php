@@ -143,7 +143,7 @@ it('dispatches an import job for a spreadsheet file shared in a bound channel by
     });
 });
 
-it('ignores a non-spreadsheet file shared in a bound channel', function () {
+it('ignores a non-spreadsheet, non-document file shared in a bound channel', function () {
     Bus::fake();
     $fixture = bindSlackChannelToProject();
     SlackUserIdentity::factory()->create(['user_id' => $fixture['user']->id, 'slack_team_id' => 'T123', 'slack_user_id' => 'U123']);
@@ -154,6 +154,19 @@ it('ignores a non-spreadsheet file shared in a bound channel', function () {
         ->assertNoContent();
 
     Bus::assertNotDispatched(ImportSlackFile::class);
+});
+
+it('dispatches an import job for a docx file shared in a bound channel', function () {
+    Bus::fake();
+    $fixture = bindSlackChannelToProject();
+    SlackUserIdentity::factory()->create(['user_id' => $fixture['user']->id, 'slack_team_id' => 'T123', 'slack_user_id' => 'U123']);
+
+    $payload = fileShareEventPayload(['name' => 'schedule.docx']);
+    $this->withHeaders(signSlackRequest(json_encode($payload)))
+        ->postJson('/slack/events', $payload)
+        ->assertNoContent();
+
+    Bus::assertDispatched(ImportSlackFile::class, fn ($job) => $job->slackFile['name'] === 'schedule.docx');
 });
 
 it('ignores a file shared in an unbound channel', function () {

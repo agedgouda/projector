@@ -91,12 +91,24 @@ const filteredProjects = computed(() => {
 
 const pendingImportsList = ref<PendingImport[]>([...props.pendingImports]);
 
-interface PendingImportAnalysis {
+interface PendingImportSpreadsheetAnalysis {
+    source_mode: 'spreadsheet';
     headers: string[];
     rows: string[][];
     original_filename: string | null;
     project_id: string;
 }
+
+interface PendingImportTextAnalysis {
+    source_mode: 'text';
+    text: string;
+    original_filename: string | null;
+    project_id: string;
+}
+
+type PendingImportAnalysis =
+    | PendingImportSpreadsheetAnalysis
+    | PendingImportTextAnalysis;
 
 const reviewOpen = ref(false);
 const reviewLoading = ref<string | null>(null);
@@ -161,13 +173,14 @@ const dismissPendingImport = async (item: PendingImport) => {
             </div>
 
             <!-- Files dropped in a bound Slack channel that ImportSlackFile parked here
-                 (SlackPendingImport) instead of auto-importing — either it couldn't confidently
-                 tell what the file even was, or it could, but that column mapping has never been
-                 confirmed for this project before (see item.note for which). Clicking one
-                 re-parses the already-downloaded file and opens the same AI-assisted mapping
-                 modal a manually-picked "smart" import uses; completing it there both imports
-                 the file and teaches the project this mapping, so the same layout auto-imports
-                 next time. -->
+                 (SlackPendingImport) instead of auto-importing — a spreadsheet it couldn't
+                 confidently classify, a spreadsheet with a column mapping this project hasn't
+                 confirmed before, or a Word document (which always needs a human to classify;
+                 see item.note for which of the three). Clicking one re-derives the already-
+                 downloaded file's data and opens the same AI-assisted modal a manually-picked
+                 "smart" import uses (spreadsheet or text source, matching how it was queued);
+                 completing it there both imports the file and — for a spreadsheet — teaches the
+                 project that mapping, so the same layout auto-imports next time. -->
             <div v-if="pendingImportsList.length > 0" class="space-y-2">
                 <Label
                     class="mb-2 flex items-center gap-1.5 text-[10px] font-black tracking-widest text-amber-600 uppercase dark:text-amber-400"
@@ -333,13 +346,25 @@ const dismissPendingImport = async (item: PendingImport) => {
         </div>
 
         <ImportTransformationModal
-            v-if="reviewAnalysis"
+            v-if="
+                reviewAnalysis && reviewAnalysis.source_mode === 'spreadsheet'
+            "
             :open="reviewOpen"
             :project-id="reviewAnalysis.project_id"
             :original-filename="reviewAnalysis.original_filename"
             source-mode="spreadsheet"
             :headers="reviewAnalysis.headers"
             :rows="reviewAnalysis.rows"
+            @close="reviewOpen = false"
+            @imported="handleImported"
+        />
+        <ImportTransformationModal
+            v-else-if="reviewAnalysis && reviewAnalysis.source_mode === 'text'"
+            :open="reviewOpen"
+            :project-id="reviewAnalysis.project_id"
+            :original-filename="reviewAnalysis.original_filename"
+            source-mode="text"
+            :text="reviewAnalysis.text"
             @close="reviewOpen = false"
             @imported="handleImported"
         />

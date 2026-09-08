@@ -39,11 +39,32 @@ function createPendingImportWithFile(Project $project, string $csv = "Name,Start
     $pendingImport = SlackPendingImport::create([
         'project_id' => $project->id,
         'original_filename' => 'export.csv',
+        'source_type' => 'spreadsheet',
     ]);
 
     $tmpPath = tempnam(sys_get_temp_dir(), 'pending_import_test').'.csv';
     file_put_contents($tmpPath, $csv);
     $uploadedFile = new UploadedFile($tmpPath, 'export.csv', 'text/csv', null, true);
+    $pendingImport->addMedia($uploadedFile)->toMediaCollection('file');
+    @unlink($tmpPath);
+
+    return $pendingImport;
+}
+
+function createPendingImportWithDocx(Project $project, string $line = 'Team Offsite on 2026-09-10.'): SlackPendingImport
+{
+    $pendingImport = SlackPendingImport::create([
+        'project_id' => $project->id,
+        'original_filename' => 'schedule.docx',
+        'source_type' => 'text',
+    ]);
+
+    $phpWord = new \PhpOffice\PhpWord\PhpWord;
+    $phpWord->addSection()->addText($line);
+
+    $tmpPath = tempnam(sys_get_temp_dir(), 'pending_import_test').'.docx';
+    \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007')->save($tmpPath);
+    $uploadedFile = new UploadedFile($tmpPath, 'schedule.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', null, true);
     $pendingImport->addMedia($uploadedFile)->toMediaCollection('file');
     @unlink($tmpPath);
 
@@ -58,9 +79,22 @@ it('re-parses the stored file for a manageable project', function () {
     $response = $this->actingAs($this->admin)->getJson(route('import.pending.show', $pendingImport));
 
     $response->assertOk();
-    expect($response->json('headers'))->toBe(['Name', 'Start Date'])
+    expect($response->json('source_mode'))->toBe('spreadsheet')
+        ->and($response->json('headers'))->toBe(['Name', 'Start Date'])
         ->and($response->json('rows.0.0'))->toBe('Team Offsite')
         ->and($response->json('original_filename'))->toBe('export.csv')
+        ->and($response->json('project_id'))->toBe($this->project->id);
+});
+
+it('re-extracts the stored docx\'s text for a manageable project', function () {
+    $pendingImport = createPendingImportWithDocx($this->project);
+
+    $response = $this->actingAs($this->admin)->getJson(route('import.pending.show', $pendingImport));
+
+    $response->assertOk();
+    expect($response->json('source_mode'))->toBe('text')
+        ->and($response->json('text'))->toContain('Team Offsite on 2026-09-10.')
+        ->and($response->json('original_filename'))->toBe('schedule.docx')
         ->and($response->json('project_id'))->toBe($this->project->id);
 });
 

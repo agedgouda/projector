@@ -12,6 +12,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string $id
  * @property string $project_id
  * @property string $original_filename
+ * @property string $source_type
  * @property int|null $uploaded_by_user_id
  * @property string|null $note
  * @property Project $project
@@ -24,6 +25,7 @@ class SlackPendingImport extends Model implements HasMedia
     protected $fillable = [
         'project_id',
         'original_filename',
+        'source_type',
         'uploaded_by_user_id',
         'note',
     ];
@@ -31,7 +33,8 @@ class SlackPendingImport extends Model implements HasMedia
     /**
      * Kept on the private 'local' disk (never public) — same reasoning as Document's own
      * 'recording' collection: this is someone's raw data export, only ever read back
-     * server-side to re-run TaskListImportService::analyze() against, never linked directly.
+     * server-side (via TaskListImportService::analyze() or DocumentFileExtractorService,
+     * depending on source_type — see PendingImportController::show()), never linked directly.
      */
     public function registerMediaCollections(): void
     {

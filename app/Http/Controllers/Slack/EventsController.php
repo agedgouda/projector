@@ -15,9 +15,14 @@ use Illuminate\Support\Facades\Log;
 class EventsController extends Controller
 {
     /**
+     * csv/txt/xlsx/xls go through ImportSlackFile's spreadsheet path (rows/columns); docx goes
+     * through its document/text-extraction path (prose) — see ImportSlackFile::DOCUMENT_EXTENSIONS.
+     * Both live in one list here since this filter only decides whether to act at all, not which
+     * of the two paths to take — that decision belongs to ImportSlackFile, not this controller.
+     *
      * @var list<string>
      */
-    private const IMPORTABLE_EXTENSIONS = ['csv', 'txt', 'xlsx', 'xls'];
+    private const IMPORTABLE_EXTENSIONS = ['csv', 'txt', 'xlsx', 'xls', 'docx'];
 
     /**
      * Handles Slack's Events API callbacks. `VerifySlackSignature` (applied at the route level)
@@ -51,11 +56,11 @@ class EventsController extends Controller
     }
 
     /**
-     * Imports the first spreadsheet-like file in a file_share message as tasks and/or events
-     * (ImportSlackFile classifies which), silently ignoring anything that doesn't have a clear
-     * enough destination to act on (an unbound channel, a non-spreadsheet file) — the same
-     * restraint /task and /events use for text that doesn't look like a command, rather than
-     * commenting on every file anyone ever shares.
+     * Imports the first spreadsheet- or document-like file in a file_share message as tasks
+     * and/or events (ImportSlackFile classifies which), silently ignoring anything that doesn't
+     * have a clear enough destination to act on (an unbound channel, an unsupported file type) —
+     * the same restraint /task and /events use for text that doesn't look like a command, rather
+     * than commenting on every file anyone ever shares.
      * Unlike a slash command or shortcut, there's no interactive context to reply ephemerally
      * through here, so the one case worth telling someone about (an unlinked Slack identity)
      * has to go in-channel instead — CommandsController/InteractivityController's ephemeral

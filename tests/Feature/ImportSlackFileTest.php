@@ -79,6 +79,28 @@ function fakeClassification(array $passes): void
 
 const EMPTY_MAPPING = ['name' => null, 'priority' => null, 'task_status' => null, 'due_at' => null, 'assignee' => null, 'start_date' => null, 'description' => null, 'tag' => null];
 
+/**
+ * Builds a real, valid .docx file's raw bytes (via PhpWord, the same library
+ * DocumentFileExtractorService reads with) — one paragraph per line of $text.
+ *
+ * @param  list<string>  $lines
+ */
+function createTestDocxBytes(array $lines): string
+{
+    $phpWord = new \PhpOffice\PhpWord\PhpWord;
+    $section = $phpWord->addSection();
+    foreach ($lines as $line) {
+        $section->addText($line);
+    }
+
+    $tmpPath = tempnam(sys_get_temp_dir(), 'test_docx').'.docx';
+    \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007')->save($tmpPath);
+    $bytes = (string) file_get_contents($tmpPath);
+    unlink($tmpPath);
+
+    return $bytes;
+}
+
 // ── Successful classification (mapping already confirmed for this project) ─
 
 it('imports events from a downloaded csv and posts a summary in the channel', function () {
@@ -266,6 +288,82 @@ it('replies pointing at the import wizard when a file is queued for review', fun
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
         && str_contains($request['text'], "Couldn't automatically tell how to import")
         && str_contains($request['text'], route('import.index')));
+});
+
+// ── Document source (.docx) → always queued for validation ─────────────────
+
+it('queues a docx document for review after extracting its text, without classifying it', function () {
+    $bytes = createTestDocxBytes(['Team Offsite on 2026-09-10.', 'Follow up with the client about the contract.']);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($bytes, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    ImportSlackFile::dispatchSync(
+        $this->project,
+        $this->user,
+        slackFilePayload(['name' => 'schedule.docx', 'url_private_download' => 'https://files.slack.com/files-pri/T123-F123/schedule.docx', 'mimetype' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
+        'xoxb-fake-token',
+        'C123',
+    );
+
+    expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
+
+    $pending = SlackPendingImport::where('project_id', $this->project->id)->first();
+    expect($pending)->not->toBeNull()
+        ->and($pending->source_type)->toBe('text')
+        ->and($pending->original_filename)->toBe('schedule.docx')
+        ->and($pending->uploaded_by_user_id)->toBe($this->user->id)
+        ->and($pending->note)->toContain('Word document')
+        ->and($pending->getFirstMedia('file'))->not->toBeNull();
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && str_contains($request['text'], 'Document Placed In Validation Queue')
+        && str_contains($request['text'], route('import.index')));
+});
+
+it('never calls the LLM for a docx upload — classification only happens when a human opens the review modal', function () {
+    $bytes = createTestDocxBytes(['Some content.']);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($bytes, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    test()->mock(LlmDriver::class)->shouldNotReceive('call');
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'schedule.docx']), 'xoxb-fake-token', 'C123');
+
+    expect(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+});
+
+it('replies with an error and does not queue when the docx can\'t be read', function () {
+    Http::fake([
+        'files.slack.com/*' => Http::response('this is not a real docx file', 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'schedule.docx']), 'xoxb-fake-token', 'C123');
+
+    expect(SlackPendingImport::count())->toBe(0);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage' && str_contains($request['text'], "couldn't read"));
+});
+
+it('replies with an error and does not queue when the docx has no content', function () {
+    $bytes = createTestDocxBytes([]);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($bytes, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'schedule.docx']), 'xoxb-fake-token', 'C123');
+
+    expect(SlackPendingImport::count())->toBe(0);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage' && str_contains($request['text'], "didn't have any content"));
 });
 
 // ── Hard failures (never queued) ─────────────────────────────────────────────
