@@ -25,14 +25,15 @@ const { isProcessing: isImportActivityInProgress } = useGlobalImportActivity();
 <template>
     <ImpersonationBanner />
     <SessionTimeoutModal />
-    <AiProcessingHeader
-        :is-processing="isImportActivityInProgress"
-        :progress="0"
-        title="Import In Progress"
-        message="An import is running in the background — you can keep working."
-    />
 
     <AppLayout :breadcrumbs="breadcrumbs">
+        <AiProcessingHeader
+            :is-processing="isImportActivityInProgress"
+            :progress="0"
+            title="Import In Progress"
+            message="An import is running in the background — you can keep working."
+        />
+
         <slot />
 
         <Toaster position="bottom-right" richColors />
