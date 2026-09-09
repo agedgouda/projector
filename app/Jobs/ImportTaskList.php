@@ -344,6 +344,13 @@ class ImportTaskList implements ShouldQueue
                 'untagged' => $untaggedRows,
                 'status' => $skipped === [] ? 'completed' : 'completed_with_errors',
             ],
+            // task_list_import/event_list_import documents are never a "task" per
+            // DocumentTypeDefinition's catalog, so DocumentObserver::creating() never stamps
+            // processed_at the way it does for a real generated task — left null forever, this
+            // makes TraceabilityRow.vue/TaskRowContent.vue's shared isProcessing check
+            // (`processed_at === null`) show every import as permanently "Processing...", success
+            // or failure, regardless of what metadata.status actually says.
+            'processed_at' => now(),
         ]);
 
         $summary = "Imported {$createdCount} {$noun}"
@@ -381,6 +388,7 @@ class ImportTaskList implements ShouldQueue
                 'status' => 'failed',
                 'error' => $exception->getMessage(),
             ]),
+            'processed_at' => now(),
         ]);
 
         event(new TaskListImportProgress(

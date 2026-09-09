@@ -2,6 +2,7 @@
 
 use App\Events\TaskListImportProgress;
 use App\Jobs\GenerateDocumentEmbedding;
+use App\Jobs\ImportTaskList;
 use App\Models\Category;
 use App\Models\Client;
 use App\Models\Document;
@@ -241,7 +242,11 @@ it('creates an import document and one task per row', function () {
     expect($import)->not->toBeNull()
         ->and($import->name)->toBe('tasks.csv')
         ->and($import->metadata['created_count'])->toBe(1)
-        ->and($import->metadata['status'])->toBe('completed');
+        ->and($import->metadata['status'])->toBe('completed')
+        // task_list_import isn't a catalog "task" type, so DocumentObserver never stamps this —
+        // ImportTaskList::finish() has to, or TraceabilityRow.vue/TaskRowContent.vue's shared
+        // isProcessing check (processed_at === null) shows it as permanently "Processing...".
+        ->and($import->processed_at)->not->toBeNull();
 
     $decoded = json_decode($import->content, true);
     expect($decoded)->toHaveCount(1)
@@ -672,7 +677,8 @@ it('creates an import document and one event per row', function () {
     expect($import)->not->toBeNull()
         ->and($import->name)->toBe('events.csv')
         ->and($import->metadata['created_count'])->toBe(1)
-        ->and($import->metadata['status'])->toBe('completed');
+        ->and($import->metadata['status'])->toBe('completed')
+        ->and($import->processed_at)->not->toBeNull();
 
     $event = Document::where('type', 'event')->where('name', 'Kickoff Meeting')->first();
     expect($event)->not->toBeNull()
@@ -680,6 +686,23 @@ it('creates an import document and one event per row', function () {
         ->and($event->start_at)->not->toBeNull()->toStartWith('2026-09-01')
         ->and($event->due_at)->not->toBeNull()->toStartWith('2026-09-03')
         ->and($event->metadata['imported_from'])->toBe($import->id);
+});
+
+it('stamps processed_at on a failed import too, so it does not show as permanently processing', function () {
+    $import = Document::create([
+        'project_id' => $this->project->id,
+        'type' => 'event_list_import',
+        'name' => 'events.csv',
+        'content' => '[]',
+        'metadata' => ['original_filename' => 'events.csv', 'created_count' => 0, 'skipped' => [], 'status' => 'importing'],
+    ]);
+
+    (new ImportTaskList($import, 'event', ['Name'], [['Kickoff']], ['name' => 'Name']))
+        ->failed(new Exception('Something went wrong'));
+
+    $import->refresh();
+    expect($import->metadata['status'])->toBe('failed')
+        ->and($import->processed_at)->not->toBeNull();
 });
 
 it('updates an existing event instead of creating a duplicate when a re-imported row matches on name and start date', function () {
