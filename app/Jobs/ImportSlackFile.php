@@ -276,7 +276,7 @@ class ImportSlackFile implements ShouldQueue
 
     private function queueUnclassifiable(string $tmpPath): void
     {
-        $this->queueForValidation($tmpPath, 'spreadsheet', "Uploaded via Slack — couldn't automatically tell whether this is a task list, an event list, or which column has the name/title.", "Couldn't automatically tell how to import \"{$this->slackFile['name']}\" — added it to the review queue in Projector's Import Wizard: ".route('import.index'));
+        $this->queueForValidation($tmpPath, 'spreadsheet', "Uploaded via Slack — couldn't automatically tell whether this is a task list, an event list, or which column has the name/title.", "Couldn't automatically tell how to import \"{$this->slackFile['name']}\" — added it to the review queue in Projector's Import Wizard: ".$this->importIndexUrl());
     }
 
     /**
@@ -297,29 +297,21 @@ class ImportSlackFile implements ShouldQueue
             'note' => $note,
         ]);
 
-        Log::info('ImportSlackFile: SlackPendingImport created', [
-            'id' => $pendingImport->id,
-            'exists_after_create' => SlackPendingImport::whereKey($pendingImport->id)->exists(),
-            'project_id' => $this->project->id,
-            'filename' => $this->slackFile['name'],
-            'connection' => $pendingImport->getConnectionName() ?? config('database.default'),
-        ]);
-
         $pendingImport->addMedia($tmpPath)->preservingOriginal()->toMediaCollection('file');
 
-        Log::info('ImportSlackFile: media attached to SlackPendingImport', [
-            'id' => $pendingImport->id,
-            'media_count' => $pendingImport->getMedia('file')->count(),
-        ]);
-
-        $url = route('import.index');
-
-        Log::info('ImportSlackFile: about to send Slack reply', [
-            'id' => $pendingImport->id,
-            'exists_right_before_reply' => SlackPendingImport::whereKey($pendingImport->id)->exists(),
-        ]);
-
+        $url = $this->importIndexUrl();
         $this->reply($replyText ?? "\"{$this->slackFile['name']}\" — Document Placed In Validation Queue. <{$url}|Click Here to Review>");
+    }
+
+    /**
+     * Links to the Import Wizard with the uploading project's own organization pre-selected
+     * (?org=) — without it, the link lands on whatever org happens to be active in the
+     * clicker's browser session, which silently shows an empty "Needs Review" list if that
+     * happens to be a different org than the one the file was actually uploaded into.
+     */
+    private function importIndexUrl(): string
+    {
+        return route('import.index', ['org' => $this->project->organization_id]);
     }
 
     private function reply(string $text): void

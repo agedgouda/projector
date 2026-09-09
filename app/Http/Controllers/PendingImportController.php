@@ -44,6 +44,7 @@ class PendingImportController extends Controller
                 'text' => $text,
                 'original_filename' => $pendingImport->original_filename,
                 'project_id' => $pendingImport->project_id,
+                'document_type_catalog' => $pendingImport->project->documentTypeCatalog()->values(),
             ]);
         }
 

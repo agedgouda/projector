@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesImportTransformationOwnership;
 use App\Models\Document;
+use App\Models\Project;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -30,10 +31,23 @@ class ApplyTextImportTransformationRequest extends FormRequest
      * ApplyImportTransformationRequest's mapping-based pass — an extraction_rule instead of a
      * column mapping, since a text source has no columns to resolve against.
      *
+     * list_type isn't limited to task/event: a human reviewing the AI's guess can instead file
+     * the whole document as any other type in the project's own document catalog (Meeting
+     * Notes, Transcription, etc.) — see ImportTransformationController::applyText(), which
+     * skips extraction entirely for those and just saves the source text as that document's
+     * content. extraction_rule only makes sense for task/event, so it's required for those two
+     * and ignored (left null) otherwise.
+     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
+        /** @var Project|null $project */
+        $project = $this->route('project');
+        $allowedTypes = $project
+            ? $project->documentTypeCatalog()->keys()->merge(['task', 'event'])->unique()->values()->all()
+            : ['task', 'event'];
+
         return [
             'original_filename' => ['nullable', 'string', 'max:255'],
             // Generous but bounded — this is substituted whole into a prompt (see
@@ -45,8 +59,8 @@ class ApplyTextImportTransformationRequest extends FormRequest
                 Rule::exists('ai_templates', 'id')->where('type', 'text_import'),
             ],
             'passes' => ['required', 'array', 'min:1'],
-            'passes.*.list_type' => ['required', 'string', 'in:task,event'],
-            'passes.*.extraction_rule' => ['required', 'string', 'max:2000'],
+            'passes.*.list_type' => ['required', 'string', Rule::in($allowedTypes)],
+            'passes.*.extraction_rule' => ['nullable', 'string', 'max:2000', 'required_if:passes.*.list_type,task,event'],
         ];
     }
 

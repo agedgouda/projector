@@ -104,6 +104,7 @@ interface PendingImportTextAnalysis {
     text: string;
     original_filename: string | null;
     project_id: string;
+    document_type_catalog: DocumentSchemaItem[];
 }
 
 type PendingImportAnalysis =
@@ -365,6 +366,7 @@ const dismissPendingImport = async (item: PendingImport) => {
             :original-filename="reviewAnalysis.original_filename"
             source-mode="text"
             :text="reviewAnalysis.text"
+            :document-type-catalog="reviewAnalysis.document_type_catalog"
             @close="reviewOpen = false"
             @imported="handleImported"
         />

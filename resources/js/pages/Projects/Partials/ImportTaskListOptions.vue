@@ -7,10 +7,19 @@ import axios from 'axios';
 import { computed, ref, useTemplateRef } from 'vue';
 import { toast } from 'vue-sonner';
 
-const props = defineProps<{
-    projectId: string;
-    canManage: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        projectId: string;
+        canManage: boolean;
+        // Only used by the "Smart" flow's text-source pass editor — lets a reviewer file a
+        // document under any project document type instead of accepting the AI's task/event
+        // guess. See ImportTransformationModal.vue.
+        documentTypeCatalog?: DocumentSchemaItem[];
+    }>(),
+    {
+        documentTypeCatalog: () => [],
+    },
+);
 
 const emit = defineEmits<{
     (e: 'started'): void;
@@ -189,6 +198,7 @@ defineExpose({
         :original-filename="textSource.originalFilename"
         source-mode="text"
         :text="textSource.text"
+        :document-type-catalog="documentTypeCatalog"
         @close="modalOpen = false"
     />
 </template>

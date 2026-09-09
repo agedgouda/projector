@@ -209,7 +209,7 @@ it('queues the file for validation when the mapping has never been confirmed for
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
         && str_contains($request['text'], 'Document Placed In Validation Queue')
-        && str_contains($request['text'], route('import.index')));
+        && str_contains($request['text'], route('import.index', ['org' => $this->project->organization_id])));
 });
 
 it('queues the whole file for validation when only one of several passes has an unconfirmed mapping', function () {

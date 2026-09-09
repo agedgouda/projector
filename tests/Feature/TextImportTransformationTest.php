@@ -198,6 +198,73 @@ it('leaves provenance null for an ad-hoc applyText with no saved transformation'
         ->and($event->last_output_key)->toBeNull();
 });
 
+it('files a pass as a plain project document when its list_type is overridden away from task/event', function () {
+    DocumentTypeDefinition::create([
+        'organization_id' => null,
+        'key' => 'meeting_notes',
+        'label' => 'Meeting Notes',
+        'is_task' => false,
+        'order' => 2,
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.apply-text', $this->project), [
+            'original_filename' => 'standup.docx',
+            'text' => 'Kickoff meeting on 9/1. Follow-ups: get trailer.',
+            'passes' => [
+                ['list_type' => 'meeting_notes'],
+            ],
+        ])
+        ->assertOk();
+
+    $response->assertJsonPath('passes.0.list_type', 'meeting_notes');
+    $document = Document::where('type', 'meeting_notes')->firstOrFail();
+    expect($document->name)->toBe('standup.docx')
+        ->and($document->content)->toBe('Kickoff meeting on 9/1. Follow-ups: get trailer.')
+        ->and($document->creator_id)->toBe($this->admin->id);
+});
+
+it('does not require an extraction_rule for a pass filed as a plain project document', function () {
+    DocumentTypeDefinition::create([
+        'organization_id' => null,
+        'key' => 'meeting_notes',
+        'label' => 'Meeting Notes',
+        'is_task' => false,
+        'order' => 2,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.apply-text', $this->project), [
+            'text' => 'Some notes.',
+            'passes' => [
+                ['list_type' => 'meeting_notes', 'extraction_rule' => null],
+            ],
+        ])
+        ->assertOk();
+});
+
+it('rejects a list_type that is neither task/event nor in the project catalog', function () {
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.apply-text', $this->project), [
+            'text' => 'Some notes.',
+            'passes' => [
+                ['list_type' => 'not_a_real_type', 'extraction_rule' => 'Anything.'],
+            ],
+        ])
+        ->assertJsonValidationErrors('passes.0.list_type');
+});
+
+it('still requires an extraction_rule for a task/event pass', function () {
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.apply-text', $this->project), [
+            'text' => 'Some notes.',
+            'passes' => [
+                ['list_type' => 'event', 'extraction_rule' => null],
+            ],
+        ])
+        ->assertJsonValidationErrors('passes.0.extraction_rule');
+});
+
 it('rejects a text ai_template_id belonging to a different organization', function () {
     $otherOrg = Organization::create(['name' => 'Other Org']);
     $otherTemplate = AiTemplate::create([

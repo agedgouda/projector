@@ -842,6 +842,7 @@ watch(
                     ref="importTaskListOptionsRef"
                     :project-id="currentProject!.id"
                     :can-manage="canManageTranscripts"
+                    :document-type-catalog="documentTypeCatalog"
                     @started="startImporting"
                 />
             </div>

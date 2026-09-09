@@ -139,19 +139,41 @@ class ImportTransformationController extends Controller
     }
 
     /**
-     * Runs one confirmed pass per detected/saved record type over the same source text — one
-     * ExtractTextRecords dispatch per pass. Provenance (ai_template_id) works exactly like
-     * applySpreadsheet(): every record a pass creates is stamped with the saved transformation
-     * that drove it, when there is one.
+     * Runs one confirmed pass per detected/saved record type over the same source text. A
+     * task/event pass works exactly as before — one ExtractTextRecords dispatch, provenance
+     * (ai_template_id) stamped the same way applySpreadsheet() does. Any other pass is a human
+     * overriding the AI's task/event guess with "this is actually a project document" (Meeting
+     * Notes, Transcription, whatever the project's own catalog offers) — there's nothing to
+     * extract there, so the whole source text becomes that document's content directly, with no
+     * queued job and no extraction_rule involved.
      */
     public function applyText(ApplyTextImportTransformationRequest $request, Project $project): JsonResponse
     {
-        /** @var array{original_filename: string|null, text: string, ai_template_id: int|null, passes: list<array{list_type: string, extraction_rule: string}>} $validated */
+        /** @var array{original_filename: string|null, text: string, ai_template_id: int|null, passes: list<array{list_type: string, extraction_rule: string|null}>} $validated */
         $validated = $request->validated();
+
+        /** @var User $user */
+        $user = $request->user();
 
         $results = [];
 
         foreach ($validated['passes'] as $pass) {
+            if (! in_array($pass['list_type'], ['task', 'event'], true)) {
+                $document = $project->documents()->create([
+                    'type' => $pass['list_type'],
+                    'name' => $validated['original_filename'] ?? 'Imported document',
+                    'content' => $validated['text'],
+                    'creator_id' => $user->id,
+                ]);
+
+                $results[] = [
+                    'list_type' => $pass['list_type'],
+                    'document_id' => $document->id,
+                ];
+
+                continue;
+            }
+
             $isEvent = $pass['list_type'] === 'event';
 
             $importDocument = $project->documents()->create([
@@ -170,7 +192,10 @@ class ImportTransformationController extends Controller
                 $importDocument,
                 $pass['list_type'],
                 $validated['text'],
-                $pass['extraction_rule'],
+                // required_if:passes.*.list_type,task,event guarantees this is a non-empty
+                // string on this branch — the '' fallback is just satisfying the type checker,
+                // never actually reached.
+                $pass['extraction_rule'] ?? '',
                 $validated['ai_template_id'] ?? null,
             );
 

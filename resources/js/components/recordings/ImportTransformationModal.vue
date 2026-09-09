@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { documentTypeLabel } from '@/lib/documentTypes';
 import { fieldsForListType, IGNORE } from '@/lib/taskListImportFields';
 import savedImportTransformationRoutes from '@/routes/import-transformations';
 import importTransformationRoutes from '@/routes/projects/import-transformations';
@@ -44,11 +45,17 @@ const props = withDefaults(
         headers?: string[];
         rows?: string[][];
         text?: string;
+        // Only meaningful in text mode — lets a reviewer override the AI's task/event guess and
+        // file the whole source text as a plain project document instead (Meeting Notes,
+        // Transcription, etc.). Left empty (the default) to keep the pass locked to task/event,
+        // matching every other caller of this modal.
+        documentTypeCatalog?: DocumentSchemaItem[];
     }>(),
     {
         headers: () => [],
         rows: () => [],
         text: '',
+        documentTypeCatalog: () => [],
     },
 );
 
@@ -100,8 +107,13 @@ const effectiveRows = computed(() =>
 // matching sourceMode is ever read/rendered, but keeping both present (rather than a per-pass
 // discriminated shape) is simpler here since sourceMode is fixed for the whole modal instance,
 // never mixed within one set of passes.
+//
+// list_type is a plain string (wider than ImportTransformationPass's own 'task' | 'event') only
+// because a text-mode pass can be reassigned to any key in documentTypeCatalog by the reviewer —
+// a spreadsheet-mode pass never leaves 'task' | 'event' at runtime, so ImportTransformationPassEditor
+// below still declares (and gets asserted into) that narrower type.
 interface EditablePass {
-    list_type: 'task' | 'event';
+    list_type: string;
     mapping: Record<string, string>;
     extractionRule: string;
     rationale?: string | null;
@@ -118,6 +130,14 @@ const classifyError = ref<string | null>(null);
 // removing the pass being viewed lands on a still-valid neighbor instead of an out-of-range page.
 const currentPassIndex = ref(0);
 const currentPass = computed(() => passes.value[currentPassIndex.value]);
+
+// ImportTransformationPassEditor only ever renders for a spreadsheet-mode pass, which never
+// leaves 'task' | 'event' at runtime — narrowed here (rather than inline in the template) since
+// a `|` union cast inside a template expression reads as Vue 2's deprecated filter syntax to
+// eslint-plugin-vue.
+const currentPassAsSpreadsheetListType = computed(
+    () => (currentPass.value?.list_type ?? 'task') as 'task' | 'event',
+);
 
 // Which pages have actually been viewed — Import stays disabled (see canImport below) until
 // every pass has been, even once all of them are validly mapped, so a multi-pass import can't
@@ -243,29 +263,51 @@ const updateCurrentPassExtractionRule = (extractionRule: string) => {
     passes.value = next;
 };
 
+const updateCurrentPassListType = (listType: string) => {
+    const next = [...passes.value];
+    next[currentPassIndex.value] = {
+        ...next[currentPassIndex.value],
+        list_type: listType,
+    };
+    passes.value = next;
+};
+
 // Only ever called for the pass currently on screen (see :removable and @remove below) — lands
 // on the pass now occupying this same page position, or the last remaining one if this was it.
 const removeCurrentPass = () => {
     const index = currentPassIndex.value;
     passes.value = passes.value.filter((_, i) => i !== index);
-    currentPassIndex.value = Math.min(index, Math.max(0, passes.value.length - 1));
+    currentPassIndex.value = Math.min(
+        index,
+        Math.max(0, passes.value.length - 1),
+    );
     // Indices shift under the removed pass, so which of the old ones were genuinely visited no
     // longer lines up — simplest to just require the remaining pages be (re)confirmed.
     visitedPassIndices.value = new Set([currentPassIndex.value]);
 };
+
+// A text pass reassigned away from task/event (see documentTypeCatalog on props) has nothing to
+// extract — the whole source text just becomes that document's content directly, so it needs no
+// extraction_rule and skips this check entirely.
+const isExtractableListType = (listType: string) =>
+    listType === 'task' || listType === 'event';
 
 const canImport = computed(() => {
     if (passes.value.length === 0) return false;
     if (!allPagesVisited.value) return false;
 
     if (props.sourceMode === 'text') {
-        return passes.value.every((pass) => pass.extractionRule.trim() !== '');
+        return passes.value.every(
+            (pass) =>
+                !isExtractableListType(pass.list_type) ||
+                pass.extractionRule.trim() !== '',
+        );
     }
 
     return passes.value.every((pass) => {
-        const nameField = fieldsForListType(pass.list_type).find(
-            (f) => f.key === 'name',
-        );
+        const nameField = fieldsForListType(
+            pass.list_type as 'task' | 'event',
+        ).find((f) => f.key === 'name');
         return !nameField || pass.mapping.name !== IGNORE;
     });
 });
@@ -276,17 +318,21 @@ const buildPassesPayload = () =>
             ? {
                   list_type: pass.list_type,
                   mapping: Object.fromEntries(
-                      fieldsForListType(pass.list_type).map((field) => [
-                          field.key,
-                          pass.mapping[field.key] === IGNORE
-                              ? null
-                              : (pass.mapping[field.key] ?? null),
-                      ]),
+                      fieldsForListType(pass.list_type as 'task' | 'event').map(
+                          (field) => [
+                              field.key,
+                              pass.mapping[field.key] === IGNORE
+                                  ? null
+                                  : (pass.mapping[field.key] ?? null),
+                          ],
+                      ),
                   ),
               }
             : {
                   list_type: pass.list_type,
-                  extraction_rule: pass.extractionRule,
+                  extraction_rule: isExtractableListType(pass.list_type)
+                      ? pass.extractionRule
+                      : null,
               },
     );
 
@@ -382,7 +428,9 @@ const saveAsTransformation = async () => {
                     {{ text.length.toLocaleString() }} characters found{{
                         originalFilename ? ` in ${originalFilename}` : ''
                     }}. This document can become more than one record type —
-                    each pass below creates its own separate Tasks or Events.
+                    each pass below creates its own separate Tasks or Events, or
+                    file the whole document as-is under any other type in "File
+                    As" below.
                 </DialogDescription>
             </DialogHeader>
 
@@ -456,14 +504,19 @@ const saveAsTransformation = async () => {
                                 : 'text-gray-300 dark:text-gray-700',
                         ]"
                     >
-                        {{ pass.list_type === 'task' ? 'Task' : 'Event' }}
+                        {{
+                            documentTypeLabel(
+                                pass.list_type,
+                                documentTypeCatalog,
+                            )
+                        }}
                     </span>
                 </div>
 
                 <ImportTransformationPassEditor
                     v-if="sourceMode === 'spreadsheet' && currentPass"
                     :key="currentPassIndex"
-                    :list-type="currentPass.list_type"
+                    :list-type="currentPassAsSpreadsheetListType"
                     :headers="effectiveHeaders"
                     :rows="effectiveRows"
                     :mapping="currentPass.mapping"
@@ -479,7 +532,9 @@ const saveAsTransformation = async () => {
                     :extraction-rule="currentPass.extractionRule"
                     :rationale="currentPass.rationale"
                     :removable="passes.length > 1"
+                    :type-options="documentTypeCatalog"
                     @update:extraction-rule="updateCurrentPassExtractionRule"
+                    @update:list-type="updateCurrentPassListType"
                     @remove="removeCurrentPass"
                 />
             </div>
@@ -549,7 +604,11 @@ const saveAsTransformation = async () => {
                 >
                     Next
                 </Button>
-                <Button v-else :disabled="!canImport || importing" @click="runImport">
+                <Button
+                    v-else
+                    :disabled="!canImport || importing"
+                    @click="runImport"
+                >
                     {{ importing ? 'Importing…' : 'Import' }}
                 </Button>
             </DialogFooter>
