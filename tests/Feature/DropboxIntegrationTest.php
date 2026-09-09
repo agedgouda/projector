@@ -100,9 +100,12 @@ it('stores the workspace when the dropbox callback succeeds', function () {
     expect(session('status'))->toBe('dropbox-connected');
 });
 
-it('sends an empty body, not an empty JSON array, when fetching account info', function () {
-    // Dropbox's zero-argument RPC endpoints reject a literal "[]" body (Http::post()'s default
-    // when no $data is given) with a 400 — a real production bug this guards against regressing.
+it('sends a literal JSON null, not an empty JSON array or an empty body, when fetching account info', function () {
+    // Two real production bugs this guards against regressing: Http::post()'s default $data
+    // ([]) json_encodes to the array literal "[]", which Dropbox's zero-argument RPC endpoints
+    // reject with a 400; a genuinely empty body isn't valid JSON either, and with
+    // Content-Type: application/json still declared, Dropbox threw its own generic 500 trying
+    // to parse zero bytes. "null" is Dropbox's actual documented convention for "no argument".
     fakeDropboxCallbackHttp();
 
     $this->withSession([
@@ -113,7 +116,7 @@ it('sends an empty body, not an empty JSON array, when fetching account info', f
         ->get(route('organizations.dropbox.callback', ['code' => 'fake-code', 'state' => 'abc123']));
 
     Http::assertSent(fn ($request) => $request->url() === 'https://api.dropboxapi.com/2/users/get_current_account'
-        && $request->body() === '');
+        && $request->body() === 'null');
 });
 
 it('rejects a callback with a mismatched state', function () {

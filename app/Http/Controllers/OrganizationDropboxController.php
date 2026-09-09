@@ -109,12 +109,15 @@ class OrganizationDropboxController extends Controller
         }
 
         // Http::post()'s $data defaults to [], which json_encode()s to the JSON array literal
-        // "[]" — Dropbox's zero-argument RPC endpoints reject that (they expect either no body
-        // at all or an explicit JSON null) with a 400 whose body is plain text, not JSON, which
-        // is why ->json() below would otherwise silently read as null. withBody() sends a
-        // genuinely empty body instead, matching what Dropbox actually expects.
+        // "[]" — Dropbox's zero-argument RPC endpoints reject that with a 400 (its body is plain
+        // text, not JSON, which is why ->body() rather than ->json() is what's logged below). A
+        // genuinely empty (zero-byte) body isn't valid JSON either — still declaring
+        // Content-Type: application/json, so Dropbox tried to parse zero bytes as JSON and threw
+        // its own generic 500 rather than a clean 400. The literal 4-byte string "null" is
+        // Dropbox's actual documented convention for a no-argument route: valid JSON, and
+        // explicitly means "no argument" rather than either failure mode above.
         $accountInfo = Http::withToken($accessToken)
-            ->withBody('', 'application/json')
+            ->withBody('null', 'application/json')
             ->post('https://api.dropboxapi.com/2/users/get_current_account');
 
         if ($accountInfo->failed()) {
