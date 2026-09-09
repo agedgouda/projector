@@ -366,6 +366,95 @@ it('replies with an error and does not queue when the docx has no content', func
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage' && str_contains($request['text'], "didn't have any content"));
 });
 
+// ── #tag override → files a docx directly as that document type, skipping review ───
+
+it('files a docx directly as the tagged type when the filename carries a matching #tag', function () {
+    DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'meeting_notes', 'label' => 'Meeting Notes', 'is_task' => false, 'order' => 3]);
+
+    $bytes = createTestDocxBytes(['Discussed the roadmap.']);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($bytes, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    test()->mock(LlmDriver::class)->shouldNotReceive('call');
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'standup #meeting-notes.docx']), 'xoxb-fake-token', 'C123');
+
+    expect(SlackPendingImport::count())->toBe(0);
+
+    $document = Document::where('project_id', $this->project->id)->where('type', 'meeting_notes')->first();
+    expect($document)->not->toBeNull()
+        ->and($document->name)->toBe('standup #meeting-notes.docx')
+        ->and($document->content)->toBe('Discussed the roadmap.')
+        ->and($document->creator_id)->toBe($this->user->id);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && str_contains($request['text'], 'Filed "standup #meeting-notes.docx" as Meeting Notes'));
+});
+
+it('files a docx directly as the tagged type when the message text (not the filename) carries the #tag', function () {
+    DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'meeting_notes', 'label' => 'Meeting Notes', 'is_task' => false, 'order' => 3]);
+
+    $bytes = createTestDocxBytes(['Discussed the roadmap.']);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($bytes, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    ImportSlackFile::dispatchSync(
+        $this->project,
+        $this->user,
+        slackFilePayload(['name' => 'standup.docx']),
+        'xoxb-fake-token',
+        'C123',
+        'here you go #meeting-notes',
+    );
+
+    expect(SlackPendingImport::count())->toBe(0);
+    expect(Document::where('project_id', $this->project->id)->where('type', 'meeting_notes')->exists())->toBeTrue();
+});
+
+it('falls back to the review queue when two different #tags conflict', function () {
+    DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'meeting_notes', 'label' => 'Meeting Notes', 'is_task' => false, 'order' => 3]);
+    DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'transcription', 'label' => 'Transcription', 'is_task' => false, 'order' => 4]);
+
+    $bytes = createTestDocxBytes(['Discussed the roadmap.']);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($bytes, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    ImportSlackFile::dispatchSync(
+        $this->project,
+        $this->user,
+        slackFilePayload(['name' => 'standup #meeting-notes.docx']),
+        'xoxb-fake-token',
+        'C123',
+        'actually this is a #transcription',
+    );
+
+    expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
+    expect(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+});
+
+it('does not treat a #task or #event tag as a forced-type override', function () {
+    $bytes = createTestDocxBytes(['Discussed the roadmap.']);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($bytes, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'standup #task.docx']), 'xoxb-fake-token', 'C123');
+
+    expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
+    expect(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+});
+
 // ── Hard failures (never queued) ─────────────────────────────────────────────
 
 it('replies with an error and imports nothing when the download fails', function () {

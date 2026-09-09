@@ -7,7 +7,7 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 it('seeds one Slack FAQ entry per usage topic, in order, with keywords', function () {
     $faqs = Faq::where('category', 'Slack')->orderBy('order')->get();
 
-    expect($faqs)->toHaveCount(8);
+    expect($faqs)->toHaveCount(9);
 
     foreach ($faqs as $faq) {
         expect($faq->question)->not->toBeEmpty()
@@ -26,5 +26,5 @@ it('is visible on the FAQ page', function () {
     $response->assertOk();
     $faqs = collect($response->viewData('page')['props']['faqs']);
 
-    expect($faqs->where('category', 'Slack'))->toHaveCount(8);
+    expect($faqs->where('category', 'Slack'))->toHaveCount(9);
 });

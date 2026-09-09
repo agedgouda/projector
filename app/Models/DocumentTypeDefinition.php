@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
  * @property string $label
  * @property bool $is_task
  * @property int $order
+ * @property-read string $short_code
  */
 class DocumentTypeDefinition extends Model
 {
@@ -39,6 +40,20 @@ class DocumentTypeDefinition extends Model
     {
         return Attribute::make(
             get: fn (string $value) => Str::title($value),
+        );
+    }
+
+    /**
+     * A short, human-readable tag (e.g. "Meeting Notes" -> "meeting-notes") a person can type
+     * as #tag in a Slack filename or message to force that type directly, bypassing AI
+     * classification and the review queue entirely — see ImportSlackFile::matchForcedDocumentType().
+     *
+     * @return Attribute<string, never>
+     */
+    protected function shortCode(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value, array $attributes): string => Str::slug($this->label),
         );
     }
 

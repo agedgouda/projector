@@ -2,7 +2,7 @@
 
 This guide covers how to configure a Slack app so an organization can connect its Slack workspace to Projector — creating tasks and events, and importing files, from Slack. Unlike [Google Drive export](google-drive-export-setup.md) (a per-user connection), this is a **per-organization connection**: one org-admin installs the app into the org's Slack workspace from that organization's own settings page, and every bound channel then acts on behalf of that organization.
 
-Outbound messages (the daily digest, Step 9) use only the `chat:write` scope already listed below — no manifest change is needed for that feature specifically.
+Outbound messages (the daily digest, Step 9) use only the `chat:write` scope already listed below — no manifest change is needed for that feature specifically. The same is true of the file-upload import behavior in Step 10, including its document-type fallback and `#tag` override — both read fields already delivered on the `message.channels` event this app already subscribes to, so no scope or manifest change is needed for either.
 
 ---
 
@@ -196,9 +196,9 @@ An admin who administers more than one organization gets one separate DM per org
 
 ---
 
-## Step 10: Import Tasks or Events by Uploading a File
+## Step 10: Import Tasks, Events, or Other Documents by Uploading a File
 
-Drop a CSV, TXT, XLSX, XLS, or DOCX file straight into a bound channel and Projector imports it — no slash command, no shortcut, nothing to click first, and no need to say whether it's a task list or an event list. A spreadsheet (CSV/TXT/XLSX/XLS) and a Word document (DOCX) take different paths once uploaded, described below.
+Drop a CSV, TXT, XLSX, XLS, or DOCX file straight into a bound channel and Projector imports it — no slash command, no shortcut, nothing to click first, and no need to say whether it's a task list, an event list, or something else entirely. A spreadsheet (CSV/TXT/XLSX/XLS) and a Word document (DOCX) take different paths once uploaded, described below.
 
 **Spreadsheets** (CSV, TXT, XLSX, XLS) — structured rows and columns:
 
@@ -207,15 +207,20 @@ Drop a CSV, TXT, XLSX, XLS, or DOCX file straight into a bound channel and Proje
 3. Once an auto-import completes, the bot replies **in the channel**: how many tasks and/or events were created, and a link to the project.
 4. A file with no rows, or over 5,000 rows, gets a clear explanation instead of a half-finished import.
 
-**Word documents** (DOCX) — prose, not columns, so there's no "mapping" to recognize as already-confirmed the way a spreadsheet's layout can be. Every DOCX upload goes straight to **Needs Review** below for a human to classify — there's no auto-import path for documents.
+**Word documents** (DOCX) — prose, not columns, so there's no "mapping" to recognize as already-confirmed the way a spreadsheet's layout can be. A document goes one of two ways:
 
-**Needs Review**: three situations park a file here instead of importing it, each with its own reply in the channel:
+- **Tag it yourself with `#type`, and it files immediately** — see "Forcing a document type with `#tag`" below. No AI call, no review step, just an immediate reply confirming what it was filed as.
+- **Otherwise, it goes to Needs Review** below, where the AI proposes a classification for a human to confirm (or correct) — see "What the AI proposes" below for what that guess can be.
+
+**What the AI proposes:** unless a `#tag` forced it directly (above), a document goes to Needs Review with an AI-proposed starting point. The AI reads the actual content and proposes the record type(s) it genuinely finds evidence for — a "task" and/or "event" pass when the text describes real deliverables or dated occurrences, or, when neither genuinely fits (a meeting transcription, a plain write-up with no actionable items), it proposes filing the whole document as-is under whichever of the project's own document types (Meeting Notes, Transcription, or any other type the project uses) best matches. Either way, this is only ever a starting point — the reviewer can change the proposed type to anything in the project's own document catalog before confirming (see "Needs Review" below).
+
+**Forcing a document type with `#tag`:** every document type in a project's catalog — Task, Event, Meeting Notes, Transcription, or anything else — has a short, human-readable code, auto-derived from its name (lowercased, spaces turned to hyphens — e.g. "Meeting Notes" becomes `meeting-notes`, "Transcription" becomes `transcription`). Include `#<that code>` either in the **filename** (e.g. `standup-notes-#meeting-notes.docx`) or in the **message text** you drop the file with (e.g. upload the file with the comment "here's today's call — #transcription") and Projector files the whole document as-is under that type immediately, skipping AI classification and the review queue entirely. Checking the filename as well as the message text means this still works from a source that can only set a filename with no way to attach a message. A `#task` or `#event` tag is not matched this way — forcing either one still leaves an extraction rule to work out, which is exactly what the AI classification step (still needed either way) produces, so there's no step to skip for those two. If two different tags are found (e.g. one in the filename, a conflicting one in the message), neither is trusted — it falls back to Needs Review rather than guessing which one you meant.
+
+**Needs Review**: situations that park a file here instead of importing it immediately, each with its own reply in the channel:
 - A spreadsheet the AI couldn't confidently tell what it even is (no usable name/title column found for any record type, or the classification call itself failed) — the bot explains it couldn't figure out how to import the file.
 - A spreadsheet the AI *could* classify, but this project has never had a human confirm this particular column mapping before — the bot replies "Document Placed In Validation Queue — Click Here to Review".
-- Any Word document — same "Document Placed In Validation Queue" reply.
+- Any Word document that wasn't forced directly by a `#tag` (above) — same "Document Placed In Validation Queue" reply.
 
-Either way, the file shows up on the Import Wizard landing page (`/import`) under **Needs Review**, visible to anyone who can manage imports for that project. Opening a queued file re-derives its data (re-parses a spreadsheet, or re-extracts a document's text) and opens the same AI-assisted modal a manually-picked "smart" import uses, so a human finishes (or confirms) the classification by hand — the file itself doesn't need to be re-uploaded, since it was already downloaded and stored when it was queued. Completing that review imports the file, and for a spreadsheet also teaches the project that mapping, so the same layout auto-imports next time without a trip through the queue.
+Either way, the file shows up on the Import Wizard landing page (`/import`) under **Needs Review**, visible to anyone who can manage imports for that project. Opening a queued file re-derives its data (re-parses a spreadsheet, or re-extracts a document's text) and opens the same AI-assisted modal a manually-picked "smart" import uses, so a human finishes (or confirms) the classification by hand — the file itself doesn't need to be re-uploaded, since it was already downloaded and stored when it was queued. For a document, the reviewer can accept the AI's proposed type, switch it to any other type in the project's catalog via the "File As" picker, or fill in a task/event extraction rule directly. Completing that review imports the file, and for a spreadsheet also teaches the project that mapping, so the same layout auto-imports next time without a trip through the queue.
 
 Same two requirements as everything else: the channel must be bound to a project, and you (the uploader) must have linked your Slack identity (Step 5) — the bot will tell you if the latter's missing. Any other file type (images, PDFs, etc.) is silently ignored — nothing about this changes how a normal file share in the channel behaves.
-
-A future version will let someone upload a file and manually name the column mapping directly from Slack, without needing to visit the Import Wizard at all — for now, review always happens there.

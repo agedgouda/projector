@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\DocumentTypeDefinition;
 use App\Models\Project;
 use App\Models\ProjectImportMapping;
 use App\Models\SlackPendingImport;
@@ -82,6 +83,10 @@ class ImportSlackFile implements ShouldQueue
      *                                                                                               relevant subset of the Slack file object from the message event's `files` array —
      *                                                                                               passed as a plain array (not re-fetched via files.info) since the file_share
      *                                                                                               message event already carries everything this needs.
+     * @param  string|null  $messageText  The text of the message the file was shared with, if
+     *                                    any — checked (alongside the filename) for a #tag
+     *                                    forcing a specific document type; see
+     *                                    matchForcedDocumentType().
      */
     public function __construct(
         public Project $project,
@@ -89,6 +94,7 @@ class ImportSlackFile implements ShouldQueue
         public array $slackFile,
         public string $slackBotToken,
         public string $slackChannelId,
+        public ?string $messageText = null,
     ) {}
 
     public function handle(TaskListImportService $importService, SpreadsheetClassificationService $classificationService, DocumentFileExtractorService $extractor): void
@@ -173,8 +179,10 @@ class ImportSlackFile implements ShouldQueue
      * A Word document is prose, not a structured column layout — there's no equivalent to a
      * spreadsheet's "this exact mapping was already confirmed for this project" signal (the
      * same real-world content essentially never recurs verbatim), so unlike the spreadsheet
-     * path this never attempts to classify-and-auto-import; every readable document always goes
-     * to the validation queue for a human to classify by hand.
+     * path this never attempts to classify-and-auto-import on its own reading of the content.
+     * It can still skip the review queue when the uploader says explicitly what they want via
+     * a #tag (see matchForcedDocumentType()) — otherwise every readable document goes to the
+     * validation queue for a human to classify by hand.
      */
     private function handleDocumentSource(string $tmpPath, DocumentFileExtractorService $extractor): void
     {
@@ -199,7 +207,64 @@ class ImportSlackFile implements ShouldQueue
             return;
         }
 
+        $forcedType = $this->matchForcedDocumentType();
+
+        if ($forcedType !== null) {
+            $document = $this->project->documents()->create([
+                'type' => $forcedType->key,
+                'name' => $this->slackFile['name'],
+                'content' => $text,
+                'creator_id' => $this->user->id,
+            ]);
+
+            $url = route('projects.show', $this->project);
+            $this->reply("✅ Filed \"{$this->slackFile['name']}\" as {$forcedType->label} (tagged #{$forcedType->short_code}): {$url}");
+
+            return;
+        }
+
         $this->queueForValidation($tmpPath, 'text', 'Uploaded via Slack — a Word document needs a human to classify and confirm what it contains before it can be imported.');
+    }
+
+    /**
+     * Looks for a single, unambiguous #tag (e.g. "#meeting-notes") in the filename and/or
+     * message text matching one of the project's own document type codes (see
+     * DocumentTypeDefinition::short_code) — an explicit, deterministic override an uploader can
+     * use instead of waiting on AI classification and a review step, and (per the second half of
+     * that use case) one that still works from a source that can only set a filename, with no
+     * way to type an accompanying message. Task and event are deliberately not matchable here:
+     * forcing either still leaves an extraction_rule to work out, which is exactly what the AI
+     * classification step (still needed either way) produces — there's no step to skip for
+     * those two the way there is for "just file it as this type verbatim". More than one
+     * distinct type tagged is treated as no match at all, rather than guessing which one the
+     * uploader meant.
+     */
+    private function matchForcedDocumentType(): ?DocumentTypeDefinition
+    {
+        $tags = $this->extractHashtags($this->slackFile['name']);
+        if ($this->messageText !== null) {
+            $tags = [...$tags, ...$this->extractHashtags($this->messageText)];
+        }
+
+        if ($tags === []) {
+            return null;
+        }
+
+        $matches = $this->project->documentTypeCatalog()
+            ->reject(fn (DocumentTypeDefinition $definition) => in_array($definition->key, ['task', 'event'], true))
+            ->filter(fn (DocumentTypeDefinition $definition) => in_array($definition->short_code, $tags, true));
+
+        return $matches->count() === 1 ? $matches->first() : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function extractHashtags(string $text): array
+    {
+        preg_match_all('/#([a-z0-9-]+)/i', $text, $matches);
+
+        return array_map(strtolower(...), $matches[1]);
     }
 
     /**

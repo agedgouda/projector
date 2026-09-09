@@ -72,6 +72,8 @@ class EventsController extends Controller
         $channelId = $request->input('event.channel');
         $slackUserId = $request->input('event.user');
         $files = $request->input('event.files', []);
+        $messageTextRaw = $request->input('event.text');
+        $messageText = is_string($messageTextRaw) && $messageTextRaw !== '' ? $messageTextRaw : null;
 
         if (! is_string($teamId) || ! is_string($channelId) || ! is_string($slackUserId) || ! is_array($files) || $files === []) {
             return;
@@ -122,6 +124,7 @@ class EventsController extends Controller
             ['name' => $name, 'url_private_download' => $urlPrivateDownload, 'mimetype' => $mimetype],
             $workspace->bot_access_token,
             $channelId,
+            $messageText,
         );
     }
 

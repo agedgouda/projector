@@ -143,6 +143,32 @@ it('dispatches an import job for a spreadsheet file shared in a bound channel by
     });
 });
 
+it('forwards the message text alongside a file share, for a #tag forced-type override', function () {
+    Bus::fake();
+    $fixture = bindSlackChannelToProject();
+    SlackUserIdentity::factory()->create(['user_id' => $fixture['user']->id, 'slack_team_id' => 'T123', 'slack_user_id' => 'U123']);
+
+    $payload = fileShareEventPayload(eventOverrides: ['text' => 'here you go #meeting-notes']);
+    $this->withHeaders(signSlackRequest(json_encode($payload)))
+        ->postJson('/slack/events', $payload)
+        ->assertNoContent();
+
+    Bus::assertDispatched(ImportSlackFile::class, fn ($job) => $job->messageText === 'here you go #meeting-notes');
+});
+
+it('passes a null message text when the file share has no accompanying message', function () {
+    Bus::fake();
+    $fixture = bindSlackChannelToProject();
+    SlackUserIdentity::factory()->create(['user_id' => $fixture['user']->id, 'slack_team_id' => 'T123', 'slack_user_id' => 'U123']);
+
+    $payload = fileShareEventPayload(eventOverrides: ['text' => '']);
+    $this->withHeaders(signSlackRequest(json_encode($payload)))
+        ->postJson('/slack/events', $payload)
+        ->assertNoContent();
+
+    Bus::assertDispatched(ImportSlackFile::class, fn ($job) => $job->messageText === null);
+});
+
 it('ignores a non-spreadsheet, non-document file shared in a bound channel', function () {
     Bus::fake();
     $fixture = bindSlackChannelToProject();
