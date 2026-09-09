@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -57,18 +58,33 @@ class OrganizationDropboxController extends Controller
         $organizationId = $request->session()->pull('dropbox_connect_organization_id');
 
         if (! is_string($organizationId) || blank($organizationId) || blank($state) || $request->query('state') !== $state) {
+            Log::warning('Dropbox OAuth callback: state/session mismatch', [
+                'has_session_state' => ! blank($state),
+                'has_session_organization_id' => is_string($organizationId) && ! blank($organizationId),
+                'has_query_state' => ! blank($request->query('state')),
+                'states_match' => $request->query('state') === $state,
+                'query' => $request->query(),
+            ]);
+
             return to_route('dashboard')->with('status', 'dropbox-connect-failed');
         }
 
         $organization = Organization::find($organizationId);
 
         if ($organization === null) {
+            Log::warning('Dropbox OAuth callback: organization from session no longer exists', ['organization_id' => $organizationId]);
+
             return to_route('dashboard')->with('status', 'dropbox-connect-failed');
         }
 
         Gate::authorize('update', $organization);
 
         if (blank($request->query('code'))) {
+            Log::warning('Dropbox OAuth callback: no code in query string', [
+                'organization_id' => $organization->id,
+                'query' => $request->query(),
+            ]);
+
             return $this->redirectToOrganization($organization)->with('status', 'dropbox-connect-failed');
         }
 
@@ -83,6 +99,12 @@ class OrganizationDropboxController extends Controller
         $accessToken = $response->json('access_token');
 
         if ($response->failed() || ! is_string($accessToken)) {
+            Log::warning('Dropbox OAuth callback: token exchange failed', [
+                'organization_id' => $organization->id,
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
             return $this->redirectToOrganization($organization)->with('status', 'dropbox-connect-failed');
         }
 
@@ -90,6 +112,12 @@ class OrganizationDropboxController extends Controller
             ->post('https://api.dropboxapi.com/2/users/get_current_account');
 
         if ($accountInfo->failed()) {
+            Log::warning('Dropbox OAuth callback: fetching account info failed', [
+                'organization_id' => $organization->id,
+                'status' => $accountInfo->status(),
+                'body' => $accountInfo->json(),
+            ]);
+
             return $this->redirectToOrganization($organization)->with('status', 'dropbox-connect-failed');
         }
 
