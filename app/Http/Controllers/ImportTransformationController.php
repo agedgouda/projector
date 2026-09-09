@@ -133,7 +133,14 @@ class ImportTransformationController extends Controller
 
         $project->loadMissing('client.organization');
 
-        $result = $extractionService->classify($validated['text'], $project->client?->organization_id);
+        $documentTypes = array_values(
+            $project->documentTypeCatalog()
+                ->reject(fn ($definition) => in_array($definition->key, ['task', 'event'], true))
+                ->map(fn ($definition) => ['key' => $definition->key, 'label' => $definition->label])
+                ->all()
+        );
+
+        $result = $extractionService->classify($validated['text'], $project->client?->organization_id, $documentTypes);
 
         return response()->json($result);
     }

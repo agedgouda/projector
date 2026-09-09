@@ -102,6 +102,55 @@ it('passes the source text into the classification prompt', function () {
         ->assertOk();
 });
 
+it('offers the project catalog as a fallback classification and widens the schema to match', function () {
+    DocumentTypeDefinition::create([
+        'organization_id' => null,
+        'key' => 'meeting_notes',
+        'label' => 'Meeting Notes',
+        'is_task' => false,
+        'order' => 2,
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(function (string $systemPrompt, string $userPrompt, ?array $schema) {
+            $enum = $schema['properties']['passes']['items']['properties']['list_type']['enum'] ?? [];
+
+            return str_contains($userPrompt, 'Meeting Notes (meeting_notes)')
+                && in_array('meeting_notes', $enum, true)
+                && in_array('task', $enum, true)
+                && in_array('event', $enum, true);
+        })
+        ->andReturn(['status' => 'success', 'content' => [
+            'passes' => [
+                ['list_type' => 'meeting_notes', 'extraction_rule' => 'File as-is.', 'rationale' => 'No task or event content, just a transcript.'],
+            ],
+        ]]);
+
+    $response = $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.classify-text', $this->project), [
+            'text' => '>> Speaker one: just talking, nothing actionable here.',
+        ])
+        ->assertOk();
+
+    $response->assertJsonPath('passes.0.list_type', 'meeting_notes');
+});
+
+it('tells the classifier no document types are available when the project catalog is empty', function () {
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userPrompt) => str_contains($userPrompt, 'None available — propose only task and/or event passes.'))
+        ->andReturn(['status' => 'success', 'content' => textClassificationContent()]);
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.classify-text', $this->project), [
+            'text' => 'Kickoff meeting on 9/1. Follow-ups: get trailer.',
+        ])
+        ->assertOk();
+});
+
 it('surfaces a text classification failure as an error rather than a partial response', function () {
     $this->mock(LlmDriver::class)
         ->shouldReceive('call')
