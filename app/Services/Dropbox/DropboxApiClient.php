@@ -62,12 +62,19 @@ class DropboxApiClient
         $response = Http::withToken($this->ensureFreshToken($workspace))
             ->post(self::API_BASE.'/files/get_metadata', ['path' => $path]);
 
-        if ($response->failed() || $response->json('.tag') !== 'folder') {
+        // Response::json($key) runs $key through data_get(), which always splits on "." for
+        // nested-path traversal — a key literally named ".tag" (Dropbox's own union-type
+        // discriminator) becomes ['', 'tag'], so it never matches the real top-level key and
+        // this always returned null. Plain array access on the fully-decoded body (as
+        // Dropbox\EventsController already does for the same key) is what actually works.
+        $body = $response->json();
+
+        if ($response->failed() || ! is_array($body) || ($body['.tag'] ?? null) !== 'folder') {
             throw new \RuntimeException("Dropbox path \"{$path}\" is not a folder in this account: ".$response->body());
         }
 
-        $folderId = $response->json('id');
-        $resolvedPath = $response->json('path_display');
+        $folderId = $body['id'] ?? null;
+        $resolvedPath = $body['path_display'] ?? null;
 
         if (! is_string($folderId) || ! is_string($resolvedPath)) {
             throw new \RuntimeException('Dropbox files/get_metadata returned an unexpected shape.');
