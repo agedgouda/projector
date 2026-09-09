@@ -31,6 +31,18 @@ class ImportTaskList implements ShouldQueue
      *                                  last_ai_template_id, the same provenance field ProcessDocumentAI already sets for
      *                                  every other AI-produced document, so "which transformation made this" works the same
      *                                  way here as it does everywhere else. Null for an ad-hoc (never-saved) import.
+     * @param  int|null  $confirmedMappingId  The ProjectImportMapping row this pass's mapping was
+     *                                        resolved against, if any (see FileImportProcessor and
+     *                                        ImportTransformationController::applySpreadsheet()) —
+     *                                        events only (see importEvents()), this is what "the
+     *                                        recipe owns its data" means: every re-import under the
+     *                                        same recipe replaces every event that recipe has ever
+     *                                        produced, rather than trying to match rows one at a
+     *                                        time by name + date, which breaks the moment a row's
+     *                                        name changes (an event has no other stable identity to
+     *                                        key on). Null for a plain manual import (no recipe to
+     *                                        own anything), which keeps the name + date matching
+     *                                        importTasks() also uses.
      */
     public function __construct(
         public Document $importDocument,
@@ -39,6 +51,7 @@ class ImportTaskList implements ShouldQueue
         public array $rows,
         public array $mapping,
         public ?int $aiTemplateId = null,
+        public ?int $confirmedMappingId = null,
     ) {}
 
     public function handle(TaskListImportService $importService): void
@@ -150,7 +163,29 @@ class ImportTaskList implements ShouldQueue
     {
         $familyRoot = $project->familyRoot();
         $categories = $project->familyCategories();
-        $existingByKey = $this->existingDocumentsByKey($project, 'event', 'start_at');
+
+        // A confirmed recipe (a header row + mapping a human has approved — see
+        // ProjectImportMapping) owns every event it has ever produced, rather than each row
+        // trying to re-match an existing event by name + date: a renamed row has no other
+        // stable identity to match against, and previously that left the old copy behind as an
+        // orphan instead of replacing it. So every re-import under the same recipe drops that
+        // recipe's entire prior output first and recreates it wholesale from the current rows —
+        // simple and correct as long as the spreadsheet is treated as the source of truth (any
+        // manual edit made to one of these events in Projector is lost on the next re-import).
+        // A plain manual import with no recipe (importDocument wasn't produced through a
+        // confirmed mapping) keeps the old name + date upsert matching instead.
+        $ownedByRecipe = $this->confirmedMappingId !== null;
+        $existingByKey = $ownedByRecipe ? [] : $this->existingDocumentsByKey($project, 'event', 'start_at');
+
+        $droppedCount = 0;
+        if ($ownedByRecipe) {
+            $recipeOwnedEvents = Document::where('project_id', $project->id)
+                ->where('type', 'event')
+                ->where('metadata->source_mapping_id', $this->confirmedMappingId);
+
+            $droppedCount = $recipeOwnedEvents->count();
+            $recipeOwnedEvents->delete();
+        }
 
         $normalizedRows = [];
         $skipped = [];
@@ -198,8 +233,13 @@ class ImportTaskList implements ShouldQueue
             ];
 
             try {
-                $event = $existingByKey[$this->matchKey($name, $startAt)] ?? $project->documents()->make();
+                $event = $ownedByRecipe ? $project->documents()->make() : ($existingByKey[$this->matchKey($name, $startAt)] ?? $project->documents()->make());
                 $isUpdate = $event->exists;
+
+                $metadata = ['imported_from' => $this->importDocument->id];
+                if ($ownedByRecipe) {
+                    $metadata['source_mapping_id'] = $this->confirmedMappingId;
+                }
 
                 $event->forceFill([
                     'type' => 'event',
@@ -207,7 +247,7 @@ class ImportTaskList implements ShouldQueue
                     'content' => $description,
                     'start_at' => $startAt,
                     'due_at' => $dueAt,
-                    'metadata' => ['imported_from' => $this->importDocument->id],
+                    'metadata' => $metadata,
                     'last_ai_template_id' => $this->aiTemplateId,
                     'last_output_key' => $this->aiTemplateId !== null ? $this->listType : null,
                 ]);
@@ -225,7 +265,7 @@ class ImportTaskList implements ShouldQueue
             $this->maybeBroadcastProgress($index + 1, $total);
         }
 
-        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, $updatedCount, '?tab=calendar', 'events');
+        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, $updatedCount, '?tab=calendar', 'events', $droppedCount);
     }
 
     /**
@@ -291,7 +331,7 @@ class ImportTaskList implements ShouldQueue
      * @param  list<array{row: int, reason: string}>  $skipped
      * @param  list<array{row: int, tag: string}>  $untaggedRows
      */
-    private function finish(Project $project, array $normalizedRows, array $skipped, array $untaggedRows, int $createdCount, int $updatedCount, string $redirectQuery, string $noun): void
+    private function finish(Project $project, array $normalizedRows, array $skipped, array $untaggedRows, int $createdCount, int $updatedCount, string $redirectQuery, string $noun, int $droppedCount = 0): void
     {
         $this->importDocument->update([
             'content' => json_encode($normalizedRows, JSON_PRETTY_PRINT),
@@ -299,13 +339,17 @@ class ImportTaskList implements ShouldQueue
                 'original_filename' => $this->importDocument->metadata['original_filename'] ?? null,
                 'created_count' => $createdCount,
                 'updated_count' => $updatedCount,
+                'dropped_count' => $droppedCount,
                 'skipped' => $skipped,
                 'untagged' => $untaggedRows,
                 'status' => $skipped === [] ? 'completed' : 'completed_with_errors',
             ],
         ]);
 
-        $summary = "Imported {$createdCount} {$noun}".($updatedCount > 0 ? ", updated {$updatedCount}" : '').'.';
+        $summary = "Imported {$createdCount} {$noun}"
+            .($updatedCount > 0 ? ", updated {$updatedCount}" : '')
+            .($droppedCount > 0 ? ", removed {$droppedCount} stale" : '')
+            .'.';
         $message = $skipped === []
             ? $summary
             : rtrim($summary, '.').', skipped '.count($skipped).' row(s) — see the import record for details.';

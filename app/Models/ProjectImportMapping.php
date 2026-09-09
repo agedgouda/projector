@@ -80,10 +80,22 @@ class ProjectImportMapping extends Model
      */
     public static function isKnown(Project $project, string $listType, array $mapping): bool
     {
+        return self::findKnown($project, $listType, $mapping) !== null;
+    }
+
+    /**
+     * Same lookup as isKnown(), but returns the row itself (or null) rather than a bare
+     * boolean — used wherever a caller also needs the row's id, e.g. to stamp a freshly
+     * classified (rather than headers-cache-reused) event pass with which recipe owns it.
+     *
+     * @param  array<string, string|null>  $mapping
+     */
+    public static function findKnown(Project $project, string $listType, array $mapping): ?self
+    {
         return self::where('project_id', $project->id)
             ->where('list_type', $listType)
             ->where('mapping_hash', self::fingerprint($mapping))
-            ->exists();
+            ->first();
     }
 
     /**
@@ -97,12 +109,16 @@ class ProjectImportMapping extends Model
      * directly — doesn't need updating; the one caller that matters, applySpreadsheet(), always
      * passes the real headers so confirmedPassesForHeaders() can find this row later.
      *
+     * Returns the confirmed row itself (not just void) so a caller that needs to tag its own
+     * output with which recipe produced it — e.g. applySpreadsheet() stamping an event pass
+     * with this row's id for ImportTaskList's drop-and-reload — doesn't need a second lookup.
+     *
      * @param  array<string, string|null>  $mapping
      * @param  list<string|null>  $headers
      */
-    public static function record(Project $project, string $listType, array $mapping, ?User $confirmedBy = null, array $headers = []): void
+    public static function record(Project $project, string $listType, array $mapping, ?User $confirmedBy = null, array $headers = []): self
     {
-        self::updateOrCreate(
+        return self::updateOrCreate(
             [
                 'project_id' => $project->id,
                 'list_type' => $listType,
@@ -128,14 +144,14 @@ class ProjectImportMapping extends Model
      * exact table — so the caller doesn't need to separately check isKnown() on the result.
      *
      * @param  list<string|null>  $headers
-     * @return list<array{list_type: string, mapping: array<string, string|null>}>
+     * @return list<array{list_type: string, mapping: array<string, string|null>, mapping_id: int}>
      */
     public static function confirmedPassesForHeaders(Project $project, array $headers): array
     {
         return array_values(self::where('project_id', $project->id)
             ->where('headers_hash', self::headersFingerprint($headers))
             ->get()
-            ->map(fn (self $row) => ['list_type' => $row->list_type, 'mapping' => $row->mapping])
+            ->map(fn (self $row) => ['list_type' => $row->list_type, 'mapping' => $row->mapping, 'mapping_id' => $row->id])
             ->all());
     }
 

@@ -189,6 +189,34 @@ it('records each applied pass\'s mapping as confirmed for the project', function
         ->and(ProjectImportMapping::where('project_id', $this->project->id)->first()->confirmed_by_user_id)->toBe($this->admin->id);
 });
 
+it('replaces an event instead of leaving an orphan when a re-applied row under the same confirmed mapping only changes its name', function () {
+    // Reproduces the reported bug directly: an event has no identity beyond name + date, so a
+    // pure rename (same date, different name) can't match anything via the old name+date upsert
+    // — the old row was left behind as an orphan while a new one got created alongside it. A
+    // confirmed recipe now owns everything it has produced and drops it all before recreating,
+    // so a rename just naturally replaces the old row instead of orphaning it.
+    $headers = ['Name', 'Start Date'];
+    $mapping = ['name' => 'Name', 'start_date' => 'Start Date'];
+    $applyPayload = fn (string $eventName) => [
+        'original_filename' => 'calendar.csv',
+        'headers' => $headers,
+        'rows' => [[$eventName, '2026-09-10']],
+        'passes' => [['list_type' => 'event', 'mapping' => $mapping]],
+    ];
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.apply', $this->project), $applyPayload('Cowboys vs Cardinals NFL Game'))
+        ->assertOk();
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.import-transformations.apply', $this->project), $applyPayload('Cowboys vs Cardinals NFL Games are fun'))
+        ->assertOk();
+
+    $events = Document::where('project_id', $this->project->id)->where('type', 'event')->get();
+    expect($events)->toHaveCount(1)
+        ->and($events->first()->name)->toBe('Cowboys vs Cardinals NFL Games are fun');
+});
+
 it('stamps last_ai_template_id and last_output_key when applying a saved transformation', function () {
     $template = AiTemplate::create([
         'name' => 'Marketing Calendar Sheet',

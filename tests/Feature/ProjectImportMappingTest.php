@@ -87,10 +87,10 @@ it('returns nothing for headers no pass has ever been confirmed against', functi
 
 it('returns the confirmed pass for a spreadsheet with the exact same header row', function () {
     $headers = ['Task Name', 'Due Date'];
-    ProjectImportMapping::record($this->project, 'task', MAPPING_A, $this->user, $headers);
+    $recorded = ProjectImportMapping::record($this->project, 'task', MAPPING_A, $this->user, $headers);
 
     expect(ProjectImportMapping::confirmedPassesForHeaders($this->project, $headers))->toBe([
-        ['list_type' => 'task', 'mapping' => MAPPING_A],
+        ['list_type' => 'task', 'mapping' => MAPPING_A, 'mapping_id' => $recorded->id],
     ]);
 });
 

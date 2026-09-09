@@ -137,7 +137,11 @@ it('imports events from a downloaded csv and posts a summary in the channel', fu
     });
 });
 
-it('updates the already-imported event instead of duplicating it when a re-exported file changes a non-matching field', function () {
+it('replaces (drops and reloads), rather than updates in place, the events a confirmed recipe already produced when re-imported', function () {
+    // Events have no reliable identity beyond name + date, which breaks the moment a row's name
+    // changes (see ImportTaskList's own history) — so once a mapping is confirmed for a project,
+    // that recipe "owns" every event it has ever produced: a re-import drops all of them first
+    // and recreates fresh from the current rows, rather than trying to match row-by-row.
     $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Due Date', 'start_date' => 'Start Date', 'tag' => 'Tag']);
     ProjectImportMapping::record($this->project, 'event', $mapping);
 
@@ -153,14 +157,44 @@ it('updates the already-imported event instead of duplicating it when a re-expor
     ]));
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+    $firstEventId = Document::where('project_id', $this->project->id)->where('type', 'event')->sole()->id;
+
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
 
     $events = Document::where('project_id', $this->project->id)->where('type', 'event')->get();
     expect($events)->toHaveCount(1)
+        ->and($events->first()->id)->not->toBe($firstEventId)
         ->and($events->first()->categories->pluck('name'))->toContain('retreat');
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
-        && str_contains($request['text'], 'updated 1 event(s)'));
+        && str_contains($request['text'], 'removed 1 event(s) stale'));
+});
+
+it('replaces a renamed event on the same date instead of leaving the old name behind as an orphan', function () {
+    // The literal reported bug: renaming an event on an otherwise-unchanged spreadsheet used to
+    // leave the old name in place (unmatched by name + date) while creating a new one alongside
+    // it. Goes through the headers-cache path (a confirmed recipe with headers recorded) to also
+    // confirm mapping_id flows through that path, not just the fresh-classification fallback.
+    $headers = ['Name', 'Start Date'];
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date']);
+    ProjectImportMapping::record($this->project, 'event', $mapping, null, $headers);
+
+    Http::fake([
+        'files.slack.com/*' => Http::sequence()
+            ->push("Name,Start Date\nCowboys vs Cardinals NFL Game,2026-09-10", 200)
+            ->push("Name,Start Date\nCowboys vs Cardinals NFL Games are fun,2026-09-10", 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    test()->mock(LlmDriver::class)->shouldNotReceive('call');
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    $events = Document::where('project_id', $this->project->id)->where('type', 'event')->get();
+    expect($events)->toHaveCount(1)
+        ->and($events->first()->name)->toBe('Cowboys vs Cardinals NFL Games are fun')
+        ->and(Document::where('project_id', $this->project->id)->where('name', 'Cowboys vs Cardinals NFL Game')->exists())->toBeFalse();
 });
 
 it('imports tasks from a downloaded csv when classified as a task list', function () {

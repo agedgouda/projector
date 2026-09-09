@@ -94,6 +94,8 @@ class ImportTransformationController extends Controller
                 ],
             ]);
 
+            $confirmedMapping = ProjectImportMapping::record($project, $pass['list_type'], $pass['mapping'], $user, $validated['headers']);
+
             ImportTaskList::dispatch(
                 $importDocument,
                 $pass['list_type'],
@@ -101,9 +103,8 @@ class ImportTransformationController extends Controller
                 $validated['rows'],
                 $pass['mapping'],
                 $validated['ai_template_id'] ?? null,
+                confirmedMappingId: $confirmedMapping->id,
             );
-
-            ProjectImportMapping::record($project, $pass['list_type'], $pass['mapping'], $user, $validated['headers']);
 
             $results[] = [
                 'list_type' => $pass['list_type'],

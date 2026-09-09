@@ -157,8 +157,9 @@ class FileImportProcessor
         // recurring, unchanged-shape upload (e.g. a recurring calendar export) import
         // identically every time instead of occasionally being bounced back for reconfirmation.
         $usablePasses = ProjectImportMapping::confirmedPassesForHeaders($project, $analysis['headers']);
+        $fromHeadersCache = $usablePasses !== [];
 
-        if ($usablePasses === []) {
+        if (! $fromHeadersCache) {
             $usablePasses = $this->classifySpreadsheet($project, $analysis['headers'], $analysis['rows']);
         }
 
@@ -176,9 +177,22 @@ class FileImportProcessor
             );
         }
 
+        // A freshly classified pass (not one already pulled straight from the headers cache
+        // above) needs its own lookup to know whether — and under which recipe's id — it's
+        // already confirmed; attaching mapping_id here is what lets ImportTaskList later know
+        // which recipe owns an event pass's rows for drop-and-reload (see
+        // ProjectImportMapping::record()'s docblock).
+        if (! $fromHeadersCache) {
+            $usablePasses = array_map(function (array $pass) use ($project) {
+                $known = ProjectImportMapping::findKnown($project, $pass['list_type'], $pass['mapping']);
+
+                return $known !== null ? [...$pass, 'mapping_id' => $known->id] : $pass;
+            }, $usablePasses);
+        }
+
         $unconfirmedPasses = array_values(array_filter(
             $usablePasses,
-            fn (array $pass) => ! ProjectImportMapping::isKnown($project, $pass['list_type'], $pass['mapping'])
+            fn (array $pass) => ! array_key_exists('mapping_id', $pass)
         ));
 
         // Even one pass with a mapping this project hasn't confirmed before holds up the whole
@@ -276,7 +290,7 @@ class FileImportProcessor
     }
 
     /**
-     * @param  list<array{list_type: string, mapping: array<string, string|null>}>  $passes
+     * @param  list<array{list_type: string, mapping: array<string, string|null>, mapping_id?: int}>  $passes
      * @param  list<string>  $headers
      * @param  list<list<string>>  $rows
      */
@@ -284,6 +298,7 @@ class FileImportProcessor
     {
         $countsByType = ['task' => 0, 'event' => 0];
         $updatedByType = ['task' => 0, 'event' => 0];
+        $droppedByType = ['task' => 0, 'event' => 0];
 
         foreach ($passes as $pass) {
             $isEvent = $pass['list_type'] === 'event';
@@ -297,16 +312,18 @@ class FileImportProcessor
                     'original_filename' => $originalFilename,
                     'created_count' => 0,
                     'updated_count' => 0,
+                    'dropped_count' => 0,
                     'skipped' => [],
                     'status' => 'importing',
                 ],
             ]);
 
-            ImportTaskList::dispatchSync($importDocument, $pass['list_type'], $headers, $rows, $pass['mapping']);
+            ImportTaskList::dispatchSync($importDocument, $pass['list_type'], $headers, $rows, $pass['mapping'], confirmedMappingId: $pass['mapping_id'] ?? null);
 
             $importDocument->refresh();
             $countsByType[$pass['list_type']] += $importDocument->metadata['created_count'] ?? 0;
             $updatedByType[$pass['list_type']] += $importDocument->metadata['updated_count'] ?? 0;
+            $droppedByType[$pass['list_type']] += $importDocument->metadata['dropped_count'] ?? 0;
         }
 
         $this->recordImportedFile($project, $contentHash, $originalFilename, $sourceLabel);
@@ -319,12 +336,20 @@ class FileImportProcessor
             $updatedByType['task'] > 0 ? "{$updatedByType['task']} task(s)" : null,
             $updatedByType['event'] > 0 ? "{$updatedByType['event']} event(s)" : null,
         ]);
+        $droppedParts = array_filter([
+            $droppedByType['task'] > 0 ? "{$droppedByType['task']} task(s)" : null,
+            $droppedByType['event'] > 0 ? "{$droppedByType['event']} event(s)" : null,
+        ]);
 
         $url = route('projects.show', $project);
         $summary = $parts !== [] ? 'Imported '.implode(' and ', $parts) : 'Imported nothing new';
 
         if ($updatedParts !== []) {
             $summary .= ', updated '.implode(' and ', $updatedParts);
+        }
+
+        if ($droppedParts !== []) {
+            $summary .= ', removed '.implode(' and ', $droppedParts).' stale';
         }
 
         return "✅ {$summary} from \"{$originalFilename}\": {$url}";
