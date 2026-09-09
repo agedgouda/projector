@@ -60,8 +60,7 @@ const props = defineProps<Props>();
 const statusMessages: Record<string, string> = {
     'slack-connected': 'Slack workspace connected.',
     'slack-disconnected': 'Slack workspace disconnected.',
-    'slack-connect-failed':
-        "Slack didn't complete the connection. Try again below.",
+    'slack-connect-failed': "Slack didn't complete the connection.",
     'slack-not-configured':
         "This server hasn't been configured with Slack app credentials yet — see the instructions below.",
     'slack-channel-bound': 'Channel bound to project.',

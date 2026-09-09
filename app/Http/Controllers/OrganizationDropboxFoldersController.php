@@ -10,6 +10,7 @@ use App\Services\Dropbox\DropboxApiClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -50,7 +51,13 @@ class OrganizationDropboxFoldersController extends Controller
 
         try {
             $resolved = $client->resolveFolder($workspace, $validated['folder_path']);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::warning('Dropbox folder binding: resolveFolder failed', [
+                'organization_id' => $organization->id,
+                'folder_path' => $validated['folder_path'],
+                'message' => $e->getMessage(),
+            ]);
+
             throw ValidationException::withMessages(['folder_path' => "Couldn't find that folder in the connected Dropbox account."]);
         }
 

@@ -55,8 +55,7 @@ const props = defineProps<Props>();
 const statusMessages: Record<string, string> = {
     'dropbox-connected': 'Dropbox account connected.',
     'dropbox-disconnected': 'Dropbox account disconnected.',
-    'dropbox-connect-failed':
-        "Dropbox didn't complete the connection. Try again below.",
+    'dropbox-connect-failed': "Dropbox didn't complete the connection.",
     'dropbox-not-configured':
         "This server hasn't been configured with Dropbox app credentials yet.",
     'dropbox-folder-bound': 'Folder bound to project.',
