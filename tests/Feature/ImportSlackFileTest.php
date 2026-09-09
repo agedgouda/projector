@@ -6,9 +6,9 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
+use App\Models\PendingImport;
 use App\Models\Project;
 use App\Models\ProjectImportMapping;
-use App\Models\SlackPendingImport;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 
@@ -203,7 +203,7 @@ it('queues the file for validation when the mapping has never been confirmed for
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
 
-    $pending = SlackPendingImport::where('project_id', $this->project->id)->first();
+    $pending = PendingImport::where('project_id', $this->project->id)->first();
     expect($pending)->not->toBeNull()
         ->and($pending->note)->toContain("hasn't been confirmed for this project before");
 
@@ -232,7 +232,7 @@ it('queues the whole file for validation when only one of several passes has an 
 
     expect(Document::where('project_id', $this->project->id)->where('type', 'task')->count())->toBe(0)
         ->and(Document::where('project_id', $this->project->id)->where('type', 'event')->count())->toBe(0)
-        ->and(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+        ->and(PendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
         && str_contains($request['text'], 'Document Placed In Validation Queue'));
@@ -248,7 +248,7 @@ it('queues the file for review when classification returns no passes', function 
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
 
-    $pending = SlackPendingImport::where('project_id', $this->project->id)->first();
+    $pending = PendingImport::where('project_id', $this->project->id)->first();
     expect($pending)->not->toBeNull()
         ->and($pending->original_filename)->toBe('export.csv')
         ->and($pending->uploaded_by_user_id)->toBe($this->user->id)
@@ -264,7 +264,7 @@ it('queues the file for review when no proposed pass has a usable name column', 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0)
-        ->and(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+        ->and(PendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
 });
 
 it('queues the file for review when the classification call itself fails', function () {
@@ -273,7 +273,7 @@ it('queues the file for review when the classification call itself fails', funct
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
 
-    expect(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+    expect(PendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
 });
 
 it('replies pointing at the import wizard when a file is queued for review', function () {
@@ -310,7 +310,7 @@ it('queues a docx document for review after extracting its text, without classif
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
 
-    $pending = SlackPendingImport::where('project_id', $this->project->id)->first();
+    $pending = PendingImport::where('project_id', $this->project->id)->first();
     expect($pending)->not->toBeNull()
         ->and($pending->source_type)->toBe('text')
         ->and($pending->original_filename)->toBe('schedule.docx')
@@ -335,7 +335,7 @@ it('never calls the LLM for a docx upload — classification only happens when a
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'schedule.docx']), 'xoxb-fake-token', 'C123');
 
-    expect(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+    expect(PendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
 });
 
 it('replies with an error and does not queue when the docx can\'t be read', function () {
@@ -346,7 +346,7 @@ it('replies with an error and does not queue when the docx can\'t be read', func
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'schedule.docx']), 'xoxb-fake-token', 'C123');
 
-    expect(SlackPendingImport::count())->toBe(0);
+    expect(PendingImport::count())->toBe(0);
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage' && str_contains($request['text'], "couldn't read"));
 });
@@ -361,7 +361,7 @@ it('replies with an error and does not queue when the docx has no content', func
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'schedule.docx']), 'xoxb-fake-token', 'C123');
 
-    expect(SlackPendingImport::count())->toBe(0);
+    expect(PendingImport::count())->toBe(0);
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage' && str_contains($request['text'], "didn't have any content"));
 });
@@ -382,7 +382,7 @@ it('files a docx directly as the tagged type when the filename carries a matchin
 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'standup #meeting-notes.docx']), 'xoxb-fake-token', 'C123');
 
-    expect(SlackPendingImport::count())->toBe(0);
+    expect(PendingImport::count())->toBe(0);
 
     $document = Document::where('project_id', $this->project->id)->where('type', 'meeting_notes')->first();
     expect($document)->not->toBeNull()
@@ -413,7 +413,7 @@ it('files a docx directly as the tagged type when the message text (not the file
         'here you go #meeting-notes',
     );
 
-    expect(SlackPendingImport::count())->toBe(0);
+    expect(PendingImport::count())->toBe(0);
     expect(Document::where('project_id', $this->project->id)->where('type', 'meeting_notes')->exists())->toBeTrue();
 });
 
@@ -438,7 +438,7 @@ it('falls back to the review queue when two different #tags conflict', function 
     );
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
-    expect(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+    expect(PendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
 });
 
 it('does not treat a #task or #event tag as a forced-type override', function () {
@@ -452,7 +452,7 @@ it('does not treat a #task or #event tag as a forced-type override', function ()
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(['name' => 'standup #task.docx']), 'xoxb-fake-token', 'C123');
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0);
-    expect(SlackPendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+    expect(PendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
 });
 
 // ── Hard failures (never queued) ─────────────────────────────────────────────
@@ -466,7 +466,7 @@ it('replies with an error and imports nothing when the download fails', function
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0)
-        ->and(SlackPendingImport::count())->toBe(0);
+        ->and(PendingImport::count())->toBe(0);
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage' && str_contains($request['text'], "couldn't download"));
 });
@@ -480,7 +480,7 @@ it('replies with an error and imports nothing when no rows are found', function 
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
 
     expect(Document::where('project_id', $this->project->id)->count())->toBe(0)
-        ->and(SlackPendingImport::count())->toBe(0);
+        ->and(PendingImport::count())->toBe(0);
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage' && str_contains($request['text'], "didn't have any rows"));
 });

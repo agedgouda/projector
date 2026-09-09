@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
-use App\Models\SlackPendingImport;
+use App\Models\PendingImport;
 use App\Services\DocumentFileExtractorService;
 use App\Services\TaskListImportService;
 use Illuminate\Http\JsonResponse;
@@ -12,11 +12,12 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * A pending import is a file ImportSlackFile downloaded from Slack but couldn't import
- * automatically — either a spreadsheet it couldn't confidently classify, a spreadsheet with a
- * column mapping this project hasn't confirmed before, or a Word document (which always needs a
- * human to classify) — parked here (see SlackPendingImport) instead of failing outright or
- * guessing, so a human can resolve it from the Import Wizard landing page.
+ * A pending import is a file an import source (Slack, Dropbox, ...) downloaded but couldn't
+ * import automatically — either a spreadsheet it couldn't confidently classify, a spreadsheet
+ * with a column mapping this project hasn't confirmed before, or a Word document (which always
+ * needs a human to classify, unless a #tag/subfolder forced a type directly) — parked here (see
+ * PendingImport) instead of failing outright or guessing, so a human can resolve it from the
+ * Import Wizard landing page.
  */
 class PendingImportController extends Controller
 {
@@ -29,7 +30,7 @@ class PendingImportController extends Controller
      * DocumentFileExtractorService (matching what ImportTaskListOptions.vue's client-side
      * file.text() would produce for a manually-picked plain-text "smart" import).
      */
-    public function show(SlackPendingImport $pendingImport, TaskListImportService $importService, DocumentFileExtractorService $extractor): JsonResponse
+    public function show(PendingImport $pendingImport, TaskListImportService $importService, DocumentFileExtractorService $extractor): JsonResponse
     {
         Gate::authorize('create', [Document::class, $pendingImport->project]);
 
@@ -63,7 +64,7 @@ class PendingImportController extends Controller
      * right after ImportTransformationModal successfully applies it, so a resolved item doesn't
      * linger in the queue.
      */
-    public function destroy(SlackPendingImport $pendingImport): RedirectResponse|JsonResponse
+    public function destroy(PendingImport $pendingImport): RedirectResponse|JsonResponse
     {
         Gate::authorize('create', [Document::class, $pendingImport->project]);
 

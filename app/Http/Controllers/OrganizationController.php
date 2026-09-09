@@ -6,6 +6,7 @@ use App\Http\Requests\OrganizationRequest;
 use App\Http\Requests\UpdateOrganizationTierRequest;
 use App\Models\AiUsageLog;
 use App\Models\Client;
+use App\Models\DropboxFolderBinding;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
@@ -133,6 +134,16 @@ class OrganizationController extends Controller
         $slackWorkspace = $currentOrg->slackWorkspace;
         [$slackBindings, $slackAvailableChannels] = $this->slackChannelData($slackWorkspace, $user, $currentOrg);
 
+        $dropboxWorkspace = $currentOrg->dropboxWorkspace;
+        $dropboxBindings = $dropboxWorkspace
+            ? $dropboxWorkspace->folderBindings()->with('project:id,name')->get()->map(fn (DropboxFolderBinding $binding) => [
+                'id' => $binding->id,
+                'folder_id' => $binding->folder_id,
+                'folder_path' => $binding->folder_path,
+                'project' => ['id' => $binding->project->id, 'name' => $binding->project->name],
+            ])
+            : collect();
+
         return Inertia::render('Organizations/Show', [
             'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
                 'logo_url' => $currentOrg->logo_url,
@@ -160,6 +171,11 @@ class OrganizationController extends Controller
             'slackBindings' => $slackBindings,
             'slackAvailableChannels' => $slackAvailableChannels,
             'slackProjects' => $slackWorkspace ? Project::visibleTo($user, $currentOrg->id)->where('inactive', false)->orderBy('name')->get(['id', 'name']) : [],
+            'dropboxConnected' => (bool) $dropboxWorkspace,
+            'dropboxAccountName' => $dropboxWorkspace?->account_name,
+            'dropboxConfigured' => filled(config('services.dropbox.client_id')) && filled(config('services.dropbox.client_secret')),
+            'dropboxBindings' => $dropboxBindings,
+            'dropboxProjects' => $dropboxWorkspace ? Project::visibleTo($user, $currentOrg->id)->where('inactive', false)->orderBy('name')->get(['id', 'name']) : [],
             'status' => session('status'),
         ]);
     }

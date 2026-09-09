@@ -27,6 +27,7 @@ interface PendingImport {
     project_id: string;
     project_name: string | null;
     original_filename: string;
+    source: string;
     uploaded_by: string | null;
     note: string | null;
     created_at: string | null;
@@ -173,13 +174,14 @@ const dismissPendingImport = async (item: PendingImport) => {
                 </p>
             </div>
 
-            <!-- Files dropped in a bound Slack channel that ImportSlackFile parked here
-                 (SlackPendingImport) instead of auto-importing — a spreadsheet it couldn't
-                 confidently classify, a spreadsheet with a column mapping this project hasn't
-                 confirmed before, or a Word document (which always needs a human to classify;
-                 see item.note for which of the three). Clicking one re-derives the already-
-                 downloaded file's data and opens the same AI-assisted modal a manually-picked
-                 "smart" import uses (spreadsheet or text source, matching how it was queued);
+            <!-- Files an import source (Slack, Dropbox, ...) parked here (PendingImport)
+                 instead of auto-importing — a spreadsheet it couldn't confidently classify, a
+                 spreadsheet with a column mapping this project hasn't confirmed before, or a
+                 document (which always needs a human to classify, unless a #tag/subfolder
+                 forced a type directly; see item.note for which situation applies). Clicking
+                 one re-derives the already-downloaded file's data and opens the same
+                 AI-assisted modal a manually-picked "smart" import uses (spreadsheet or text
+                 source, matching how it was queued);
                  completing it there both imports the file and — for a spreadsheet — teaches the
                  project that mapping, so the same layout auto-imports next time. -->
             <div v-if="pendingImportsList.length > 0" class="space-y-2">
@@ -211,7 +213,11 @@ const dismissPendingImport = async (item: PendingImport) => {
                                     {{ item.original_filename }}
                                 </p>
                                 <p class="truncate text-xs text-gray-500">
-                                    {{ item.project_name }}
+                                    {{ item.project_name }} — via
+                                    {{
+                                        item.source.charAt(0).toUpperCase() +
+                                        item.source.slice(1)
+                                    }}
                                     <template v-if="item.uploaded_by">
                                         — uploaded by
                                         {{ item.uploaded_by }}</template

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PendingImport;
 use App\Models\Project;
-use App\Models\SlackPendingImport;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,18 +50,20 @@ class ImportWizardController extends Controller
             'logo_url' => $project->logo_url,
         ]);
 
-        // Files ImportSlackFile downloaded but couldn't confidently classify on its own — only
-        // ever shown for a project this user can already manage imports for, the same gate
-        // PendingImportController re-checks before letting anyone actually open one.
-        $pendingImports = SlackPendingImport::whereIn('project_id', $manageableProjects->pluck('id'))
+        // Files an import source (Slack, Dropbox, ...) downloaded but couldn't confidently
+        // classify on its own — only ever shown for a project this user can already manage
+        // imports for, the same gate PendingImportController re-checks before letting anyone
+        // actually open one.
+        $pendingImports = PendingImport::whereIn('project_id', $manageableProjects->pluck('id'))
             ->with('uploadedBy:id,first_name,last_name')
             ->latest()
             ->get()
-            ->map(fn (SlackPendingImport $pendingImport) => [
+            ->map(fn (PendingImport $pendingImport) => [
                 'id' => $pendingImport->id,
                 'project_id' => $pendingImport->project_id,
                 'project_name' => $manageableProjects->firstWhere('id', $pendingImport->project_id)?->name,
                 'original_filename' => $pendingImport->original_filename,
+                'source' => $pendingImport->source,
                 'uploaded_by' => $pendingImport->uploadedBy?->name,
                 'note' => $pendingImport->note,
                 'created_at' => $pendingImport->created_at?->toIso8601String(),

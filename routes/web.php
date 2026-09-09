@@ -265,6 +265,19 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/organizations/{organization}/slack/channels/{binding}', [\App\Http\Controllers\OrganizationSlackChannelsController::class, 'destroy'])
         ->name('organizations.slack.channels.destroy');
 
+    // Mirrors the Slack block immediately above — same reason the callback isn't nested under
+    // /organizations/{organization}/... (see OrganizationDropboxController::connect()'s docblock).
+    Route::get('/organizations/{organization}/dropbox/connect', [\App\Http\Controllers\OrganizationDropboxController::class, 'connect'])
+        ->name('organizations.dropbox.connect');
+    Route::get('/organizations/dropbox/callback', [\App\Http\Controllers\OrganizationDropboxController::class, 'callback'])
+        ->name('organizations.dropbox.callback');
+    Route::delete('/organizations/{organization}/dropbox', [\App\Http\Controllers\OrganizationDropboxController::class, 'disconnect'])
+        ->name('organizations.dropbox.disconnect');
+    Route::post('/organizations/{organization}/dropbox/folders', [\App\Http\Controllers\OrganizationDropboxFoldersController::class, 'store'])
+        ->name('organizations.dropbox.folders.store');
+    Route::delete('/organizations/{organization}/dropbox/folders/{binding}', [\App\Http\Controllers\OrganizationDropboxFoldersController::class, 'destroy'])
+        ->name('organizations.dropbox.folders.destroy');
+
     Route::prefix('organizations/{organization}/documents')->name('organizations.documents.')->group(function () {
         Route::get('/create', [\App\Http\Controllers\OrgDocumentController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\OrgDocumentController::class, 'store'])->name('store');
@@ -474,3 +487,4 @@ Route::middleware(['auth'])->prefix('app')->name('mobile.')->group(function () {
 
 require __DIR__.'/settings.php';
 require __DIR__.'/slack.php';
+require __DIR__.'/dropbox.php';

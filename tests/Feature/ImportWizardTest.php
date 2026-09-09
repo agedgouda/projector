@@ -98,7 +98,7 @@ it('requires authentication', function () {
 });
 
 it('includes a pending import queued from a slack upload for a manageable project', function () {
-    $pending = \App\Models\SlackPendingImport::create([
+    $pending = \App\Models\PendingImport::create([
         'project_id' => $this->project->id,
         'original_filename' => 'export.csv',
         'uploaded_by_user_id' => $this->admin->id,
@@ -118,7 +118,7 @@ it('includes a pending import queued from a slack upload for a manageable projec
 });
 
 it('excludes a pending import for a project the user can\'t manage', function () {
-    \App\Models\SlackPendingImport::create([
+    \App\Models\PendingImport::create([
         'project_id' => $this->project->id,
         'original_filename' => 'export.csv',
     ]);

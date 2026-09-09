@@ -406,4 +406,12 @@ class Organization extends Model implements HasMedia
     {
         return $this->hasOne(SlackWorkspace::class);
     }
+
+    /**
+     * @return HasOne<DropboxWorkspace, $this>
+     */
+    public function dropboxWorkspace(): HasOne
+    {
+        return $this->hasOne(DropboxWorkspace::class);
+    }
 }

@@ -42,6 +42,15 @@ return [
         'signing_secret' => env('SLACK_SIGNING_SECRET'),
     ],
 
+    // The Dropbox app installed per-organization, mirroring the Slack connection above — lets
+    // Projector import files dropped in a bound Dropbox folder the same way it already does for
+    // a bound Slack channel. app_secret both signs the OAuth client_secret role and verifies
+    // inbound webhook signatures (X-Dropbox-Signature) — Dropbox uses the one app secret for both.
+    'dropbox' => [
+        'client_id' => env('DROPBOX_CLIENT_ID'),
+        'client_secret' => env('DROPBOX_CLIENT_SECRET'),
+    ],
+
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),

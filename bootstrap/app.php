@@ -34,15 +34,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'client.access' => \App\Http\Middleware\EnsureUserCanAccessClient::class,
             'org-role' => \App\Http\Middleware\CheckOrgRole::class,
             'slack.signature' => \App\Http\Middleware\VerifySlackSignature::class,
+            'dropbox.signature' => \App\Http\Middleware\VerifyDropboxSignature::class,
         ]);
 
-        // Slack's webhooks (Events API, slash commands, interactivity) are verified via their
-        // own HMAC signature (VerifySlackSignature) instead of a CSRF token — Slack's servers
+        // Slack's/Dropbox's webhooks are verified via their own HMAC signature
+        // (VerifySlackSignature/VerifyDropboxSignature) instead of a CSRF token — their servers
         // can't carry one.
         $middleware->validateCsrfTokens(except: [
             'slack/events',
             'slack/commands',
             'slack/interactivity',
+            'dropbox/events',
         ]);
 
         $middleware->web(append: [

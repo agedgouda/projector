@@ -2,8 +2,8 @@
 
 use App\Models\Client;
 use App\Models\Organization;
+use App\Models\PendingImport;
 use App\Models\Project;
-use App\Models\SlackPendingImport;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Spatie\Permission\Models\Role;
@@ -34,9 +34,9 @@ beforeEach(function () {
     setPermissionsTeamId($this->org->id);
 });
 
-function createPendingImportWithFile(Project $project, string $csv = "Name,Start Date\nTeam Offsite,2026-09-10"): SlackPendingImport
+function createPendingImportWithFile(Project $project, string $csv = "Name,Start Date\nTeam Offsite,2026-09-10"): PendingImport
 {
-    $pendingImport = SlackPendingImport::create([
+    $pendingImport = PendingImport::create([
         'project_id' => $project->id,
         'original_filename' => 'export.csv',
         'source_type' => 'spreadsheet',
@@ -51,9 +51,9 @@ function createPendingImportWithFile(Project $project, string $csv = "Name,Start
     return $pendingImport;
 }
 
-function createPendingImportWithDocx(Project $project, string $line = 'Team Offsite on 2026-09-10.'): SlackPendingImport
+function createPendingImportWithDocx(Project $project, string $line = 'Team Offsite on 2026-09-10.'): PendingImport
 {
-    $pendingImport = SlackPendingImport::create([
+    $pendingImport = PendingImport::create([
         'project_id' => $project->id,
         'original_filename' => 'schedule.docx',
         'source_type' => 'text',
@@ -122,7 +122,7 @@ it('deletes a pending import for a manageable project', function () {
         ->deleteJson(route('import.pending.destroy', $pendingImport))
         ->assertOk();
 
-    expect(SlackPendingImport::find($pendingImport->id))->toBeNull();
+    expect(PendingImport::find($pendingImport->id))->toBeNull();
 });
 
 it('404s a user unrelated to the project deleting a pending import', function () {
@@ -133,5 +133,5 @@ it('404s a user unrelated to the project deleting a pending import', function ()
         ->deleteJson(route('import.pending.destroy', $pendingImport))
         ->assertNotFound();
 
-    expect(SlackPendingImport::find($pendingImport->id))->not->toBeNull();
+    expect(PendingImport::find($pendingImport->id))->not->toBeNull();
 });
