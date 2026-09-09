@@ -297,9 +297,28 @@ class ImportSlackFile implements ShouldQueue
             'note' => $note,
         ]);
 
+        Log::info('ImportSlackFile: SlackPendingImport created', [
+            'id' => $pendingImport->id,
+            'exists_after_create' => SlackPendingImport::whereKey($pendingImport->id)->exists(),
+            'project_id' => $this->project->id,
+            'filename' => $this->slackFile['name'],
+            'connection' => $pendingImport->getConnectionName() ?? config('database.default'),
+        ]);
+
         $pendingImport->addMedia($tmpPath)->preservingOriginal()->toMediaCollection('file');
 
+        Log::info('ImportSlackFile: media attached to SlackPendingImport', [
+            'id' => $pendingImport->id,
+            'media_count' => $pendingImport->getMedia('file')->count(),
+        ]);
+
         $url = route('import.index');
+
+        Log::info('ImportSlackFile: about to send Slack reply', [
+            'id' => $pendingImport->id,
+            'exists_right_before_reply' => SlackPendingImport::whereKey($pendingImport->id)->exists(),
+        ]);
+
         $this->reply($replyText ?? "\"{$this->slackFile['name']}\" — Document Placed In Validation Queue. <{$url}|Click Here to Review>");
     }
 
