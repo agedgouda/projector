@@ -90,7 +90,7 @@ it('creates a new binding', function () {
             'channel_name' => 'general',
             'project_id' => $this->project->id,
         ])
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     $binding = SlackChannelBinding::where('slack_workspace_id', $this->workspace->id)->where('channel_id', 'C1')->first();
 
@@ -115,7 +115,7 @@ it('repoints an existing binding to a different project instead of erroring', fu
             'channel_name' => 'general',
             'project_id' => $otherProject->id,
         ])
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(SlackChannelBinding::where('slack_workspace_id', $this->workspace->id)->where('channel_id', 'C1')->count())->toBe(1)
         ->and(SlackChannelBinding::where('channel_id', 'C1')->first()->project_id)->toBe($otherProject->id);
@@ -167,7 +167,7 @@ it('deletes a binding', function () {
 
     $this->actingAs($this->user)
         ->delete(route('organizations.slack.channels.destroy', [$this->org, $binding]))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(SlackChannelBinding::find($binding->id))->toBeNull();
 });

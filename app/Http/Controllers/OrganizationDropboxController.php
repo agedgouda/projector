@@ -108,14 +108,20 @@ class OrganizationDropboxController extends Controller
             return $this->redirectToOrganization($organization)->with('status', 'dropbox-connect-failed');
         }
 
+        // Http::post()'s $data defaults to [], which json_encode()s to the JSON array literal
+        // "[]" — Dropbox's zero-argument RPC endpoints reject that (they expect either no body
+        // at all or an explicit JSON null) with a 400 whose body is plain text, not JSON, which
+        // is why ->json() below would otherwise silently read as null. withBody() sends a
+        // genuinely empty body instead, matching what Dropbox actually expects.
         $accountInfo = Http::withToken($accessToken)
+            ->withBody('', 'application/json')
             ->post('https://api.dropboxapi.com/2/users/get_current_account');
 
         if ($accountInfo->failed()) {
             Log::warning('Dropbox OAuth callback: fetching account info failed', [
                 'organization_id' => $organization->id,
                 'status' => $accountInfo->status(),
-                'body' => $accountInfo->json(),
+                'body' => $accountInfo->body(),
             ]);
 
             return $this->redirectToOrganization($organization)->with('status', 'dropbox-connect-failed');
@@ -155,10 +161,12 @@ class OrganizationDropboxController extends Controller
 
     /**
      * Dropbox settings live on the organization's own dashboard (the Configuration tab of
-     * Organizations/Show.vue), matching the Slack connection's own redirect target.
+     * Organizations/Show.vue), matching the Slack connection's own redirect target. tab=
+     * configuration is what lets Show.vue land back on that tab directly instead of its default
+     * (Team), which the full-page redirect this action requires would otherwise reset to.
      */
     private function redirectToOrganization(Organization $organization): RedirectResponse
     {
-        return to_route('organizations.index', ['org' => $organization->id]);
+        return to_route('organizations.index', ['org' => $organization->id, 'tab' => 'configuration']);
     }
 }

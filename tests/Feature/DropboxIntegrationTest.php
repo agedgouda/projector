@@ -45,7 +45,7 @@ it('redirects back with a status instead of a broken dropbox url when app creden
     $response = $this->actingAs($this->user)
         ->get(route('organizations.dropbox.connect', $this->org));
 
-    $response->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+    $response->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
     expect(session('status'))->toBe('dropbox-not-configured');
 });
 
@@ -85,7 +85,7 @@ it('stores the workspace when the dropbox callback succeeds', function () {
     ])
         ->actingAs($this->user)
         ->get(route('organizations.dropbox.callback', ['code' => 'fake-code', 'state' => 'abc123']))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     $workspace = DropboxWorkspace::where('organization_id', $this->org->id)->first();
 
@@ -98,6 +98,22 @@ it('stores the workspace when the dropbox callback succeeds', function () {
         ->and($workspace->installed_by_user_id)->toBe($this->user->id);
 
     expect(session('status'))->toBe('dropbox-connected');
+});
+
+it('sends an empty body, not an empty JSON array, when fetching account info', function () {
+    // Dropbox's zero-argument RPC endpoints reject a literal "[]" body (Http::post()'s default
+    // when no $data is given) with a 400 — a real production bug this guards against regressing.
+    fakeDropboxCallbackHttp();
+
+    $this->withSession([
+        'dropbox_connect_state' => 'abc123',
+        'dropbox_connect_organization_id' => $this->org->id,
+    ])
+        ->actingAs($this->user)
+        ->get(route('organizations.dropbox.callback', ['code' => 'fake-code', 'state' => 'abc123']));
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.dropboxapi.com/2/users/get_current_account'
+        && $request->body() === '');
 });
 
 it('rejects a callback with a mismatched state', function () {
@@ -124,7 +140,7 @@ it('does not store a workspace when the token exchange fails', function () {
     ])
         ->actingAs($this->user)
         ->get(route('organizations.dropbox.callback', ['code' => 'fake-code', 'state' => 'abc123']))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(session('status'))->toBe('dropbox-connect-failed')
         ->and(DropboxWorkspace::where('organization_id', $this->org->id)->exists())->toBeFalse();
@@ -137,7 +153,7 @@ it('deletes the workspace on disconnect', function () {
 
     $this->actingAs($this->user)
         ->delete(route('organizations.dropbox.disconnect', $this->org))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(DropboxWorkspace::where('organization_id', $this->org->id)->exists())->toBeFalse();
 });

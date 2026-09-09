@@ -9,6 +9,8 @@ import {
 } from '@/actions/App/Http/Controllers/OrganizationDropboxFoldersController';
 import { Form, router, useForm } from '@inertiajs/vue3';
 import { Info } from 'lucide-vue-next';
+import { onMounted } from 'vue';
+import { toast } from 'vue-sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +62,16 @@ const statusMessages: Record<string, string> = {
     'dropbox-folder-bound': 'Folder bound to project.',
     'dropbox-folder-unbound': 'Folder binding removed.',
 };
+
+const failureStatuses = ['dropbox-connect-failed', 'dropbox-not-configured'];
+
+// The inline status box below is easy to miss once the redirect lands back on the
+// Configuration tab lower down the page — a failure also gets a toast so it's seen immediately.
+onMounted(() => {
+    if (props.status && failureStatuses.includes(props.status)) {
+        toast.error(statusMessages[props.status]);
+    }
+});
 
 // Unlike Slack's channel picker (a real conversations.list to choose from), there's no
 // equivalently simple "list every folder" Dropbox call to build a picker from — the admin types
@@ -133,8 +145,7 @@ function removeBinding(binding: Binding) {
             v-if="status && statusMessages[status]"
             :class="[
                 'rounded-lg border p-3 text-sm',
-                status === 'dropbox-not-configured' ||
-                status === 'dropbox-connect-failed'
+                failureStatuses.includes(status)
                     ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300'
                     : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300',
             ]"

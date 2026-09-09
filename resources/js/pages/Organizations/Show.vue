@@ -110,7 +110,24 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Organization Profile', href: '' },
 ];
 
-const activeTab = ref<'team' | 'clients' | 'configuration' | 'usage'>('team');
+type OrganizationTab = 'team' | 'clients' | 'configuration' | 'usage';
+const validTabs: OrganizationTab[] = [
+    'team',
+    'clients',
+    'configuration',
+    'usage',
+];
+
+// A save/connect/bind action on the Configuration tab (Slack, Dropbox, ...) does a full
+// server redirect back here — without this, it always lands back on the default "Team" tab,
+// forcing a click back down to Configuration to see the result. The redirecting controllers
+// pass ?tab=configuration for exactly this reason.
+const requestedTab = new URLSearchParams(window.location.search).get('tab');
+const activeTab = ref<OrganizationTab>(
+    validTabs.includes(requestedTab as OrganizationTab)
+        ? (requestedTab as OrganizationTab)
+        : 'team',
+);
 
 const formatDocs = (n: number) =>
     `${n.toLocaleString()} ${n === 1 ? 'document' : 'documents'}`;

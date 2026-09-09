@@ -59,7 +59,7 @@ class OrganizationDropboxFoldersController extends Controller
             ['folder_path' => $resolved['folder_path'], 'project_id' => $project->id]
         );
 
-        return to_route('organizations.index', ['org' => $organization->id])->with('status', 'dropbox-folder-bound');
+        return to_route('organizations.index', ['org' => $organization->id, 'tab' => 'configuration'])->with('status', 'dropbox-folder-bound');
     }
 
     public function destroy(Organization $organization, DropboxFolderBinding $binding): RedirectResponse
@@ -70,6 +70,6 @@ class OrganizationDropboxFoldersController extends Controller
 
         $binding->delete();
 
-        return to_route('organizations.index', ['org' => $organization->id])->with('status', 'dropbox-folder-unbound');
+        return to_route('organizations.index', ['org' => $organization->id, 'tab' => 'configuration'])->with('status', 'dropbox-folder-unbound');
     }
 }

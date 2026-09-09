@@ -45,7 +45,7 @@ class OrganizationSlackChannelsController extends Controller
             ['channel_name' => $validated['channel_name'], 'project_id' => $project->id]
         );
 
-        return to_route('organizations.index', ['org' => $organization->id])->with('status', 'slack-channel-bound');
+        return to_route('organizations.index', ['org' => $organization->id, 'tab' => 'configuration'])->with('status', 'slack-channel-bound');
     }
 
     public function destroy(Organization $organization, SlackChannelBinding $binding): RedirectResponse
@@ -56,6 +56,6 @@ class OrganizationSlackChannelsController extends Controller
 
         $binding->delete();
 
-        return to_route('organizations.index', ['org' => $organization->id])->with('status', 'slack-channel-unbound');
+        return to_route('organizations.index', ['org' => $organization->id, 'tab' => 'configuration'])->with('status', 'slack-channel-unbound');
     }
 }

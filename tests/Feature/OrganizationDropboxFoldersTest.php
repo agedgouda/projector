@@ -46,7 +46,7 @@ it('creates a new binding, resolving the typed path to a folder id', function ()
             'folder_path' => '/Intake',
             'project_id' => $this->project->id,
         ])
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     $binding = DropboxFolderBinding::where('dropbox_workspace_id', $this->workspace->id)->where('folder_id', 'id:abc123')->first();
 
@@ -87,7 +87,7 @@ it('repoints an existing binding to a different project instead of erroring', fu
             'folder_path' => '/Intake',
             'project_id' => $otherProject->id,
         ])
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(DropboxFolderBinding::where('dropbox_workspace_id', $this->workspace->id)->where('folder_id', 'id:abc123')->count())->toBe(1)
         ->and(DropboxFolderBinding::where('folder_id', 'id:abc123')->first()->project_id)->toBe($otherProject->id);
@@ -137,7 +137,7 @@ it('deletes a binding', function () {
 
     $this->actingAs($this->user)
         ->delete(route('organizations.dropbox.folders.destroy', [$this->org, $binding]))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(DropboxFolderBinding::find($binding->id))->toBeNull();
 });

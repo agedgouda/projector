@@ -79,7 +79,7 @@ it('redirects back with a status instead of a broken slack url when app credenti
     $response = $this->actingAs($this->user)
         ->get(route('organizations.slack.connect', $this->org));
 
-    $response->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+    $response->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
     expect(session('status'))->toBe('slack-not-configured');
 });
 
@@ -111,7 +111,7 @@ it('stores the workspace when the slack callback succeeds', function () {
     ])
         ->actingAs($this->user)
         ->get(route('organizations.slack.callback', ['code' => 'fake-code', 'state' => 'abc123']))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     $workspace = SlackWorkspace::where('organization_id', $this->org->id)->first();
 
@@ -149,7 +149,7 @@ it('does not store a workspace when slack reports a failed exchange', function (
     ])
         ->actingAs($this->user)
         ->get(route('organizations.slack.callback', ['code' => 'fake-code', 'state' => 'abc123']))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(session('status'))->toBe('slack-connect-failed')
         ->and(SlackWorkspace::where('organization_id', $this->org->id)->exists())->toBeFalse();
@@ -183,7 +183,7 @@ it('lets a second organization connect the same slack team as an existing organi
     ])
         ->actingAs($secondUser)
         ->get(route('organizations.slack.callback', ['code' => 'fake-code', 'state' => 'abc123']))
-        ->assertRedirect(route('organizations.index', ['org' => $secondOrg->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $secondOrg->id, 'tab' => 'configuration']));
 
     expect(SlackWorkspace::where('team_id', 'T123')->count())->toBe(2)
         ->and(SlackWorkspace::where('organization_id', $secondOrg->id)->first()->bot_access_token)->toBe('xoxb-second-token')
@@ -199,7 +199,7 @@ it('deletes the workspace on disconnect', function () {
 
     $this->actingAs($this->user)
         ->delete(route('organizations.slack.disconnect', $this->org))
-        ->assertRedirect(route('organizations.index', ['org' => $this->org->id]));
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
 
     expect(SlackWorkspace::where('organization_id', $this->org->id)->exists())->toBeFalse();
 });

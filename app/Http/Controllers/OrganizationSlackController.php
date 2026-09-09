@@ -127,10 +127,12 @@ class OrganizationSlackController extends Controller
      * Organizations/Show.vue, reached via organizations.index), not a separate edit page —
      * matching how every other connect/disconnect flow in this controller ends up back where the
      * user actually manages the org, with `org` selecting it the same way Projects/Index and the
-     * org switcher already do.
+     * org switcher already do. tab=configuration is what lets Show.vue land back on that tab
+     * directly instead of its default (Team), which this full-page redirect would otherwise reset
+     * to.
      */
     private function redirectToOrganization(Organization $organization): RedirectResponse
     {
-        return to_route('organizations.index', ['org' => $organization->id]);
+        return to_route('organizations.index', ['org' => $organization->id, 'tab' => 'configuration']);
     }
 }
