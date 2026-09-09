@@ -78,3 +78,54 @@ it('recognizes a mapping with only its non-null keys present as the same as one 
 
     expect(ProjectImportMapping::isKnown($this->project, 'task', MAPPING_A))->toBeTrue();
 });
+
+// ── confirmedPassesForHeaders() ──────────────────────────────────────────────
+
+it('returns nothing for headers no pass has ever been confirmed against', function () {
+    expect(ProjectImportMapping::confirmedPassesForHeaders($this->project, ['Task Name', 'Due Date']))->toBe([]);
+});
+
+it('returns the confirmed pass for a spreadsheet with the exact same header row', function () {
+    $headers = ['Task Name', 'Due Date'];
+    ProjectImportMapping::record($this->project, 'task', MAPPING_A, $this->user, $headers);
+
+    expect(ProjectImportMapping::confirmedPassesForHeaders($this->project, $headers))->toBe([
+        ['list_type' => 'task', 'mapping' => MAPPING_A],
+    ]);
+});
+
+it('returns every pass confirmed for a header row, even if they were confirmed on separate occasions', function () {
+    $headers = ['Name', 'Assignee', 'Start Date'];
+    $taskMapping = ['name' => 'Name', 'assignee' => 'Assignee', 'due_at' => null, 'priority' => null, 'task_status' => null, 'start_date' => null, 'description' => null, 'tag' => null];
+    $eventMapping = ['name' => 'Name', 'start_date' => 'Start Date', 'due_at' => null, 'priority' => null, 'task_status' => null, 'assignee' => null, 'description' => null, 'tag' => null];
+
+    ProjectImportMapping::record($this->project, 'task', $taskMapping, $this->user, $headers);
+    ProjectImportMapping::record($this->project, 'event', $eventMapping, $this->user, $headers);
+
+    $passes = ProjectImportMapping::confirmedPassesForHeaders($this->project, $headers);
+
+    expect($passes)->toHaveCount(2)
+        ->and(collect($passes)->pluck('list_type')->sort()->values()->all())->toBe(['event', 'task']);
+});
+
+it('does not match a different header row, even with the same set of column names in a different order', function () {
+    $headers = ['Task Name', 'Due Date'];
+    ProjectImportMapping::record($this->project, 'task', MAPPING_A, $this->user, $headers);
+
+    expect(ProjectImportMapping::confirmedPassesForHeaders($this->project, ['Due Date', 'Task Name']))->toBe([]);
+});
+
+it('scopes confirmed-header passes per project', function () {
+    $headers = ['Task Name', 'Due Date'];
+    ProjectImportMapping::record($this->project, 'task', MAPPING_A, $this->user, $headers);
+
+    expect(ProjectImportMapping::confirmedPassesForHeaders($this->otherProject, $headers))->toBe([]);
+});
+
+it('does not record a headers-based recipe when the caller never passes headers', function () {
+    // Callers that don't care about headers-based reuse (mostly older confirmation paths) can
+    // still record a mapping via isKnown()'s exact-fingerprint match without opting into this.
+    ProjectImportMapping::record($this->project, 'task', MAPPING_A, $this->user);
+
+    expect(ProjectImportMapping::confirmedPassesForHeaders($this->project, ['Task Name', 'Due Date']))->toBe([]);
+});

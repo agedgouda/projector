@@ -214,6 +214,83 @@ it('imports both tasks and events from a single file with a mixed classification
         && str_contains($request['text'], 'event(s)'));
 });
 
+// ── Reuses a previously-confirmed mapping for a recognized header row, without re-classifying ─
+
+it('auto-imports a spreadsheet with a previously-confirmed header row without calling the AI classifier, even when row content changes', function () {
+    // Reproduces a real production bug: the AI classifier isn't guaranteed to propose the same
+    // passes on every call, even for a file whose shape (headers) hasn't changed — a trivial
+    // edit to one cell's text was enough to make it additionally propose an unconfirmed "task"
+    // pass alongside the already-working "event" pass, bouncing an unchanged-shape re-upload
+    // back to the review queue. Recording the headers a confirmation applied to (see
+    // ProjectImportMapping::confirmedPassesForHeaders()) lets this skip the classifier — and its
+    // non-determinism — entirely once a project has confirmed a given header row before.
+    $headers = ['Name', 'Start Date'];
+    $eventMapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date']);
+    ProjectImportMapping::record($this->project, 'event', $eventMapping, null, $headers);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response("Name,Start Date\nCowboys vs Cardinals NFL Games are fun,2026-09-10", 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    test()->mock(LlmDriver::class)->shouldNotReceive('call');
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    $events = Document::where('project_id', $this->project->id)->where('type', 'event')->get();
+    expect($events)->toHaveCount(1)
+        ->and($events->first()->name)->toBe('Cowboys vs Cardinals NFL Games are fun')
+        ->and(PendingImport::count())->toBe(0);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && str_contains($request['text'], 'Imported 1 event(s)'));
+});
+
+it('reuses every pass confirmed together for a header row, not just one', function () {
+    $headers = ['Name', 'Assignee', 'Start Date'];
+    $taskMapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'assignee' => 'Assignee']);
+    $eventMapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date']);
+    ProjectImportMapping::record($this->project, 'task', $taskMapping, null, $headers);
+    ProjectImportMapping::record($this->project, 'event', $eventMapping, null, $headers);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response("Name,Assignee,Start Date\nFollow up with client,Jane,\nTeam Offsite,,2026-09-10", 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    test()->mock(LlmDriver::class)->shouldNotReceive('call');
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    // Both passes run over the exact same rows (see importSpreadsheetPasses()), so both rows
+    // produce both a task and an event — the point of this test is that both passes ran at all
+    // (i.e. the confirmed recipe for these headers is reused in full), not the per-row counts.
+    expect(Document::where('project_id', $this->project->id)->where('type', 'task')->count())->toBe(2)
+        ->and(Document::where('project_id', $this->project->id)->where('type', 'event')->count())->toBe(2)
+        ->and(PendingImport::count())->toBe(0);
+});
+
+it('falls back to AI classification for a spreadsheet whose headers have never been confirmed', function () {
+    // A genuinely different (or first-ever) header row still goes through the normal
+    // classify-then-confirm flow — the headers-based shortcut only applies once a project has
+    // actually confirmed that exact header row before.
+    ProjectImportMapping::record($this->project, 'event', array_merge(EMPTY_MAPPING, ['name' => 'Name', 'start_date' => 'Start Date']), null, ['Name', 'Start Date']);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response("Title,Kickoff\nTeam Offsite,2026-09-10", 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Title', 'start_date' => 'Kickoff']);
+    fakeClassification([
+        ['list_type' => 'event', 'mapping' => $mapping],
+    ]);
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    expect(PendingImport::where('project_id', $this->project->id)->exists())->toBeTrue();
+});
+
 // ── Mapping not yet confirmed for this project → queued for validation ─────
 
 it('queues the file for validation when the mapping has never been confirmed for this project', function () {

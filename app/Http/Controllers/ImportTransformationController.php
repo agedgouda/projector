@@ -103,7 +103,7 @@ class ImportTransformationController extends Controller
                 $validated['ai_template_id'] ?? null,
             );
 
-            ProjectImportMapping::record($project, $pass['list_type'], $pass['mapping'], $user);
+            ProjectImportMapping::record($project, $pass['list_type'], $pass['mapping'], $user, $validated['headers']);
 
             $results[] = [
                 'list_type' => $pass['list_type'],

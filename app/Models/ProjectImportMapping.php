@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $list_type
  * @property array<string, string|null> $mapping
  * @property string $mapping_hash
+ * @property list<string|null>|null $headers
+ * @property string|null $headers_hash
  * @property int|null $confirmed_by_user_id
  * @property Project $project
  * @property User|null $confirmedBy
@@ -41,6 +43,8 @@ class ProjectImportMapping extends Model
         'list_type',
         'mapping',
         'mapping_hash',
+        'headers',
+        'headers_hash',
         'confirmed_by_user_id',
     ];
 
@@ -48,6 +52,7 @@ class ProjectImportMapping extends Model
     {
         return [
             'mapping' => 'array',
+            'headers' => 'array',
         ];
     }
 
@@ -87,9 +92,15 @@ class ProjectImportMapping extends Model
      * updateOrCreate keeps the row's confirmed_by/timestamps current for the most recent
      * confirmation instead of accumulating duplicates.
      *
+     * $headers is optional (defaults to none recorded) only so every existing caller that never
+     * had a reason to know about headers-based reuse — mostly tests exercising isKnown()
+     * directly — doesn't need updating; the one caller that matters, applySpreadsheet(), always
+     * passes the real headers so confirmedPassesForHeaders() can find this row later.
+     *
      * @param  array<string, string|null>  $mapping
+     * @param  list<string|null>  $headers
      */
-    public static function record(Project $project, string $listType, array $mapping, ?User $confirmedBy = null): void
+    public static function record(Project $project, string $listType, array $mapping, ?User $confirmedBy = null, array $headers = []): void
     {
         self::updateOrCreate(
             [
@@ -100,8 +111,32 @@ class ProjectImportMapping extends Model
             [
                 'mapping' => $mapping,
                 'confirmed_by_user_id' => $confirmedBy?->id,
+                'headers' => $headers !== [] ? $headers : null,
+                'headers_hash' => $headers !== [] ? self::headersFingerprint($headers) : null,
             ]
         );
+    }
+
+    /**
+     * Every pass a human has already confirmed for a spreadsheet with this exact header row —
+     * checked by FileImportProcessor before it ever asks the AI classifier to propose passes,
+     * so a project's recurring, unchanged-shape template (e.g. a recurring calendar export)
+     * imports identically every time instead of being at the mercy of the classifier possibly
+     * proposing a different set of passes on a re-upload whose actual shape hasn't changed (the
+     * AI is not guaranteed to be deterministic call to call — see this migration's own
+     * docblock). Every row returned is, by construction, already "known" — it came from this
+     * exact table — so the caller doesn't need to separately check isKnown() on the result.
+     *
+     * @param  list<string|null>  $headers
+     * @return list<array{list_type: string, mapping: array<string, string|null>}>
+     */
+    public static function confirmedPassesForHeaders(Project $project, array $headers): array
+    {
+        return array_values(self::where('project_id', $project->id)
+            ->where('headers_hash', self::headersFingerprint($headers))
+            ->get()
+            ->map(fn (self $row) => ['list_type' => $row->list_type, 'mapping' => $row->mapping])
+            ->all());
     }
 
     /**
@@ -124,6 +159,20 @@ class ProjectImportMapping extends Model
         // Can only fail for a resource or NaN/INF float in the input — $normalized's values
         // are always string|null (each pulled straight from $mapping, itself always a plain
         // string|null-valued array per every caller's own array{...} shape).
+        return hash('sha256', $json !== false ? $json : '');
+    }
+
+    /**
+     * Order-sensitive on purpose — headers in a different order is a different template as far
+     * as reuse is concerned, even if it happens to contain the same column names, since nothing
+     * here re-derives which header is "the same" column beyond exact position + text.
+     *
+     * @param  list<string|null>  $headers
+     */
+    private static function headersFingerprint(array $headers): string
+    {
+        $json = json_encode($headers);
+
         return hash('sha256', $json !== false ? $json : '');
     }
 }

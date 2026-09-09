@@ -149,7 +149,18 @@ class FileImportProcessor
             return "\"{$originalFilename}\" has more than ".self::MAX_ROWS." rows — that's too many to import automatically. Try the Import Wizard in Projector instead.";
         }
 
-        $usablePasses = $this->classifySpreadsheet($project, $analysis['headers'], $analysis['rows']);
+        // A project that has already confirmed how to handle a spreadsheet with this exact
+        // header row reuses that recipe directly, without asking the AI classifier to propose
+        // passes again — the classifier isn't guaranteed to reproduce the same passes call to
+        // call even when the file's actual shape hasn't changed (see
+        // ProjectImportMapping::confirmedPassesForHeaders()'s docblock), so this is what makes a
+        // recurring, unchanged-shape upload (e.g. a recurring calendar export) import
+        // identically every time instead of occasionally being bounced back for reconfirmation.
+        $usablePasses = ProjectImportMapping::confirmedPassesForHeaders($project, $analysis['headers']);
+
+        if ($usablePasses === []) {
+            $usablePasses = $this->classifySpreadsheet($project, $analysis['headers'], $analysis['rows']);
+        }
 
         if ($usablePasses === []) {
             return $this->queueForValidation(
