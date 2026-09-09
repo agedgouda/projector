@@ -255,6 +255,45 @@ it('creates an import document and one task per row', function () {
         ->and($task->metadata['imported_from'])->toBe($import->id);
 });
 
+it('updates an existing task instead of creating a duplicate when a re-imported row matches on name and due date', function () {
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), importPayload())
+        ->assertSuccessful();
+
+    $response = $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), importPayload([
+            'rows' => [
+                ['Write report', 'low', 'done', '2026-09-01', 'jane@example.com'],
+            ],
+        ]))
+        ->assertSuccessful();
+
+    $import = Document::find($response->json('import_document_id'));
+    expect($import->metadata['created_count'])->toBe(0)
+        ->and($import->metadata['updated_count'])->toBe(1);
+
+    $tasks = Document::where('type', 'task')->where('name', 'Write report')->get();
+    expect($tasks)->toHaveCount(1)
+        ->and($tasks->first()->priority)->toBe('low')
+        ->and($tasks->first()->task_status)->toBe('done');
+});
+
+it('creates a separate task, not an update, when a re-imported row has the same name but a different due date', function () {
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), importPayload())
+        ->assertSuccessful();
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), importPayload([
+            'rows' => [
+                ['Write report', 'high', 'in_progress', '2026-09-08', 'jane@example.com'],
+            ],
+        ]))
+        ->assertSuccessful();
+
+    expect(Document::where('type', 'task')->where('name', 'Write report')->count())->toBe(2);
+});
+
 it('never dispatches embedding generation for the import record itself', function () {
     // The import document's content is a JSON dump of every imported row (see
     // ImportTaskList::finish()), not human-readable text — embedding it is meaningless, and a
@@ -641,6 +680,45 @@ it('creates an import document and one event per row', function () {
         ->and($event->start_at)->not->toBeNull()->toStartWith('2026-09-01')
         ->and($event->due_at)->not->toBeNull()->toStartWith('2026-09-03')
         ->and($event->metadata['imported_from'])->toBe($import->id);
+});
+
+it('updates an existing event instead of creating a duplicate when a re-imported row matches on name and start date', function () {
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), eventImportPayload())
+        ->assertSuccessful();
+
+    $response = $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), eventImportPayload([
+            'rows' => [
+                ['Kickoff Meeting', 'Rescheduled kickoff', '2026-09-01', '2026-09-05'],
+            ],
+        ]))
+        ->assertSuccessful();
+
+    $import = Document::find($response->json('import_document_id'));
+    expect($import->metadata['created_count'])->toBe(0)
+        ->and($import->metadata['updated_count'])->toBe(1);
+
+    $events = Document::where('type', 'event')->where('name', 'Kickoff Meeting')->get();
+    expect($events)->toHaveCount(1)
+        ->and($events->first()->content)->toBe('Rescheduled kickoff')
+        ->and($events->first()->due_at)->toStartWith('2026-09-05');
+});
+
+it('creates a separate event, not an update, when a re-imported row has the same name but a different start date', function () {
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), eventImportPayload())
+        ->assertSuccessful();
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.task-lists.store', $this->project), eventImportPayload([
+            'rows' => [
+                ['Kickoff Meeting', 'A different kickoff entirely', '2026-10-01', '2026-10-03'],
+            ],
+        ]))
+        ->assertSuccessful();
+
+    expect(Document::where('type', 'event')->where('name', 'Kickoff Meeting')->count())->toBe(2);
 });
 
 it('broadcasts a final TaskListImportProgress event pointing at the calendar tab once the import finishes', function () {

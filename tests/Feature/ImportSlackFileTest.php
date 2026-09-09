@@ -5,6 +5,7 @@ use App\Jobs\ImportSlackFile;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
+use App\Models\ImportedFile;
 use App\Models\Organization;
 use App\Models\PendingImport;
 use App\Models\Project;
@@ -134,6 +135,32 @@ it('imports events from a downloaded csv and posts a summary in the channel', fu
             && $request['channel'] === 'C123'
             && str_contains($request['text'], 'Imported 2 event(s)');
     });
+});
+
+it('updates the already-imported event instead of duplicating it when a re-exported file changes a non-matching field', function () {
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Due Date', 'start_date' => 'Start Date', 'tag' => 'Tag']);
+    ProjectImportMapping::record($this->project, 'event', $mapping);
+
+    Http::fake([
+        'files.slack.com/*' => Http::sequence()
+            ->push("Name,Start Date,Due Date,Tag\nTeam Offsite,2026-09-10,2026-09-10,offsite", 200)
+            ->push("Name,Start Date,Due Date,Tag\nTeam Offsite,2026-09-10,2026-09-10,retreat", 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    test()->mock(LlmDriver::class)->shouldReceive('call')->twice()->andReturn(classificationResult([
+        ['list_type' => 'event', 'mapping' => $mapping],
+    ]));
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    $events = Document::where('project_id', $this->project->id)->where('type', 'event')->get();
+    expect($events)->toHaveCount(1)
+        ->and($events->first()->categories->pluck('name'))->toContain('retreat');
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && str_contains($request['text'], 'updated 1 event(s)'));
 });
 
 it('imports tasks from a downloaded csv when classified as a task list', function () {
@@ -508,4 +535,55 @@ it('logs a warning without throwing when the summary chat.postMessage fails', fu
     ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
 
     expect(Document::where('project_id', $this->project->id)->where('type', 'event')->count())->toBe(1);
+});
+
+// ── Duplicate file content → skipped, not re-imported ───────────────────────
+
+it('does not re-import the same file content twice for the same project, and tells the channel it was already imported', function () {
+    $csv = "Name,Start Date\nTeam Offsite,2026-09-10\nQuarterly Review,2026-09-15";
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Start Date']);
+    ProjectImportMapping::record($this->project, 'event', $mapping);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($csv, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    // Only expected once: the second dispatch's content hash is recognized before
+    // classification is ever reached, so the LLM is never called a second time.
+    fakeClassification([
+        ['list_type' => 'event', 'mapping' => $mapping],
+    ]);
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    expect(Document::where('project_id', $this->project->id)->where('type', 'event')->count())->toBe(2)
+        ->and(ImportedFile::where('project_id', $this->project->id)->count())->toBe(1);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && str_contains($request['text'], 'already been imported'));
+});
+
+it('imports the same file content into a different project independently', function () {
+    $csv = "Name,Start Date\nTeam Offsite,2026-09-10";
+    $mapping = array_merge(EMPTY_MAPPING, ['name' => 'Name', 'due_at' => 'Start Date']);
+    $secondProject = Project::create(['name' => 'Second Project', 'client_id' => $this->client->id]);
+    ProjectImportMapping::record($this->project, 'event', $mapping);
+    ProjectImportMapping::record($secondProject, 'event', $mapping);
+
+    Http::fake([
+        'files.slack.com/*' => Http::response($csv, 200),
+        'slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200),
+    ]);
+
+    test()->mock(LlmDriver::class)->shouldReceive('call')->twice()->andReturn(classificationResult([
+        ['list_type' => 'event', 'mapping' => $mapping],
+    ]));
+
+    ImportSlackFile::dispatchSync($this->project, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+    ImportSlackFile::dispatchSync($secondProject, $this->user, slackFilePayload(), 'xoxb-fake-token', 'C123');
+
+    expect(Document::where('project_id', $this->project->id)->where('type', 'event')->count())->toBe(1)
+        ->and(Document::where('project_id', $secondProject->id)->where('type', 'event')->count())->toBe(1);
 });

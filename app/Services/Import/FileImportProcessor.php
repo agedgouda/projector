@@ -3,6 +3,7 @@
 namespace App\Services\Import;
 
 use App\Jobs\ImportTaskList;
+use App\Models\ImportedFile;
 use App\Models\PendingImport;
 use App\Models\Project;
 use App\Models\ProjectImportMapping;
@@ -122,14 +123,20 @@ class FileImportProcessor
             return null;
         }
 
-        if ($isDocument) {
-            return $this->processDocument($project, $attributedTo, $tmpPath, $originalFilename, $tagSignals, $exactFolderName, $sourceLabel);
+        $contentHash = (string) hash_file('sha256', $tmpPath);
+
+        if (ImportedFile::where('project_id', $project->id)->where('content_hash', $contentHash)->exists()) {
+            return "\"{$originalFilename}\" has already been imported into this project — skipping to avoid creating duplicates.";
         }
 
-        return $this->processSpreadsheet($project, $attributedTo, $tmpPath, $originalFilename, $mimetype, $sourceLabel);
+        if ($isDocument) {
+            return $this->processDocument($project, $attributedTo, $tmpPath, $originalFilename, $tagSignals, $exactFolderName, $sourceLabel, $contentHash);
+        }
+
+        return $this->processSpreadsheet($project, $attributedTo, $tmpPath, $originalFilename, $mimetype, $sourceLabel, $contentHash);
     }
 
-    private function processSpreadsheet(Project $project, User $attributedTo, string $tmpPath, string $originalFilename, ?string $mimetype, string $sourceLabel): string
+    private function processSpreadsheet(Project $project, User $attributedTo, string $tmpPath, string $originalFilename, ?string $mimetype, string $sourceLabel, string $contentHash): string
     {
         $uploadedFile = new UploadedFile($tmpPath, $originalFilename, $mimetype, null, true);
         $analysis = $this->importService->analyze($uploadedFile);
@@ -152,6 +159,7 @@ class FileImportProcessor
                 $originalFilename,
                 'spreadsheet',
                 $sourceLabel,
+                $contentHash,
                 'Uploaded via '.ucfirst($sourceLabel)." — couldn't automatically tell whether this is a task list, an event list, or which column has the name/title.",
                 "Couldn't automatically tell how to import \"{$originalFilename}\" — added it to the review queue in Projector's Import Wizard: ".$this->importIndexUrl($project)
             );
@@ -174,17 +182,18 @@ class FileImportProcessor
                 $originalFilename,
                 'spreadsheet',
                 $sourceLabel,
+                $contentHash,
                 'Uploaded via '.ucfirst($sourceLabel)." — classified as {$this->passTypesSummary($usablePasses)}, but this column mapping hasn't been confirmed for this project before.",
             );
         }
 
-        return $this->importSpreadsheetPasses($project, $attributedTo, $originalFilename, $usablePasses, $analysis['headers'], $analysis['rows']);
+        return $this->importSpreadsheetPasses($project, $attributedTo, $originalFilename, $usablePasses, $analysis['headers'], $analysis['rows'], $sourceLabel, $contentHash);
     }
 
     /**
      * @param  list<string>  $tagSignals
      */
-    private function processDocument(Project $project, User $attributedTo, string $tmpPath, string $originalFilename, array $tagSignals, ?string $exactFolderName, string $sourceLabel): string
+    private function processDocument(Project $project, User $attributedTo, string $tmpPath, string $originalFilename, array $tagSignals, ?string $exactFolderName, string $sourceLabel, string $contentHash): string
     {
         try {
             $text = trim(strip_tags($this->extractor->extractDocxHtml($tmpPath)));
@@ -212,6 +221,8 @@ class FileImportProcessor
                 'creator_id' => $attributedTo->id,
             ]);
 
+            $this->recordImportedFile($project, $contentHash, $originalFilename, $sourceLabel);
+
             $url = route('projects.show', $project);
 
             return "✅ Filed \"{$originalFilename}\" as {$forcedType->label} (tagged #{$forcedType->short_code}): {$url}";
@@ -224,6 +235,7 @@ class FileImportProcessor
             $originalFilename,
             'text',
             $sourceLabel,
+            $contentHash,
             'Uploaded via '.ucfirst($sourceLabel).' — a Word document needs a human to classify and confirm what it contains before it can be imported.',
         );
     }
@@ -257,9 +269,10 @@ class FileImportProcessor
      * @param  list<string>  $headers
      * @param  list<list<string>>  $rows
      */
-    private function importSpreadsheetPasses(Project $project, User $attributedTo, string $originalFilename, array $passes, array $headers, array $rows): string
+    private function importSpreadsheetPasses(Project $project, User $attributedTo, string $originalFilename, array $passes, array $headers, array $rows, string $sourceLabel, string $contentHash): string
     {
         $countsByType = ['task' => 0, 'event' => 0];
+        $updatedByType = ['task' => 0, 'event' => 0];
 
         foreach ($passes as $pass) {
             $isEvent = $pass['list_type'] === 'event';
@@ -272,6 +285,7 @@ class FileImportProcessor
                 'metadata' => [
                     'original_filename' => $originalFilename,
                     'created_count' => 0,
+                    'updated_count' => 0,
                     'skipped' => [],
                     'status' => 'importing',
                 ],
@@ -281,16 +295,28 @@ class FileImportProcessor
 
             $importDocument->refresh();
             $countsByType[$pass['list_type']] += $importDocument->metadata['created_count'] ?? 0;
+            $updatedByType[$pass['list_type']] += $importDocument->metadata['updated_count'] ?? 0;
         }
+
+        $this->recordImportedFile($project, $contentHash, $originalFilename, $sourceLabel);
 
         $parts = array_filter([
             $countsByType['task'] > 0 ? "{$countsByType['task']} task(s)" : null,
             $countsByType['event'] > 0 ? "{$countsByType['event']} event(s)" : null,
         ]);
+        $updatedParts = array_filter([
+            $updatedByType['task'] > 0 ? "{$updatedByType['task']} task(s)" : null,
+            $updatedByType['event'] > 0 ? "{$updatedByType['event']} event(s)" : null,
+        ]);
 
         $url = route('projects.show', $project);
+        $summary = $parts !== [] ? 'Imported '.implode(' and ', $parts) : 'Imported nothing new';
 
-        return '✅ Imported '.implode(' and ', $parts)." from \"{$originalFilename}\": {$url}";
+        if ($updatedParts !== []) {
+            $summary .= ', updated '.implode(' and ', $updatedParts);
+        }
+
+        return "✅ {$summary} from \"{$originalFilename}\": {$url}";
     }
 
     /**
@@ -309,7 +335,7 @@ class FileImportProcessor
      * couldn't-classify-at-all case overrides it since that has nothing to "confirm" so much as
      * to figure out from scratch.
      */
-    private function queueForValidation(Project $project, User $attributedTo, string $tmpPath, string $originalFilename, string $sourceType, string $sourceLabel, string $note, ?string $replyText = null): string
+    private function queueForValidation(Project $project, User $attributedTo, string $tmpPath, string $originalFilename, string $sourceType, string $sourceLabel, string $contentHash, string $note, ?string $replyText = null): string
     {
         $pendingImport = PendingImport::create([
             'project_id' => $project->id,
@@ -322,9 +348,24 @@ class FileImportProcessor
 
         $pendingImport->addMedia($tmpPath)->preservingOriginal()->toMediaCollection('file');
 
+        $this->recordImportedFile($project, $contentHash, $originalFilename, $sourceLabel);
+
         $url = $this->importIndexUrl($project);
 
         return $replyText ?? "\"{$originalFilename}\" — Document Placed In Validation Queue. Click here to review: {$url}";
+    }
+
+    /**
+     * Idempotent by the table's own (project_id, content_hash) unique constraint — firstOrCreate
+     * rather than create() so two workers racing to process the same file concurrently (unlikely
+     * but not impossible, e.g. the same file dropped and immediately re-synced) can't collide.
+     */
+    private function recordImportedFile(Project $project, string $contentHash, string $originalFilename, string $sourceLabel): void
+    {
+        ImportedFile::firstOrCreate(
+            ['project_id' => $project->id, 'content_hash' => $contentHash],
+            ['original_filename' => $originalFilename, 'source' => $sourceLabel]
+        );
     }
 
     /**

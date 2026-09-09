@@ -56,7 +56,7 @@ class ImportTaskList implements ShouldQueue
         $organization = $project->client?->organization;
 
         if ($organization === null) {
-            $this->finish($project, [], [], [], 0, '?tab=tasks', 'tasks');
+            $this->finish($project, [], [], [], 0, 0, '?tab=tasks', 'tasks');
 
             return;
         }
@@ -66,11 +66,13 @@ class ImportTaskList implements ShouldQueue
         $defaultStatus = $defaultColumn !== null ? $defaultColumn->key : 'todo';
         $familyRoot = $project->familyRoot();
         $categories = $project->familyCategories();
+        $existingByKey = $this->existingDocumentsByKey($project, 'task', 'due_at');
 
         $normalizedRows = [];
         $skipped = [];
         $untaggedRows = [];
         $createdCount = 0;
+        $updatedCount = 0;
         $total = count($this->rows);
 
         foreach ($this->rows as $index => $row) {
@@ -105,7 +107,9 @@ class ImportTaskList implements ShouldQueue
             ];
 
             try {
-                $task = $project->documents()->make();
+                $task = $existingByKey[$this->matchKey($name, $dueAt)] ?? $project->documents()->make();
+                $isUpdate = $task->exists;
+
                 // DocumentObserver::creating() defaults task_status to 'todo' whenever the
                 // legacy `status` column is null — forceFill both together (status isn't
                 // fillable, it predates task_status and nothing else still writes to it) so
@@ -131,7 +135,7 @@ class ImportTaskList implements ShouldQueue
                     $task->categories()->sync([$tag->id]);
                 }
 
-                $createdCount++;
+                $isUpdate ? $updatedCount++ : $createdCount++;
             } catch (Throwable $e) {
                 $skipped[] = ['row' => $index + 2, 'reason' => $e->getMessage()];
             }
@@ -139,18 +143,20 @@ class ImportTaskList implements ShouldQueue
             $this->maybeBroadcastProgress($index + 1, $total);
         }
 
-        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, '?tab=tasks', 'tasks');
+        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, $updatedCount, '?tab=tasks', 'tasks');
     }
 
     private function importEvents(Project $project, TaskListImportService $importService): void
     {
         $familyRoot = $project->familyRoot();
         $categories = $project->familyCategories();
+        $existingByKey = $this->existingDocumentsByKey($project, 'event', 'start_at');
 
         $normalizedRows = [];
         $skipped = [];
         $untaggedRows = [];
         $createdCount = 0;
+        $updatedCount = 0;
         $total = count($this->rows);
 
         foreach ($this->rows as $index => $row) {
@@ -192,7 +198,10 @@ class ImportTaskList implements ShouldQueue
             ];
 
             try {
-                $event = $project->documents()->create([
+                $event = $existingByKey[$this->matchKey($name, $startAt)] ?? $project->documents()->make();
+                $isUpdate = $event->exists;
+
+                $event->forceFill([
                     'type' => 'event',
                     'name' => $name,
                     'content' => $description,
@@ -202,12 +211,13 @@ class ImportTaskList implements ShouldQueue
                     'last_ai_template_id' => $this->aiTemplateId,
                     'last_output_key' => $this->aiTemplateId !== null ? $this->listType : null,
                 ]);
+                $event->save();
 
                 if ($tag !== null) {
                     $event->categories()->sync([$tag->id]);
                 }
 
-                $createdCount++;
+                $isUpdate ? $updatedCount++ : $createdCount++;
             } catch (Throwable $e) {
                 $skipped[] = ['row' => $index + 2, 'reason' => $e->getMessage()];
             }
@@ -215,7 +225,46 @@ class ImportTaskList implements ShouldQueue
             $this->maybeBroadcastProgress($index + 1, $total);
         }
 
-        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, '?tab=calendar', 'events');
+        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, $updatedCount, '?tab=calendar', 'events');
+    }
+
+    /**
+     * A snapshot of this project's existing tasks/events, keyed by matchKey() (name + the
+     * type's anchor date — due_at for tasks, start_at for events) so a row from a re-imported,
+     * slightly-changed spreadsheet updates the task/event it already produced last time instead
+     * of creating a duplicate. Taken once up front (a single query) rather than queried per row,
+     * and never updated mid-loop — two rows in the *same* file that happen to share a name and
+     * date each still get their own new document, matching only against what existed before this
+     * import ran.
+     *
+     * @return array<string, Document>
+     */
+    private function existingDocumentsByKey(Project $project, string $type, string $dateColumn): array
+    {
+        return $project->documents()
+            ->where('type', $type)
+            ->get(['id', 'name', $dateColumn])
+            ->keyBy(function (Document $document) use ($dateColumn) {
+                $rawDate = $document->getAttribute($dateColumn);
+
+                return $this->matchKey($document->name ?? '', is_string($rawDate) ? $rawDate : null);
+            })
+            ->all();
+    }
+
+    /**
+     * $date is either a 'Y-m-d' string (from TaskListImportService::parseDate(), used while
+     * scanning the incoming rows) or whatever raw value Eloquent hands back for a timestamp
+     * column (used while indexing existing documents) — both are normalized through Carbon so a
+     * row's parsed date and a previously-stored timestamp compare equal regardless of format.
+     */
+    private function matchKey(string $name, ?string $date): string
+    {
+        $normalizedDate = $date !== null && $date !== ''
+            ? \Illuminate\Support\Carbon::parse($date)->toDateString()
+            : '';
+
+        return mb_strtolower(trim($name)).'|'.$normalizedDate;
     }
 
     /**
@@ -242,22 +291,24 @@ class ImportTaskList implements ShouldQueue
      * @param  list<array{row: int, reason: string}>  $skipped
      * @param  list<array{row: int, tag: string}>  $untaggedRows
      */
-    private function finish(Project $project, array $normalizedRows, array $skipped, array $untaggedRows, int $createdCount, string $redirectQuery, string $noun): void
+    private function finish(Project $project, array $normalizedRows, array $skipped, array $untaggedRows, int $createdCount, int $updatedCount, string $redirectQuery, string $noun): void
     {
         $this->importDocument->update([
             'content' => json_encode($normalizedRows, JSON_PRETTY_PRINT),
             'metadata' => [
                 'original_filename' => $this->importDocument->metadata['original_filename'] ?? null,
                 'created_count' => $createdCount,
+                'updated_count' => $updatedCount,
                 'skipped' => $skipped,
                 'untagged' => $untaggedRows,
                 'status' => $skipped === [] ? 'completed' : 'completed_with_errors',
             ],
         ]);
 
+        $summary = "Imported {$createdCount} {$noun}".($updatedCount > 0 ? ", updated {$updatedCount}" : '').'.';
         $message = $skipped === []
-            ? "Imported {$createdCount} {$noun}."
-            : "Imported {$createdCount} {$noun}, skipped ".count($skipped).' row(s) — see the import record for details.';
+            ? $summary
+            : rtrim($summary, '.').', skipped '.count($skipped).' row(s) — see the import record for details.';
 
         // findOrCreateTag() deliberately leaves a row untagged rather than failing the import
         // once every palette color is already in use by an existing tag on the project (see
