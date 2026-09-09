@@ -7,13 +7,12 @@ import {
     destroy,
     store,
 } from '@/actions/App/Http/Controllers/OrganizationDropboxFoldersController';
-import { Form, router, useForm } from '@inertiajs/vue3';
+import { Form, router } from '@inertiajs/vue3';
 import { Info } from 'lucide-vue-next';
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -27,6 +26,11 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+
+interface Folder {
+    id: string;
+    path: string;
+}
 
 interface Binding {
     id: string;
@@ -46,6 +50,7 @@ interface Props {
     dropboxAccountName?: string;
     dropboxConfigured: boolean;
     dropboxBindings: Binding[];
+    dropboxAvailableFolders: Folder[];
     dropboxProjects: Project[];
     status?: string;
 }
@@ -72,20 +77,37 @@ onMounted(() => {
     }
 });
 
-// Unlike Slack's channel picker (a real conversations.list to choose from), there's no
-// equivalently simple "list every folder" Dropbox call to build a picker from — the admin types
-// the path directly and the server resolves it to Dropbox's own folder id (see
-// OrganizationDropboxFoldersController::store()), surfacing "not found" as a normal form error.
-const bindForm = useForm({
-    folder_path: '',
-    project_id: '',
-});
+const selectedFolderId = ref<string | undefined>(undefined);
+const selectedProjectId = ref<string | undefined>(undefined);
+const submitting = ref(false);
 
 function addBinding() {
-    bindForm.post(store(props.organizationId).url, {
-        preserveScroll: true,
-        onSuccess: () => bindForm.reset(),
-    });
+    const folder = props.dropboxAvailableFolders.find(
+        (f) => f.id === selectedFolderId.value,
+    );
+
+    if (!folder || !selectedProjectId.value) {
+        return;
+    }
+
+    submitting.value = true;
+
+    router.post(
+        store(props.organizationId).url,
+        {
+            folder_id: folder.id,
+            folder_path: folder.path,
+            project_id: selectedProjectId.value,
+        },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                submitting.value = false;
+                selectedFolderId.value = undefined;
+                selectedProjectId.value = undefined;
+            },
+        },
+    );
 }
 
 function removeBinding(binding: Binding) {
@@ -236,25 +258,37 @@ function removeBinding(binding: Binding) {
                     Add A Folder
                 </p>
 
-                <div class="flex flex-wrap items-start gap-3">
-                    <div class="space-y-1">
-                        <Input
-                            v-model="bindForm.folder_path"
-                            placeholder="/Client Intake"
-                            class="h-9 w-[220px] text-[13px]"
-                        />
-                        <p
-                            v-if="bindForm.errors.folder_path"
-                            class="text-xs text-red-500"
-                        >
-                            {{ bindForm.errors.folder_path }}
-                        </p>
-                    </div>
+                <p
+                    v-if="dropboxAvailableFolders.length === 0"
+                    class="text-sm text-muted-foreground"
+                >
+                    No unbound top-level folders found in the connected account.
+                </p>
+
+                <div v-else class="flex flex-wrap items-center gap-3">
+                    <Select
+                        :model-value="selectedFolderId"
+                        @update:model-value="
+                            (v) => (selectedFolderId = v as string)
+                        "
+                    >
+                        <SelectTrigger class="h-9 w-[220px] text-[13px]">
+                            <SelectValue placeholder="Select a folder…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="folder in dropboxAvailableFolders"
+                                :key="folder.id"
+                                :value="folder.id"
+                                >{{ folder.path }}</SelectItem
+                            >
+                        </SelectContent>
+                    </Select>
 
                     <Select
-                        :model-value="bindForm.project_id || undefined"
+                        :model-value="selectedProjectId"
                         @update:model-value="
-                            (v) => (bindForm.project_id = v as string)
+                            (v) => (selectedProjectId = v as string)
                         "
                     >
                         <SelectTrigger class="h-9 w-[220px] text-[13px]">
@@ -273,9 +307,9 @@ function removeBinding(binding: Binding) {
                     <Button
                         type="button"
                         :disabled="
-                            !bindForm.folder_path ||
-                            !bindForm.project_id ||
-                            bindForm.processing
+                            !selectedFolderId ||
+                            !selectedProjectId ||
+                            submitting
                         "
                         @click="addBinding"
                         >Add</Button

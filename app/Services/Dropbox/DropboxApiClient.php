@@ -49,49 +49,14 @@ class DropboxApiClient
     }
 
     /**
-     * Resolves a human-typed folder path (e.g. "/Client Intake") to Dropbox's own stable folder
-     * id — lets OrganizationDropboxFoldersController accept just a path from the binding form
-     * rather than requiring whoever's binding a folder to already know its Dropbox id. Throws if
-     * the path doesn't exist or isn't a folder, so the caller can turn that into a validation
-     * error instead of silently binding to nothing.
-     *
-     * @return array{folder_id: string, folder_path: string}
-     */
-    public function resolveFolder(DropboxWorkspace $workspace, string $path): array
-    {
-        $response = Http::withToken($this->ensureFreshToken($workspace))
-            ->post(self::API_BASE.'/files/get_metadata', ['path' => $path]);
-
-        // Response::json($key) runs $key through data_get(), which always splits on "." for
-        // nested-path traversal — a key literally named ".tag" (Dropbox's own union-type
-        // discriminator) becomes ['', 'tag'], so it never matches the real top-level key and
-        // this always returned null. Plain array access on the fully-decoded body (as
-        // Dropbox\EventsController already does for the same key) is what actually works.
-        $body = $response->json();
-
-        if ($response->failed() || ! is_array($body) || ($body['.tag'] ?? null) !== 'folder') {
-            throw new \RuntimeException("Dropbox path \"{$path}\" is not a folder in this account: ".$response->body());
-        }
-
-        $folderId = $body['id'] ?? null;
-        $resolvedPath = $body['path_display'] ?? null;
-
-        if (! is_string($folderId) || ! is_string($resolvedPath)) {
-            throw new \RuntimeException('Dropbox files/get_metadata returned an unexpected shape.');
-        }
-
-        return ['folder_id' => $folderId, 'folder_path' => $resolvedPath];
-    }
-
-    /**
      * @return array{entries: list<array<string, mixed>>, cursor: string, has_more: bool}
      */
-    public function listFolder(DropboxWorkspace $workspace, string $path): array
+    public function listFolder(DropboxWorkspace $workspace, string $path, bool $recursive = true): array
     {
         $response = Http::withToken($this->ensureFreshToken($workspace))
             ->post(self::API_BASE.'/files/list_folder', [
                 'path' => $path,
-                'recursive' => true,
+                'recursive' => $recursive,
             ]);
 
         if ($response->failed()) {
@@ -100,6 +65,38 @@ class DropboxApiClient
 
         /** @var array{entries: list<array<string, mixed>>, cursor: string, has_more: bool} */
         return $response->json();
+    }
+
+    /**
+     * Every top-level folder in the connected account, for the folder-binding dropdown —
+     * OrganizationDropboxFoldersController::store() trusts the id + path the frontend submits
+     * directly from this list rather than re-resolving a typed path (as it used to; see the
+     * removed resolveFolder(), which asked a human to guess an exact path and then quietly
+     * always rejected it — see this method's git history for why). Not recursive, and doesn't
+     * walk into subfolders — only what's directly under the account root.
+     *
+     * @return list<array{id: string, path: string}>
+     */
+    public function listTopLevelFolders(DropboxWorkspace $workspace): array
+    {
+        $folders = [];
+        $page = $this->listFolder($workspace, '', recursive: false);
+
+        while (true) {
+            foreach ($page['entries'] as $entry) {
+                if (($entry['.tag'] ?? null) === 'folder' && is_string($entry['id'] ?? null) && is_string($entry['path_display'] ?? null)) {
+                    $folders[] = ['id' => $entry['id'], 'path' => $entry['path_display']];
+                }
+            }
+
+            if (! $page['has_more']) {
+                break;
+            }
+
+            $page = $this->listFolderContinue($workspace, $page['cursor']);
+        }
+
+        return $folders;
     }
 
     /**

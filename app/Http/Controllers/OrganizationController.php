@@ -7,12 +7,14 @@ use App\Http\Requests\UpdateOrganizationTierRequest;
 use App\Models\AiUsageLog;
 use App\Models\Client;
 use App\Models\DropboxFolderBinding;
+use App\Models\DropboxWorkspace;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\SlackChannelBinding;
 use App\Models\SlackWorkspace;
 use App\Models\User;
+use App\Services\Dropbox\DropboxApiClient;
 use App\Services\Slack\SlackChannelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -135,14 +137,7 @@ class OrganizationController extends Controller
         [$slackBindings, $slackAvailableChannels] = $this->slackChannelData($slackWorkspace, $user, $currentOrg);
 
         $dropboxWorkspace = $currentOrg->dropboxWorkspace;
-        $dropboxBindings = $dropboxWorkspace
-            ? $dropboxWorkspace->folderBindings()->with('project:id,name')->get()->map(fn (DropboxFolderBinding $binding) => [
-                'id' => $binding->id,
-                'folder_id' => $binding->folder_id,
-                'folder_path' => $binding->folder_path,
-                'project' => ['id' => $binding->project->id, 'name' => $binding->project->name],
-            ])
-            : collect();
+        [$dropboxBindings, $dropboxAvailableFolders] = $this->dropboxFolderData($dropboxWorkspace, $currentOrg);
 
         return Inertia::render('Organizations/Show', [
             'currentOrg' => array_merge($currentOrg->makeHidden(['llm_config', 'vector_config', 'meeting_config'])->toArray(), [
@@ -175,6 +170,7 @@ class OrganizationController extends Controller
             'dropboxAccountName' => $dropboxWorkspace?->account_name,
             'dropboxConfigured' => filled(config('services.dropbox.client_id')) && filled(config('services.dropbox.client_secret')),
             'dropboxBindings' => $dropboxBindings,
+            'dropboxAvailableFolders' => $dropboxAvailableFolders,
             'dropboxProjects' => $dropboxWorkspace ? Project::visibleTo($user, $currentOrg->id)->where('inactive', false)->orderBy('name')->get(['id', 'name']) : [],
             'status' => session('status'),
         ]);
@@ -216,6 +212,44 @@ class OrganizationController extends Controller
         }
 
         return [$bindingData, $availableChannels];
+    }
+
+    /**
+     * The folder-binding data the Configuration tab's inline Dropbox section needs. Kept
+     * separate from index() so a Dropbox API failure (revoked token, Dropbox outage) degrades to
+     * an empty folder list — with the org's existing bindings still shown — rather than a 500 on
+     * the whole organization dashboard, mirroring slackChannelData() exactly.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function dropboxFolderData(?DropboxWorkspace $workspace, Organization $organization): array
+    {
+        if ($workspace === null) {
+            return [collect(), collect()];
+        }
+
+        $bindings = $workspace->folderBindings()->with('project:id,name')->get();
+
+        $bindingData = $bindings->map(fn (DropboxFolderBinding $binding) => [
+            'id' => $binding->id,
+            'folder_id' => $binding->folder_id,
+            'folder_path' => $binding->folder_path,
+            'project' => ['id' => $binding->project->id, 'name' => $binding->project->name],
+        ]);
+
+        try {
+            $boundFolderIds = $bindings->pluck('folder_id');
+
+            $availableFolders = collect(app(DropboxApiClient::class)->listTopLevelFolders($workspace))
+                ->reject(fn (array $folder) => $boundFolderIds->contains($folder['id']))
+                ->values();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to list Dropbox folders for organization dashboard', ['organization_id' => $organization->id, 'message' => $e->getMessage()]);
+
+            $availableFolders = collect();
+        }
+
+        return [$bindingData, $availableFolders];
     }
 
     /**

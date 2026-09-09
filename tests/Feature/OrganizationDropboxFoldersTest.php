@@ -6,7 +6,7 @@ use App\Models\DropboxWorkspace;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
-use App\Services\Dropbox\DropboxApiClient;
+use Illuminate\Support\Facades\Http;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -29,20 +29,65 @@ beforeEach(function () {
     $this->project = Project::create(['name' => 'Test Project', 'client_id' => $this->client->id]);
 });
 
-// ── Store ───────────────────────────────────────────────────────────────────
+// ── Organization dashboard folder data ──────────────────────────────────────
 
-function mockDropboxFolderResolution(string $folderId = 'id:abc123', string $folderPath = '/Intake'): void
-{
-    test()->mock(DropboxApiClient::class)
-        ->shouldReceive('resolveFolder')
-        ->andReturn(['folder_id' => $folderId, 'folder_path' => $folderPath]);
-}
+it('lists existing bindings and unbound available folders on the organization dashboard', function () {
+    DropboxFolderBinding::factory()->create([
+        'dropbox_workspace_id' => $this->workspace->id,
+        'folder_id' => 'id:folder1',
+        'folder_path' => '/Client Intake',
+        'project_id' => $this->project->id,
+    ]);
 
-it('creates a new binding, resolving the typed path to a folder id', function () {
-    mockDropboxFolderResolution();
+    Http::fake([
+        'api.dropboxapi.com/2/files/list_folder' => Http::response([
+            'entries' => [
+                ['.tag' => 'folder', 'id' => 'id:folder1', 'name' => 'Client Intake', 'path_display' => '/Client Intake'],
+                ['.tag' => 'folder', 'id' => 'id:folder2', 'name' => 'Projector', 'path_display' => '/Projector'],
+            ],
+            'cursor' => 'cursor-abc',
+            'has_more' => false,
+        ], 200),
+    ]);
 
     $this->actingAs($this->user)
+        ->get(route('organizations.index', ['org' => $this->org->id]))
+        ->assertInertia(fn ($page) => $page
+            ->has('dropboxBindings', 1)
+            ->where('dropboxBindings.0.folder_path', '/Client Intake')
+            ->where('dropboxBindings.0.project.name', 'Test Project')
+            ->has('dropboxAvailableFolders', 1)
+            ->where('dropboxAvailableFolders.0.id', 'id:folder2')
+        );
+});
+
+it('degrades to an empty available-folder list, keeping bindings, when the dropbox api call fails', function () {
+    DropboxFolderBinding::factory()->create([
+        'dropbox_workspace_id' => $this->workspace->id,
+        'folder_id' => 'id:folder1',
+        'folder_path' => '/Client Intake',
+        'project_id' => $this->project->id,
+    ]);
+
+    Http::fake([
+        'api.dropboxapi.com/2/files/list_folder' => Http::response('server error', 500),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('organizations.index', ['org' => $this->org->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('dropboxBindings', 1)
+            ->has('dropboxAvailableFolders', 0)
+        );
+});
+
+// ── Store ───────────────────────────────────────────────────────────────────
+
+it('creates a new binding from a folder picked in the dropdown', function () {
+    $this->actingAs($this->user)
         ->post(route('organizations.dropbox.folders.store', $this->org), [
+            'folder_id' => 'id:abc123',
             'folder_path' => '/Intake',
             'project_id' => $this->project->id,
         ])
@@ -55,17 +100,10 @@ it('creates a new binding, resolving the typed path to a folder id', function ()
         ->and($binding->project_id)->toBe($this->project->id);
 });
 
-it('rejects a folder path dropbox cannot resolve', function () {
-    $this->mock(DropboxApiClient::class)
-        ->shouldReceive('resolveFolder')
-        ->andThrow(new RuntimeException('not found'));
-
+it('requires a folder_id, folder_path, and project_id', function () {
     $this->actingAs($this->user)
-        ->post(route('organizations.dropbox.folders.store', $this->org), [
-            'folder_path' => '/Does Not Exist',
-            'project_id' => $this->project->id,
-        ])
-        ->assertSessionHasErrors('folder_path');
+        ->post(route('organizations.dropbox.folders.store', $this->org), [])
+        ->assertSessionHasErrors(['folder_id', 'folder_path', 'project_id']);
 
     expect(DropboxFolderBinding::count())->toBe(0);
 });
@@ -80,10 +118,9 @@ it('repoints an existing binding to a different project instead of erroring', fu
         'project_id' => $this->project->id,
     ]);
 
-    mockDropboxFolderResolution();
-
     $this->actingAs($this->user)
         ->post(route('organizations.dropbox.folders.store', $this->org), [
+            'folder_id' => 'id:abc123',
             'folder_path' => '/Intake',
             'project_id' => $otherProject->id,
         ])
@@ -105,6 +142,7 @@ it('rejects binding to a project outside the organization', function () {
 
     $this->actingAs($this->user)
         ->post(route('organizations.dropbox.folders.store', $this->org), [
+            'folder_id' => 'id:abc123',
             'folder_path' => '/Intake',
             'project_id' => $outsideProject->id,
         ])
@@ -119,12 +157,25 @@ it('forbids a non-admin org member from creating a binding', function () {
 
     $this->actingAs($member)
         ->post(route('organizations.dropbox.folders.store', $this->org), [
+            'folder_id' => 'id:abc123',
             'folder_path' => '/Intake',
             'project_id' => $this->project->id,
         ])
         ->assertNotFound();
 
     expect(DropboxFolderBinding::where('folder_id', 'id:abc123')->exists())->toBeFalse();
+});
+
+it('404s creating a binding when dropbox is not connected', function () {
+    $this->workspace->delete();
+
+    $this->actingAs($this->user)
+        ->post(route('organizations.dropbox.folders.store', $this->org), [
+            'folder_id' => 'id:abc123',
+            'folder_path' => '/Intake',
+            'project_id' => $this->project->id,
+        ])
+        ->assertNotFound();
 });
 
 // ── Destroy ─────────────────────────────────────────────────────────────────

@@ -96,6 +96,7 @@ const props = defineProps<{
         folder_path: string;
         project: { id: string; name: string };
     }[];
+    dropboxAvailableFolders: { id: string; path: string }[];
     dropboxProjects: { id: string; name: string }[];
     status?: string;
 }>();
@@ -545,6 +546,7 @@ const submitInvite = (orgId: string) => {
                         :dropbox-account-name="dropboxAccountName"
                         :dropbox-configured="dropboxConfigured"
                         :dropbox-bindings="dropboxBindings"
+                        :dropbox-available-folders="dropboxAvailableFolders"
                         :dropbox-projects="dropboxProjects"
                         :status="status"
                     />

@@ -11,52 +11,72 @@ beforeEach(function () {
     $this->client = app(DropboxApiClient::class);
 });
 
-// ── resolveFolder() ───────────────────────────────────────────────────────────
+// ── listTopLevelFolders() ─────────────────────────────────────────────────────
 
-it('resolves a real folder metadata response to its id and display path', function () {
+it('returns only top-level folders, not files, from a single page', function () {
+    Http::fake([
+        'api.dropboxapi.com/2/files/list_folder' => Http::response([
+            'entries' => [
+                ['.tag' => 'folder', 'id' => 'id:folder1', 'name' => 'Client Intake', 'path_display' => '/Client Intake'],
+                ['.tag' => 'file', 'id' => 'id:file1', 'name' => 'notes.txt', 'path_display' => '/notes.txt'],
+                ['.tag' => 'folder', 'id' => 'id:folder2', 'name' => 'Projector', 'path_display' => '/Projector'],
+            ],
+            'cursor' => 'cursor-abc',
+            'has_more' => false,
+        ], 200),
+    ]);
+
+    $folders = $this->client->listTopLevelFolders($this->workspace);
+
+    expect($folders)->toBe([
+        ['id' => 'id:folder1', 'path' => '/Client Intake'],
+        ['id' => 'id:folder2', 'path' => '/Projector'],
+    ]);
+
     // Response::json($key) runs $key through data_get(), which splits on "." — a key literally
-    // named ".tag" (Dropbox's own union-type discriminator) can never be reached that way, so
-    // resolveFolder() always threw "not a folder" for every real Dropbox response until fixed
-    // to read the fully-decoded body with plain array access instead. Mocking resolveFolder()
-    // itself (as OrganizationDropboxFoldersControllerTest does) can't catch this — it has to
-    // exercise the method against a real-shaped HTTP response.
+    // named ".tag" (Dropbox's own union-type discriminator) can never be reached that way. Real
+    // regression: DropboxApiClient::resolveFolder() (since removed in favor of this method) used
+    // exactly that broken form and always rejected every valid folder. Plain array access on the
+    // fully-decoded body, as this method does, is what actually works.
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.dropboxapi.com/2/files/list_folder'
+        && $request['path'] === ''
+        && $request['recursive'] === false);
+});
+
+it('pages through list_folder/continue until has_more is false', function () {
     Http::fake([
-        'api.dropboxapi.com/2/files/get_metadata' => Http::response([
-            '.tag' => 'folder',
-            'id' => 'id:6ztLq8dig90AAAAAAAFzOA',
-            'name' => 'Projector',
-            'path_display' => '/Projector',
-            'path_lower' => '/projector',
+        'api.dropboxapi.com/2/files/list_folder' => Http::response([
+            'entries' => [
+                ['.tag' => 'folder', 'id' => 'id:folder1', 'name' => 'Client Intake', 'path_display' => '/Client Intake'],
+            ],
+            'cursor' => 'cursor-1',
+            'has_more' => true,
+        ], 200),
+        'api.dropboxapi.com/2/files/list_folder/continue' => Http::response([
+            'entries' => [
+                ['.tag' => 'folder', 'id' => 'id:folder2', 'name' => 'Projector', 'path_display' => '/Projector'],
+            ],
+            'cursor' => 'cursor-2',
+            'has_more' => false,
         ], 200),
     ]);
 
-    $resolved = $this->client->resolveFolder($this->workspace, '/Projector');
+    $folders = $this->client->listTopLevelFolders($this->workspace);
 
-    expect($resolved)->toBe(['folder_id' => 'id:6ztLq8dig90AAAAAAAFzOA', 'folder_path' => '/Projector']);
-});
-
-it('throws when the path resolves to a file, not a folder', function () {
-    Http::fake([
-        'api.dropboxapi.com/2/files/get_metadata' => Http::response([
-            '.tag' => 'file',
-            'id' => 'id:somefile',
-            'name' => 'notes.txt',
-            'path_display' => '/notes.txt',
-        ], 200),
+    expect($folders)->toBe([
+        ['id' => 'id:folder1', 'path' => '/Client Intake'],
+        ['id' => 'id:folder2', 'path' => '/Projector'],
     ]);
 
-    expect(fn () => $this->client->resolveFolder($this->workspace, '/notes.txt'))
-        ->toThrow(RuntimeException::class);
+    Http::assertSent(fn ($request) => $request->url() === 'https://api.dropboxapi.com/2/files/list_folder/continue'
+        && $request['cursor'] === 'cursor-1');
 });
 
-it('throws when dropbox reports the path does not exist', function () {
+it('throws when listing folders fails', function () {
     Http::fake([
-        'api.dropboxapi.com/2/files/get_metadata' => Http::response(
-            "Error in call to API function 'files/get_metadata': path/not_found/...",
-            409
-        ),
+        'api.dropboxapi.com/2/files/list_folder' => Http::response('server error', 500),
     ]);
 
-    expect(fn () => $this->client->resolveFolder($this->workspace, '/Does Not Exist'))
+    expect(fn () => $this->client->listTopLevelFolders($this->workspace))
         ->toThrow(RuntimeException::class);
 });

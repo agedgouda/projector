@@ -96,7 +96,7 @@ Share URLs change each new session, so step 2 needs repeating for further local 
 
 ## Step 5: Bind a Folder to a Project
 
-Unlike Slack — where the channel-binding form picks from a real list of channels the bot can see (`conversations.list`) — there's no equivalently simple "list every folder in the account" Dropbox call to build a picker from. Instead, type the folder's path directly (e.g. `/Client Intake`) into the binding form; Projector resolves it to Dropbox's own stable folder id itself (`DropboxApiClient::resolveFolder()`, a `files/get_metadata` call) and rejects the form with a clear error if that path doesn't exist in the connected account.
+The binding form's folder dropdown lists every top-level folder in the connected account (`DropboxApiClient::listTopLevelFolders()`, a `files/list_folder` call against the account root) — pick one and a project, same as Slack's channel picker. Only top-level folders are listed, not the full nested tree, so a subfolder can't be bound directly.
 
 Once bound, dropping a file anywhere inside that folder (or a subfolder of it) triggers an import the same way dropping a file in a bound Slack channel does.
 
