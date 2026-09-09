@@ -1,7 +1,7 @@
 import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
 import { usePage } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
 interface GlobalActivityPayload {
     statusMessage?: string;
@@ -10,6 +10,17 @@ interface GlobalActivityPayload {
     import_document_id?: string;
     status?: 'running' | 'done' | 'error';
 }
+
+// A genuinely still-running import/AI job re-broadcasts well within this window (TaskListImport
+// broadcasts ~50 times over its run; DocumentProcessingUpdate fires per document/child). If
+// nothing is heard for an id for this long, treat it as abandoned rather than trust it forever —
+// the terminal (done/success/error) broadcast for it was likely dropped, or whatever produced it
+// crashed without ever reaching the code path that reports failure. Without this, one missed
+// broadcast anywhere in the org leaves the banner stuck showing "in progress" permanently, since
+// unlike a single project page there's no per-org "what's actually still running" check to fall
+// back on.
+const STALE_AFTER_MS = 5 * 60 * 1000;
+const PRUNE_INTERVAL_MS = 30 * 1000;
 
 /**
  * App-shell-level counterpart to useAiProcessing.ts / useTaskListImportProgress.ts, which only
@@ -33,22 +44,47 @@ export function useGlobalImportActivity() {
     const page = usePage<AppPageProps>();
     const activeOrgId = computed(() => page.props.auth.active_org_id);
 
-    const activeDocumentIds = ref(new Set<string>());
-    const activeImportIds = ref(new Set<string>());
+    // Each id maps to the timestamp it was last confirmed still-running, so a stale one can be
+    // pruned without waiting on a terminal broadcast that may never arrive.
+    const activeDocumentIds = ref(new Map<string, number>());
+    const activeImportIds = ref(new Map<string, number>());
 
     const isProcessing = computed(
         () =>
             activeDocumentIds.value.size > 0 || activeImportIds.value.size > 0,
     );
 
+    const pruneStale = () => {
+        const cutoff = Date.now() - STALE_AFTER_MS;
+
+        const freshDocumentIds = new Map(
+            [...activeDocumentIds.value].filter(
+                ([, seenAt]) => seenAt >= cutoff,
+            ),
+        );
+        if (freshDocumentIds.size !== activeDocumentIds.value.size) {
+            activeDocumentIds.value = freshDocumentIds;
+        }
+
+        const freshImportIds = new Map(
+            [...activeImportIds.value].filter(([, seenAt]) => seenAt >= cutoff),
+        );
+        if (freshImportIds.size !== activeImportIds.value.size) {
+            activeImportIds.value = freshImportIds;
+        }
+    };
+
+    const pruneTimer = setInterval(pruneStale, PRUNE_INTERVAL_MS);
+    onBeforeUnmount(() => clearInterval(pruneTimer));
+
     useEcho<GlobalActivityPayload>(
         `organization.${activeOrgId.value}`,
         ['.DocumentProcessingUpdate', '.TaskListImportProgress'],
         (payload) => {
             if (payload.import_document_id) {
-                const ids = new Set(activeImportIds.value);
+                const ids = new Map(activeImportIds.value);
                 if (payload.status === 'running') {
-                    ids.add(payload.import_document_id);
+                    ids.set(payload.import_document_id, Date.now());
                 } else {
                     ids.delete(payload.import_document_id);
                 }
@@ -58,11 +94,11 @@ export function useGlobalImportActivity() {
 
             if (payload.statusMessage && payload.document_id) {
                 const { isSuccess, isError } = parseProcessingStatus(payload);
-                const ids = new Set(activeDocumentIds.value);
+                const ids = new Map(activeDocumentIds.value);
                 if (isSuccess || isError) {
                     ids.delete(payload.document_id);
                 } else {
-                    ids.add(payload.document_id);
+                    ids.set(payload.document_id, Date.now());
                 }
                 activeDocumentIds.value = ids;
             }
