@@ -8,7 +8,6 @@ import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
-    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuSub,
@@ -95,12 +94,6 @@ const isGroupActive = (item: NavItem) =>
                             <span>{{ item.title }}</span>
                         </Link>
                     </SidebarMenuButton>
-                    <SidebarMenuBadge
-                        v-if="item.pendingBadge"
-                        class="animate-pulse bg-projector-highlight-500 text-white [animation-duration:4s]"
-                    >
-                        Pending
-                    </SidebarMenuBadge>
                 </SidebarMenuItem>
             </template>
         </SidebarMenu>

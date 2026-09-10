@@ -399,7 +399,7 @@ const confirmDelete = (doc: ProjectDocument) => {
         router.delete(
             projectDocumentsRoutes.destroy({
                 project: props.currentProject.id,
-                document: doc.id,
+                document: String(doc.id),
             }).url,
             {
                 onSuccess: () => toast.success('Document deleted'),

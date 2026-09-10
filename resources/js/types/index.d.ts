@@ -478,6 +478,14 @@ declare global {
         document: ProjectDocument;
     }
 
+    export interface RequirementStatus {
+        label: string;
+        key: string;
+        required: boolean;
+        documents: ProjectDocument[];
+        isUploaded: boolean;
+    }
+
     export type AppPageProps<
         T extends Record<string, unknown> = Record<string, unknown>,
     > = T & {
@@ -493,6 +501,7 @@ declare global {
             success: string | null;
             error: string | null;
             aiResults?: any;
+            newClientId?: string | null;
         };
         [key: string]: unknown;
     };

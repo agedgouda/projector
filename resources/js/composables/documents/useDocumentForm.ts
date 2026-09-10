@@ -141,7 +141,8 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     // have even run. The status broadcasts describing that work are keyed to the PARENT's
     // id, not this document's own — unlike every other case below, where `item` is the one
     // actively being processed.
-    const isSelfPendingChild = item.parent_id != null && item.processed_at === null;
+    const isSelfPendingChild =
+        item.parent_id != null && item.processed_at === null;
 
     if (item.processed_at === null || hasPendingChildren) {
         isProcessingLive.value = true;
@@ -377,7 +378,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         form.tab = getCurrentTab();
         const url = projectDocumentsRoutes.update({
             project: project.id,
-            document: item.id,
+            document: String(item.id),
         }).url;
 
         form.put(url, {
@@ -408,7 +409,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
 
         const url = projectDocumentsRoutes.reprocess.url({
             project: project.id,
-            document: item.id,
+            document: String(item.id),
         });
 
         // The reprocess endpoint returns plain JSON (it's also called via axios from the
@@ -453,7 +454,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
 
         const url = projectDocumentsRoutes.transition.url({
             project: project.id,
-            document: item.id,
+            document: String(item.id),
         });
 
         try {
@@ -479,7 +480,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         isDeleting.value = true;
         const url = projectDocumentsRoutes.destroy({
             project: project.id,
-            document: item.id,
+            document: String(item.id),
         }).url;
 
         router.delete(url, {

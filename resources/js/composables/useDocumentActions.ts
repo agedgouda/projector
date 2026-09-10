@@ -1,10 +1,11 @@
-import { ref, type Ref } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
-import axios, { AxiosError } from 'axios';
+import {
+    redirectIfLoggedOut,
+    redirectIfSessionExpiredError,
+} from '@/lib/sessionExpiry';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
-
-
+import { router, useForm } from '@inertiajs/vue3';
+import axios, { AxiosError } from 'axios';
+import { ref, type Ref } from 'vue';
 
 export type UIProjectDocument = ProjectDocument & {
     processingError?: string | null;
@@ -14,7 +15,10 @@ export type UIProjectDocument = ProjectDocument & {
 export function useDocumentActions(
     props: { project: Project; documentSchema?: DocumentSchemaItem[] },
     aiStatusMessage?: Ref<string>,
-    updateDocState?: (id: string | number, data: Partial<UIProjectDocument>) => void
+    updateDocState?: (
+        id: string | number,
+        data: Partial<UIProjectDocument>,
+    ) => void,
 ) {
     const isUploadModalOpen = ref(false);
     const isEditModalOpen = ref(false);
@@ -32,7 +36,10 @@ export function useDocumentActions(
     });
 
     const patchField = (docId: string, data: Record<string, any>) => {
-        const url = projectDocumentsRoutes.updateAttributes({ project: props.project.id, document: docId }).url;
+        const url = projectDocumentsRoutes.updateAttributes({
+            project: props.project.id,
+            document: docId,
+        }).url;
         router.patch(url, data, {
             preserveScroll: true,
             onSuccess: () => {
@@ -44,9 +51,12 @@ export function useDocumentActions(
 
     const updateField = (id: string, fieldName: string, rawValue: unknown) => {
         let normalizedValue: string | number | null = null;
-        if (rawValue === 'unassigned' || rawValue == null) normalizedValue = null;
-        else if (typeof rawValue === 'string' || typeof rawValue === 'number') normalizedValue = rawValue;
-        else if (typeof rawValue === 'bigint') normalizedValue = Number(rawValue);
+        if (rawValue === 'unassigned' || rawValue == null)
+            normalizedValue = null;
+        else if (typeof rawValue === 'string' || typeof rawValue === 'number')
+            normalizedValue = rawValue;
+        else if (typeof rawValue === 'bigint')
+            normalizedValue = Number(rawValue);
         else return;
 
         patchField(id, { [fieldName]: normalizedValue });
@@ -56,32 +66,65 @@ export function useDocumentActions(
     // only ever touch task_status/priority/due_at/assignee_id via updateAttributes; this hits
     // a separate endpoint (DocumentController::move()) since moving between boards has its
     // own family/matching-columns validation the attribute endpoint doesn't do.
-    const moveToBoard = (docId: string, targetProjectId: string, onError?: (message: string) => void) => {
-        const url = projectDocumentsRoutes.move({ project: props.project.id, document: docId }).url;
-        router.patch(url, { project_id: targetProjectId }, {
-            preserveScroll: true,
-            onError: (errors) => onError?.(Object.values(errors)[0] ?? 'Could not move this task.'),
-        });
+    const moveToBoard = (
+        docId: string,
+        targetProjectId: string,
+        onError?: (message: string) => void,
+    ) => {
+        const url = projectDocumentsRoutes.move({
+            project: props.project.id,
+            document: docId,
+        }).url;
+        router.patch(
+            url,
+            { project_id: targetProjectId },
+            {
+                preserveScroll: true,
+                onError: (errors) =>
+                    onError?.(
+                        Object.values(errors)[0] ?? 'Could not move this task.',
+                    ),
+            },
+        );
     };
 
     // Sets the complete list of tags on a task — sync semantics (send the full desired set,
     // not a single add/remove). Takes the resolved CategoryDef objects so the caller can
     // optimistically update local state before the round trip.
-    const updateTags = (docId: string, categories: CategoryDef[], onError?: (message: string) => void) => {
-        const url = projectDocumentsRoutes.updateCategories({ project: props.project.id, document: docId }).url;
-        router.put(url, { category_ids: categories.map((c) => c.id) }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                if (updateDocState) updateDocState(docId, { categories });
+    const updateTags = (
+        docId: string,
+        categories: CategoryDef[],
+        onError?: (message: string) => void,
+    ) => {
+        const url = projectDocumentsRoutes.updateCategories({
+            project: props.project.id,
+            document: docId,
+        }).url;
+        router.put(
+            url,
+            { category_ids: categories.map((c) => c.id) },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    if (updateDocState) updateDocState(docId, { categories });
+                },
+                onError: (errors) =>
+                    onError?.(
+                        Object.values(errors)[0] ??
+                            "Could not update this task's tags.",
+                    ),
             },
-            onError: (errors) => onError?.(Object.values(errors)[0] ?? 'Could not update this task\'s tags.'),
-        });
+        );
     };
 
     const safeJsonParse = (data: unknown) => {
         if (!data) return { criteria: [] };
         if (typeof data !== 'string') return data;
-        try { return JSON.parse(data); } catch { return { criteria: [] }; }
+        try {
+            return JSON.parse(data);
+        } catch {
+            return { criteria: [] };
+        }
     };
 
     const openUploadModal = (requirement?: any) => {
@@ -96,7 +139,7 @@ export function useDocumentActions(
 
     const openEditModal = (doc: UIProjectDocument) => {
         form.clearErrors();
-        editingDocumentId.value = doc.id;
+        editingDocumentId.value = String(doc.id);
         form.name = doc.name;
         form.type = doc.type;
         form.content = doc.content || '';
@@ -114,8 +157,15 @@ export function useDocumentActions(
             onBefore: () => {
                 internalAiMessage.value = 'Establishing Secure Uplink...';
             },
-            onSuccess: () => { isUploadModalOpen.value = false; form.reset(); },
-            onError: () => { internalAiMessage.value = ''; targetBeingCreated.value = null; isUploadModalOpen.value = true; }
+            onSuccess: () => {
+                isUploadModalOpen.value = false;
+                form.reset();
+            },
+            onError: () => {
+                internalAiMessage.value = '';
+                targetBeingCreated.value = null;
+                isUploadModalOpen.value = true;
+            },
         });
     };
 
@@ -125,24 +175,39 @@ export function useDocumentActions(
 
         form.processing = true;
         try {
-            const url = projectDocumentsRoutes.update.url({ project: props.project.id, document: docId });
-            const response = await axios.post(url, { ...form.data(), _method: 'put' });
+            const url = projectDocumentsRoutes.update.url({
+                project: props.project.id,
+                document: docId,
+            });
+            const response = await axios.post(url, {
+                ...form.data(),
+                _method: 'put',
+            });
             if (redirectIfLoggedOut(response)) return;
 
             onSuccessCallback?.();
             isEditModalOpen.value = false;
             form.reset();
-            router.reload({ only: ['requirementStatus'], onFinish: () => { form.processing = false; } });
+            router.reload({
+                only: ['requirementStatus'],
+                onFinish: () => {
+                    form.processing = false;
+                },
+            });
         } catch (err) {
             if (redirectIfSessionExpiredError(err)) return;
 
             const error = err as AxiosError<{ errors: any }>;
             form.processing = false;
-            if (error.response?.status === 422) form.errors = error.response.data.errors;
+            if (error.response?.status === 422)
+                form.errors = error.response.data.errors;
         }
     };
 
-    const setDocToProcessing = async (doc: UIProjectDocument, oneOffInstructions: string | null = null) => {
+    const setDocToProcessing = async (
+        doc: UIProjectDocument,
+        oneOffInstructions: string | null = null,
+    ) => {
         if (!doc) return;
 
         // UI-only state, set synchronously (before the network round trip) so
@@ -154,9 +219,12 @@ export function useDocumentActions(
 
         try {
             const projectId = props.project.id;
-            const response = await axios.post(`/projects/${projectId}/documents/${doc.id}/reprocess`, {
-                one_off_instructions: oneOffInstructions,
-            });
+            const response = await axios.post(
+                `/projects/${projectId}/documents/${doc.id}/reprocess`,
+                {
+                    one_off_instructions: oneOffInstructions,
+                },
+            );
             if (redirectIfLoggedOut(response)) return;
         } catch (error) {
             if (redirectIfSessionExpiredError(error)) return;
@@ -169,7 +237,12 @@ export function useDocumentActions(
 
     const setDocToTransitioning = async (
         doc: UIProjectDocument,
-        payload: { toKey?: string; aiTemplateId: number; singleOutput?: boolean; projectTypeId?: string },
+        payload: {
+            toKey?: string;
+            aiTemplateId: number;
+            singleOutput?: boolean;
+            projectTypeId?: string;
+        },
     ) => {
         if (!doc) return;
 
@@ -180,12 +253,15 @@ export function useDocumentActions(
 
         try {
             const projectId = props.project.id;
-            const response = await axios.post(`/projects/${projectId}/documents/${doc.id}/transition`, {
-                to_key: payload.toKey,
-                ai_template_id: payload.aiTemplateId,
-                single_output: payload.singleOutput,
-                project_type_id: payload.projectTypeId,
-            });
+            const response = await axios.post(
+                `/projects/${projectId}/documents/${doc.id}/transition`,
+                {
+                    to_key: payload.toKey,
+                    ai_template_id: payload.aiTemplateId,
+                    single_output: payload.singleOutput,
+                    project_type_id: payload.projectTypeId,
+                },
+            );
             if (redirectIfLoggedOut(response)) return;
         } catch (error) {
             if (redirectIfSessionExpiredError(error)) return;
@@ -201,7 +277,7 @@ export function useDocumentActions(
 
         const baseUrl = projectDocumentsRoutes.show({
             project: String(projectId),
-            document: String(documentId)
+            document: String(documentId),
         }).url;
 
         // Capture the current URL (which already has ?tab=... and ?expanded=... via replaceState)
@@ -209,7 +285,10 @@ export function useDocumentActions(
         const from = window.location.href;
 
         // Save scroll position so it can be restored on return.
-        sessionStorage.setItem(`doc_scroll_${projectId}`, String(Math.round(window.scrollY)));
+        sessionStorage.setItem(
+            `doc_scroll_${projectId}`,
+            String(Math.round(window.scrollY)),
+        );
 
         const url = `${baseUrl}?from=${encodeURIComponent(from)}`;
 
@@ -233,6 +312,6 @@ export function useDocumentActions(
         moveToBoard,
         updateTags,
         safeJsonParse,
-        navigateToDetails
+        navigateToDetails,
     };
 }
