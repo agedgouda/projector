@@ -68,6 +68,12 @@ class ImportDropboxFile implements ShouldQueue
             return;
         }
 
+        // A large spreadsheet can take a while to download and classify (FileImportProcessor
+        // dispatches ImportTaskList synchronously and waits for it) — without this, the only
+        // notification is the final result, so a file that's actually being worked on looks
+        // identical to one that was silently dropped.
+        $notifier->notify($attributedTo, "📥 Importing \"{$this->filename}\" from Dropbox…", $this->project);
+
         try {
             $bytes = $client->download($this->workspace, $this->dropboxPath);
         } catch (Throwable $e) {

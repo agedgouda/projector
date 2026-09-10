@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\ImportDropboxFile;
+use App\Mail\ImportResultMail;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
@@ -10,6 +11,7 @@ use App\Models\Project;
 use App\Models\ProjectImportMapping;
 use App\Models\User;
 use App\Services\Dropbox\DropboxApiClient;
+use Illuminate\Support\Facades\Mail;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -60,6 +62,44 @@ it('imports a known-mapping csv and attributes it to the workspace owner', funct
     $tasks = Document::where('project_id', $this->project->id)->where('type', 'task')->get();
     expect($tasks)->toHaveCount(2)
         ->and(Document::where('project_id', $this->project->id)->where('type', 'task_list_import')->first()->creator_id)->toBe($this->user->id);
+});
+
+it('notifies the workspace owner that the import has started, before processing the file', function () {
+    // Downloading and classifying can take a while (ImportTaskList runs synchronously inline) —
+    // without this, whoever's watching has no way to tell "still working on it" apart from
+    // "nothing happened at all", which is exactly the confusion that prompted adding it.
+    Mail::fake();
+
+    $csv = "Name,Assignee\nFollow up with client,\nSend invoice,";
+    $mapping = ['name' => 'Name', 'priority' => null, 'task_status' => null, 'due_at' => null, 'assignee' => 'Assignee', 'start_date' => null, 'description' => null, 'tag' => null];
+    ProjectImportMapping::record($this->project, 'task', $mapping);
+
+    $this->mock(\App\Contracts\LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn(['status' => 'success', 'content' => ['passes' => [
+            ['list_type' => 'task', 'mapping' => $mapping, 'rationale' => 'test'],
+        ]]]);
+
+    $this->mock(DropboxApiClient::class)
+        ->shouldReceive('download')
+        ->once()
+        ->andReturn($csv);
+
+    ImportDropboxFile::dispatchSync($this->project, $this->workspace, '/intake/tasks.csv', 'tasks.csv');
+
+    Mail::assertSent(ImportResultMail::class, fn ($mail) => str_contains($mail->resultMessage, 'Importing "tasks.csv" from Dropbox'));
+    Mail::assertSent(ImportResultMail::class, fn ($mail) => str_contains($mail->resultMessage, 'Imported 2 task(s)'));
+});
+
+it('does not send a started notification when there is no one to attribute the import to', function () {
+    Mail::fake();
+
+    $this->workspace->update(['installed_by_user_id' => null]);
+
+    ImportDropboxFile::dispatchSync($this->project, $this->workspace->fresh(), '/intake/tasks.csv', 'tasks.csv');
+
+    Mail::assertNothingSent();
 });
 
 it('does nothing when the workspace has no installed_by_user_id to attribute to', function () {
