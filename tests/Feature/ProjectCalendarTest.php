@@ -275,6 +275,32 @@ it('downloads a calendar pdf spanning multiple months with a 200 response', func
         ->assertHeader('content-type', 'application/pdf');
 });
 
+it('does not hang building the pdf when one item has a wildly out-of-range date', function () {
+    // Regression: a spreadsheet-import year typo (e.g. "0206" instead of "2026") previously
+    // blew the earliest-to-latest month range out to tens of thousands of months, hanging
+    // PDF generation in production (a 504 upstream timeout) — see buildCalendarPages().
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Normal Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Typo Year Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => '0206-10-20',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportPdf', $this->project))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
 it('downloads a calendar excel workbook with a 200 response', function () {
     Document::create([
         'project_id' => $this->project->id,

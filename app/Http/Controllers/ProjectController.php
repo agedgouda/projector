@@ -345,11 +345,24 @@ class ProjectController extends Controller
     }
 
     /**
+     * A single mistyped date (e.g. a spreadsheet import with a year typo like "0206" instead
+     * of "2026") would otherwise blow the earliest-to-latest month range out to tens of
+     * thousands of months, hanging PDF generation — cap the range at 5 years' worth of
+     * month-grids so one bad date can't do that.
+     */
+    private const MAX_CALENDAR_MONTHS = 60;
+
+    /**
      * Build one calendar grid per month from the earliest to the latest item's effective
      * due date (inclusive, contiguous — so a month with zero items in the middle of the
-     * range still gets an empty grid rather than leaving an unexplained gap), chunked into
-     * pages of at most two month-grids each for the PDF's two-months-per-page layout. Falls
-     * back to a single empty grid for the current month when there are no items at all.
+     * range still gets an empty grid rather than leaving an unexplained gap), stacked
+     * vertically in the PDF rather than paginated — a month that doesn't fit on the current
+     * page simply flows onto the next, and the following month continues on whatever page
+     * that left off on. Falls back to a single empty grid for the current month when there
+     * are no items at all. If the raw range would exceed MAX_CALENDAR_MONTHS, it's clamped
+     * to that many months centered on the median item's date instead — an item whose date
+     * falls outside the clamped range simply won't get a marker, the same as any other date
+     * with no grid built for it (see buildMonthGrid()).
      *
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
@@ -357,23 +370,32 @@ class ProjectController extends Controller
      *     due_at: string|null, external_due_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
-     * @return array<int, array<int, array{label: string, weeks: array<int, array<int, array{
+     * @return array<int, array{label: string, weeks: array<int, array<int, array{
      *     day: int, inMonth: bool,
      *     markers: array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>
-     * }>>}>>
+     * }>>}>
      */
-    private function buildCalendarPages(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
+    private function buildCalendarMonths(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
     {
         $markersByDate = $this->buildMarkersByDate($items, $usesExternalDueDates);
 
         if ($markersByDate === []) {
-            return [[$this->buildMonthGrid(\Illuminate\Support\Carbon::now()->startOfMonth(), $markersByDate)]];
+            return [$this->buildMonthGrid(\Illuminate\Support\Carbon::now()->startOfMonth(), $markersByDate)];
         }
 
         $dateKeys = array_keys($markersByDate);
         sort($dateKeys);
-        $cursor = \Illuminate\Support\Carbon::parse($dateKeys[0])->startOfMonth();
-        $end = \Illuminate\Support\Carbon::parse($dateKeys[count($dateKeys) - 1])->startOfMonth();
+        $dates = array_map(fn (string $key) => \Illuminate\Support\Carbon::parse($key), $dateKeys);
+
+        $cursor = $dates[0]->copy()->startOfMonth();
+        $end = $dates[count($dates) - 1]->copy()->startOfMonth();
+
+        if ($cursor->diffInMonths($end) + 1 > self::MAX_CALENDAR_MONTHS) {
+            $median = $dates[intdiv(count($dates), 2)]->copy()->startOfMonth();
+            $halfSpan = intdiv(self::MAX_CALENDAR_MONTHS, 2);
+            $cursor = $median->copy()->subMonths($halfSpan);
+            $end = $median->copy()->addMonths($halfSpan);
+        }
 
         $grids = [];
         while ($cursor->lte($end)) {
@@ -381,7 +403,7 @@ class ProjectController extends Controller
             $cursor->addMonthNoOverflow();
         }
 
-        return array_chunk($grids, 2);
+        return $grids;
     }
 
     /**
@@ -419,8 +441,8 @@ class ProjectController extends Controller
     /**
      * Export the project's entire calendar (due-date items, including visible sub-projects,
      * across every month that has at least one item — not just the month currently shown
-     * on screen) as a branded, calendar-styled PDF matching the on-screen calendar, two
-     * month-grids per page where they fit.
+     * on screen) as a branded, calendar-styled PDF matching the on-screen calendar, months
+     * stacked vertically one after another rather than paginated per month.
      */
     public function exportCalendarPdf(Request $request, Project $project): \Illuminate\Http\Response
     {
@@ -431,12 +453,12 @@ class ProjectController extends Controller
         $usesExternalDueDates = $organization !== null && $organization->uses_external_due_dates;
 
         $items = $this->resolveCalendarExportItems($request, $project, $usesExternalDueDates);
-        $pages = $this->buildCalendarPages($items, $usesExternalDueDates);
+        $months = $this->buildCalendarMonths($items, $usesExternalDueDates);
 
         $pdf = Pdf::loadView('pdfs.calendar', [
             'project' => $project,
             'client' => $project->client,
-            'pages' => $pages,
+            'months' => $months,
             'usesExternalDueDates' => $usesExternalDueDates,
             'logoPath' => $project->getFirstMedia('logo')?->getPath(),
             'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath(),

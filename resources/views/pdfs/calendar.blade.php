@@ -102,28 +102,6 @@
             margin-bottom: 16px;
         }
 
-        .months-page {
-            width: 100%;
-            table-layout: fixed;
-            border-collapse: collapse;
-        }
-
-        .months-page td.month-cell {
-            border: none;
-            padding: 0;
-            vertical-align: top;
-            width: 50%;
-            height: auto;
-        }
-
-        .months-page td.month-cell:first-child {
-            padding-right: 12px;
-        }
-
-        .months-page td.month-cell:last-child {
-            padding-left: 12px;
-        }
-
         .month {
             margin-bottom: 24px;
         }
@@ -259,53 +237,42 @@
         @endif
     </div>
 
-    @foreach ($pages as $page)
-        <table class="months-page">
-            <tr>
-                @foreach ($page as $month)
-                    <td class="month-cell">
-                        <div class="month">
-                            <div class="month-label">{{ $month['label'] }}</div>
-                            <table class="calendar-grid">
-                                <thead>
-                                    <tr>
-                                        <th>Sun</th>
-                                        <th>Mon</th>
-                                        <th>Tue</th>
-                                        <th>Wed</th>
-                                        <th>Thu</th>
-                                        <th>Fri</th>
-                                        <th>Sat</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($month['weeks'] as $week)
-                                        <tr>
-                                            @foreach ($week as $cell)
-                                                <td class="{{ $cell['inMonth'] ? '' : 'out-of-month' }}">
-                                                    <div class="day-number">{{ $cell['day'] }}</div>
-                                                    @foreach ($cell['markers'] as $marker)
-                                                        <div class="marker color-{{ $marker['color'] }}">
-                                                            {{ $marker['name'] }}
-                                                            @if ($marker['isSubproject'])
-                                                                <div class="sub-tag">{{ $marker['projectName'] }}</div>
-                                                            @endif
-                                                        </div>
-                                                    @endforeach
-                                                </td>
-                                            @endforeach
-                                        </tr>
+    @foreach ($months as $month)
+        <div class="month">
+            <div class="month-label">{{ $month['label'] }}</div>
+            <table class="calendar-grid">
+                <thead>
+                    <tr>
+                        <th>Sun</th>
+                        <th>Mon</th>
+                        <th>Tue</th>
+                        <th>Wed</th>
+                        <th>Thu</th>
+                        <th>Fri</th>
+                        <th>Sat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($month['weeks'] as $week)
+                        <tr>
+                            @foreach ($week as $cell)
+                                <td class="{{ $cell['inMonth'] ? '' : 'out-of-month' }}">
+                                    <div class="day-number">{{ $cell['day'] }}</div>
+                                    @foreach ($cell['markers'] as $marker)
+                                        <div class="marker color-{{ $marker['color'] }}">
+                                            {{ $marker['name'] }}
+                                            @if ($marker['isSubproject'])
+                                                <div class="sub-tag">{{ $marker['projectName'] }}</div>
+                                            @endif
+                                        </div>
                                     @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </td>
-                @endforeach
-            </tr>
-        </table>
-        @if (! $loop->last)
-            <div style="page-break-after: always;"></div>
-        @endif
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
     @endforeach
 </body>
 </html>
