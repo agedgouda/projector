@@ -520,8 +520,8 @@ it('reuses a tag it just created for a later row in the same import, instead of 
     }
 });
 
-it('leaves a task untagged, without failing the import, when every one of the family\'s 10 tag colors is already taken', function () {
-    $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+it('leaves a task untagged, without failing the import, when every one of the family\'s 18 tag colors is already taken', function () {
+    $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose'];
     foreach ($palette as $i => $color) {
         Category::create(['project_id' => $this->project->id, 'name' => "Existing {$i}", 'color' => $color]);
     }
@@ -544,14 +544,14 @@ it('leaves a task untagged, without failing the import, when every one of the fa
     $task = Document::where('type', 'task')->first();
     expect($task)->not->toBeNull()
         ->and($task->categories()->count())->toBe(0)
-        ->and(Category::where('project_id', $this->project->id)->count())->toBe(10);
+        ->and(Category::where('project_id', $this->project->id)->count())->toBe(18);
 
     $import = Document::where('type', 'task_list_import')->first();
     expect($import->metadata['untagged'])->toBe([['row' => 2, 'tag' => 'Brand New Tag']]);
 });
 
 it('broadcasts a warning on the final TaskListImportProgress event when a row lost its tag to color exhaustion', function () {
-    $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+    $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose'];
     foreach ($palette as $i => $color) {
         Category::create(['project_id' => $this->project->id, 'name' => "Existing {$i}", 'color' => $color]);
     }

@@ -177,12 +177,12 @@ class TaskListImportService
     }
 
     /**
-     * The same 10-color palette CategoryController::store() picks from — a category's color
-     * must be unique within its project family, so at most 10 tags can ever exist per family.
+     * The same 18-color palette CategoryController::store() picks from — a category's color
+     * must be unique within its project family, so at most 18 tags can ever exist per family.
      *
      * @var array<int, string>
      */
-    private const COLOR_PALETTE = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+    private const COLOR_PALETTE = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose'];
 
     /**
      * Resolves a raw tag string against the project family's existing tags by exact

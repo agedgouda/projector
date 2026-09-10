@@ -17,7 +17,7 @@ class KanbanColumnController extends Controller
      *
      * @var array<int, string>
      */
-    private const COLOR_PALETTE = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+    private const COLOR_PALETTE = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose'];
 
     public function store(Request $request, Project $project)
     {

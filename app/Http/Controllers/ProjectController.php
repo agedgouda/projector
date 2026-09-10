@@ -311,7 +311,7 @@ class ProjectController extends Controller
      */
     private function buildEventRanges(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
     {
-        $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+        $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose'];
 
         /** @var array<string, string> $subprojectColors */
         $subprojectColors = [];

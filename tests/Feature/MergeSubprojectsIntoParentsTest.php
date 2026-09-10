@@ -117,7 +117,7 @@ it('changes nothing in dry-run mode', function () {
 });
 
 it('skips a subproject once every palette color is already taken in its family', function () {
-    $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
+    $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose'];
     foreach ($palette as $i => $color) {
         Category::create(['project_id' => $this->parent->id, 'name' => "Existing {$i}", 'color' => $color]);
     }

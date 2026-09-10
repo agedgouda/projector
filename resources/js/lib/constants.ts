@@ -13,6 +13,14 @@ export const KANBAN_COLOR_PALETTE = [
     'orange',
     'indigo',
     'teal',
+    'yellow',
+    'lime',
+    'green',
+    'cyan',
+    'sky',
+    'violet',
+    'fuchsia',
+    'rose',
 ] as const;
 
 export const kanbanClasses: Record<string, string> = {
@@ -26,6 +34,14 @@ export const kanbanClasses: Record<string, string> = {
     orange: 'bg-orange-50 text-orange-600',
     indigo: 'bg-indigo-50 text-indigo-600',
     teal: 'bg-teal-50 text-teal-600',
+    yellow: 'bg-yellow-50 text-yellow-600',
+    lime: 'bg-lime-50 text-lime-600',
+    green: 'bg-green-50 text-green-600',
+    cyan: 'bg-cyan-50 text-cyan-600',
+    sky: 'bg-sky-50 text-sky-600',
+    violet: 'bg-violet-50 text-violet-600',
+    fuchsia: 'bg-fuchsia-50 text-fuchsia-600',
+    rose: 'bg-rose-50 text-rose-600',
 };
 
 export const kanbanDotClasses: Record<string, string> = {
@@ -39,6 +55,14 @@ export const kanbanDotClasses: Record<string, string> = {
     orange: 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]',
     indigo: 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]',
     teal: 'bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.4)]',
+    yellow: 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]',
+    lime: 'bg-lime-500 shadow-[0_0_8px_rgba(132,204,22,0.4)]',
+    green: 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]',
+    cyan: 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]',
+    sky: 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.4)]',
+    violet: 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.4)]',
+    fuchsia: 'bg-fuchsia-500 shadow-[0_0_8px_rgba(217,70,239,0.4)]',
+    rose: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]',
 };
 
 export const PRIORITY_LABELS: Record<string, string> = {

@@ -193,6 +193,14 @@
         .color-orange { background: #fef1e8; }
         .color-indigo { background: #eff0fe; }
         .color-teal { background: #e8f8f6; }
+        .color-yellow { background: #fdf7e6; }
+        .color-lime { background: #f3fae8; }
+        .color-green { background: #e9f9ef; }
+        .color-cyan { background: #e6f8fb; }
+        .color-sky { background: #e7f6fd; }
+        .color-violet { background: #f3effe; }
+        .color-fuchsia { background: #fbedfd; }
+        .color-rose { background: #feecef; }
 
         .empty {
             color: #94a3b8;

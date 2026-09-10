@@ -24,7 +24,7 @@ class KanbanColumnFactory extends Factory
             'project_id' => Project::factory(),
             'key' => Str::slug($label, '_'),
             'label' => $label,
-            'color' => $this->faker->randomElement(['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal']),
+            'color' => $this->faker->randomElement(['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose']),
             'order' => $this->faker->numberBetween(1, 10),
         ];
     }

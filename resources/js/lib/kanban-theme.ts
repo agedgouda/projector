@@ -64,6 +64,14 @@ export const kanbanCardBg: Record<string, string> = {
     orange: 'bg-orange-500/10',
     indigo: 'bg-indigo-500/10',
     teal: 'bg-teal-500/10',
+    yellow: 'bg-yellow-500/10',
+    lime: 'bg-lime-500/10',
+    green: 'bg-green-500/10',
+    cyan: 'bg-cyan-500/10',
+    sky: 'bg-sky-500/10',
+    violet: 'bg-violet-500/10',
+    fuchsia: 'bg-fuchsia-500/10',
+    rose: 'bg-rose-500/10',
 };
 
 /**
