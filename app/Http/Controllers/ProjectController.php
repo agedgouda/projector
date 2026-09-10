@@ -220,7 +220,7 @@ class ProjectController extends Controller
      * @return \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
-     *     due_at: string|null, external_due_at: string|null, task_status: string,
+     *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
@@ -269,18 +269,18 @@ class ProjectController extends Controller
      * Drops items with no effective due date (e.g. only external_due_at set on an org that
      * doesn't use external due dates) from the CSV/Excel exports — a flat Date/Title/Tags
      * table has no natural place for a row with a blank date. The PDF grid doesn't need this:
-     * such an item simply never gets a marker (see buildMarkersByDate()).
+     * such an item simply never gets a bar (see buildEventRanges()).
      *
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
-     *     due_at: string|null, external_due_at: string|null, task_status: string,
+     *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
      * @return \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
-     *     due_at: string|null, external_due_at: string|null, task_status: string,
+     *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
@@ -290,21 +290,26 @@ class ProjectController extends Controller
     }
 
     /**
-     * Build the day-by-day marker map (each item contributing at most one marker, on
-     * its effective due date — see resolveEffectiveDueDate()) that the PDF's per-month
-     * grids are built from, computed once across every resolved export item regardless
-     * of month, so a single subproject/tag color assignment is shared consistently
-     * across every month's grid.
+     * Build each item's [start, end] date range for the PDF's day-grid bars — mirrors the
+     * on-screen calendar's eventRanges computed (ProjectCalendar.vue): a task has no start_at
+     * (only ever the single day it's due), same as an event with no start_at set; a start_at
+     * after the effective due date (bad data) is clamped to the due date rather than producing
+     * a bar that runs backwards. Computed once across every resolved export item regardless of
+     * month, so a single subproject/tag color assignment is shared consistently across every
+     * month's grid.
      *
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
-     *     due_at: string|null, external_due_at: string|null, task_status: string,
+     *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
-     * @return array<string, array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>>
+     * @return array<int, array{
+     *     id: string, name: string, isSubproject: bool, projectName: string, color: string,
+     *     startKey: string, endKey: string,
+     * }>
      */
-    private function buildMarkersByDate(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
+    private function buildEventRanges(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
     {
         $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
 
@@ -316,8 +321,7 @@ class ProjectController extends Controller
             }
         }
 
-        /** @var array<string, array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>> $markersByDate */
-        $markersByDate = [];
+        $ranges = [];
 
         foreach ($items as $item) {
             $raw = $this->resolveEffectiveDueDate($item, $usesExternalDueDates);
@@ -325,23 +329,68 @@ class ProjectController extends Controller
                 continue;
             }
 
-            $date = \Illuminate\Support\Carbon::parse(substr($raw, 0, 10));
-            $key = $date->toDateString();
+            $endKey = substr($raw, 0, 10);
+            $startKey = $item['start_at'] !== null ? substr($item['start_at'], 0, 10) : $endKey;
+            if ($startKey > $endKey) {
+                $startKey = $endKey;
+            }
 
             // Same priority as the on-screen calendar's barClasses(): a tag's own color first,
             // then the sub-project color, then plain primary — never subproject-then-tag.
             $tagColor = $item['categories'][0]['color'] ?? null;
             $color = $tagColor ?? ($item['is_subproject'] ? ($subprojectColors[$item['project_id']] ?? 'slate') : 'primary');
 
-            $markersByDate[$key][] = [
+            $ranges[] = [
+                'id' => $item['id'],
                 'name' => $item['name'] ?? 'Untitled',
                 'isSubproject' => $item['is_subproject'],
                 'projectName' => $item['project_name'],
                 'color' => $color,
+                'startKey' => $startKey,
+                'endKey' => $endKey,
             ];
         }
 
-        return $markersByDate;
+        return $ranges;
+    }
+
+    /**
+     * Assign each event range touching the given grid window to a lane — mirrors the on-screen
+     * calendar's eventLanes computed: greedy interval packing sorted by start date (ties broken
+     * by longer events first), so a range sits at the same vertical row on every day and every
+     * week it spans within this grid, matching the on-screen calendar's month view.
+     *
+     * @param  array<int, array{id: string, startKey: string, endKey: string}>  $ranges
+     * @return array<string, int> lane index keyed by range id
+     */
+    private function assignEventLanes(array $ranges, string $gridStartKey, string $gridEndKey): array
+    {
+        $relevant = array_values(array_filter(
+            $ranges,
+            fn (array $range): bool => $range['endKey'] >= $gridStartKey && $range['startKey'] <= $gridEndKey
+        ));
+
+        usort($relevant, fn (array $a, array $b): int => $a['startKey'] <=> $b['startKey'] ?: $b['endKey'] <=> $a['endKey']);
+
+        /** @var array<int, string> $laneEndKeys */
+        $laneEndKeys = [];
+        $lanes = [];
+
+        foreach ($relevant as $range) {
+            $lane = null;
+            foreach ($laneEndKeys as $i => $laneEndKey) {
+                if ($laneEndKey < $range['startKey']) {
+                    $lane = $i;
+                    break;
+                }
+            }
+            $lane ??= count($laneEndKeys);
+
+            $laneEndKeys[$lane] = $range['endKey'];
+            $lanes[$range['id']] = $lane;
+        }
+
+        return $lanes;
     }
 
     /**
@@ -361,31 +410,31 @@ class ProjectController extends Controller
      * that left off on. Falls back to a single empty grid for the current month when there
      * are no items at all. If the raw range would exceed MAX_CALENDAR_MONTHS, it's clamped
      * to that many months centered on the median item's date instead — an item whose date
-     * falls outside the clamped range simply won't get a marker, the same as any other date
+     * falls outside the clamped range simply won't get a bar, the same as any other date
      * with no grid built for it (see buildMonthGrid()).
      *
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
-     *     due_at: string|null, external_due_at: string|null, task_status: string,
+     *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
-     * @return array<int, array{label: string, weeks: array<int, array<int, array{
-     *     day: int, inMonth: bool,
-     *     markers: array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>
-     * }>>}>
+     * @return array<int, array{label: string, weeks: array<int, array{
+     *     days: array<int, array{day: int, inMonth: bool}>,
+     *     laneRows: array<int, array<int, array{name: string, isSubproject: bool, projectName: string, color: string, span: int}|array{skip: true}|null>>,
+     * }>}>
      */
     private function buildCalendarMonths(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
     {
-        $markersByDate = $this->buildMarkersByDate($items, $usesExternalDueDates);
+        $ranges = $this->buildEventRanges($items, $usesExternalDueDates);
 
-        if ($markersByDate === []) {
-            return [$this->buildMonthGrid(\Illuminate\Support\Carbon::now()->startOfMonth(), $markersByDate)];
+        if ($ranges === []) {
+            return [$this->buildMonthGrid(\Illuminate\Support\Carbon::now()->startOfMonth(), $ranges)];
         }
 
-        $dateKeys = array_keys($markersByDate);
-        sort($dateKeys);
-        $dates = array_map(fn (string $key) => \Illuminate\Support\Carbon::parse($key), $dateKeys);
+        $endKeys = array_column($ranges, 'endKey');
+        sort($endKeys);
+        $dates = array_map(fn (string $key) => \Illuminate\Support\Carbon::parse($key), $endKeys);
 
         $cursor = $dates[0]->copy()->startOfMonth();
         $end = $dates[count($dates) - 1]->copy()->startOfMonth();
@@ -399,7 +448,7 @@ class ProjectController extends Controller
 
         $grids = [];
         while ($cursor->lte($end)) {
-            $grids[] = $this->buildMonthGrid($cursor->copy(), $markersByDate);
+            $grids[] = $this->buildMonthGrid($cursor->copy(), $ranges);
             $cursor->addMonthNoOverflow();
         }
 
@@ -407,34 +456,121 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param  array<string, array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>>  $markersByDate
-     * @return array{label: string, weeks: array<int, array<int, array{
-     *     day: int, inMonth: bool,
-     *     markers: array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>
-     * }>>}
+     * Builds one month's day grid plus its event bars — mirrors the on-screen calendar's
+     * weeks computed (ProjectCalendar.vue): each week gets its own lane rows, an event
+     * spanning multiple days rendered as a single bar (a table cell with colspan) rather
+     * than a separate marker per day. laneRows is pre-sliced into exactly 7 slots per lane
+     * so the Blade view stays free of loop bookkeeping — a slot is null (empty cell), a bar
+     * (rendered with its colspan), or ['skip' => true] (already covered by a preceding
+     * bar's colspan, so no `<td>` should be rendered for it at all).
+     *
+     * @param  array<int, array{
+     *     id: string, name: string, isSubproject: bool, projectName: string, color: string,
+     *     startKey: string, endKey: string,
+     * }>  $ranges
+     * @return array{label: string, weeks: array<int, array{
+     *     days: array<int, array{day: int, inMonth: bool}>,
+     *     laneRows: array<int, array<int, array{name: string, isSubproject: bool, projectName: string, color: string, span: int}|array{skip: true}|null>>,
+     * }>}
      */
-    private function buildMonthGrid(\Illuminate\Support\Carbon $monthStart, array $markersByDate): array
+    private function buildMonthGrid(\Illuminate\Support\Carbon $monthStart, array $ranges): array
     {
         $firstOfMonth = $monthStart->copy()->startOfMonth();
         $startOffset = $firstOfMonth->dayOfWeek;
         $daysInMonth = $firstOfMonth->daysInMonth;
         $totalCells = (int) ceil(($startOffset + $daysInMonth) / 7) * 7;
 
-        $cells = [];
+        $dayCells = [];
         $date = $firstOfMonth->copy()->subDays($startOffset);
 
         for ($i = 0; $i < $totalCells; $i++) {
-            $cells[] = [
+            $dayCells[] = [
                 'day' => $date->day,
                 'inMonth' => $date->month === $firstOfMonth->month,
-                'markers' => $markersByDate[$date->toDateString()] ?? [],
+                'dateKey' => $date->toDateString(),
             ];
             $date->addDay();
         }
 
+        $dayWeeks = array_chunk($dayCells, 7);
+        $gridStartKey = $dayCells[0]['dateKey'];
+        $gridEndKey = $dayCells[count($dayCells) - 1]['dateKey'];
+        $lanes = $this->assignEventLanes($ranges, $gridStartKey, $gridEndKey);
+
+        $weeks = [];
+        foreach ($dayWeeks as $weekDays) {
+            $weekStartKey = $weekDays[0]['dateKey'];
+            $weekEndKey = $weekDays[6]['dateKey'];
+
+            $bars = [];
+            foreach ($ranges as $range) {
+                if ($range['endKey'] < $weekStartKey || $range['startKey'] > $weekEndKey) {
+                    continue;
+                }
+                if (! isset($lanes[$range['id']])) {
+                    continue;
+                }
+
+                $segStartKey = $range['startKey'] > $weekStartKey ? $range['startKey'] : $weekStartKey;
+                $segEndKey = $range['endKey'] < $weekEndKey ? $range['endKey'] : $weekEndKey;
+
+                $startCol = null;
+                $endCol = null;
+                foreach ($weekDays as $col => $day) {
+                    if ($day['dateKey'] === $segStartKey) {
+                        $startCol = $col;
+                    }
+                    if ($day['dateKey'] === $segEndKey) {
+                        $endCol = $col;
+                    }
+                }
+                if ($startCol === null || $endCol === null) {
+                    continue;
+                }
+
+                $bars[] = [
+                    'lane' => $lanes[$range['id']],
+                    'startCol' => $startCol,
+                    'span' => $endCol - $startCol + 1,
+                    'name' => $range['name'],
+                    'isSubproject' => $range['isSubproject'],
+                    'projectName' => $range['projectName'],
+                    'color' => $range['color'],
+                ];
+            }
+
+            $laneCount = $bars === [] ? 0 : max(array_column($bars, 'lane')) + 1;
+
+            $laneRows = [];
+            for ($lane = 0; $lane < $laneCount; $lane++) {
+                $slots = array_fill(0, 7, null);
+                foreach ($bars as $bar) {
+                    if ($bar['lane'] !== $lane) {
+                        continue;
+                    }
+                    $slots[$bar['startCol']] = [
+                        'name' => $bar['name'],
+                        'isSubproject' => $bar['isSubproject'],
+                        'projectName' => $bar['projectName'],
+                        'color' => $bar['color'],
+                        'span' => $bar['span'],
+                    ];
+                    for ($col = $bar['startCol'] + 1; $col < $bar['startCol'] + $bar['span']; $col++) {
+                        $slots[$col] = ['skip' => true];
+                    }
+                }
+                $laneRows[] = $slots;
+            }
+
+            $weeks[] = [
+                'days' => array_map(fn (array $day): array => ['day' => $day['day'], 'inMonth' => $day['inMonth']], $weekDays),
+                'laneRows' => $laneRows,
+            ];
+        }
+
         return [
             'label' => $firstOfMonth->format('F Y'),
-            'weeks' => array_chunk($cells, 7),
+            'weeks' => $weeks,
         ];
     }
 
@@ -572,7 +708,7 @@ class ProjectController extends Controller
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
-     *     due_at: string|null, external_due_at: string|null, task_status: string,
+     *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
      */

@@ -133,10 +133,12 @@
 
         table.calendar-grid td {
             border: 1px solid #e2e8f0;
-            padding: 3px 4px;
+            padding: 2px 4px;
             vertical-align: top;
-            height: 70px;
-            width: 14.28%;
+        }
+
+        table.calendar-grid td.day-cell {
+            height: 20px;
         }
 
         table.calendar-grid td.out-of-month {
@@ -151,7 +153,11 @@
             font-size: 9px;
             font-weight: bold;
             color: #334155;
-            margin-bottom: 2px;
+        }
+
+        table.calendar-grid td.bar-cell {
+            height: 16px;
+            padding: 1px 2px;
         }
 
         .marker {
@@ -159,8 +165,9 @@
             font-weight: bold;
             padding: 1px 3px;
             border-radius: 2px;
-            margin-bottom: 1px;
             color: #334155;
+            overflow: hidden;
+            white-space: nowrap;
         }
 
         .marker .sub-tag {
@@ -168,6 +175,7 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
             color: #64748b;
+            margin-left: 4px;
         }
 
         {{-- Matches the on-screen calendar's actual bar backgrounds: the Projector primary-50
@@ -241,6 +249,11 @@
         <div class="month">
             <div class="month-label">{{ $month['label'] }}</div>
             <table class="calendar-grid">
+                <colgroup>
+                    @for ($i = 0; $i < 7; $i++)
+                        <col style="width: 14.2857%;">
+                    @endfor
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Sun</th>
@@ -255,20 +268,30 @@
                 <tbody>
                     @foreach ($month['weeks'] as $week)
                         <tr>
-                            @foreach ($week as $cell)
-                                <td class="{{ $cell['inMonth'] ? '' : 'out-of-month' }}">
-                                    <div class="day-number">{{ $cell['day'] }}</div>
-                                    @foreach ($cell['markers'] as $marker)
-                                        <div class="marker color-{{ $marker['color'] }}">
-                                            {{ $marker['name'] }}
-                                            @if ($marker['isSubproject'])
-                                                <div class="sub-tag">{{ $marker['projectName'] }}</div>
-                                            @endif
-                                        </div>
-                                    @endforeach
+                            @foreach ($week['days'] as $day)
+                                <td class="day-cell {{ $day['inMonth'] ? '' : 'out-of-month' }}">
+                                    <div class="day-number">{{ $day['day'] }}</div>
                                 </td>
                             @endforeach
                         </tr>
+                        @foreach ($week['laneRows'] as $lane)
+                            <tr>
+                                @foreach ($lane as $slot)
+                                    @if ($slot === null)
+                                        <td class="bar-cell"></td>
+                                    @elseif (! ($slot['skip'] ?? false))
+                                        <td colspan="{{ $slot['span'] }}" class="bar-cell">
+                                            <div class="marker color-{{ $slot['color'] }}">
+                                                {{ $slot['name'] }}
+                                                @if ($slot['isSubproject'])
+                                                    <span class="sub-tag">{{ $slot['projectName'] }}</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    @endif
+                                @endforeach
+                            </tr>
+                        @endforeach
                     @endforeach
                 </tbody>
             </table>

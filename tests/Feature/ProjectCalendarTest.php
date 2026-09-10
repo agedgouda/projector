@@ -275,10 +275,35 @@ it('downloads a calendar pdf spanning multiple months with a 200 response', func
         ->assertHeader('content-type', 'application/pdf');
 });
 
+it('downloads a calendar pdf with overlapping multi-day event bars with a 200 response', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Multi-Day Campaign',
+        'type' => 'event',
+        'content' => 'Do it',
+        'start_at' => '2026-09-03',
+        'due_at' => '2026-09-09',
+    ]);
+
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Overlapping Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'start_at' => '2026-09-05',
+        'due_at' => '2026-09-12',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportPdf', $this->project))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
 it('does not hang building the pdf when one item has a wildly out-of-range date', function () {
     // Regression: a spreadsheet-import year typo (e.g. "0206" instead of "2026") previously
     // blew the earliest-to-latest month range out to tens of thousands of months, hanging
-    // PDF generation in production (a 504 upstream timeout) — see buildCalendarPages().
+    // PDF generation in production (a 504 upstream timeout) — see buildCalendarMonths().
     Document::create([
         'project_id' => $this->project->id,
         'name' => 'Normal Event',
