@@ -252,6 +252,29 @@ it('downloads a calendar pdf with a 200 response', function () {
         ->assertHeader('content-type', 'application/pdf');
 });
 
+it('downloads a calendar pdf spanning multiple months with a 200 response', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'September Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => '2026-09-01',
+    ]);
+
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'November Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => '2026-11-15',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportPdf', $this->project))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
 it('downloads a calendar excel workbook with a 200 response', function () {
     Document::create([
         'project_id' => $this->project->id,
@@ -373,7 +396,7 @@ it('excludes a hidden sub-project from the calendar csv export', function () {
         ->not->toContain('Sub Event');
 });
 
-it('only includes items due in the requested month', function () {
+it('includes items due in every month, not just one', function () {
     Document::create([
         'project_id' => $this->project->id,
         'name' => 'September Event',
@@ -391,14 +414,15 @@ it('only includes items due in the requested month', function () {
     ]);
 
     $response = $this->actingAs($this->admin)
-        ->get(route('projects.calendar.exportCsv', $this->project).'?month=2026-09')
+        ->get(route('projects.calendar.exportCsv', $this->project))
         ->assertOk();
 
     $csv = $response->streamedContent();
 
     expect($csv)->toContain('September Event')
         ->toContain('Sep 1, 2026')
-        ->not->toContain('October Event');
+        ->toContain('October Event')
+        ->toContain('Oct 1, 2026');
 });
 
 it('defaults to the current month when none is requested', function () {
@@ -589,7 +613,7 @@ it('includes an item that only has external_due_at when the org uses external du
     expect($csv)->toContain('External Only Event');
 });
 
-it('positions an item by external_due_at, not due_at, when the org uses external due dates', function () {
+it('formats an item by external_due_at, not due_at, when the org uses external due dates', function () {
     $this->org->update(['uses_external_due_dates' => true]);
 
     Document::create([
@@ -601,18 +625,14 @@ it('positions an item by external_due_at, not due_at, when the org uses external
         'external_due_at' => '2026-10-01',
     ]);
 
-    $septemberCsv = $this->actingAs($this->admin)
-        ->get(route('projects.calendar.exportCsv', $this->project).'?month=2026-09')
+    $csv = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportCsv', $this->project))
         ->assertOk()
         ->streamedContent();
 
-    $octoberCsv = $this->actingAs($this->admin)
-        ->get(route('projects.calendar.exportCsv', $this->project).'?month=2026-10')
-        ->assertOk()
-        ->streamedContent();
-
-    expect($septemberCsv)->not->toContain('Dual Date Event')
-        ->and($octoberCsv)->toContain('Dual Date Event');
+    expect($csv)->toContain('Dual Date Event')
+        ->toContain('Oct 1, 2026')
+        ->not->toContain('Sep 1, 2026');
 });
 
 it('still includes an item that only has due_at when the org uses external due dates', function () {

@@ -183,15 +183,18 @@ const monthLabel = computed(() =>
     }),
 );
 
-// Exports mirror whatever's currently on screen — the visible month, whichever
-// sub-projects are currently hidden, the active tag filter, and the Tasks/Events toggle —
-// so the downloaded file matches the view.
+// Exports cover the entire calendar (every month, not just the one on screen), but
+// still mirror whichever sub-projects are currently hidden, the active tag filter, and
+// the Tasks/Events toggle — so the downloaded file matches those filters.
 const exportQuery = computed(() => ({
-    month: `${currentMonth.value.getFullYear()}-${String(currentMonth.value.getMonth() + 1).padStart(2, '0')}`,
     hidden_subprojects: Array.from(hiddenSubprojectIds),
     tags: selectedTagIds.value,
-    show_tasks: selectedTypes.value.length === 0 || selectedTypes.value.includes('task'),
-    show_events: selectedTypes.value.length === 0 || selectedTypes.value.includes('event'),
+    show_tasks:
+        selectedTypes.value.length === 0 ||
+        selectedTypes.value.includes('task'),
+    show_events:
+        selectedTypes.value.length === 0 ||
+        selectedTypes.value.includes('event'),
 }));
 const exportPdfUrl = computed(() =>
     projectCalendarRoutes.exportPdf.url(

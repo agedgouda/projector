@@ -266,10 +266,10 @@ class ProjectController extends Controller
     }
 
     /**
-     * Filters already-resolved export items down to just those whose effective due date falls
-     * within the given month — used by the CSV/Excel exports, which (unlike the PDF's
-     * buildCalendarGrid()) show a flat table rather than a day grid, so there's no leading/
-     * trailing padding week to intentionally let adjacent-month items land on.
+     * Drops items with no effective due date (e.g. only external_due_at set on an org that
+     * doesn't use external due dates) from the CSV/Excel exports — a flat Date/Title/Tags
+     * table has no natural place for a row with a blank date. The PDF grid doesn't need this:
+     * such an item simply never gets a marker (see buildMarkersByDate()).
      *
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
@@ -284,23 +284,17 @@ class ProjectController extends Controller
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
-    private function filterItemsToMonth(\Illuminate\Support\Collection $items, bool $usesExternalDueDates, \Illuminate\Support\Carbon $month): \Illuminate\Support\Collection
+    private function excludeUndatedItems(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): \Illuminate\Support\Collection
     {
-        $targetKey = $month->format('Y-m');
-
-        return $items->filter(function (array $item) use ($usesExternalDueDates, $targetKey) {
-            $effective = $this->resolveEffectiveDueDate($item, $usesExternalDueDates);
-
-            return $effective !== null && substr($effective, 0, 7) === $targetKey;
-        })->values();
+        return $items->filter(fn (array $item) => $this->resolveEffectiveDueDate($item, $usesExternalDueDates) !== null)->values();
     }
 
     /**
-     * Build the calendar grid (weeks of day cells, each holding the due-date markers
-     * that fall on it) for a single target month from resolved export items — the
-     * same month currently shown on screen — so the PDF export visually matches the
-     * on-screen calendar instead of being a flat list. Each item contributes at most
-     * one marker, on its effective due date (see resolveEffectiveDueDate()).
+     * Build the day-by-day marker map (each item contributing at most one marker, on
+     * its effective due date — see resolveEffectiveDueDate()) that the PDF's per-month
+     * grids are built from, computed once across every resolved export item regardless
+     * of month, so a single subproject/tag color assignment is shared consistently
+     * across every month's grid.
      *
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
@@ -308,12 +302,9 @@ class ProjectController extends Controller
      *     due_at: string|null, external_due_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
-     * @return array{label: string, weeks: array<int, array<int, array{
-     *     day: int, inMonth: bool,
-     *     markers: array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>
-     * }>>}
+     * @return array<string, array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>>
      */
-    private function buildCalendarGrid(\Illuminate\Support\Collection $items, bool $usesExternalDueDates, \Illuminate\Support\Carbon $month): array
+    private function buildMarkersByDate(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
     {
         $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal'];
 
@@ -350,7 +341,47 @@ class ProjectController extends Controller
             ];
         }
 
-        return $this->buildMonthGrid($month, $markersByDate);
+        return $markersByDate;
+    }
+
+    /**
+     * Build one calendar grid per month from the earliest to the latest item's effective
+     * due date (inclusive, contiguous — so a month with zero items in the middle of the
+     * range still gets an empty grid rather than leaving an unexplained gap), chunked into
+     * pages of at most two month-grids each for the PDF's two-months-per-page layout. Falls
+     * back to a single empty grid for the current month when there are no items at all.
+     *
+     * @param  \Illuminate\Support\Collection<int, array{
+     *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
+     *     project_id: string, project_name: string, is_subproject: bool,
+     *     due_at: string|null, external_due_at: string|null, task_status: string,
+     *     categories: array<int, array{id: string, name: string, color: string}>
+     * }>  $items
+     * @return array<int, array<int, array{label: string, weeks: array<int, array<int, array{
+     *     day: int, inMonth: bool,
+     *     markers: array<int, array{name: string, isSubproject: bool, projectName: string, color: string}>
+     * }>>}>>
+     */
+    private function buildCalendarPages(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
+    {
+        $markersByDate = $this->buildMarkersByDate($items, $usesExternalDueDates);
+
+        if ($markersByDate === []) {
+            return [[$this->buildMonthGrid(\Illuminate\Support\Carbon::now()->startOfMonth(), $markersByDate)]];
+        }
+
+        $dateKeys = array_keys($markersByDate);
+        sort($dateKeys);
+        $cursor = \Illuminate\Support\Carbon::parse($dateKeys[0])->startOfMonth();
+        $end = \Illuminate\Support\Carbon::parse($dateKeys[count($dateKeys) - 1])->startOfMonth();
+
+        $grids = [];
+        while ($cursor->lte($end)) {
+            $grids[] = $this->buildMonthGrid($cursor->copy(), $markersByDate);
+            $cursor->addMonthNoOverflow();
+        }
+
+        return array_chunk($grids, 2);
     }
 
     /**
@@ -386,79 +417,56 @@ class ProjectController extends Controller
     }
 
     /**
-     * Resolve the month to export — whatever the user currently has visible on
-     * screen, passed as ?month=YYYY-MM, defaulting to the current month if absent
-     * or malformed.
-     */
-    private function resolveTargetMonth(Request $request): \Illuminate\Support\Carbon
-    {
-        $raw = $request->query('month');
-
-        if (is_string($raw) && preg_match('/^\d{4}-\d{2}$/', $raw)) {
-            $parsed = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $raw.'-01');
-            if ($parsed !== null) {
-                return $parsed->startOfMonth();
-            }
-        }
-
-        return \Illuminate\Support\Carbon::now()->startOfMonth();
-    }
-
-    /**
-     * Export the project's calendar (due-date items, including visible sub-projects)
-     * for the currently-viewed month as a branded, calendar-styled PDF matching the
-     * on-screen calendar.
+     * Export the project's entire calendar (due-date items, including visible sub-projects,
+     * across every month that has at least one item — not just the month currently shown
+     * on screen) as a branded, calendar-styled PDF matching the on-screen calendar, two
+     * month-grids per page where they fit.
      */
     public function exportCalendarPdf(Request $request, Project $project): \Illuminate\Http\Response
     {
         Gate::authorize('view', $project);
-
-        $month = $this->resolveTargetMonth($request);
 
         $project->loadMissing('client.organization');
         $organization = $project->client?->organization;
         $usesExternalDueDates = $organization !== null && $organization->uses_external_due_dates;
 
         $items = $this->resolveCalendarExportItems($request, $project, $usesExternalDueDates);
-        $grid = $this->buildCalendarGrid($items, $usesExternalDueDates, $month);
+        $pages = $this->buildCalendarPages($items, $usesExternalDueDates);
 
         $pdf = Pdf::loadView('pdfs.calendar', [
             'project' => $project,
             'client' => $project->client,
-            'month' => $grid,
+            'pages' => $pages,
             'usesExternalDueDates' => $usesExternalDueDates,
             'logoPath' => $project->getFirstMedia('logo')?->getPath(),
             'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath(),
             'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath(),
         ])->setPaper('a4', 'landscape');
 
-        $filename = Str::slug($project->name).'-calendar-'.$month->format('Y-m');
+        $filename = Str::slug($project->name).'-calendar';
 
         return $pdf->download($filename.'.pdf');
     }
 
     /**
-     * Export the project's calendar items (visible sub-projects, tags, and Tasks/Events
-     * toggle all respected — see resolveCalendarExportItems()) for the currently-viewed
-     * month as a flat Date/Title/Tags CSV, one row per item, rather than a day-grid layout.
+     * Export the project's entire calendar (visible sub-projects, tags, and Tasks/Events
+     * toggle all respected — see resolveCalendarExportItems()), across every month, as a
+     * flat Date/Title/Tags CSV, one row per item, rather than a day-grid layout.
      */
     public function exportCalendarCsv(Request $request, Project $project): StreamedResponse
     {
         Gate::authorize('view', $project);
 
-        $month = $this->resolveTargetMonth($request);
-
         $project->loadMissing('client.organization');
         $organization = $project->client?->organization;
         $usesExternalDueDates = $organization !== null && $organization->uses_external_due_dates;
 
-        $items = $this->filterItemsToMonth(
+        $items = $this->excludeUndatedItems(
             $this->resolveCalendarExportItems($request, $project, $usesExternalDueDates),
-            $usesExternalDueDates,
-            $month
+            $usesExternalDueDates
         );
 
-        $filename = Str::slug($project->name).'-calendar-'.$month->format('Y-m').'.csv';
+        $filename = Str::slug($project->name).'-calendar.csv';
 
         $callback = function () use ($items, $usesExternalDueDates) {
             $handle = fopen('php://output', 'w');
@@ -486,31 +494,27 @@ class ProjectController extends Controller
     }
 
     /**
-     * Export the project's calendar items (visible sub-projects, tags, and Tasks/Events
-     * toggle all respected — see resolveCalendarExportItems()) for the currently-viewed
-     * month as a flat Date/Title/Tags Excel workbook, one row per item, rather than a
-     * day-grid layout.
+     * Export the project's entire calendar (visible sub-projects, tags, and Tasks/Events
+     * toggle all respected — see resolveCalendarExportItems()), across every month, as a
+     * flat Date/Title/Tags Excel workbook, one row per item, rather than a day-grid layout.
      */
     public function exportCalendarExcel(Request $request, Project $project): StreamedResponse
     {
         Gate::authorize('view', $project);
 
-        $month = $this->resolveTargetMonth($request);
-
         $project->loadMissing('client.organization');
         $organization = $project->client?->organization;
         $usesExternalDueDates = $organization !== null && $organization->uses_external_due_dates;
 
-        $items = $this->filterItemsToMonth(
+        $items = $this->excludeUndatedItems(
             $this->resolveCalendarExportItems($request, $project, $usesExternalDueDates),
-            $usesExternalDueDates,
-            $month
+            $usesExternalDueDates
         );
 
-        $spreadsheet = $this->buildCalendarSpreadsheet($project, $month, $items, $usesExternalDueDates);
+        $spreadsheet = $this->buildCalendarSpreadsheet($project, $items, $usesExternalDueDates);
         $writer = new Xlsx($spreadsheet);
 
-        $filename = Str::slug($project->name).'-calendar-'.$month->format('Y-m').'.xlsx';
+        $filename = Str::slug($project->name).'-calendar.xlsx';
 
         return response()->streamDownload(function () use ($writer) {
             $writer->save('php://output');
@@ -540,8 +544,8 @@ class ProjectController extends Controller
     }
 
     /**
-     * Build a Date/Title/Tags Excel worksheet from resolved, month-filtered export items —
-     * a bolded title row, a bolded header row, then one row per item.
+     * Build a Date/Title/Tags Excel worksheet from resolved export items — a bolded title
+     * row, a bolded header row, then one row per item.
      *
      * @param  \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
@@ -550,15 +554,13 @@ class ProjectController extends Controller
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
      */
-    private function buildCalendarSpreadsheet(Project $project, \Illuminate\Support\Carbon $month, \Illuminate\Support\Collection $items, bool $usesExternalDueDates): Spreadsheet
+    private function buildCalendarSpreadsheet(Project $project, \Illuminate\Support\Collection $items, bool $usesExternalDueDates): Spreadsheet
     {
-        $monthLabel = $month->format('F Y');
-
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle(Str::limit($monthLabel, 31, ''));
+        $sheet->setTitle('Calendar');
 
-        $sheet->setCellValue('A1', $project->name.' — '.$monthLabel);
+        $sheet->setCellValue('A1', $project->name.' — Calendar');
         $sheet->mergeCells('A1:C1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getRowDimension(1)->setRowHeight(24);
