@@ -2,12 +2,14 @@
 
 use App\Mail\ImportResultMail;
 use App\Models\Client;
+use App\Models\ImportedFile;
 use App\Models\Organization;
 use App\Models\PendingImport;
 use App\Models\Project;
 use App\Models\SlackChannelBinding;
 use App\Models\SlackWorkspace;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 
@@ -96,6 +98,50 @@ it('skips notifying when the pending import has no known uploader', function () 
 
     expect(PendingImport::find($this->pendingImport->id))->toBeNull();
     Mail::assertNothingSent();
+});
+
+it('forgets the imported-file dedup record for a discarded pending import, so the same file can be re-uploaded', function () {
+    $content = "Name,Due Date\nWrite report,2026-09-01\n";
+    $contentHash = hash('sha256', $content);
+
+    ImportedFile::create([
+        'project_id' => $this->project->id,
+        'content_hash' => $contentHash,
+        'original_filename' => 'export.csv',
+        'source' => 'slack',
+    ]);
+
+    $this->pendingImport->addMedia(UploadedFile::fake()->createWithContent('export.csv', $content))
+        ->preservingOriginal()
+        ->toMediaCollection('file');
+
+    $this->actingAs($this->uploader)
+        ->delete(route('import.pending.destroy', $this->pendingImport), ['discarded' => true])
+        ->assertRedirect();
+
+    expect(ImportedFile::where('project_id', $this->project->id)->where('content_hash', $contentHash)->exists())->toBeFalse();
+});
+
+it('leaves the imported-file dedup record alone when a pending import is dismissed after a successful apply', function () {
+    $content = "Name,Due Date\nWrite report,2026-09-01\n";
+    $contentHash = hash('sha256', $content);
+
+    ImportedFile::create([
+        'project_id' => $this->project->id,
+        'content_hash' => $contentHash,
+        'original_filename' => 'export.csv',
+        'source' => 'slack',
+    ]);
+
+    $this->pendingImport->addMedia(UploadedFile::fake()->createWithContent('export.csv', $content))
+        ->preservingOriginal()
+        ->toMediaCollection('file');
+
+    $this->actingAs($this->uploader)
+        ->delete(route('import.pending.destroy', $this->pendingImport))
+        ->assertRedirect();
+
+    expect(ImportedFile::where('project_id', $this->project->id)->where('content_hash', $contentHash)->exists())->toBeTrue();
 });
 
 it('404s a member with no client access discarding a pending import', function () {

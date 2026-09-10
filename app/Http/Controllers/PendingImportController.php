@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\ImportedFile;
 use App\Models\PendingImport;
 use App\Models\SlackChannelBinding;
 use App\Services\DocumentFileExtractorService;
@@ -77,6 +78,7 @@ class PendingImportController extends Controller
 
         if ($request->boolean('discarded')) {
             $this->notifyCanceled($pendingImport);
+            $this->forgetImportedFile($pendingImport);
         }
 
         $pendingImport->delete();
@@ -119,5 +121,32 @@ class PendingImportController extends Controller
         }
 
         app(ImportNotifier::class)->notify($attributedTo, $message, $project, $slackChannelReply);
+    }
+
+    /**
+     * A discarded pending import was never actually imported, so the ImportedFile dedup row
+     * FileImportProcessor::recordImportedFile() wrote when this was first queued (see
+     * queueForValidation()) needs to go too — otherwise re-uploading the exact same file (the
+     * Slack "canceled" notification's own "click here to restart" instruction) is silently
+     * blocked by the "already been imported" dedup check even though nothing was ever actually
+     * imported. Re-hashes the file already attached to this pending import rather than needing
+     * a stored content_hash column, so this must run before the pending import (and its media)
+     * is deleted.
+     */
+    private function forgetImportedFile(PendingImport $pendingImport): void
+    {
+        $media = $pendingImport->getFirstMedia('file');
+        if ($media === null) {
+            return;
+        }
+
+        $contentHash = hash_file('sha256', $media->getPath());
+        if ($contentHash === false) {
+            return;
+        }
+
+        ImportedFile::where('project_id', $pendingImport->project_id)
+            ->where('content_hash', $contentHash)
+            ->delete();
     }
 }
