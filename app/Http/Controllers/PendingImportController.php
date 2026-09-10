@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\PendingImport;
+use App\Models\SlackChannelBinding;
 use App\Services\DocumentFileExtractorService;
+use App\Services\Import\ImportNotifier;
 use App\Services\TaskListImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 
@@ -62,18 +65,59 @@ class PendingImportController extends Controller
     /**
      * Dismisses a pending import — used both for "not needed, discard it" and, by the frontend,
      * right after ImportTransformationModal successfully applies it, so a resolved item doesn't
-     * linger in the queue.
+     * linger in the queue. Only the former is an actual cancellation worth telling anyone about;
+     * the frontend marks that case with `discarded=1` on the request (see Import/Wizard.vue's
+     * dismissPendingImport() vs. handleImported(), which calls this same endpoint silently after
+     * a successful apply) — without that distinction, a successful import would get the same
+     * "canceled by user" message this sends for a real discard.
      */
-    public function destroy(PendingImport $pendingImport): RedirectResponse|JsonResponse
+    public function destroy(Request $request, PendingImport $pendingImport): RedirectResponse|JsonResponse
     {
         Gate::authorize('create', [Document::class, $pendingImport->project]);
 
+        if ($request->boolean('discarded')) {
+            $this->notifyCanceled($pendingImport);
+        }
+
         $pendingImport->delete();
 
-        if (request()->wantsJson()) {
+        if ($request->wantsJson()) {
             return response()->json(['status' => 'ok']);
         }
 
         return back();
+    }
+
+    /**
+     * Best-effort — an import with no known uploader (shouldn't normally happen; every queueing
+     * path stamps uploaded_by_user_id) just skips notifying rather than failing the discard.
+     * Reuses the exact same ImportNotifier every other import message goes through: an in-channel
+     * Slack reply if this project currently has a bound Slack channel (the file may well have
+     * come from a different channel/source originally, but a project only realistically has one
+     * bound channel in practice), otherwise the usual Slack DM-or-email fallback.
+     */
+    private function notifyCanceled(PendingImport $pendingImport): void
+    {
+        $attributedTo = $pendingImport->uploadedBy;
+
+        if ($attributedTo === null) {
+            return;
+        }
+
+        $project = $pendingImport->project;
+        $url = route('import.index', ['org' => $project->organization_id]);
+        $message = "Import canceled by user. Click here to restart: {$url}";
+
+        $slackChannelReply = null;
+        $binding = SlackChannelBinding::where('project_id', $project->id)->with('slackWorkspace')->first();
+
+        if ($binding !== null) {
+            $slackChannelReply = [
+                'bot_token' => $binding->slackWorkspace->bot_access_token,
+                'channel_id' => $binding->channel_id,
+            ];
+        }
+
+        app(ImportNotifier::class)->notify($attributedTo, $message, $project, $slackChannelReply);
     }
 }

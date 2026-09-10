@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import IconTile from '@/components/IconTile.vue';
 import ImportTransformationModal from '@/components/recordings/ImportTransformationModal.vue';
 import { Button } from '@/components/ui/button';
@@ -138,8 +139,11 @@ const openPendingImport = async (item: PendingImport) => {
     }
 };
 
-const removePendingImport = async (id: string) => {
-    await axios.delete(pendingImportRoutes.destroy.url(id));
+const removePendingImport = async (id: string, discarded = false) => {
+    await axios.delete(
+        pendingImportRoutes.destroy.url(id),
+        discarded ? { params: { discarded: true } } : undefined,
+    );
     pendingImportsList.value = pendingImportsList.value.filter(
         (p) => p.id !== id,
     );
@@ -151,9 +155,32 @@ const handleImported = () => {
     }
 };
 
-const dismissPendingImport = async (item: PendingImport) => {
-    await removePendingImport(item.id);
-    toast.success(`Dismissed "${item.original_filename}".`);
+// discarded=true is what tells the backend this is a real cancellation (worth a "canceled by
+// user" notification) rather than the silent post-success cleanup handleImported() above does
+// — now only ever sent once the confirm modal below is accepted.
+const pendingDismiss = ref<PendingImport | null>(null);
+const isDismissing = ref(false);
+
+const confirmDismissPendingImport = (item: PendingImport) => {
+    pendingDismiss.value = item;
+};
+
+const cancelDismissPendingImport = () => {
+    pendingDismiss.value = null;
+};
+
+const executeDismissPendingImport = async () => {
+    const item = pendingDismiss.value;
+    if (!item) return;
+
+    isDismissing.value = true;
+    try {
+        await removePendingImport(item.id, true);
+        toast.success(`Dismissed "${item.original_filename}".`);
+        pendingDismiss.value = null;
+    } finally {
+        isDismissing.value = false;
+    }
 };
 </script>
 
@@ -242,7 +269,7 @@ const dismissPendingImport = async (item: PendingImport) => {
                             type="button"
                             class="shrink-0 rounded p-1 text-gray-400 hover:bg-amber-100 hover:text-gray-600 dark:hover:bg-amber-900/40"
                             title="Dismiss without importing"
-                            @click="dismissPendingImport(item)"
+                            @click="confirmDismissPendingImport(item)"
                         >
                             <X class="h-3.5 w-3.5" />
                         </button>
@@ -375,6 +402,16 @@ const dismissPendingImport = async (item: PendingImport) => {
             :document-type-catalog="reviewAnalysis.document_type_catalog"
             @close="reviewOpen = false"
             @imported="handleImported"
+        />
+
+        <ConfirmDeleteModal
+            :open="!!pendingDismiss"
+            :title="`Dismiss &quot;${pendingDismiss?.original_filename}&quot;?`"
+            description="This discards the file without importing it — it can't be undone, and whoever uploaded it will be notified."
+            :loading="isDismissing"
+            confirm-label="Dismiss"
+            @close="cancelDismissPendingImport"
+            @confirm="executeDismissPendingImport"
         />
     </AppLayout>
 </template>

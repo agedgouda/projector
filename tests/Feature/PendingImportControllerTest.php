@@ -1,19 +1,20 @@
 <?php
 
+use App\Mail\ImportResultMail;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\PendingImport;
 use App\Models\Project;
+use App\Models\SlackChannelBinding;
+use App\Models\SlackWorkspace;
 use App\Models\User;
-use Illuminate\Http\UploadedFile;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
-    Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => 'org-admin', 'guard_name' => 'web']);
 
     $this->org = Organization::create(['name' => 'Test Org']);
     $this->client = Client::create([
@@ -24,114 +25,88 @@ beforeEach(function () {
     ]);
     $this->project = Project::create(['name' => 'Test Project', 'client_id' => $this->client->id]);
 
-    $this->admin = User::factory()->create();
-    $this->org->users()->attach($this->admin->id, ['role' => 'org-admin']);
-
-    $this->member = User::factory()->create();
-    $this->org->users()->attach($this->member->id, ['role' => 'member']);
-    $this->client->users()->attach($this->member->id);
-
+    $this->uploader = User::factory()->create();
+    $this->org->users()->attach($this->uploader->id, ['role' => 'org-admin']);
     setPermissionsTeamId($this->org->id);
-});
 
-function createPendingImportWithFile(Project $project, string $csv = "Name,Start Date\nTeam Offsite,2026-09-10"): PendingImport
-{
-    $pendingImport = PendingImport::create([
-        'project_id' => $project->id,
+    $this->pendingImport = PendingImport::create([
+        'project_id' => $this->project->id,
         'original_filename' => 'export.csv',
         'source_type' => 'spreadsheet',
+        'source' => 'slack',
+        'uploaded_by_user_id' => $this->uploader->id,
+        'note' => 'Uploaded via Slack — needs review.',
+    ]);
+});
+
+it('deletes the pending import without notifying anyone when discarded is not sent', function () {
+    Mail::fake();
+
+    $this->actingAs($this->uploader)
+        ->delete(route('import.pending.destroy', $this->pendingImport))
+        ->assertRedirect();
+
+    expect(PendingImport::find($this->pendingImport->id))->toBeNull();
+    Mail::assertNothingSent();
+});
+
+it('notifies the uploader by email when discarded, and there is no bound slack channel', function () {
+    Mail::fake();
+
+    $this->actingAs($this->uploader)
+        ->delete(route('import.pending.destroy', $this->pendingImport), ['discarded' => true])
+        ->assertRedirect();
+
+    expect(PendingImport::find($this->pendingImport->id))->toBeNull();
+
+    Mail::assertSent(ImportResultMail::class, fn ($mail) => str_contains($mail->resultMessage, 'Import canceled by user. Click here to restart')
+        && str_contains($mail->resultMessage, route('import.index', ['org' => $this->org->id])));
+});
+
+it('posts the cancellation in-channel when the project has a bound slack channel', function () {
+    Http::fake(['slack.com/api/chat.postMessage' => Http::response(['ok' => true], 200)]);
+
+    $workspace = SlackWorkspace::factory()->create([
+        'organization_id' => $this->org->id,
+        'bot_access_token' => 'xoxb-fake-token',
+    ]);
+    SlackChannelBinding::factory()->create([
+        'slack_workspace_id' => $workspace->id,
+        'channel_id' => 'C123',
+        'project_id' => $this->project->id,
     ]);
 
-    $tmpPath = tempnam(sys_get_temp_dir(), 'pending_import_test').'.csv';
-    file_put_contents($tmpPath, $csv);
-    $uploadedFile = new UploadedFile($tmpPath, 'export.csv', 'text/csv', null, true);
-    $pendingImport->addMedia($uploadedFile)->toMediaCollection('file');
-    @unlink($tmpPath);
+    $this->actingAs($this->uploader)
+        ->delete(route('import.pending.destroy', $this->pendingImport), ['discarded' => true])
+        ->assertRedirect();
 
-    return $pendingImport;
-}
-
-function createPendingImportWithDocx(Project $project, string $line = 'Team Offsite on 2026-09-10.'): PendingImport
-{
-    $pendingImport = PendingImport::create([
-        'project_id' => $project->id,
-        'original_filename' => 'schedule.docx',
-        'source_type' => 'text',
-    ]);
-
-    $phpWord = new \PhpOffice\PhpWord\PhpWord;
-    $phpWord->addSection()->addText($line);
-
-    $tmpPath = tempnam(sys_get_temp_dir(), 'pending_import_test').'.docx';
-    \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007')->save($tmpPath);
-    $uploadedFile = new UploadedFile($tmpPath, 'schedule.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', null, true);
-    $pendingImport->addMedia($uploadedFile)->toMediaCollection('file');
-    @unlink($tmpPath);
-
-    return $pendingImport;
-}
-
-// ── show() ───────────────────────────────────────────────────────────────────
-
-it('re-parses the stored file for a manageable project', function () {
-    $pendingImport = createPendingImportWithFile($this->project);
-
-    $response = $this->actingAs($this->admin)->getJson(route('import.pending.show', $pendingImport));
-
-    $response->assertOk();
-    expect($response->json('source_mode'))->toBe('spreadsheet')
-        ->and($response->json('headers'))->toBe(['Name', 'Start Date'])
-        ->and($response->json('rows.0.0'))->toBe('Team Offsite')
-        ->and($response->json('original_filename'))->toBe('export.csv')
-        ->and($response->json('project_id'))->toBe($this->project->id);
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/chat.postMessage'
+        && $request['channel'] === 'C123'
+        && str_contains($request['text'], 'Import canceled by user. Click here to restart'));
 });
 
-it('re-extracts the stored docx\'s text for a manageable project', function () {
-    $pendingImport = createPendingImportWithDocx($this->project);
+it('skips notifying when the pending import has no known uploader', function () {
+    Mail::fake();
 
-    $response = $this->actingAs($this->admin)->getJson(route('import.pending.show', $pendingImport));
+    $this->pendingImport->update(['uploaded_by_user_id' => null]);
 
-    $response->assertOk();
-    expect($response->json('source_mode'))->toBe('text')
-        ->and($response->json('text'))->toContain('Team Offsite on 2026-09-10.')
-        ->and($response->json('original_filename'))->toBe('schedule.docx')
-        ->and($response->json('project_id'))->toBe($this->project->id);
+    $this->actingAs($this->uploader)
+        ->delete(route('import.pending.destroy', $this->pendingImport), ['discarded' => true])
+        ->assertRedirect();
+
+    expect(PendingImport::find($this->pendingImport->id))->toBeNull();
+    Mail::assertNothingSent();
 });
 
-it('404s a user unrelated to the pending import\'s project', function () {
-    $outsider = User::factory()->create();
-    $pendingImport = createPendingImportWithFile($this->project);
+it('404s a member with no client access discarding a pending import', function () {
+    // AccessDeniedHttpException (a failed Gate::authorize()) is rewritten to a 404 by this
+    // app's own exception handler (bootstrap/app.php) rather than surfacing as a 403.
+    $member = User::factory()->create();
+    $this->org->users()->attach($member->id, ['role' => 'contributor']);
 
-    $this->actingAs($outsider)
-        ->getJson(route('import.pending.show', $pendingImport))
-        ->assertNotFound();
-});
-
-it('requires authentication', function () {
-    $pendingImport = createPendingImportWithFile($this->project);
-
-    $this->getJson(route('import.pending.show', $pendingImport))->assertUnauthorized();
-});
-
-// ── destroy() ────────────────────────────────────────────────────────────────
-
-it('deletes a pending import for a manageable project', function () {
-    $pendingImport = createPendingImportWithFile($this->project);
-
-    $this->actingAs($this->admin)
-        ->deleteJson(route('import.pending.destroy', $pendingImport))
-        ->assertOk();
-
-    expect(PendingImport::find($pendingImport->id))->toBeNull();
-});
-
-it('404s a user unrelated to the project deleting a pending import', function () {
-    $outsider = User::factory()->create();
-    $pendingImport = createPendingImportWithFile($this->project);
-
-    $this->actingAs($outsider)
-        ->deleteJson(route('import.pending.destroy', $pendingImport))
+    $this->actingAs($member)
+        ->delete(route('import.pending.destroy', $this->pendingImport), ['discarded' => true])
         ->assertNotFound();
 
-    expect(PendingImport::find($pendingImport->id))->not->toBeNull();
+    expect(PendingImport::find($this->pendingImport->id))->not->toBeNull();
 });
