@@ -66,7 +66,12 @@ declare global {
         id: string; // UUID
         name: string;
         organization_id?: string | null;
-        lifecycle_steps?: { id: number; label: string; color: string; order: number }[];
+        lifecycle_steps?: {
+            id: number;
+            label: string;
+            color: string;
+            order: number;
+        }[];
         created_at?: string;
         updated_at?: string;
     }
@@ -91,7 +96,12 @@ declare global {
         // Meta/Counts
         documents_count?: number;
         tasks?: Task[];
-        current_lifecycle_step?: { id: string; label: string; color: string; order: number } | null;
+        current_lifecycle_step?: {
+            id: string;
+            label: string;
+            color: string;
+            order: number;
+        } | null;
     }
 
     export interface ProjectDocument {
@@ -154,6 +164,7 @@ declare global {
         quote: { message: string; author: string };
         sidebarOpen: boolean;
         requirementStatus: RequirementStatus[];
+        pendingImportsCount: number;
         flash: {
             success: string | null;
             error: string | null;
@@ -212,8 +223,8 @@ declare global {
     export interface ProjectTaskGroup {
         project: Project & {
             client: {
-                users: User[]
-            }
+                users: User[];
+            };
         };
         tasks: Task[];
     }

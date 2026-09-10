@@ -64,7 +64,10 @@ const canSeeStatusMeetings = computed(
     () => isSuperAdmin.value || hasRole('org-admin') || hasRole('project-lead'),
 );
 
-const mainNavItems: NavItem[] = [
+// A computed (not a plain array) so pendingBadge stays correct as pendingImportsCount changes
+// across Inertia navigations within a session — e.g. clearing the last item in the Needs
+// Review queue should drop the badge without a full page reload.
+const mainNavItems = computed<NavItem[]>(() => [
     {
         title: 'Dashboard',
         href: dashboard(),
@@ -86,6 +89,7 @@ const mainNavItems: NavItem[] = [
         href: importWizardRoutes.index(),
         icon: Upload,
         hidden: !canSeeStatusMeetings.value,
+        pendingBadge: page.props.pendingImportsCount > 0,
     },
     {
         title: 'Organizations',
@@ -99,10 +103,10 @@ const mainNavItems: NavItem[] = [
         icon: Bug,
         hidden: !isSuperAdmin.value,
     },
-];
+]);
 
 const filteredNavItems = computed(() =>
-    mainNavItems.filter((item) => !item.hidden),
+    mainNavItems.value.filter((item) => !item.hidden),
 );
 </script>
 

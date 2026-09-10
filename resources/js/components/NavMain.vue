@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
+    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { urlIsActive } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
@@ -22,7 +27,7 @@ defineProps<{
 const page = usePage();
 
 const isGroupActive = (item: NavItem) =>
-    item.children?.some(child => urlIsActive(child.href, page.url)) ?? false;
+    item.children?.some((child) => urlIsActive(child.href, page.url)) ?? false;
 </script>
 
 <template>
@@ -39,16 +44,29 @@ const isGroupActive = (item: NavItem) =>
                 >
                     <SidebarMenuItem>
                         <CollapsibleTrigger as-child>
-                            <SidebarMenuButton :is-active="isGroupActive(item)" :tooltip="item.title">
+                            <SidebarMenuButton
+                                :is-active="isGroupActive(item)"
+                                :tooltip="item.title"
+                            >
                                 <component :is="item.icon" />
                                 <span>{{ item.title }}</span>
-                                <ChevronRight class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                <ChevronRight
+                                    class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+                                />
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <SidebarMenuSub>
-                                <SidebarMenuSubItem v-for="child in item.children" :key="child.title">
-                                    <SidebarMenuSubButton as-child :is-active="urlIsActive(child.href, page.url)">
+                                <SidebarMenuSubItem
+                                    v-for="child in item.children"
+                                    :key="child.title"
+                                >
+                                    <SidebarMenuSubButton
+                                        as-child
+                                        :is-active="
+                                            urlIsActive(child.href, page.url)
+                                        "
+                                    >
                                         <Link :href="child.href">
                                             <span>{{ child.title }}</span>
                                         </Link>
@@ -67,10 +85,22 @@ const isGroupActive = (item: NavItem) =>
                         :tooltip="item.title"
                     >
                         <Link :href="item.href">
-                            <component :is="item.icon" />
+                            <span class="relative inline-flex">
+                                <component :is="item.icon" />
+                                <span
+                                    v-if="item.pendingBadge"
+                                    class="absolute -top-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-projector-highlight-500 [animation-duration:4s]"
+                                />
+                            </span>
                             <span>{{ item.title }}</span>
                         </Link>
                     </SidebarMenuButton>
+                    <SidebarMenuBadge
+                        v-if="item.pendingBadge"
+                        class="animate-pulse bg-projector-highlight-500 text-white [animation-duration:4s]"
+                    >
+                        Pending
+                    </SidebarMenuBadge>
                 </SidebarMenuItem>
             </template>
         </SidebarMenu>

@@ -487,6 +487,7 @@ declare global {
         sidebarOpen: boolean;
         currentOrganization?: Organization | null;
         requirementStatus: RequirementStatus[];
+        pendingImportsCount: number;
         session: { lifetime_minutes: number };
         flash: {
             success: string | null;
@@ -531,6 +532,7 @@ export interface NavItem {
     isActive?: boolean;
     hidden?: boolean;
     children?: NavItem[];
+    pendingBadge?: boolean;
 }
 
 export {};

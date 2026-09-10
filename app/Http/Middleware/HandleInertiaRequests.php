@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Organization;
+use App\Models\PendingImport;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Inspiring;
@@ -134,6 +135,22 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        // Same "org-admin, project-lead, or super-admin" gate ImportWizardController::index()
+        // filters its manageable-projects list by before counting pending imports — for those
+        // roles every project in the active org is manageable, so this counts directly against
+        // the org rather than re-deriving the same per-project role check ImportWizardController
+        // does (identical result there, since every project shares the one active org). Shared
+        // globally (not just on the Import Wizard page) since the sidebar badge that reads this
+        // renders on every page.
+        $pendingImportsCount = 0;
+
+        if ($user && $activeOrgId && ($isSuperAdmin || array_intersect($roles, ['org-admin', 'project-lead']) !== [])) {
+            $pendingImportsCount = PendingImport::whereHas(
+                'project.client',
+                fn ($query) => $query->where('organization_id', $activeOrgId)
+            )->count();
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -157,6 +174,7 @@ class HandleInertiaRequests extends Middleware
             'organizations' => $organizations,
             'favoriteProjects' => $favoriteProjects,
             'orgMembership' => $orgMembership,
+            'pendingImportsCount' => $pendingImportsCount,
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
