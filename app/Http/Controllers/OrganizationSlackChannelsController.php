@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\SlackChannelBinding;
 use App\Models\User;
+use App\Services\Slack\SlackChannelService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +18,7 @@ class OrganizationSlackChannelsController extends Controller
      * for a channel that's already bound just repoints it at the newly chosen project instead of
      * erroring on the (slack_workspace_id, channel_id) unique constraint.
      */
-    public function store(Request $request, Organization $organization): RedirectResponse
+    public function store(Request $request, Organization $organization, SlackChannelService $slackChannelService): RedirectResponse
     {
         Gate::authorize('update', $organization);
 
@@ -44,6 +45,14 @@ class OrganizationSlackChannelsController extends Controller
             ['slack_workspace_id' => $workspace->id, 'channel_id' => $validated['channel_id']],
             ['channel_name' => $validated['channel_name'], 'project_id' => $project->id]
         );
+
+        // Best-effort: conversations.list (the picker this came from) shows every public channel
+        // the bot can see, not just ones it has joined — Slack only delivers file/message events
+        // for channels the bot is actually a member of, so without this, binding a public
+        // channel the bot was never invited to would silently import nothing, ever, with no
+        // error anywhere. A private channel still can't be auto-joined (Slack has no API for
+        // that); joinChannel() logs and this still succeeds either way.
+        $slackChannelService->joinChannel($workspace, $validated['channel_id']);
 
         return to_route('organizations.index', ['org' => $organization->id, 'tab' => 'configuration'])->with('status', 'slack-channel-bound');
     }

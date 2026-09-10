@@ -420,6 +420,7 @@ const sortedTasks = computed(() => {
                 <DateField
                     :model-value="dueDateInputValue(task.due_at)"
                     :show-icon="false"
+                    format="mdy"
                     trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
                     @update:model-value="
                         (val) => emit('update-field', task, 'due_at', val)
@@ -431,6 +432,7 @@ const sortedTasks = computed(() => {
                 <DateField
                     :model-value="dueDateInputValue(task.external_due_at)"
                     :show-icon="false"
+                    format="mdy"
                     trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
                     @update:model-value="
                         (val) =>

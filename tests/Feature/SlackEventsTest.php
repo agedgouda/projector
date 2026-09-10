@@ -10,6 +10,7 @@ use App\Models\SlackWorkspace;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -171,6 +172,7 @@ it('passes a null message text when the file share has no accompanying message',
 
 it('ignores a non-spreadsheet, non-document file shared in a bound channel', function () {
     Bus::fake();
+    Log::spy();
     $fixture = bindSlackChannelToProject();
     SlackUserIdentity::factory()->create(['user_id' => $fixture['user']->id, 'slack_team_id' => 'T123', 'slack_user_id' => 'U123']);
 
@@ -180,6 +182,10 @@ it('ignores a non-spreadsheet, non-document file shared in a bound channel', fun
         ->assertNoContent();
 
     Bus::assertNotDispatched(ImportSlackFile::class);
+
+    // Every silent-ignore branch in handleFileShared() used to log nothing at all — a real
+    // production bug that made "the drag-and-drop did nothing" undiagnosable from the logs.
+    Log::shouldHaveReceived('info')->with('Ignored a Slack file with an unsupported extension', Mockery::any())->once();
 });
 
 it('dispatches an import job for a docx file shared in a bound channel', function () {
@@ -197,6 +203,7 @@ it('dispatches an import job for a docx file shared in a bound channel', functio
 
 it('ignores a file shared in an unbound channel', function () {
     Bus::fake();
+    Log::spy();
     bindSlackChannelToProject();
 
     $payload = fileShareEventPayload(eventOverrides: ['channel' => 'C-unbound']);
@@ -205,6 +212,8 @@ it('ignores a file shared in an unbound channel', function () {
         ->assertNoContent();
 
     Bus::assertNotDispatched(ImportSlackFile::class);
+
+    Log::shouldHaveReceived('info')->with('Ignored a Slack file dropped in a channel with no project binding', Mockery::any())->once();
 });
 
 it('tells an unlinked uploader to connect their slack account instead of importing', function () {

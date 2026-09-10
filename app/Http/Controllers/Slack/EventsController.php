@@ -76,6 +76,12 @@ class EventsController extends Controller
         $messageText = is_string($messageTextRaw) && $messageTextRaw !== '' ? $messageTextRaw : null;
 
         if (! is_string($teamId) || ! is_string($channelId) || ! is_string($slackUserId) || ! is_array($files) || $files === []) {
+            Log::info('Ignored a Slack file_share event with an unexpected shape', [
+                'team_id' => $teamId,
+                'channel' => $channelId,
+                'has_files' => is_array($files) && $files !== [],
+            ]);
+
             return;
         }
 
@@ -86,12 +92,16 @@ class EventsController extends Controller
         $mimetype = is_string($mimetypeRaw) ? $mimetypeRaw : null;
 
         if (! is_string($name) || ! is_string($urlPrivateDownload)) {
+            Log::info('Ignored a Slack file_share event whose file entry had no name or download URL', ['team_id' => $teamId, 'channel' => $channelId]);
+
             return;
         }
 
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
         if (! in_array($extension, self::IMPORTABLE_EXTENSIONS, true)) {
+            Log::info('Ignored a Slack file with an unsupported extension', ['team_id' => $teamId, 'channel' => $channelId, 'name' => $name]);
+
             return;
         }
 
@@ -101,6 +111,8 @@ class EventsController extends Controller
             ->first();
 
         if ($binding === null) {
+            Log::info('Ignored a Slack file dropped in a channel with no project binding', ['team_id' => $teamId, 'channel' => $channelId, 'name' => $name]);
+
             return;
         }
 

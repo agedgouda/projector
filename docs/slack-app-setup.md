@@ -51,6 +51,7 @@ oauth_config:
       - files:read
       - channels:history
       - channels:read
+      - channels:join
       - groups:read
       - users:read
     user:
@@ -127,6 +128,8 @@ Share URLs change each new session, so step 2 needs repeating for further local 
 3. The page will show the connected workspace's name, its bound channels, and the form to bind more.
 
 **More than one Projector organization can connect the same real Slack workspace** — e.g. an agency running several client organizations, all in the agency's own Slack team. Each organization gets its own row, its own bot token, and its own channel bindings; which organization a Slack event belongs to is resolved from the specific channel it happened in (via that channel's binding), never assumed from the Slack team alone. A per-user Slack identity link (Step 5) works the same way across every organization connected to that team — link once, and it's recognized in all of them you belong to.
+
+**About the channel picker and joining:** the picker lists every public channel the bot can *see* (`conversations.list`), which isn't the same as the bot actually being a *member* of it — Slack only delivers message/file events for channels the bot has joined. Binding a public channel automatically joins the bot to it (`conversations.join`, needs the `channels:join` scope above) so this isn't a trap; binding a private channel can't be auto-joined (Slack has no API for that), so someone still needs to `/invite` the bot into it manually, same as any other app.
 
 ---
 

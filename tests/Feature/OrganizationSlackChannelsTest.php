@@ -83,7 +83,9 @@ it('degrades to an empty available-channel list, keeping bindings, when the slac
 
 // ── Store ───────────────────────────────────────────────────────────────────
 
-it('creates a new binding', function () {
+it('creates a new binding and auto-joins the bot to the channel', function () {
+    Http::fake(['slack.com/api/conversations.join' => Http::response(['ok' => true], 200)]);
+
     $this->actingAs($this->user)
         ->post(route('organizations.slack.channels.store', $this->org), [
             'channel_id' => 'C1',
@@ -97,9 +99,33 @@ it('creates a new binding', function () {
     expect($binding)->not->toBeNull()
         ->and($binding->channel_name)->toBe('general')
         ->and($binding->project_id)->toBe($this->project->id);
+
+    // conversations.list (what the channel picker uses) shows every public channel the bot can
+    // see, not just ones it has joined — without an explicit join, Slack would never deliver
+    // file/message events for a channel bound this way, silently importing nothing forever.
+    Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/conversations.join'
+        && $request['channel'] === 'C1');
+});
+
+it('still creates the binding even when auto-joining the channel fails', function () {
+    // A private channel can't be auto-joined at all (Slack has no API for that) — the binding
+    // must still succeed either way; a human just needs to /invite the bot manually afterward.
+    Http::fake(['slack.com/api/conversations.join' => Http::response(['ok' => false, 'error' => 'method_not_supported_for_channel_type'], 200)]);
+
+    $this->actingAs($this->user)
+        ->post(route('organizations.slack.channels.store', $this->org), [
+            'channel_id' => 'G1',
+            'channel_name' => 'private-clients',
+            'project_id' => $this->project->id,
+        ])
+        ->assertRedirect(route('organizations.index', ['org' => $this->org->id, 'tab' => 'configuration']));
+
+    expect(SlackChannelBinding::where('slack_workspace_id', $this->workspace->id)->where('channel_id', 'G1')->exists())->toBeTrue();
 });
 
 it('repoints an existing binding to a different project instead of erroring', function () {
+    Http::fake(['slack.com/api/conversations.join' => Http::response(['ok' => true], 200)]);
+
     $otherProject = Project::create(['name' => 'Other Project', 'client_id' => $this->client->id]);
 
     SlackChannelBinding::factory()->create([
