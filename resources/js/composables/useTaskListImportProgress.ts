@@ -14,12 +14,11 @@ interface TaskListImportProgressPayload {
 }
 
 /**
- * Mirrors useAiProcessing.ts's shape ({isProcessing, progress, message}) so the same
- * AiProcessingHeader/AiProgressBar top-of-page banner this project page already shows for AI
- * processing can display a list import's live "X of Y" progress too — see
- * TaskListImportController::store(), which now only creates the task_list_import/
- * event_list_import Document and hands the row-by-row work to a queued ImportTaskList job,
- * broadcasting TaskListImportProgress as it goes.
+ * Mirrors useAiProcessing.ts's shape ({isProcessing, progress, message}) so callers can feed it
+ * into the one shared AiProcessingHeader banner AppLayout.vue renders (see
+ * useGlobalProcessingBanner.ts) alongside AI processing state — see TaskListImportController::store(),
+ * which now only creates the task_list_import/event_list_import Document and hands the
+ * row-by-row work to a queued ImportTaskList job, broadcasting TaskListImportProgress as it goes.
  *
  * Subscribes on the current user's own private channel — TaskListImportProgress::broadcastOn()
  * only broadcasts there, not project/org-wide, so only whoever triggered a given import ever

@@ -3,13 +3,17 @@ import { usePage } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import axios from 'axios';
 import { Coffee } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useOrgAiProcessing } from '@/composables/useOrgAiProcessing';
+import {
+    useGlobalProcessingBanner,
+    BANNER_PRIORITY,
+} from '@/composables/useGlobalProcessingBanner';
 import { useWorkflow } from '@/composables/useWorkflow';
 import {
     redirectIfLoggedOut,
@@ -17,8 +21,6 @@ import {
 } from '@/lib/sessionExpiry';
 
 // UI Components
-import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
-import AiProgressBar from '@/components/AiProgressBar.vue';
 import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
 
@@ -118,6 +120,26 @@ const { aiStatusMessage, aiProgress, isAiProcessing } = useOrgAiProcessing(
     removeLocalDocuments,
     ['kanbanData'],
 );
+
+const { setBanner, clearBanner } = useGlobalProcessingBanner();
+
+watch(
+    [isAiProcessing, aiProgress, aiStatusMessage],
+    ([processing, progress, message]) => {
+        if (processing) {
+            setBanner('ai-processing', {
+                title: 'AI Sync Active',
+                message,
+                progress,
+                priority: BANNER_PRIORITY.AI_PROCESSING,
+            });
+        } else {
+            clearBanner('ai-processing');
+        }
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearBanner('ai-processing'));
 
 // --- 3. UI METHODS & BREADCRUMBS ---
 onKeyStroke('Escape', () => {
@@ -228,17 +250,6 @@ const aiProcessedParentIds = computed(() => {
             </div>
 
             <template v-else>
-                <AiProgressBar
-                    :is-processing="isAiProcessing"
-                    :progress="aiProgress"
-                />
-
-                <AiProcessingHeader
-                    :is-processing="isAiProcessing"
-                    :progress="aiProgress"
-                    :message="aiStatusMessage"
-                />
-
                 <KanbanBoard
                     v-model:searchQuery="searchQuery"
                     v-model:selectedPriorities="selectedPriorities"

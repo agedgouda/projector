@@ -14,7 +14,7 @@ import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptio
 import { Deferred, router } from '@inertiajs/vue3';
 import { onKeyStroke } from '@vueuse/core';
 import { PlusIcon, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
-import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -26,6 +26,10 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
 import { useTaskListImportProgress } from '@/composables/useTaskListImportProgress';
 import {
+    useGlobalProcessingBanner,
+    BANNER_PRIORITY,
+} from '@/composables/useGlobalProcessingBanner';
+import {
     ACTION_ITEMS_KEY,
     INTAKE_KEY,
     reprocessDescription,
@@ -36,8 +40,6 @@ import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import projectRoutes from '@/routes/projects/index';
 
 // UI Components
-import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
-import AiProgressBar from '@/components/AiProgressBar.vue';
 import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
 import ProjectCalendar from '@/components/projects/ProjectCalendar.vue';
@@ -192,6 +194,47 @@ const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
 
 const { isImporting, importProgress, importMessage, startImporting } =
     useTaskListImportProgress();
+
+const { setBanner, clearBanner } = useGlobalProcessingBanner();
+
+watch(
+    [isAiProcessing, aiProgress, aiStatusMessage],
+    ([processing, progress, message]) => {
+        if (processing) {
+            setBanner('ai-processing', {
+                title: 'AI Sync Active',
+                message,
+                progress,
+                priority: BANNER_PRIORITY.AI_PROCESSING,
+            });
+        } else {
+            clearBanner('ai-processing');
+        }
+    },
+    { immediate: true },
+);
+
+watch(
+    [isImporting, importProgress, importMessage],
+    ([importing, progress, message]) => {
+        if (importing) {
+            setBanner('task-list-import', {
+                title: 'Import Active',
+                message,
+                progress,
+                priority: BANNER_PRIORITY.TASK_LIST_IMPORT,
+            });
+        } else {
+            clearBanner('task-list-import');
+        }
+    },
+    { immediate: true },
+);
+
+onBeforeUnmount(() => {
+    clearBanner('ai-processing');
+    clearBanner('task-list-import');
+});
 
 // --- 3. UI METHODS & BREADCRUMBS ---
 onKeyStroke('Escape', () => {
@@ -491,28 +534,6 @@ watch(
         </div>
 
         <div v-else class="w-full space-y-8 p-6">
-            <AiProgressBar
-                :is-processing="isAiProcessing"
-                :progress="aiProgress"
-            />
-
-            <AiProcessingHeader
-                :is-processing="isAiProcessing"
-                :progress="aiProgress"
-                :message="aiStatusMessage"
-            />
-
-            <AiProgressBar
-                :is-processing="isImporting"
-                :progress="importProgress"
-            />
-
-            <AiProcessingHeader
-                title="Import Active"
-                :is-processing="isImporting"
-                :progress="importProgress"
-                :message="importMessage"
-            />
 
             <div
                 class="flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"

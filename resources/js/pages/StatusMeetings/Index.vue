@@ -7,9 +7,11 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import AvailableOrgRecordings from '@/pages/Organizations/Partials/AvailableOrgRecordings.vue';
 import ImportDocumentOptions from '@/pages/Organizations/Partials/ImportDocumentOptions.vue';
-import AiProgressBar from '@/components/AiProgressBar.vue';
-import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
 import { useProcessingReconciler } from '@/composables/useProcessingReconciler';
+import {
+    useGlobalProcessingBanner,
+    BANNER_PRIORITY,
+} from '@/composables/useGlobalProcessingBanner';
 import { isProcessingMine } from '@/lib/isProcessingMine';
 import { type BreadcrumbItem } from '@/types';
 import { globalAiState } from '@/state';
@@ -78,6 +80,8 @@ const isAnyProcessing = computed(() =>
 const aiProgress = ref(0);
 let progressTimer: ReturnType<typeof setInterval> | null = null;
 
+const { setBanner, clearBanner } = useGlobalProcessingBanner();
+
 watch(isAnyProcessing, (val) => {
     globalAiState.value.isProcessing = val;
 
@@ -98,6 +102,7 @@ watch(isAnyProcessing, (val) => {
 onUnmounted(() => {
     if (progressTimer) clearInterval(progressTimer);
     globalAiState.value.isProcessing = false;
+    clearBanner('ai-processing');
 });
 
 const aiStatusMessage = computed(() => {
@@ -106,6 +111,23 @@ const aiStatusMessage = computed(() => {
         .map(m => m.name);
     return names.length ? `Extracting action items from "${names[0]}"…` : '';
 });
+
+watch(
+    [isAnyProcessing, aiProgress, aiStatusMessage],
+    ([processing, progress, message]) => {
+        if (processing) {
+            setBanner('ai-processing', {
+                title: 'AI Sync Active',
+                message,
+                progress,
+                priority: BANNER_PRIORITY.AI_PROCESSING,
+            });
+        } else {
+            clearBanner('ai-processing');
+        }
+    },
+    { immediate: true },
+);
 
 // Shared reconciliation poll (useProcessingReconciler.ts) — one org-wide poll instead of this
 // page's own 4s self-rescheduling timer. Reloads statusMeetings once a meeting this page still
@@ -173,13 +195,6 @@ const docUrl = (doc: StatusMeetingLinkedDocument) =>
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 space-y-8 w-full">
-            <AiProgressBar :is-processing="isAnyProcessing" :progress="aiProgress" />
-            <AiProcessingHeader
-                :is-processing="isAnyProcessing"
-                :progress="aiProgress"
-                :message="aiStatusMessage"
-            />
-
             <!-- Header -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>

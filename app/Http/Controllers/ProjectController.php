@@ -217,6 +217,13 @@ class ProjectController extends Controller
      * each defaulting to true so an older/bare export link still shows everything), and
      * sorted chronologically by each item's effective due date (see buildCalendarGrid()).
      *
+     * Drops anything dated before the start of the current month — the on-screen calendar
+     * (ProjectCalendar.vue) always opens on the current month too, so a completed campaign's
+     * export shouldn't dredge up every past month back to the project's first-ever item. An
+     * item with no effective due date at all isn't "past" (it's undated), so it's left for
+     * each export format's own handling (excludeUndatedItems() for CSV/Excel, silently
+     * skipped when building PDF bars — see buildEventRanges()).
+     *
      * @return \Illuminate\Support\Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
@@ -232,6 +239,7 @@ class ProjectController extends Controller
         $tags = array_map('strval', (array) $request->query('tags', []));
         $showTasks = $request->boolean('show_tasks', true);
         $showEvents = $request->boolean('show_events', true);
+        $currentMonthStart = \Illuminate\Support\Carbon::now()->startOfMonth();
 
         return $project->calendarItems()
             ->reject(fn (array $item) => $item['is_task'] ? ! $showTasks : ! $showEvents)
@@ -246,6 +254,11 @@ class ProjectController extends Controller
                 }
 
                 return array_intersect($categoryIds, $tags) === [];
+            })
+            ->reject(function (array $item) use ($usesExternalDueDates, $currentMonthStart) {
+                $date = $this->resolveEffectiveDueDate($item, $usesExternalDueDates);
+
+                return $date !== null && \Illuminate\Support\Carbon::parse($date)->lt($currentMonthStart);
             })
             ->sortBy(fn (array $item) => $this->resolveEffectiveDueDate($item, $usesExternalDueDates) ?? '')
             ->values();
@@ -575,9 +588,10 @@ class ProjectController extends Controller
     }
 
     /**
-     * Export the project's entire calendar (due-date items, including visible sub-projects,
-     * across every month that has at least one item — not just the month currently shown
-     * on screen) as a branded, calendar-styled PDF matching the on-screen calendar, months
+     * Export the project's calendar (due-date items, including visible sub-projects, from the
+     * current month onward — not just the month currently shown on screen, but not past months
+     * either, see resolveCalendarExportItems()) as a branded, calendar-styled PDF matching the
+     * on-screen calendar, months
      * stacked vertically one after another rather than paginated per month.
      */
     public function exportCalendarPdf(Request $request, Project $project): \Illuminate\Http\Response
@@ -608,7 +622,7 @@ class ProjectController extends Controller
 
     /**
      * Export the project's entire calendar (visible sub-projects, tags, and Tasks/Events
-     * toggle all respected — see resolveCalendarExportItems()), across every month, as a
+     * toggle all respected, past months excluded — see resolveCalendarExportItems()), as a
      * flat Date/Title/Tags CSV, one row per item, rather than a day-grid layout.
      */
     public function exportCalendarCsv(Request $request, Project $project): StreamedResponse
@@ -653,7 +667,7 @@ class ProjectController extends Controller
 
     /**
      * Export the project's entire calendar (visible sub-projects, tags, and Tasks/Events
-     * toggle all respected — see resolveCalendarExportItems()), across every month, as a
+     * toggle all respected, past months excluded — see resolveCalendarExportItems()), as a
      * flat Date/Title/Tags Excel workbook, one row per item, rather than a day-grid layout.
      */
     public function exportCalendarExcel(Request $request, Project $project): StreamedResponse

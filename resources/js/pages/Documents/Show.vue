@@ -4,12 +4,10 @@
 ---------------------------- */
 import { Head, usePage } from '@inertiajs/vue3';
 import { Plus } from 'lucide-vue-next';
-import { computed, ref, toRef, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 // Layouts & Components
-import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
-import AiProgressBar from '@/components/AiProgressBar.vue';
 import CommentSection from '@/components/comments/CommentSection.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
@@ -32,6 +30,10 @@ import { useDocumentNavigation } from '@/composables/documents/useDocumentNaviga
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
+import {
+    useGlobalProcessingBanner,
+    BANNER_PRIORITY,
+} from '@/composables/useGlobalProcessingBanner';
 import {
     INTAKE_KEY,
     reprocessDescription,
@@ -74,6 +76,26 @@ const {
 watch(toRef(props, 'item'), (newItem) => syncSidebarFields(newItem), {
     deep: false,
 });
+
+const { setBanner, clearBanner } = useGlobalProcessingBanner();
+
+watch(
+    [isProcessingLive, aiProgress, processingMessage],
+    ([live, progress, message]) => {
+        if (live) {
+            setBanner('ai-processing', {
+                title: 'AI Sync Active',
+                message: message ?? '',
+                progress,
+                priority: BANNER_PRIORITY.AI_PROCESSING,
+            });
+        } else {
+            clearBanner('ai-processing');
+        }
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearBanner('ai-processing'));
 
 // Set by DocumentContent (bubbled up from InlineDocumentForm) while a pasted/dropped/attached
 // file's upload is still in flight — saving before that finishes would persist content missing
@@ -277,17 +299,6 @@ watch(
     <Head :title="item.name" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <AiProgressBar
-            :is-processing="isProcessingLive"
-            :progress="aiProgress"
-        />
-
-        <AiProcessingHeader
-            :is-processing="isProcessingLive"
-            :progress="aiProgress"
-            :message="processingMessage ?? ''"
-        />
-
         <DocumentLayoutWrapper>
             <template #header>
                 <DocumentHeader

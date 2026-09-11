@@ -106,17 +106,37 @@
             margin-bottom: 24px;
         }
 
-        .month-label {
-            font-size: 16px;
-            font-weight: bold;
-            color: #0f172a;
-            margin-bottom: 8px;
+        {{-- Back to one month per page (see exportCalendarPdf()'s docblock): every month after
+             the first starts on a fresh page, rather than flowing directly into whatever space
+             was left after the previous one — the source of the previous layout's mismatched
+             partial-month-at-the-bottom look. Applied via a Blade-conditional class (below)
+             rather than a :not(:first-child) selector — dompdf's CSS selector support doesn't
+             reliably handle :not(), so that rule silently never applied at all. --}}
+        .month-break {
+            page-break-before: always;
         }
 
         table.calendar-grid {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
+        }
+
+        {{-- The month label lives inside <thead> (as its own full-width row, above the Sun–Sat
+             row) specifically so it repeats at the top of every page — dompdf repeats a table's
+             <thead> on each page the table spans, same as the day-of-week row already did, but
+             a label placed in a plain <div> above the table (the old layout) never repeated,
+             leaving a continuation page with no month/column context at all. --}}
+        table.calendar-grid thead th.month-label-cell {
+            border: none;
+            background: none;
+            text-align: left;
+            text-transform: none;
+            letter-spacing: normal;
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f172a;
+            padding: 0 0 8px 0;
         }
 
         table.calendar-grid th {
@@ -129,6 +149,15 @@
             border: 1px solid #e2e8f0;
             padding: 4px 6px;
             background: #f8fafc;
+        }
+
+        {{-- Each week (its day-number row plus every lane row under it) is its own <tbody> so
+             dompdf can keep the group intact — a week that doesn't fit in the space left on a
+             page moves to the next page whole, rather than splitting mid-week with the day
+             numbers stranded on one page and its event bars orphaned on the next (see
+             screenshot from the original bug report). --}}
+        table.calendar-grid tbody.week {
+            page-break-inside: avoid;
         }
 
         table.calendar-grid td {
@@ -254,8 +283,7 @@
     </div>
 
     @foreach ($months as $month)
-        <div class="month">
-            <div class="month-label">{{ $month['label'] }}</div>
+        <div class="month {{ $loop->first ? '' : 'month-break' }}">
             <table class="calendar-grid">
                 <colgroup>
                     @for ($i = 0; $i < 7; $i++)
@@ -263,6 +291,9 @@
                     @endfor
                 </colgroup>
                 <thead>
+                    <tr>
+                        <th colspan="7" class="month-label-cell">{{ $month['label'] }}</th>
+                    </tr>
                     <tr>
                         <th>Sun</th>
                         <th>Mon</th>
@@ -273,8 +304,8 @@
                         <th>Sat</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @foreach ($month['weeks'] as $week)
+                @foreach ($month['weeks'] as $week)
+                    <tbody class="week">
                         <tr>
                             @foreach ($week['days'] as $day)
                                 <td class="day-cell {{ $day['inMonth'] ? '' : 'out-of-month' }}">
@@ -300,8 +331,8 @@
                                 @endforeach
                             </tr>
                         @endforeach
-                    @endforeach
-                </tbody>
+                    </tbody>
+                @endforeach
             </table>
         </div>
     @endforeach

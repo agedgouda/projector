@@ -301,9 +301,12 @@ it('downloads a calendar pdf with overlapping multi-day event bars with a 200 re
 });
 
 it('does not hang building the pdf when one item has a wildly out-of-range date', function () {
-    // Regression: a spreadsheet-import year typo (e.g. "0206" instead of "2026") previously
+    // Regression: a spreadsheet-import year typo (e.g. "9206" instead of "2026") previously
     // blew the earliest-to-latest month range out to tens of thousands of months, hanging
-    // PDF generation in production (a 504 upstream timeout) — see buildCalendarMonths().
+    // PDF generation in production (a 504 upstream timeout) — see buildCalendarMonths(). Uses a
+    // future-direction typo so resolveCalendarExportItems()'s past-month exclusion doesn't
+    // filter it out before this code path is even reached — a past-direction typo no longer
+    // exercises this regression at all now that past items are dropped upstream.
     Document::create([
         'project_id' => $this->project->id,
         'name' => 'Normal Event',
@@ -317,7 +320,7 @@ it('does not hang building the pdf when one item has a wildly out-of-range date'
         'name' => 'Typo Year Event',
         'type' => 'event',
         'content' => 'Do it',
-        'due_at' => '0206-10-20',
+        'due_at' => '9206-10-20',
     ]);
 
     $this->actingAs($this->admin)
@@ -474,6 +477,99 @@ it('includes items due in every month, not just one', function () {
         ->toContain('Sep 1, 2026')
         ->toContain('October Event')
         ->toContain('Oct 1, 2026');
+});
+
+it('excludes an item due last month from the calendar csv export', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Last Month Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => now()->subMonthNoOverflow()->startOfMonth()->toDateString(),
+    ]);
+
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'This Month Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => now()->startOfMonth()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportCsv', $this->project))
+        ->assertOk();
+
+    $csv = $response->streamedContent();
+
+    expect($csv)->toContain('This Month Event')
+        ->not->toContain('Last Month Event');
+});
+
+it('excludes an item due last month from the calendar excel export', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Last Month Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => now()->subMonthNoOverflow()->startOfMonth()->toDateString(),
+    ]);
+
+    $xlsxBytes = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportExcel', $this->project))
+        ->assertOk()
+        ->streamedContent();
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($tmpFile, $xlsxBytes);
+    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmpFile)->getActiveSheet();
+    unlink($tmpFile);
+
+    $titles = [];
+    foreach (range(3, $sheet->getHighestRow()) as $row) {
+        $titles[] = $sheet->getCell("B{$row}")->getValue();
+    }
+
+    expect($titles)->not->toContain('Last Month Event');
+});
+
+it('still includes an item due earlier this month, even though "now" is later in the month', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Early This Month Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => now()->startOfMonth()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportCsv', $this->project))
+        ->assertOk();
+
+    expect($response->streamedContent())->toContain('Early This Month Event');
+});
+
+it('still generates the calendar pdf successfully when a past-dated item is filtered out alongside a current one', function () {
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Last Month Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => now()->subMonthNoOverflow()->startOfMonth()->toDateString(),
+    ]);
+
+    Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'This Month Event',
+        'type' => 'event',
+        'content' => 'Do it',
+        'due_at' => now()->startOfMonth()->toDateString(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.calendar.exportPdf', $this->project))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
 });
 
 it('defaults to the current month when none is requested', function () {

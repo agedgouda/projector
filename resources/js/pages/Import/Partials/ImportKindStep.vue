@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
-import AiProgressBar from '@/components/AiProgressBar.vue';
 import IconTile from '@/components/IconTile.vue';
 import { useTaskListImportProgress } from '@/composables/useTaskListImportProgress';
+import {
+    useGlobalProcessingBanner,
+    BANNER_PRIORITY,
+} from '@/composables/useGlobalProcessingBanner';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
@@ -15,7 +17,7 @@ import {
     Loader2,
     Sparkles,
 } from 'lucide-vue-next';
-import { computed, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 interface WizardProject {
@@ -71,6 +73,26 @@ const documentsForImportOptions = computed(
 const { isImporting, importProgress, importMessage, startImporting } =
     useTaskListImportProgress();
 
+const { setBanner, clearBanner } = useGlobalProcessingBanner();
+
+watch(
+    [isImporting, importProgress, importMessage],
+    ([importing, progress, message]) => {
+        if (importing) {
+            setBanner('task-list-import', {
+                title: 'Import Active',
+                message,
+                progress,
+                priority: BANNER_PRIORITY.TASK_LIST_IMPORT,
+            });
+        } else {
+            clearBanner('task-list-import');
+        }
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearBanner('task-list-import'));
+
 const importDocumentOptionsRef = useTemplateRef('importDocumentOptionsRef');
 const importTaskListOptionsRef = useTemplateRef('importTaskListOptionsRef');
 
@@ -115,17 +137,6 @@ const kinds = [
 
 <template>
     <div class="space-y-4">
-        <AiProgressBar
-            :is-processing="isImporting"
-            :progress="importProgress"
-        />
-        <AiProcessingHeader
-            title="Import Active"
-            :is-processing="isImporting"
-            :progress="importProgress"
-            :message="importMessage"
-        />
-
         <div
             v-if="!context && !loadError"
             class="flex flex-col items-center justify-center py-12"
