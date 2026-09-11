@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrgDocument;
 use App\Models\Project;
+use App\Models\User;
 use App\Services\Google\GoogleExportService;
 use App\Services\MeetingTranscriptService;
 use Illuminate\Http\RedirectResponse;
@@ -56,7 +57,8 @@ class OrgDocumentController extends Controller
                 'content' => $meeting->content,
                 'processed_at' => $meeting->processed_at,
                 'created_at' => $meeting->created_at,
-                'creator' => $meeting->creator ? ['name' => $meeting->creator->name] : null,
+                'creator' => $meeting->creator ? ['id' => $meeting->creator->id, 'name' => $meeting->creator->name] : null,
+                'processing_triggered_by_user_id' => $meeting->processing_triggered_by_user_id,
                 'ai_draft_status' => $draft['status'] ?? null,
                 'ai_draft_error' => $draft['error'] ?? null,
                 'ai_draft_groups' => collect($draft['groups'] ?? [])->map(fn ($g) => [
@@ -184,6 +186,9 @@ class OrgDocumentController extends Controller
         setPermissionsTeamId($organization->id);
         Gate::authorize('create', [OrgDocument::class, $organization]);
 
+        /** @var User $user */
+        $user = $request->user();
+
         $orgDocument = $organization->orgDocuments()->create($request->validated());
 
         if (! empty($orgDocument->content)) {
@@ -191,6 +196,7 @@ class OrgDocumentController extends Controller
                 'metadata' => array_merge($orgDocument->metadata ?? [], [
                     'ai_draft' => ['status' => 'processing'],
                 ]),
+                'processing_triggered_by_user_id' => $user->id,
             ]);
 
             ProcessOrgDocumentAI::dispatch($orgDocument);
@@ -250,6 +256,9 @@ class OrgDocumentController extends Controller
         setPermissionsTeamId($organization->id);
         Gate::authorize('update', $orgDocument);
 
+        /** @var User $user */
+        $user = $request->user();
+
         if ($orgDocument->organization_id !== $organization->id) {
             abort(404);
         }
@@ -270,6 +279,7 @@ class OrgDocumentController extends Controller
                 'provider' => $organization->meeting_provider,
                 'meeting_date' => $validated['started_at'],
             ]),
+            'processing_triggered_by_user_id' => $user->id,
         ]);
 
         ImportOrgMeetingTranscript::dispatch($orgDocument, $validated['recording_id']);
@@ -277,10 +287,13 @@ class OrgDocumentController extends Controller
         return back()->with('success', "Importing \"{$validated['title']}\"…");
     }
 
-    public function processDraft(Organization $organization, OrgDocument $orgDocument): RedirectResponse
+    public function processDraft(Request $request, Organization $organization, OrgDocument $orgDocument): RedirectResponse
     {
         setPermissionsTeamId($organization->id);
         Gate::authorize('update', $orgDocument);
+
+        /** @var User $user */
+        $user = $request->user();
 
         if ($orgDocument->organization_id !== $organization->id) {
             abort(404);
@@ -290,6 +303,7 @@ class OrgDocumentController extends Controller
             'metadata' => array_merge($orgDocument->metadata ?? [], [
                 'ai_draft' => ['status' => 'processing'],
             ]),
+            'processing_triggered_by_user_id' => $user->id,
         ]);
 
         ProcessOrgDocumentAI::dispatch($orgDocument);

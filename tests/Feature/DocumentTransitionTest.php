@@ -109,6 +109,19 @@ it('runs any chosen document type and AI template for an authorized org-admin', 
     expect($this->document->fresh()->processed_at)->toBeNull();
 });
 
+it('stamps the acting user as processing_triggered_by_user_id on transition', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'to_key' => 'task',
+            'ai_template_id' => $this->template->id,
+        ])
+        ->assertSuccessful();
+
+    expect($this->document->fresh()->processing_triggered_by_user_id)->toBe($this->admin->id);
+});
+
 it('rejects a second transition request for the same document while the first is still processing', function () {
     Queue::fake([ProcessDocumentAI::class]);
 
@@ -155,6 +168,16 @@ it('reprocesses without one_off_instructions when none is given', function () {
         ->assertSuccessful();
 
     Queue::assertPushed(ProcessDocumentAI::class, fn ($job) => $job->oneOffInstructions === null);
+});
+
+it('stamps the acting user as processing_triggered_by_user_id on reprocess', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.reprocess', [$this->project, $this->document]))
+        ->assertSuccessful();
+
+    expect($this->document->fresh()->processing_triggered_by_user_id)->toBe($this->admin->id);
 });
 
 it('rejects a second reprocess request for the same document while the first is still processing', function () {

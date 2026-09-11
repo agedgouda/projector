@@ -52,6 +52,7 @@ class ImportTaskList implements ShouldQueue
         public array $mapping,
         public ?int $aiTemplateId = null,
         public ?int $confirmedMappingId = null,
+        public ?int $triggeredByUserId = null,
     ) {}
 
     public function handle(TaskListImportService $importService): void
@@ -323,7 +324,7 @@ class ImportTaskList implements ShouldQueue
             return;
         }
 
-        event(new TaskListImportProgress($this->importDocument, $processed, $total, 'running'));
+        event(new TaskListImportProgress($this->importDocument, $processed, $total, 'running', triggeredByUserId: $this->triggeredByUserId));
     }
 
     /**
@@ -376,7 +377,7 @@ class ImportTaskList implements ShouldQueue
         $redirectUrl = route('projects.show', $project).$redirectQuery;
         $total = count($this->rows);
 
-        event(new TaskListImportProgress($this->importDocument, $total, $total, 'done', $redirectUrl, $message, $warning));
+        event(new TaskListImportProgress($this->importDocument, $total, $total, 'done', $redirectUrl, $message, $warning, $this->triggeredByUserId));
     }
 
     public function failed(Throwable $exception): void
@@ -397,7 +398,8 @@ class ImportTaskList implements ShouldQueue
             count($this->rows),
             'error',
             null,
-            'The import failed: '.$exception->getMessage()
+            'The import failed: '.$exception->getMessage(),
+            triggeredByUserId: $this->triggeredByUserId,
         ));
     }
 }

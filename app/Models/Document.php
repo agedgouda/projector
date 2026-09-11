@@ -48,6 +48,7 @@ class Document extends Model implements HasMedia
         'assignee_id' => 'integer',
         'pending_assignee_invitation_id' => 'integer',
         'last_ai_template_id' => 'integer',
+        'processing_triggered_by_user_id' => 'integer',
     ];
 
     protected $hidden = ['embedding'];
@@ -66,6 +67,7 @@ class Document extends Model implements HasMedia
         'editor_id',
         'assignee_id',
         'pending_assignee_invitation_id',
+        'processing_triggered_by_user_id',
         'task_status',
         'priority',
         'due_at',

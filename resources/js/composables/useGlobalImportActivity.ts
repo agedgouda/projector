@@ -1,4 +1,5 @@
 import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
+import { isProcessingMine } from '@/lib/isProcessingMine';
 import { usePage } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
@@ -6,6 +7,10 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 interface GlobalActivityPayload {
     statusMessage?: string;
     document_id?: string;
+    document?: {
+        processing_triggered_by_user_id?: number | null;
+        creator_id?: number | null;
+    };
     progress?: number;
     import_document_id?: string;
     status?: 'running' | 'done' | 'error';
@@ -25,13 +30,16 @@ const PRUNE_INTERVAL_MS = 30 * 1000;
 /**
  * App-shell-level counterpart to useAiProcessing.ts / useTaskListImportProgress.ts, which only
  * track activity for whichever single project is currently open. Mounted once from
- * AppLayout.vue so a slow import someone kicked off — directly, or via a Slack file upload,
- * where the person watching the page may not even be the one who started it — still shows
- * *something's* running after they've navigated away from that project.
+ * AppLayout.vue so a slow import the current user kicked off — directly, or via a Slack file
+ * upload they initiated — still shows *something's* running after they've navigated away from
+ * that project.
  *
- * Organization-wide rather than per-user: see DocumentProcessingUpdate::broadcastOn() and
- * TaskListImportProgress::broadcastOn(), which now also broadcast on 'organization.{id}'
- * alongside their existing 'project.{id}' channel.
+ * Gated to the current user's own activity, same rule as every other AiProcessingHeader surface
+ * (see isProcessingMine.ts): DocumentProcessingUpdate still broadcasts org-wide (other pages'
+ * data sync needs that), so this filters incoming document payloads client-side by ownership;
+ * TaskListImportProgress broadcasts only on the private user.{id} channel now
+ * (TaskListImportProgress::broadcastOn()), so no filtering is needed there — the channel itself
+ * is already scoped.
  *
  * Deliberately live-broadcast-only, with no percentage shown: unlike a single project page,
  * more than one import can be in flight across the org at once, so there's no single
@@ -43,6 +51,7 @@ const PRUNE_INTERVAL_MS = 30 * 1000;
 export function useGlobalImportActivity() {
     const page = usePage<AppPageProps>();
     const activeOrgId = computed(() => page.props.auth.active_org_id);
+    const currentUserId = page.props.auth.user.id;
 
     // Each id maps to the timestamp it was last confirmed still-running, so a stale one can be
     // pruned without waiting on a terminal broadcast that may never arrive.
@@ -79,20 +88,13 @@ export function useGlobalImportActivity() {
 
     useEcho<GlobalActivityPayload>(
         `organization.${activeOrgId.value}`,
-        ['.DocumentProcessingUpdate', '.TaskListImportProgress'],
+        ['.DocumentProcessingUpdate'],
         (payload) => {
-            if (payload.import_document_id) {
-                const ids = new Map(activeImportIds.value);
-                if (payload.status === 'running') {
-                    ids.set(payload.import_document_id, Date.now());
-                } else {
-                    ids.delete(payload.import_document_id);
-                }
-                activeImportIds.value = ids;
-                return;
-            }
-
-            if (payload.statusMessage && payload.document_id) {
+            if (
+                payload.statusMessage &&
+                payload.document_id &&
+                isProcessingMine(payload.document, currentUserId)
+            ) {
                 const { isSuccess, isError } = parseProcessingStatus(payload);
                 const ids = new Map(activeDocumentIds.value);
                 if (isSuccess || isError) {
@@ -104,6 +106,24 @@ export function useGlobalImportActivity() {
             }
         },
         [activeOrgId.value],
+        'private',
+    );
+
+    useEcho<GlobalActivityPayload>(
+        `user.${currentUserId}`,
+        ['.TaskListImportProgress'],
+        (payload) => {
+            if (payload.import_document_id) {
+                const ids = new Map(activeImportIds.value);
+                if (payload.status === 'running') {
+                    ids.set(payload.import_document_id, Date.now());
+                } else {
+                    ids.delete(payload.import_document_id);
+                }
+                activeImportIds.value = ids;
+            }
+        },
+        [currentUserId],
         'private',
     );
 

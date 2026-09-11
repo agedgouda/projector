@@ -189,6 +189,7 @@ declare global {
         editor_id: number | null;
         assignee_id: number | null;
         pending_assignee_invitation_id: number | null;
+        processing_triggered_by_user_id: number | null;
         task_status: TaskStatus;
         priority: TaskPriority;
         due_at: string | null;
@@ -409,7 +410,8 @@ declare global {
         content: string;
         processed_at: string | null;
         created_at: string;
-        creator?: { name: string } | null;
+        creator?: { id: number; name: string } | null;
+        processing_triggered_by_user_id: number | null;
         ai_draft_status:
             | 'processing'
             | 'pending_review'

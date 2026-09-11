@@ -25,6 +25,7 @@ use App\Http\Controllers\OrganizationPdfBrandingController;
 use App\Http\Controllers\OrganizationRegistrationController;
 use App\Http\Controllers\OrganizationSetupController;
 use App\Http\Controllers\PendingImportController;
+use App\Http\Controllers\ProcessingStatusController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectLogoController;
@@ -75,22 +76,13 @@ Route::post('/log-connection-issue', function (Request $request) {
     return response()->json(['status' => 'logged']);
 })->middleware(['auth', 'throttle:60,1']);
 
-// Hit by useAiProcessing's periodic reconciliation poll whenever it discovers a document it
-// was showing as "processing" had actually already finished — a missed .DocumentProcessingUpdate
-// broadcast (the socket itself may never have dropped; see /log-connection-issue for that case).
-// Diagnostic-only, so a client that never checks in just means nothing to report — no alerting
-// depends on this ever firing.
-Route::post('/log-stale-processing', function (Request $request) {
-    Log::warning('Stale AI processing indicator self-corrected', [
-        'user_id' => auth()->id(),
-        'project_id' => $request->input('project_id'),
-        'document_ids' => $request->input('document_ids'),
-        'stuck_for_ms' => $request->input('stuck_for_ms'),
-        'user_agent' => $request->userAgent(),
-    ]);
-
-    return response()->json(['status' => 'logged']);
-})->middleware(['auth', 'throttle:60,1']);
+// Shared reconciliation check for every client-side AI-processing poller (useProcessingReconciler.ts)
+// — one org-wide "what's still processing" lookup that useAiProcessing.ts, useDocumentForm.ts,
+// and StatusMeetings/Index.vue each diff their own tracked ids against, replacing what used to
+// be a separate router.reload() poll per page/composable.
+Route::get('/processing-status', [ProcessingStatusController::class, 'index'])
+    ->middleware(['auth', 'throttle:30,1'])
+    ->name('processing-status');
 
 // Hit by useDocumentEditor's uploadFile() whenever a content-upload request fails (network
 // error, server error, validation rejection, etc.) — the client is often the only place that

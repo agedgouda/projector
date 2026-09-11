@@ -6,6 +6,7 @@ use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
+use App\Models\User;
 use App\Rules\ValidKanbanColumn;
 use App\Services\Google\GoogleExportService;
 use App\Services\VectorService;
@@ -474,6 +475,9 @@ class DocumentController extends Controller
     {
         Gate::authorize('update', $document);
 
+        /** @var User $user */
+        $user = $request->user();
+
         $orgId = $project->client?->organization_id;
         $org = $orgId ? \App\Models\Organization::find($orgId) : null;
         if ($org && ($block = \App\Services\MembershipGuard::check($org, 'ai_docs'))) {
@@ -506,7 +510,10 @@ class DocumentController extends Controller
             return response()->json(['message' => 'This document is already being processed.'], 409);
         }
 
-        $document->update(['processed_at' => null]);
+        $document->update([
+            'processed_at' => null,
+            'processing_triggered_by_user_id' => $user->id,
+        ]);
 
         return response()->json(['message' => 'AI analysis restarted.']);
     }
@@ -525,6 +532,9 @@ class DocumentController extends Controller
     public function transition(Request $request, Project $project, Document $document)
     {
         Gate::authorize('update', $document);
+
+        /** @var User $user */
+        $user = $request->user();
 
         if ($document->project_id !== $project->id) {
             abort(404);
@@ -569,7 +579,10 @@ class DocumentController extends Controller
             return response()->json(['message' => 'This document is already being processed.'], 409);
         }
 
-        $document->update(['processed_at' => null]);
+        $document->update([
+            'processed_at' => null,
+            'processing_triggered_by_user_id' => $user->id,
+        ]);
 
         return response()->json(['message' => 'Transition started.']);
     }

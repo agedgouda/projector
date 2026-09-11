@@ -1,25 +1,22 @@
 import { INTAKE_KEY, useWorkflow } from '@/composables/useWorkflow';
+import { useProcessingReconciler } from '@/composables/useProcessingReconciler';
+import { useProgressCreep } from '@/composables/useProgressCreep';
 import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
+import { isProcessingMine } from '@/lib/isProcessingMine';
 import {
     redirectIfLoggedOut,
     redirectIfSessionExpiredError,
 } from '@/lib/sessionExpiry';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { router, useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import axios from 'axios';
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
-// Safety net for a missed .DocumentProcessingUpdate broadcast (dropped/reconnected socket,
-// tab backgrounded during the job, etc.) — without this, isProcessingLive has no other way
-// to ever become false again, since it's otherwise cleared exclusively by that one event.
-// 15s keeps this cheap in the common case (the broadcast almost always wins the race and
-// clears the interval before it ever fires) while still self-correcting within a bounded
-// time when it doesn't.
-const PROCESSING_POLL_INTERVAL_MS = 15000;
-
 export function useDocumentForm(project: Project, item: ExtendedDocument) {
+    const currentUserId = usePage<AppPageProps>().props.auth.user.id;
+
     const isEditing = ref(false);
     const isDeleteModalOpen = ref(false);
     const isDeleting = ref(false);
@@ -32,53 +29,23 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const isProcessingLive = ref(false);
     const processingMessage = ref<string | null>(null);
     const aiProgress = ref<number>(0);
-    let creepInterval: ReturnType<typeof setInterval> | null = null;
 
     // Same "creep" animation as useAiProcessing.ts: nudges the bar forward on its own between
     // broadcasts so it doesn't sit dead still during any gap, capped short of the next real
     // checkpoint so an actual update always visibly overtakes it.
-    const stopCreep = () => {
-        if (creepInterval) {
-            clearInterval(creepInterval);
-            creepInterval = null;
-        }
-    };
+    const { stop: stopCreep } = useProgressCreep(aiProgress);
 
-    watch(aiProgress, (newVal) => {
-        stopCreep();
-        if (newVal > 0 && newVal < 90) {
-            creepInterval = setInterval(() => {
-                if (aiProgress.value < newVal + 15 && aiProgress.value < 95) {
-                    aiProgress.value += 0.5;
-                }
-            }, 1000);
-        }
-    });
-
-    onBeforeUnmount(stopCreep);
-
-    let processingPollTimer: ReturnType<typeof setInterval> | null = null;
-
-    const stopProcessingPoll = () => {
-        if (processingPollTimer) {
-            clearInterval(processingPollTimer);
-            processingPollTimer = null;
-        }
-    };
-
-    const startProcessingPoll = () => {
-        stopProcessingPoll();
-        processingPollTimer = setInterval(() => {
-            // Re-fetches just `item` — syncSidebarFields (called from Show.vue's watcher on
-            // the replaced prop) is what actually notices processed_at advanced and clears
-            // isProcessingLive; this timer's only job is to trigger that re-fetch.
-            router.reload({
-                only: ['item'],
-                preserveScroll: true,
-                preserveState: true,
-            });
-        }, PROCESSING_POLL_INTERVAL_MS);
-    };
+    // Safety net for a missed .DocumentProcessingUpdate broadcast (dropped/reconnected socket,
+    // tab backgrounded during the job, etc.) — without this, isProcessingLive has no other way
+    // to ever become false again, since it's otherwise cleared exclusively by that one event.
+    // Shares one poll (and its server-truth "still processing" id set) with every other
+    // AI-processing page via useProcessingReconciler.ts, instead of running its own interval —
+    // see useAiProcessing.ts for the project-tree equivalent of this same reconciliation.
+    const {
+        processingDocumentIds,
+        start: startReconciling,
+        stop: stopReconciling,
+    } = useProcessingReconciler();
 
     // How many child documents a run against *this* document just produced, so their own
     // embedding-progress broadcasts ("Synthesizing Document Heuristics...", "Finalizing Vector
@@ -101,7 +68,6 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         trackedChildTotal.value = 0;
         completedChildIds.value = new Set();
         stopCreep();
-        stopProcessingPoll();
     };
 
     // Summarizes each new child's own progress as "N of M" instead of parroting its raw
@@ -144,7 +110,14 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const isSelfPendingChild =
         item.parent_id != null && item.processed_at === null;
 
-    if (item.processed_at === null || hasPendingChildren) {
+    // Gated to whoever triggered item's own currently-in-flight run (see isProcessingMine.ts) —
+    // children are downstream of that same run, so no separate per-child ownership check is
+    // needed — otherwise a teammate merely opening this same document mid-run would see the
+    // banner too, straight from this shared prop data, regardless of who's actually processing.
+    if (
+        (item.processed_at === null || hasPendingChildren) &&
+        isProcessingMine(item, currentUserId)
+    ) {
         isProcessingLive.value = true;
         aiProgress.value = item.processed_at === null ? 50 : 100;
         trackedChildTotal.value = initialChildren.length;
@@ -156,10 +129,36 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         processingMessage.value = isSelfPendingChild
             ? 'Starting...'
             : batchProgressMessage(null);
-        startProcessingPoll();
     }
 
-    onBeforeUnmount(stopProcessingPoll);
+    // Starts/stops the shared reconciliation poll in lockstep with isProcessingLive, wherever
+    // it gets set (this initial check, confirmReprocess/confirmTransition, or the Echo handler
+    // below) — {immediate: true} picks up whatever isProcessingLive ended up as above.
+    watch(
+        isProcessingLive,
+        (live) => {
+            if (live) startReconciling(); else stopReconciling();
+        },
+        { immediate: true },
+    );
+
+    // Only this document's own row has a poll fallback — a tracked child that stops
+    // broadcasting has no id list to check here (deliberately not collected; see
+    // trackedChildTotal above), so a missed broadcast for a child relies on the live listener
+    // alone, same as before this change.
+    watch(processingDocumentIds, (ids) => {
+        if (isProcessingLive.value && !ids.has(String(item.id))) {
+            router.reload({
+                only: ['item'],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }
+    });
+
+    onBeforeUnmount(() => {
+        if (isProcessingLive.value) stopReconciling();
+    });
 
     useEcho(
         `project.${project.id}`,
@@ -240,10 +239,11 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             // Recording" redirect) starts with isProcessingLive still false — its placeholder
             // processed_at (set by the controller purely to stop the observer firing early)
             // makes the initial pending-detection above think there's nothing in flight yet.
-            // The first broadcast that's actually about this page is what tells us otherwise.
-            if (!isProcessingLive.value) {
+            // The first broadcast that's actually about this page is what tells us otherwise —
+            // gated the same way as the initial check above, so this still only shows to
+            // whoever triggered item's run.
+            if (!isProcessingLive.value && isProcessingMine(item, currentUserId)) {
                 isProcessingLive.value = true;
-                startProcessingPoll();
             }
 
             const { message, newProgress, isError, isSuccess } =
@@ -405,7 +405,6 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         isProcessingLive.value = true;
         processingMessage.value = 'Starting...';
         aiProgress.value = 5;
-        startProcessingPoll();
 
         const url = projectDocumentsRoutes.reprocess.url({
             project: project.id,
@@ -450,7 +449,6 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         isProcessingLive.value = true;
         processingMessage.value = 'Starting...';
         aiProgress.value = 5;
-        startProcessingPoll();
 
         const url = projectDocumentsRoutes.transition.url({
             project: project.id,

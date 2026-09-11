@@ -9,7 +9,7 @@ import { toast } from 'vue-sonner';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
-import { useAiProcessing } from '@/composables/useAiProcessing';
+import { useOrgAiProcessing } from '@/composables/useOrgAiProcessing';
 import { useWorkflow } from '@/composables/useWorkflow';
 import {
     redirectIfLoggedOut,
@@ -92,38 +92,31 @@ const allDocs = computed(() => {
     return Object.values(localKanbanData.value).flat() as ProjectDocument[];
 });
 
-// --- 2. AI PROCESSING — one listener per project, aggregated state ---
-const aiInstances = props.projects.map((project) =>
-    useAiProcessing(
-        project.id,
-        allDocs,
-        targetBeingCreated,
-        (incomingDoc: any) => {
-            applyLocalUpdate(incomingDoc.id, incomingDoc);
-        },
-        () => {
-            toast.success('Project Synced', {
-                description: 'AI processing task completed.',
-            });
-        },
-        (errorMessage) => {
-            toast.error('AI Sync Error', { description: errorMessage });
-        },
-        removeLocalDocuments,
-        ['kanbanData'],
-    ),
-);
+// --- 2. AI PROCESSING — one org-wide listener, shared state across every project shown ---
+// allDocs/targetBeingCreated above already span every project on this page, so there's no
+// per-project state to keep here — just which projects the one shared listener should accept
+// events for (see useOrgAiProcessing.ts for why: the org channel carries every project's
+// events, not just these).
+const projectIds = computed(() => props.projects.map((p) => p.id));
 
-const isAiProcessing = computed(() =>
-    aiInstances.some((i) => i.isAiProcessing.value),
-);
-const aiProgress = computed(() =>
-    Math.max(0, ...aiInstances.map((i) => i.aiProgress.value)),
-);
-const aiStatusMessage = computed(
-    () =>
-        aiInstances.find((i) => i.aiStatusMessage.value)?.aiStatusMessage
-            .value ?? '',
+const { aiStatusMessage, aiProgress, isAiProcessing } = useOrgAiProcessing(
+    props.currentOrganization?.id ?? '',
+    projectIds,
+    allDocs,
+    targetBeingCreated,
+    (incomingDoc: any) => {
+        applyLocalUpdate(incomingDoc.id, incomingDoc);
+    },
+    () => {
+        toast.success('Project Synced', {
+            description: 'AI processing task completed.',
+        });
+    },
+    (errorMessage) => {
+        toast.error('AI Sync Error', { description: errorMessage });
+    },
+    removeLocalDocuments,
+    ['kanbanData'],
 );
 
 // --- 3. UI METHODS & BREADCRUMBS ---

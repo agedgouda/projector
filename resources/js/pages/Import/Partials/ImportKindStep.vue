@@ -69,7 +69,7 @@ const documentsForImportOptions = computed(
 );
 
 const { isImporting, importProgress, importMessage, startImporting } =
-    useTaskListImportProgress(props.project.id);
+    useTaskListImportProgress();
 
 const importDocumentOptionsRef = useTemplateRef('importDocumentOptionsRef');
 const importTaskListOptionsRef = useTemplateRef('importTaskListOptionsRef');

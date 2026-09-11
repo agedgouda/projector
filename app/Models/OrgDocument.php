@@ -26,6 +26,7 @@ class OrgDocument extends Model
         'metadata',
         'processed_at',
         'custom_prompt',
+        'processing_triggered_by_user_id',
     ];
 
     protected $hidden = ['embedding'];
@@ -41,6 +42,7 @@ class OrgDocument extends Model
             'processed_at' => 'datetime',
             'creator_id' => 'integer',
             'editor_id' => 'integer',
+            'processing_triggered_by_user_id' => 'integer',
         ];
     }
 

@@ -6,6 +6,7 @@ use App\Http\Requests\StoreTaskListImportRequest;
 use App\Jobs\ImportTaskList;
 use App\Models\Document;
 use App\Models\Project;
+use App\Models\User;
 use App\Services\TaskListImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,6 +49,9 @@ class TaskListImportController extends Controller
      */
     public function store(StoreTaskListImportRequest $request, Project $project): JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+
         /** @var array{list_type: string, original_filename: string|null, headers: list<string>, rows: list<list<string>>, mapping: array<string, string|null>} $validated */
         $validated = $request->validated();
 
@@ -71,6 +75,7 @@ class TaskListImportController extends Controller
             $validated['headers'],
             $validated['rows'],
             $validated['mapping'],
+            triggeredByUserId: $user->id,
         );
 
         return response()->json([

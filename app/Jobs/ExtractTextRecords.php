@@ -36,6 +36,7 @@ class ExtractTextRecords implements ShouldQueue
         public string $sourceText,
         public string $extractionRule,
         public ?int $aiTemplateId = null,
+        public ?int $triggeredByUserId = null,
     ) {}
 
     public function handle(TextExtractionService $extractionService, TaskListImportService $importService): void
@@ -253,7 +254,7 @@ class ExtractTextRecords implements ShouldQueue
 
         $redirectUrl = route('projects.show', $this->importDocument->project).$redirectQuery;
 
-        event(new TaskListImportProgress($this->importDocument, 1, 1, 'done', $redirectUrl, $message, $warning));
+        event(new TaskListImportProgress($this->importDocument, 1, 1, 'done', $redirectUrl, $message, $warning, $this->triggeredByUserId));
     }
 
     public function failed(Throwable $exception): void
@@ -273,7 +274,8 @@ class ExtractTextRecords implements ShouldQueue
             1,
             'error',
             null,
-            'The extraction failed: '.$exception->getMessage()
+            'The extraction failed: '.$exception->getMessage(),
+            triggeredByUserId: $this->triggeredByUserId,
         ));
     }
 }

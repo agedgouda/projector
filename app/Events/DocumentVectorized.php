@@ -22,11 +22,21 @@ class DocumentVectorized implements ShouldBroadcastNow
         $this->document = $document->fresh() ?? $document;
     }
 
+    /**
+     * Also broadcast org-wide, on top of the project channel, so a single org-wide listener
+     * (see useOrgAiProcessing.ts, used by the dashboard's multi-project view) can pick this up
+     * without subscribing to every project's own channel — same pattern as
+     * DocumentProcessingUpdate::broadcastOn().
+     */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('project.'.$this->document->project_id),
-        ];
+        $channels = [new PrivateChannel('project.'.$this->document->project_id)];
+
+        if ($organizationId = $this->document->project?->organization_id) {
+            $channels[] = new PrivateChannel('organization.'.$organizationId);
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string
@@ -51,6 +61,7 @@ class DocumentVectorized implements ShouldBroadcastNow
                 'id' => $this->document->id,
                 'name' => $this->document->name,
                 'type' => $this->document->type,
+                'project_id' => $this->document->project_id,
                 'parent_id' => $this->document->parent_id,
                 'metadata' => $this->document->metadata,
                 'processed_at' => $this->document->processed_at?->toIso8601String(),

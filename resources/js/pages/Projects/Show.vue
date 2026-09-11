@@ -191,7 +191,7 @@ const { aiStatusMessage, aiProgress, isAiProcessing } = useAiProcessing(
 );
 
 const { isImporting, importProgress, importMessage, startImporting } =
-    useTaskListImportProgress(projectIdForEcho.value ?? 'NO_PROJECT');
+    useTaskListImportProgress();
 
 // --- 3. UI METHODS & BREADCRUMBS ---
 onKeyStroke('Escape', () => {

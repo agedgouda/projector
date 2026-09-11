@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
@@ -20,8 +20,15 @@ interface TaskListImportProgressPayload {
  * TaskListImportController::store(), which now only creates the task_list_import/
  * event_list_import Document and hands the row-by-row work to a queued ImportTaskList job,
  * broadcasting TaskListImportProgress as it goes.
+ *
+ * Subscribes on the current user's own private channel — TaskListImportProgress::broadcastOn()
+ * only broadcasts there, not project/org-wide, so only whoever triggered a given import ever
+ * sees its banner (there's no shared "data sync" concern here the way there is for document
+ * processing, and redirect_url only ever makes sense for the initiating browser anyway).
  */
-export function useTaskListImportProgress(projectId: string) {
+export function useTaskListImportProgress() {
+    const currentUserId = usePage<AppPageProps>().props.auth.user.id;
+
     const isImporting = ref(false);
     const importProgress = ref(0);
     const importMessage = ref('');
@@ -37,7 +44,7 @@ export function useTaskListImportProgress(projectId: string) {
     };
 
     useEcho(
-        `project.${projectId}`,
+        `user.${currentUserId}`,
         ['.TaskListImportProgress'],
         (payload: TaskListImportProgressPayload) => {
             if (payload.status === 'running') {
@@ -66,7 +73,7 @@ export function useTaskListImportProgress(projectId: string) {
                 router.visit(payload.redirect_url);
             }
         },
-        [projectId],
+        [currentUserId],
         'private',
     );
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\DocumentProcessingUpdate;
+use App\Events\DocumentVectorized;
 use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
@@ -222,6 +223,26 @@ it('broadcasts a DocumentProcessingUpdate on both the project and organization c
 
     expect($channelNames)->toContain('private-project.'.$project->id)
         ->toContain('private-organization.'.$project->organization_id);
+});
+
+it('broadcasts a DocumentVectorized on both the project and organization channels, with project_id in the payload', function () {
+    $project = createProjectWithChainedWorkflow();
+
+    $document = $project->documents()->create([
+        'name' => 'A manually entered task',
+        'type' => 'task',
+        'content' => 'Some content',
+        'processed_at' => now(),
+    ]);
+
+    $event = new DocumentVectorized($document);
+
+    $channelNames = collect($event->broadcastOn())->map(fn ($channel) => $channel->name);
+
+    expect($channelNames)->toContain('private-project.'.$project->id)
+        ->toContain('private-organization.'.$project->organization_id);
+
+    expect($event->broadcastWith()['document']['project_id'])->toBe($project->id);
 });
 
 it('does not broadcast or stamp processed_at for a non-task document', function () {

@@ -104,6 +104,7 @@ class ImportTransformationController extends Controller
                 $pass['mapping'],
                 $validated['ai_template_id'] ?? null,
                 confirmedMappingId: $confirmedMapping->id,
+                triggeredByUserId: $user->id,
             );
 
             $results[] = [
@@ -205,6 +206,7 @@ class ImportTransformationController extends Controller
                 // never actually reached.
                 $pass['extraction_rule'] ?? '',
                 $validated['ai_template_id'] ?? null,
+                $user->id,
             );
 
             $results[] = [

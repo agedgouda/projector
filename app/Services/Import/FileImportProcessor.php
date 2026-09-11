@@ -318,7 +318,7 @@ class FileImportProcessor
                 ],
             ]);
 
-            ImportTaskList::dispatchSync($importDocument, $pass['list_type'], $headers, $rows, $pass['mapping'], confirmedMappingId: $pass['mapping_id'] ?? null);
+            ImportTaskList::dispatchSync($importDocument, $pass['list_type'], $headers, $rows, $pass['mapping'], confirmedMappingId: $pass['mapping_id'] ?? null, triggeredByUserId: $attributedTo->id);
 
             $importDocument->refresh();
             $countsByType[$pass['list_type']] += $importDocument->metadata['created_count'] ?? 0;

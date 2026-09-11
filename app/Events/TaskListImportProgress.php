@@ -23,22 +23,22 @@ class TaskListImportProgress implements ShouldBroadcastNow
         public ?string $redirectUrl = null,
         public ?string $message = null,
         public ?string $warning = null,
+        public ?int $triggeredByUserId = null,
     ) {}
 
     /**
-     * Also broadcast org-wide, on top of the project channel, so a global "something's
-     * processing" indicator (see useGlobalImportActivity.ts) can show on every page, not just
-     * whichever project happens to be open right now.
+     * Private to the user who triggered this import — unlike DocumentProcessingUpdate/
+     * DocumentVectorized, nothing else needs the wider project/org audience for this event (no
+     * shared data-sync concern; useTaskListImportProgress.ts and useGlobalImportActivity.ts are
+     * its only consumers, and redirect_url only ever makes sense for the initiating browser).
      */
     public function broadcastOn(): array
     {
-        $channels = [new PrivateChannel('project.'.$this->importDocument->project_id)];
-
-        if ($organizationId = $this->importDocument->project?->organization_id) {
-            $channels[] = new PrivateChannel('organization.'.$organizationId);
+        if (! $this->triggeredByUserId) {
+            return [];
         }
 
-        return $channels;
+        return [new PrivateChannel('user.'.$this->triggeredByUserId)];
     }
 
     public function broadcastAs(): string

@@ -9,3 +9,7 @@ Broadcast::channel('project.{id}', function ($user, $id) {
 Broadcast::channel('organization.{id}', function ($user, $id) {
     return $user->organizations()->where('organizations.id', $id)->exists();
 });
+
+Broadcast::channel('user.{id}', function ($user, $id) {
+    return (int) $user->id === (int) $id;
+});

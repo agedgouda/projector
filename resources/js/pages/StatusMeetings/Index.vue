@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { Head, router, Deferred } from '@inertiajs/vue3';
+import { Head, router, Deferred, usePage } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import { Plus, FileText, CalendarDays, ChevronRight, Sparkles, RefreshCw, Eye } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -9,6 +9,8 @@ import AvailableOrgRecordings from '@/pages/Organizations/Partials/AvailableOrgR
 import ImportDocumentOptions from '@/pages/Organizations/Partials/ImportDocumentOptions.vue';
 import AiProgressBar from '@/components/AiProgressBar.vue';
 import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
+import { useProcessingReconciler } from '@/composables/useProcessingReconciler';
+import { isProcessingMine } from '@/lib/isProcessingMine';
 import { type BreadcrumbItem } from '@/types';
 import { globalAiState } from '@/state';
 import IconTile from '@/components/IconTile.vue';
@@ -57,8 +59,20 @@ const hasChildren = (meeting: StatusMeeting) =>
 
 // ── AI processing state ───────────────────────────────────────────────────────
 
+const currentUserId = usePage<AppPageProps>().props.auth.user.id;
+
+// Gated to whoever triggered a given meeting's draft run (see isProcessingMine.ts) — otherwise
+// any org member viewing this page would see the banner for a colleague's in-progress
+// extraction, straight from this shared statusMeetings prop, regardless of who started it.
 const isAnyProcessing = computed(() =>
-    props.statusMeetings.some(m => m.ai_draft_status === 'processing')
+    props.statusMeetings.some(
+        (m) =>
+            m.ai_draft_status === 'processing' &&
+            isProcessingMine(
+                { processing_triggered_by_user_id: m.processing_triggered_by_user_id, creator_id: m.creator?.id },
+                currentUserId,
+            ),
+    ),
 );
 
 const aiProgress = ref(0);
@@ -93,28 +107,36 @@ const aiStatusMessage = computed(() => {
     return names.length ? `Extracting action items from "${names[0]}"…` : '';
 });
 
-// Poll while any meeting is processing
-let pollTimer: ReturnType<typeof setTimeout> | null = null;
-
-const startPolling = () => {
-    pollTimer = setTimeout(() => {
-        router.reload({
-            only: ['statusMeetings'],
-            onSuccess: () => { if (isAnyProcessing.value) startPolling(); },
-        });
-    }, 4000);
-};
+// Shared reconciliation poll (useProcessingReconciler.ts) — one org-wide poll instead of this
+// page's own 4s self-rescheduling timer. Reloads statusMeetings once a meeting this page still
+// shows as "processing" has actually dropped out of the server's processing_org_document_ids
+// set (a status meeting's id doubles as its underlying OrgDocument's id — see
+// OrgDocumentController::index()). Moves the reconciliation cadence from this page's old fixed
+// 4s poll to the shared reconciler's own delayed/generous cadence (see
+// useProcessingReconciler.ts); the on-screen progress bar above is a local fake ramp,
+// unaffected by this change.
+const {
+    processingOrgDocumentIds,
+    start: startReconciling,
+    stop: stopReconciling,
+} = useProcessingReconciler();
 
 watch(isAnyProcessing, (val) => {
-    if (val) {
-        startPolling();
-    } else if (pollTimer) {
-        clearTimeout(pollTimer);
-        pollTimer = null;
-    }
+    if (val) startReconciling(); else stopReconciling();
 }, { immediate: true });
 
-onUnmounted(() => { if (pollTimer) clearTimeout(pollTimer); });
+watch(processingOrgDocumentIds, (ids) => {
+    const stillProcessing = props.statusMeetings.some(
+        (m) => m.ai_draft_status === 'processing' && ids.has(m.id),
+    );
+    if (isAnyProcessing.value && !stillProcessing) {
+        router.reload({ only: ['statusMeetings'] });
+    }
+});
+
+onUnmounted(() => {
+    if (isAnyProcessing.value) stopReconciling();
+});
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
