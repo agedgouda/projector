@@ -61,31 +61,82 @@ function currentInertiaVersion(): string | null {
 }
 
 // A page chunk is code-split per Inertia page, so the first navigation to any given page
-// fetches its .js fresh — if a deploy has since removed the file this tab's already-loaded
-// bundle points at (see ProjectController/OrgDocumentController's create routes for the bug
-// this was written for), that fetch 404s and throws instead of resolving. Inertia's own
-// asset-version check normally forces a hard reload before this can happen, but it only
-// covers requests that go through Inertia's router — this is the backstop for whatever gets
-// past it. A stale tab only needs one reload to pick up the new bundle, so a short cooldown
-// (sessionStorage survives the reload) stops a genuinely broken deploy from reload-looping.
+// fetches its .js fresh — root cause not yet confirmed (a stale deploy hash isn't it: verified
+// live that Inertia's own version check already forces a hard reload before this can happen on
+// a real version mismatch). Whatever the trigger, the recovery is the same: one reload picks up
+// a working bundle. A short cooldown (sessionStorage survives the reload) stops a genuinely
+// unrecoverable failure from reload-looping forever.
 const STALE_ASSET_RELOAD_KEY = 'staleAssetReloadAt';
 const STALE_ASSET_RELOAD_COOLDOWN_MS = 15000;
+
+// Reports are queued to localStorage *before* we ever try to send them, and flushed both here
+// and on every future app boot — if the failure itself was caused by the network being down
+// (the leading theory: a laptop waking from sleep, wifi/VPN reconnecting), the same outage
+// would silently swallow a fire-and-forget POST made at the moment of failure. Persisting first
+// means the report survives the reload and gets sent as soon as the app next boots with a
+// working connection, instead of depending on that one request landing.
+const STALE_ASSET_PENDING_KEY = 'pendingStaleAssetReports';
+
+interface StaleAssetReport {
+    chunk: string;
+    message: string;
+    page_url: string;
+    client_version: string | null;
+}
+
+function queueStaleAssetReport(report: StaleAssetReport): void {
+    try {
+        const pending: StaleAssetReport[] = JSON.parse(
+            localStorage.getItem(STALE_ASSET_PENDING_KEY) ?? '[]',
+        );
+        pending.push(report);
+        localStorage.setItem(STALE_ASSET_PENDING_KEY, JSON.stringify(pending));
+    } catch {
+        // Private browsing / storage disabled / quota exceeded — nothing more we can do
+        // client-side; the best-effort send below is this report's only shot.
+    }
+}
+
+async function flushPendingStaleAssetReports(): Promise<void> {
+    let pending: StaleAssetReport[];
+    try {
+        pending = JSON.parse(localStorage.getItem(STALE_ASSET_PENDING_KEY) ?? '[]');
+    } catch {
+        return;
+    }
+    if (pending.length === 0) {
+        return;
+    }
+
+    localStorage.removeItem(STALE_ASSET_PENDING_KEY);
+
+    for (const report of pending) {
+        try {
+            const response = await fetch('/client-logs/stale-asset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(report),
+            });
+            if (!response.ok) {
+                throw new Error(`status ${response.status}`);
+            }
+        } catch {
+            queueStaleAssetReport(report);
+        }
+    }
+}
 
 function reportStaleAssetAndReload(chunk: string, error: unknown): Promise<never> {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`Stale asset chunk failed to load (${chunk}):`, error);
 
-    fetch('/client-logs/stale-asset', {
-        method: 'POST',
-        keepalive: true,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chunk,
-            message,
-            page_url: window.location.href,
-            client_version: currentInertiaVersion(),
-        }),
-    }).catch(() => {});
+    queueStaleAssetReport({
+        chunk,
+        message,
+        page_url: window.location.href,
+        client_version: currentInertiaVersion(),
+    });
+    flushPendingStaleAssetReports().catch(() => {});
 
     const lastReloadAt = Number(sessionStorage.getItem(STALE_ASSET_RELOAD_KEY) ?? 0);
     if (Date.now() - lastReloadAt < STALE_ASSET_RELOAD_COOLDOWN_MS) {
@@ -96,6 +147,11 @@ function reportStaleAssetAndReload(chunk: string, error: unknown): Promise<never
     window.location.reload();
     return new Promise(() => {});
 }
+
+// Catches reports that were queued but never successfully sent before the reload (e.g. the
+// network was still down at the moment of failure) — every successful app boot gets another
+// chance to flush them.
+flushPendingStaleAssetReports().catch(() => {});
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
