@@ -599,7 +599,7 @@ const cancelCloseBarCard = () => {
                         'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
                         selectedTypes.includes('task')
                             ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent dark:text-gray-400',
                     ]"
                 >
                     Tasks
@@ -611,7 +611,7 @@ const cancelCloseBarCard = () => {
                         'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
                         selectedTypes.includes('event')
                             ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent dark:text-gray-400',
                     ]"
                 >
                     Events
@@ -630,7 +630,7 @@ const cancelCloseBarCard = () => {
                     :class="[
                         'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
                         hiddenSubprojectIds.has(sp.id)
-                            ? 'border-gray-200 bg-white text-gray-300 line-through dark:border-gray-800 dark:bg-transparent'
+                            ? 'border-gray-200 bg-white text-gray-600 line-through dark:border-gray-800 dark:bg-transparent dark:text-gray-400'
                             : 'border-transparent ' +
                               kanbanClasses[subprojectColors[sp.id] ?? 'slate'],
                     ]"
@@ -658,7 +658,7 @@ const cancelCloseBarCard = () => {
                         'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
                         selectedTagIds.length === 0
                             ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent dark:text-gray-400',
                     ]"
                 >
                     All
@@ -670,7 +670,7 @@ const cancelCloseBarCard = () => {
                         'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
                         selectedTagIds.includes(TAG_FILTER_NONE)
                             ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent',
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-800 dark:bg-transparent dark:text-gray-400',
                     ]"
                 >
                     None
@@ -684,7 +684,7 @@ const cancelCloseBarCard = () => {
                         'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase transition-all',
                         selectedTagIds.includes(tag.id)
                             ? 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                            : 'border-gray-200 bg-white text-gray-400 dark:border-gray-800 dark:bg-transparent',
+                            : 'border-gray-200 bg-white text-gray-600 dark:border-gray-800 dark:bg-transparent dark:text-gray-400',
                     ]"
                 >
                     <span

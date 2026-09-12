@@ -256,6 +256,7 @@ const aiProcessedParentIds = computed(() => {
                     v-model:sortBy="sortBy"
                     v-model:selectedTagIds="selectedTagIds"
                     :available-tags="availableTags"
+                    tags-shown-per-row
                     :projects-by-id="projectsById"
                     :assignee-options-by-project-id="assigneeOptionsByProjectId"
                     :has-rows="hasRows"

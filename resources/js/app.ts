@@ -51,13 +51,59 @@ const brandColor = getComputedStyle(document.documentElement)
     .getPropertyValue('--color-projector-primary-600')
     .trim();
 
+function currentInertiaVersion(): string | null {
+    try {
+        const page = document.getElementById('app')?.dataset.page;
+        return page ? (JSON.parse(page).version ?? null) : null;
+    } catch {
+        return null;
+    }
+}
+
+// A page chunk is code-split per Inertia page, so the first navigation to any given page
+// fetches its .js fresh — if a deploy has since removed the file this tab's already-loaded
+// bundle points at (see ProjectController/OrgDocumentController's create routes for the bug
+// this was written for), that fetch 404s and throws instead of resolving. Inertia's own
+// asset-version check normally forces a hard reload before this can happen, but it only
+// covers requests that go through Inertia's router — this is the backstop for whatever gets
+// past it. A stale tab only needs one reload to pick up the new bundle, so a short cooldown
+// (sessionStorage survives the reload) stops a genuinely broken deploy from reload-looping.
+const STALE_ASSET_RELOAD_KEY = 'staleAssetReloadAt';
+const STALE_ASSET_RELOAD_COOLDOWN_MS = 15000;
+
+function reportStaleAssetAndReload(chunk: string, error: unknown): Promise<never> {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Stale asset chunk failed to load (${chunk}):`, error);
+
+    fetch('/client-logs/stale-asset', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chunk,
+            message,
+            page_url: window.location.href,
+            client_version: currentInertiaVersion(),
+        }),
+    }).catch(() => {});
+
+    const lastReloadAt = Number(sessionStorage.getItem(STALE_ASSET_RELOAD_KEY) ?? 0);
+    if (Date.now() - lastReloadAt < STALE_ASSET_RELOAD_COOLDOWN_MS) {
+        return Promise.reject(error);
+    }
+
+    sessionStorage.setItem(STALE_ASSET_RELOAD_KEY, String(Date.now()));
+    window.location.reload();
+    return new Promise(() => {});
+}
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
         resolvePageComponent(
             `./pages/${name}.vue`,
             import.meta.glob<DefineComponent>('./pages/**/*.vue'),
-        ),
+        ).catch((error: unknown) => reportStaleAssetAndReload(name, error)),
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)

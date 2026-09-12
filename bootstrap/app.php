@@ -39,12 +39,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Slack's/Dropbox's webhooks are verified via their own HMAC signature
         // (VerifySlackSignature/VerifyDropboxSignature) instead of a CSRF token — their servers
-        // can't carry one.
+        // can't carry one. client-logs/stale-asset is exempted for a different reason: it's
+        // reported by a stale tab whose own CSRF token may itself be stale.
         $middleware->validateCsrfTokens(except: [
             'slack/events',
             'slack/commands',
             'slack/interactivity',
             'dropbox/events',
+            'client-logs/stale-asset',
         ]);
 
         $middleware->web(append: [

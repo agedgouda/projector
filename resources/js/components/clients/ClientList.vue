@@ -158,7 +158,7 @@ const canAddClient = computed(() => hasRole('super-admin') || hasRole('org-admin
                     <div class="flex flex-col min-w-0">
                         <span class="font-bold text-[13px] text-slate-900 dark:text-slate-100 flex items-center gap-2 truncate">
                             {{ client.company_name }}
-                            <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded shrink-0">
+                            <span v-if="client.inactive" class="text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded shrink-0">
                                 Inactive
                             </span>
                         </span>

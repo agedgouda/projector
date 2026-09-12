@@ -2,9 +2,11 @@
 import KanbanColumn from './KanbanColumn.vue';
 import KanbanHeader from './KanbanHeader.vue';
 import { KANBAN_UI } from '@/lib/kanban-theme';
+import { kanbanDotClasses } from '@/lib/constants';
 import type { AssigneeOption } from '@/lib/assignees';
 import { Link } from '@inertiajs/vue3';
 import { ExternalLink } from 'lucide-vue-next';
+import { computed } from 'vue';
 import projectRoutes from '@/routes/projects/index';
 
 const props = defineProps<{
@@ -23,9 +25,22 @@ const props = defineProps<{
     projectsById: Map<string, Project>;
     assigneeOptionsByProjectId: Map<string, AssigneeOption[]>;
     matchesFilters: (doc: ProjectDocument) => boolean;
+    // Dashboard-only: this row's project's own tags, shown right under its name instead of in
+    // the shared toolbar (see KanbanBoard.vue's tagsShownPerRow) — undefined on Projects/Show,
+    // where row.label is also empty so the whole header block (and these pills with it) never
+    // renders anyway.
+    availableTags?: CategoryDef[];
+    selectedTagIds?: string[];
+    onToggleTag?: (tagId: string) => void;
 }>();
 
 const getRowCount = (status: TaskStatus) => props.getTaskCount(props.row.key, status);
+
+// row.key is this project's id (see Dashboard/Index.vue's workflowRows) — tags are per-project
+// records, so even two identically-named tags from different projects have distinct ids here.
+const rowTags = computed(() =>
+    (props.availableTags ?? []).filter((tag) => tag.project_id === props.row.key),
+);
 </script>
 
 <template>
@@ -65,6 +80,32 @@ const getRowCount = (status: TaskStatus) => props.getTaskCount(props.row.key, st
                 <ExternalLink class="w-3 h-3" />
                 View Details
             </Link>
+        </div>
+
+        <div
+            v-if="rowTags.length"
+            class="flex flex-wrap items-center gap-2 px-2"
+        >
+            <button
+                v-for="tag in rowTags"
+                :key="tag.id"
+                type="button"
+                @click="onToggleTag?.(tag.id)"
+                :class="[
+                    'flex items-center gap-1.5 rounded border px-2.5 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
+                    selectedTagIds?.includes(tag.id)
+                        ? 'border-gray-300 bg-gray-100 text-gray-700'
+                        : 'border-gray-200 bg-white text-gray-600 dark:text-gray-400',
+                ]"
+            >
+                <span
+                    :class="[
+                        'h-1.5 w-1.5 shrink-0 rounded-full',
+                        kanbanDotClasses[tag.color],
+                    ]"
+                ></span>
+                {{ tag.name }}
+            </button>
         </div>
 
         <!-- Columns have a 240px floor (see gridContainer); once columnCount * 240px no

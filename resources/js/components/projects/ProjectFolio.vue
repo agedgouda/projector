@@ -151,7 +151,7 @@ const goToProject = () => {
                     </span>
                     <span
                         v-if="project.inactive"
-                        class="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[9px] font-black tracking-widest text-slate-400 uppercase dark:border-zinc-700"
+                        class="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[9px] font-black tracking-widest text-slate-600 uppercase dark:border-zinc-700 dark:text-slate-400"
                     >
                         Inactive
                     </span>

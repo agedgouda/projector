@@ -135,6 +135,7 @@ declare global {
 
     export interface CategoryDef {
         id: string;
+        project_id: string;
         name: string;
         color: string;
     }

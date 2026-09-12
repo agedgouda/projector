@@ -42,6 +42,25 @@ use Inertia\Inertia;
 Route::get('/invite/{token}', [InvitationController::class, 'accept'])
     ->name('invite');
 
+// Hit by app.ts's Inertia `resolve` callback when a code-split page chunk fails to fetch (the
+// deploy that built the tab's own bundle has since been superseded and the old chunk file is
+// gone) — deliberately not behind `auth`, since the app might have logged the user out by the
+// time this fires, and exempted from CSRF in bootstrap/app.php for the same reason: a stale
+// tab's CSRF token can't be trusted to still be valid either.
+Route::post('/client-logs/stale-asset', function (Request $request) {
+    Log::warning('Stale asset chunk failed to load', [
+        'user_id' => auth()->id(),
+        'chunk' => $request->input('chunk'),
+        'message' => $request->input('message'),
+        'page_url' => $request->input('page_url'),
+        'client_version' => $request->input('client_version'),
+        'server_version' => Inertia::getVersion(),
+        'user_agent' => $request->userAgent(),
+    ]);
+
+    return response()->noContent();
+})->middleware('throttle:20,1')->name('client-logs.stale-asset');
+
 Route::get('/login/{organization}', [OrganizationLoginController::class, 'create'])
     ->name('organization.login');
 Route::post('/login/{organization}', [OrganizationLoginController::class, 'store'])

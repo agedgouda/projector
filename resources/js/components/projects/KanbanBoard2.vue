@@ -88,7 +88,7 @@ const togglePriority = (priority: Priority) => {
                         'flex items-center gap-1.5 rounded border px-2.5 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
                         selectedPriorities.includes(priority)
                             ? getPriorityStyles(priority)
-                            : 'border-gray-200 bg-white text-gray-300 line-through',
+                            : 'border-gray-200 bg-white text-gray-600 line-through dark:text-gray-400',
                     ]"
                 >
                     {{ priority }}

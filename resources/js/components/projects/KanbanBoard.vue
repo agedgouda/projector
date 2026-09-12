@@ -41,6 +41,13 @@ defineProps<{
     canViewProjectDetails?: boolean;
     canManageColumns?: boolean;
     availableTags?: CategoryDef[];
+    // Dashboard spans many projects, each with its own independent set of tags (even two
+    // identically-named ones are unrelated records, e.g. two projects that each happen to have
+    // their own "Partner" tag). Rather than one flat mixed toolbar list, each project's own
+    // pills render inline under that project's own row (see KanbanRow.vue) — this just
+    // suppresses the shared toolbar's tag section so pills don't show twice. Projects/Show
+    // passes nothing here, keeping its existing single flat toolbar row.
+    tagsShownPerRow?: boolean;
 }>();
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' });
@@ -104,7 +111,7 @@ const toggleTagFilter = (value: string) => {
                         'flex items-center gap-1.5 rounded border px-2.5 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
                         selectedPriorities.includes(priority)
                             ? getPriorityStyles(priority)
-                            : 'border-gray-200 bg-white text-gray-300 line-through',
+                            : 'border-gray-200 bg-white text-gray-600 line-through dark:text-gray-400',
                     ]"
                 >
                     {{ priority }}
@@ -112,7 +119,7 @@ const toggleTagFilter = (value: string) => {
             </div>
 
             <div
-                v-if="availableTags?.length"
+                v-if="availableTags?.length && !tagsShownPerRow"
                 class="flex items-center gap-2"
             >
                 <span
@@ -126,7 +133,7 @@ const toggleTagFilter = (value: string) => {
                         'rounded border px-2 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
                         selectedTagIds.length === 0
                             ? 'border-gray-300 bg-gray-100 text-gray-700'
-                            : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:text-gray-400',
                     ]"
                 >
                     All
@@ -138,7 +145,7 @@ const toggleTagFilter = (value: string) => {
                         'rounded border px-2 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
                         selectedTagIds.includes(TAG_FILTER_NONE)
                             ? 'border-gray-300 bg-gray-100 text-gray-700'
-                            : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:text-gray-400',
                     ]"
                 >
                     None
@@ -152,7 +159,7 @@ const toggleTagFilter = (value: string) => {
                         'flex items-center gap-1.5 rounded border px-2.5 py-1 text-[9px] font-black tracking-tighter uppercase transition-all',
                         selectedTagIds.includes(tag.id)
                             ? 'border-gray-300 bg-gray-100 text-gray-700'
-                            : 'border-gray-200 bg-white text-gray-300',
+                            : 'border-gray-200 bg-white text-gray-600 dark:text-gray-400',
                     ]"
                 >
                     <span
@@ -211,6 +218,9 @@ const toggleTagFilter = (value: string) => {
                     :can-manage="canManageColumns"
                     :projects-by-id="projectsById"
                     :assignee-options-by-project-id="assigneeOptionsByProjectId"
+                    :available-tags="tagsShownPerRow ? availableTags : undefined"
+                    :selected-tag-ids="selectedTagIds"
+                    :on-toggle-tag="toggleTagFilter"
                 />
             </div>
         </div>
