@@ -23,6 +23,28 @@ export const KANBAN_COLOR_PALETTE = [
     'rose',
 ] as const;
 
+/** Same colors as KANBAN_COLOR_PALETTE, ordered red -> blue like a rainbow for swatch pickers. */
+export const KANBAN_COLOR_SWATCH_ORDER = [
+    'red',
+    'orange',
+    'amber',
+    'yellow',
+    'lime',
+    'green',
+    'emerald',
+    'teal',
+    'cyan',
+    'sky',
+    'blue',
+    'indigo',
+    'violet',
+    'purple',
+    'fuchsia',
+    'pink',
+    'rose',
+    'slate',
+] as const;
+
 export const kanbanClasses: Record<string, string> = {
     slate: 'bg-slate-100 text-slate-500',
     red: 'bg-red-50 text-red-600',

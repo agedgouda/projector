@@ -21,7 +21,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/composables/usePermissions';
-import { KANBAN_COLOR_PALETTE, kanbanDotClasses } from '@/lib/constants';
+import {
+    KANBAN_COLOR_PALETTE,
+    KANBAN_COLOR_SWATCH_ORDER,
+    kanbanDotClasses,
+} from '@/lib/constants';
 import ClientEntryForm from '@/pages/Clients/Partials/ClientEntryForm.vue';
 import projectRoutes from '@/routes/projects/index';
 import projectLogoRoutes from '@/routes/projects/logo/index';
@@ -458,7 +462,7 @@ const submit = async () => {
                             />
                             <div class="flex flex-wrap gap-1.5">
                                 <button
-                                    v-for="color in KANBAN_COLOR_PALETTE"
+                                    v-for="color in KANBAN_COLOR_SWATCH_ORDER"
                                     :key="color"
                                     type="button"
                                     :disabled="usedColors.has(color)"
@@ -537,7 +541,7 @@ const submit = async () => {
                                 />
                                 <div class="flex flex-wrap gap-1.5">
                                     <button
-                                        v-for="color in KANBAN_COLOR_PALETTE"
+                                        v-for="color in KANBAN_COLOR_SWATCH_ORDER"
                                         :key="color"
                                         type="button"
                                         :disabled="
