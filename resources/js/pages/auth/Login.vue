@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import axios from 'axios';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
-import { usePage } from '@inertiajs/vue3';
+import { usePage, useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -11,8 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { register } from '@/routes';
 import { request } from '@/routes/password';
-import { Form, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import { Eye, EyeOff } from 'lucide-vue-next';
 
 const showPassword = ref(false);
@@ -34,6 +34,24 @@ const displayStatus = computed(() => {
     return props.status;
 });
 
+const form = useForm({
+    email: '',
+    password: '',
+    remember: false,
+});
+
+// A tab left open for hours — or one that already landed here once from a session timeout —
+// can be holding a CSRF token that's gone stale by the time the user actually clicks Log In.
+// Left alone, that first submit 419s and silently round-trips through a fresh copy of this
+// same page (see bootstrap/app.php's 419 handler), so the user has to retype everything and
+// click again. Refreshing the token immediately before posting means the login request always
+// carries a valid one, so the first click works even after a long idle stretch.
+const submit = async () => {
+    await axios.get('/sanctum/csrf-cookie');
+    form.post('/login', {
+        onFinish: () => form.reset('password'),
+    });
+};
 </script>
 
 <template>
@@ -50,27 +68,21 @@ const displayStatus = computed(() => {
             {{ displayStatus }}
         </div>
 
-        <Form
-            action="/login"
-            method="post"
-            :reset-on-success="['password']"
-            v-slot="{ errors, processing }"
-            class="flex flex-col gap-6"
-        >
+        <form @submit.prevent="submit" class="flex flex-col gap-6">
             <div class="grid gap-6">
                 <div class="grid gap-2">
                     <Label for="email">Email address</Label>
                     <Input
                         id="email"
+                        v-model="form.email"
                         type="email"
-                        name="email"
                         required
                         autofocus
                         :tabindex="1"
                         autocomplete="email"
                         placeholder="email@example.com"
                     />
-                    <InputError :message="errors.email" />
+                    <InputError :message="form.errors.email" />
                 </div>
 
                 <div class="grid gap-2">
@@ -88,8 +100,8 @@ const displayStatus = computed(() => {
                     <div class="relative">
                         <Input
                             id="password"
+                            v-model="form.password"
                             :type="showPassword ? 'text' : 'password'"
-                            name="password"
                             required
                             :tabindex="2"
                             autocomplete="current-password"
@@ -106,12 +118,12 @@ const displayStatus = computed(() => {
                             <EyeOff v-else class="h-4 w-4" />
                         </button>
                     </div>
-                    <InputError :message="errors.password" />
+                    <InputError :message="form.errors.password" />
                 </div>
 
                 <div class="flex items-center justify-between">
                     <Label for="remember" class="flex items-center space-x-3">
-                        <Checkbox id="remember" name="remember" :tabindex="3" />
+                        <Checkbox id="remember" v-model="form.remember" :tabindex="3" />
                         <span>Remember me</span>
                     </Label>
                 </div>
@@ -120,10 +132,10 @@ const displayStatus = computed(() => {
                     type="submit"
                     class="mt-4 w-full"
                     :tabindex="4"
-                    :disabled="processing"
+                    :disabled="form.processing"
                     data-test="login-button"
                 >
-                    <Spinner v-if="processing" />
+                    <Spinner v-if="form.processing" />
                     Log in
                 </Button>
             </div>
@@ -135,6 +147,6 @@ const displayStatus = computed(() => {
                 Don't have an account?
                 <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
             </div>
-        </Form>
+        </form>
     </AuthBase>
 </template>

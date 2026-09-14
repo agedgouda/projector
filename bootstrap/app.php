@@ -74,11 +74,14 @@ return Application::configure(basePath: dirname(__DIR__))
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
         });
 
-        // 3. Catch CSRF/Session timeouts
+        // 3. Catch CSRF/Session timeouts. Flashed under 'status' (not e.g. 'message') because
+        // that's the key auth/Login.vue actually reads (see FortifyServiceProvider's
+        // loginView) — flashing the wrong key silently dropped this message entirely, so a
+        // stale-token login attempt just looked like the page blanking out for no reason.
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
             if ($e->getStatusCode() === 419) {
                 return redirect()->route('login')->with([
-                    'message' => 'Your session expired. Please log in again.',
+                    'status' => 'Your session expired. Please log in again.',
                 ]);
             }
         });
