@@ -61,6 +61,22 @@ Route::post('/client-logs/stale-asset', function (Request $request) {
     return response()->noContent();
 })->middleware('throttle:20,1')->name('client-logs.stale-asset');
 
+// Diagnostic for the "New Task"/"New Document" button silently doing nothing — see
+// useKanbanState.ts's openCreateSheet. Should never fire after that fix; kept so a recurrence
+// (or a different path into the same blocked state) shows up in the logs instead of just
+// looking like the button did nothing again.
+Route::post('/client-logs/create-sheet-blocked', function (Request $request) {
+    Log::warning('Create sheet blocked by stale selectedDocumentId', [
+        'user_id' => auth()->id(),
+        'selected_document_id' => $request->input('selected_document_id'),
+        'project_id' => $request->input('project_id'),
+        'page_url' => $request->input('page_url'),
+        'user_agent' => $request->userAgent(),
+    ]);
+
+    return response()->noContent();
+})->middleware(['auth', 'throttle:20,1'])->name('client-logs.create-sheet-blocked');
+
 Route::get('/login/{organization}', [OrganizationLoginController::class, 'create'])
     ->name('organization.login');
 Route::post('/login/{organization}', [OrganizationLoginController::class, 'store'])

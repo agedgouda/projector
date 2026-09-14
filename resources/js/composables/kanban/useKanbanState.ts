@@ -1,9 +1,23 @@
 import { computed, ref, watch } from 'vue';
+import axios from 'axios';
 import type { KanbanProps } from './useKanbanBoard';
 
 export function useKanbanState(props: KanbanProps) {
     const selectedDocumentId = ref<string | number | null>(null);
     const isSheetOpen = ref(false);
+
+    // Every host page renders the view/edit sheet and the create sheet as a v-if/v-else-if
+    // pair keyed on selectedDocument/isCreateSheetOpen (see Projects/Show.vue,
+    // Dashboard/Index.vue), so the create sheet can only ever appear while selectedDocumentId
+    // is unset. Without this, closing the view/edit sheet (Escape, backdrop click, the X
+    // button, or any of the several call sites that set isSheetOpen.value = false directly)
+    // left selectedDocumentId — and so the selectedDocument computed below — permanently
+    // truthy, silently blocking "New Task"/"New Document" for the rest of that page's life.
+    watch(isSheetOpen, (open) => {
+        if (!open) {
+            selectedDocumentId.value = null;
+        }
+    });
 
     // Drives DocumentDetailSheet's create mode (see useKanbanActions.ts's handleCreateNew,
     // triggered by the empty-column "+" button, and each host page's own top toolbar "New
@@ -14,6 +28,26 @@ export function useKanbanState(props: KanbanProps) {
     const createSheetProjectId = ref<string | null>(null);
 
     const openCreateSheet = (projectId: string) => {
+        // Should be unreachable now that the watch above clears selectedDocumentId whenever
+        // isSheetOpen goes false, since openDetail() is the only thing that sets it. If this
+        // still fires, the create sheet is silently blocked again the same way it used to be —
+        // log it so a recurrence (or a different path into the same blocked state) shows up
+        // instead of just looking like "New Task did nothing" again.
+        if (selectedDocumentId.value !== null) {
+            const payload = {
+                selected_document_id: selectedDocumentId.value,
+                project_id: projectId,
+                page_url: window.location.href,
+            };
+            console.warn(
+                '[useKanbanState] openCreateSheet blocked by stale selectedDocumentId',
+                payload,
+            );
+            void axios
+                .post('/client-logs/create-sheet-blocked', payload)
+                .catch(() => {});
+        }
+
         createSheetProjectId.value = projectId;
         isCreateSheetOpen.value = true;
     };
