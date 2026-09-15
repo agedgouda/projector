@@ -960,6 +960,74 @@ const handleUpdate = (field: string, value: any) => {
                             </div>
                         </div>
 
+                        <template v-if="documentProject">
+                            <h4
+                                class="mt-10 mb-4 text-[11px] font-black tracking-widest text-gray-400 uppercase"
+                            >
+                                Tags
+                            </h4>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button
+                                    v-for="category in appliedCategories"
+                                    :key="category.id"
+                                    type="button"
+                                    :title="`Remove '${category.name}' tag`"
+                                    class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                                    @click="removeTag(category)"
+                                >
+                                    <span
+                                        :class="[
+                                            kanbanDotClasses[category.color],
+                                            'h-2 w-2 shrink-0 rounded-full',
+                                        ]"
+                                    ></span>
+                                    {{ category.name }}
+                                </button>
+                                <span
+                                    v-if="
+                                        !appliedCategories.length &&
+                                        !availableTagsToAdd.length
+                                    "
+                                    class="text-xs text-gray-400"
+                                    >—</span
+                                >
+
+                                <Popover v-if="availableTagsToAdd.length">
+                                    <PopoverTrigger as-child>
+                                        <button
+                                            type="button"
+                                            title="Add a tag"
+                                            class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
+                                        >
+                                            <Plus class="h-3.5 w-3.5" />
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                        class="w-48 p-1"
+                                        align="start"
+                                    >
+                                        <button
+                                            v-for="category in availableTagsToAdd"
+                                            :key="category.id"
+                                            type="button"
+                                            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                                            @click="addTag(category)"
+                                        >
+                                            <span
+                                                :class="[
+                                                    kanbanDotClasses[
+                                                        category.color
+                                                    ],
+                                                    'h-2 w-2 shrink-0 rounded-full',
+                                                ]"
+                                            ></span>
+                                            {{ category.name }}
+                                        </button>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </template>
+
                         <h4
                             class="mt-10 text-[11px] font-black tracking-widest text-gray-400 uppercase"
                         >
@@ -1117,74 +1185,6 @@ const handleUpdate = (field: string, value: any) => {
                                 }}
                             </Button>
                         </div>
-
-                        <template v-if="documentProject">
-                            <h4
-                                class="mt-10 mb-4 text-[11px] font-black tracking-widest text-gray-400 uppercase"
-                            >
-                                Tags
-                            </h4>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <button
-                                    v-for="category in appliedCategories"
-                                    :key="category.id"
-                                    type="button"
-                                    :title="`Remove '${category.name}' tag`"
-                                    class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
-                                    @click="removeTag(category)"
-                                >
-                                    <span
-                                        :class="[
-                                            kanbanDotClasses[category.color],
-                                            'h-2 w-2 shrink-0 rounded-full',
-                                        ]"
-                                    ></span>
-                                    {{ category.name }}
-                                </button>
-                                <span
-                                    v-if="
-                                        !appliedCategories.length &&
-                                        !availableTagsToAdd.length
-                                    "
-                                    class="text-xs text-gray-400"
-                                    >—</span
-                                >
-
-                                <Popover v-if="availableTagsToAdd.length">
-                                    <PopoverTrigger as-child>
-                                        <button
-                                            type="button"
-                                            title="Add a tag"
-                                            class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
-                                        >
-                                            <Plus class="h-3.5 w-3.5" />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        class="w-48 p-1"
-                                        align="start"
-                                    >
-                                        <button
-                                            v-for="category in availableTagsToAdd"
-                                            :key="category.id"
-                                            type="button"
-                                            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
-                                            @click="addTag(category)"
-                                        >
-                                            <span
-                                                :class="[
-                                                    kanbanDotClasses[
-                                                        category.color
-                                                    ],
-                                                    'h-2 w-2 shrink-0 rounded-full',
-                                                ]"
-                                            ></span>
-                                            {{ category.name }}
-                                        </button>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        </template>
 
                         <div
                             v-if="mode !== 'create'"
