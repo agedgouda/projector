@@ -145,7 +145,7 @@ const updateCriterion = (index: number, value: string) =>
             <div class="grid flex-[3] gap-2">
                 <Label
                     class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
-                    >Document Name</Label
+                    >Name</Label
                 >
                 <Input
                     :model-value="form.name ?? ''"

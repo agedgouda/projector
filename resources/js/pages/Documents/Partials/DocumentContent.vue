@@ -4,8 +4,15 @@ import TaskRowContent from '@/components/documents/TaskRowContent.vue';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
+import { Label } from '@/components/ui/label';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { kanbanDotClasses } from '@/lib/constants';
 import { formatDateOnly } from '@/lib/utils';
 import { show as showDocument } from '@/routes/projects/documents';
 import { Link, usePage, type InertiaForm } from '@inertiajs/vue3';
@@ -14,6 +21,7 @@ import {
     Calendar as CalendarIcon,
     CornerDownRight,
     CornerUpLeft,
+    Plus,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -253,6 +261,70 @@ const usesExternalDueDates = computed(
                         {{ getDocLabel(item.type) }}
                     </h3>
                 </div>
+                <div
+                    v-if="
+                        (categories?.length ?? 0) +
+                            (availableTagsToAdd?.length ?? 0) >
+                        0
+                    "
+                    class="mb-6"
+                >
+                    <Label
+                        class="mb-2 block text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                        >Tags</Label
+                    >
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            v-for="category in categories"
+                            :key="category.id"
+                            type="button"
+                            :title="`Remove '${category.name}' tag`"
+                            :disabled="tagsReadOnly"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 disabled:pointer-events-none disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                            @click="emit('remove-tag', category)"
+                        >
+                            <span
+                                :class="[
+                                    kanbanDotClasses[category.color],
+                                    'h-2 w-2 shrink-0 rounded-full',
+                                ]"
+                            ></span>
+                            {{ category.name }}
+                        </button>
+
+                        <Popover
+                            v-if="availableTagsToAdd?.length && !tagsReadOnly"
+                        >
+                            <PopoverTrigger as-child>
+                                <button
+                                    type="button"
+                                    title="Add a tag"
+                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
+                                >
+                                    <Plus class="h-3.5 w-3.5" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent class="w-48 p-1" align="start">
+                                <button
+                                    v-for="category in availableTagsToAdd"
+                                    :key="category.id"
+                                    type="button"
+                                    class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                                    @click="emit('add-tag', category)"
+                                >
+                                    <span
+                                        :class="[
+                                            kanbanDotClasses[category.color],
+                                            'h-2 w-2 shrink-0 rounded-full',
+                                        ]"
+                                    ></span>
+                                    {{ category.name }}
+                                </button>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+
                 <div
                     v-if="!isImportRecord"
                     class="max-w-none text-[15px] leading-relaxed text-slate-900 dark:text-slate-400"

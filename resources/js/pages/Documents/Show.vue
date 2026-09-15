@@ -3,7 +3,6 @@
    1. Imports & Types
 ---------------------------- */
 import { Head, usePage } from '@inertiajs/vue3';
-import { Plus } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -11,14 +10,8 @@ import { toast } from 'vue-sonner';
 import CommentSection from '@/components/comments/CommentSection.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { mergeMentionableUsers } from '@/lib/assignees';
-import { kanbanDotClasses } from '@/lib/constants';
 import DocumentContent from './Partials/DocumentContent.vue';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
@@ -334,72 +327,6 @@ watch(
                     @add-tag="addTag"
                     @remove-tag="removeTag"
                 />
-
-                <div
-                    v-if="!isEditing && (project.categories?.length ?? 0) > 0"
-                    class="mt-12 border-t border-slate-100 pt-10 dark:border-slate-800"
-                >
-                    <h3
-                        class="mb-6 flex items-center gap-2 text-[11px] font-black tracking-[0.2em] text-slate-700 uppercase dark:text-slate-400"
-                    >
-                        <div
-                            class="h-px w-4 bg-slate-400 dark:bg-slate-600"
-                        ></div>
-                        Tags
-                    </h3>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button
-                            v-for="category in item.categories ?? []"
-                            :key="category.id"
-                            type="button"
-                            :title="`Remove '${category.name}' tag`"
-                            :disabled="project.inactive"
-                            class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 disabled:pointer-events-none disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
-                            @click="removeTag(category)"
-                        >
-                            <span
-                                :class="[
-                                    kanbanDotClasses[category.color],
-                                    'h-2 w-2 shrink-0 rounded-full',
-                                ]"
-                            ></span>
-                            {{ category.name }}
-                        </button>
-
-                        <Popover
-                            v-if="
-                                availableTagsToAdd.length && !project.inactive
-                            "
-                        >
-                            <PopoverTrigger as-child>
-                                <button
-                                    type="button"
-                                    title="Add a tag"
-                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
-                                >
-                                    <Plus class="h-3.5 w-3.5" />
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent class="w-48 p-1" align="start">
-                                <button
-                                    v-for="category in availableTagsToAdd"
-                                    :key="category.id"
-                                    type="button"
-                                    class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
-                                    @click="addTag(category)"
-                                >
-                                    <span
-                                        :class="[
-                                            kanbanDotClasses[category.color],
-                                            'h-2 w-2 shrink-0 rounded-full',
-                                        ]"
-                                    ></span>
-                                    {{ category.name }}
-                                </button>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                </div>
 
                 <div class="mt-12 border-t border-slate-100 pt-10">
                     <h3
