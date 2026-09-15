@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\AiTemplate;
+use App\Models\Category;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
@@ -57,7 +58,10 @@ class CreateTaskFromSlackCommand implements ShouldQueue
           "Friday" — resolve them to an actual date), else null.
         - priority: "low", "medium", or "high" if urgency language is used (e.g. "urgent",
           "whenever", "ASAP"), else null.
-        - tag: a category or label if one is clearly implied, else null.
+        - tag: if the text clearly implies one of this project's existing tags, and a "Known
+          tags" list is given below, output that tag's exact name as listed. If no list is
+          given, or no listed tag is a clear match, output null — never invent a tag name that
+          isn't in the list.
         RULE;
 
     /**
@@ -82,11 +86,14 @@ class CreateTaskFromSlackCommand implements ShouldQueue
         $organization = $this->project->client?->organization;
         $organizationId = $organization?->id;
 
+        $categories = $this->project->familyCategories();
+
         try {
             $rule = $this->extractionRule();
             if ($organization !== null) {
                 $rule .= $this->rosterSection($organization->users, $organization->invitations);
             }
+            $rule .= $this->tagsSection($categories);
 
             $result = $extractionService->extract($this->text, 'task', $rule, $organizationId);
             $record = $result['records'][0] ?? null;
@@ -109,10 +116,9 @@ class CreateTaskFromSlackCommand implements ShouldQueue
             ? $importService->resolveAssignee($record['assignee'] ?? null, $organization->users, $organization->invitations)
             : ['assignee_id' => null, 'pending_assignee_invitation_id' => null];
 
-        $tag = null;
-        if ($organization !== null && filled($record['tag'] ?? null)) {
-            $tag = $importService->findOrCreateTag($record['tag'], $this->project->familyRoot(), $this->project->familyCategories());
-        }
+        $tag = filled($record['tag'] ?? null)
+            ? $importService->resolveTag($record['tag'], $categories)
+            : null;
 
         $document = $this->project->documents()->make();
         // See ImportTaskList::importTasks() for why status/task_status are forceFill'd together
@@ -214,6 +220,29 @@ class CreateTaskFromSlackCommand implements ShouldQueue
         }
 
         return "\n\nKnown people who can be assigned tasks on this project:\n"
+            .$names->map(fn (string $name) => "- {$name}")->implode("\n");
+    }
+
+    /**
+     * Lists the project's existing tags so the AI can only ever pick one of them — resolveTag()
+     * downstream matches by exact name against this same project's tags, so a name the AI offers
+     * that isn't in this list can never match.
+     *
+     * @param  Collection<int, Category>  $categories
+     */
+    private function tagsSection(Collection $categories): string
+    {
+        $names = $categories
+            ->map(fn (Category $category) => trim((string) $category->name))
+            ->filter(fn (string $name) => $name !== '')
+            ->unique()
+            ->values();
+
+        if ($names->isEmpty()) {
+            return '';
+        }
+
+        return "\n\nKnown tags for this project:\n"
             .$names->map(fn (string $name) => "- {$name}")->implode("\n");
     }
 

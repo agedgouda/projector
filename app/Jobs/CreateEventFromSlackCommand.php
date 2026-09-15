@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\AiTemplate;
+use App\Models\Category;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Ai\TextExtractionService;
@@ -12,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -45,8 +47,10 @@ class CreateEventFromSlackCommand implements ShouldQueue
           like "tomorrow" or "next Thursday" — resolve them to an actual date). If the source
           gives only one date, use it for due_at and leave start_date null — the caller fills in
           the other end of the range itself when that happens. Null both if no date is mentioned.
-        - tag: a category or label for the event if one is clearly implied (e.g. "team offsite",
-          "client meeting", "deadline"), else null.
+        - tag: if the text clearly implies one of this project's existing tags, and a "Known
+          tags" list is given below, output that tag's exact name as listed. If no list is
+          given, or no listed tag is a clear match, output null — never invent a tag name that
+          isn't in the list.
         RULE;
 
     /**
@@ -68,9 +72,11 @@ class CreateEventFromSlackCommand implements ShouldQueue
     public function handle(TextExtractionService $extractionService, TaskListImportService $importService): void
     {
         $organizationId = $this->project->client?->organization_id;
+        $categories = $this->project->familyCategories();
 
         try {
-            $result = $extractionService->extract($this->text, 'event', $this->extractionRule(), $organizationId);
+            $rule = $this->extractionRule().$this->tagsSection($categories);
+            $result = $extractionService->extract($this->text, 'event', $rule, $organizationId);
             $record = $result['records'][0] ?? null;
         } catch (Throwable $e) {
             Log::warning('Slack /events extraction failed, falling back to raw text', ['message' => $e->getMessage()]);
@@ -93,10 +99,9 @@ class CreateEventFromSlackCommand implements ShouldQueue
             $startAt = $dueAt;
         }
 
-        $tag = null;
-        if (filled($record['tag'] ?? null)) {
-            $tag = $importService->findOrCreateTag($record['tag'], $this->project->familyRoot(), $this->project->familyCategories());
-        }
+        $tag = filled($record['tag'] ?? null)
+            ? $importService->resolveTag($record['tag'], $categories)
+            : null;
 
         $document = $this->project->documents()->create([
             'type' => 'event',
@@ -154,6 +159,29 @@ class CreateEventFromSlackCommand implements ShouldQueue
         $rule = AiTemplate::where('type', 'slack_event_extraction')->value('user_prompt');
 
         return is_string($rule) && trim($rule) !== '' ? $rule : self::DEFAULT_EXTRACTION_RULE;
+    }
+
+    /**
+     * Lists the project's existing tags so the AI can only ever pick one of them — resolveTag()
+     * downstream matches by exact name against this same project's tags, so a name the AI offers
+     * that isn't in this list can never match.
+     *
+     * @param  Collection<int, Category>  $categories
+     */
+    private function tagsSection(Collection $categories): string
+    {
+        $names = $categories
+            ->map(fn (Category $category) => trim((string) $category->name))
+            ->filter(fn (string $name) => $name !== '')
+            ->unique()
+            ->values();
+
+        if ($names->isEmpty()) {
+            return '';
+        }
+
+        return "\n\nKnown tags for this project:\n"
+            .$names->map(fn (string $name) => "- {$name}")->implode("\n");
     }
 
     public function failed(Throwable $exception): void

@@ -237,6 +237,28 @@ class TaskListImportService
     }
 
     /**
+     * Resolves a raw tag string against the project family's existing tags only, by exact
+     * (case-insensitive) name — unlike findOrCreateTag(), never creates a new one. Mirrors
+     * resolveAssignee()'s no-match-leaves-it-unset behavior, and ProjectAiService::
+     * resolveTagIds()'s existing-tags-only matching for the "Create Tasks"/"Notes to Events"
+     * AI transformations — used by CreateTaskFromSlackCommand so a Slack task can only ever
+     * pick up one of the project's real tags, not invent a new one from a slash command.
+     *
+     * @param  Collection<int, Category>  $categories
+     */
+    public function resolveTag(?string $raw, Collection $categories): ?Category
+    {
+        $needle = trim((string) $raw);
+        if ($needle === '') {
+            return null;
+        }
+
+        $lowerNeedle = mb_strtolower($needle);
+
+        return $categories->first(fn (Category $category): bool => mb_strtolower($category->name) === $lowerNeedle);
+    }
+
+    /**
      * Looks up a mapped column's value for one row — $mapping[$field] holds the header text the
      * user chose (or null if that field wasn't mapped to anything), and headers/rows are kept as
      * parallel arrays rather than associative ones since spreadsheet headers aren't guaranteed

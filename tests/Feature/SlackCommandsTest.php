@@ -335,6 +335,57 @@ it('creates a task document from the extracted fields and posts an in-channel co
     });
 });
 
+it('tags a task with an existing project category matched from the extracted tag', function () {
+    $category = $this->project->categories()->create(['name' => 'Urgent', 'color' => 'red']);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn(['status' => 'success', 'content' => ['records' => [[
+            'name' => 'Follow up with client',
+            'priority' => 'high',
+            'task_status' => null,
+            'due_at' => null,
+            'assignee' => null,
+            'start_date' => null,
+            'description' => null,
+            'tag' => 'urgent',
+        ]]]]);
+
+    Http::fake(['hooks.slack.com/*' => Http::response(['ok' => true], 200)]);
+
+    CreateTaskFromSlackCommand::dispatchSync($this->project, $this->user, 'follow up with the client', 'https://hooks.slack.com/commands/fake');
+
+    $document = Document::where('project_id', $this->project->id)->where('type', 'task')->first();
+
+    expect($document->categories->pluck('id'))->toContain($category->id);
+});
+
+it('leaves a task untagged rather than creating a new category when the extracted tag matches none of the project\'s existing tags', function () {
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn(['status' => 'success', 'content' => ['records' => [[
+            'name' => 'Follow up with client',
+            'priority' => 'high',
+            'task_status' => null,
+            'due_at' => null,
+            'assignee' => null,
+            'start_date' => null,
+            'description' => null,
+            'tag' => 'urgent',
+        ]]]]);
+
+    Http::fake(['hooks.slack.com/*' => Http::response(['ok' => true], 200)]);
+
+    CreateTaskFromSlackCommand::dispatchSync($this->project, $this->user, 'follow up with the client', 'https://hooks.slack.com/commands/fake');
+
+    $document = Document::where('project_id', $this->project->id)->where('type', 'task')->first();
+
+    expect($document->categories)->toBeEmpty()
+        ->and($this->project->familyCategories())->toBeEmpty();
+});
+
 it('falls back to the raw command text when extraction fails, still creating a task', function () {
     $this->mock(LlmDriver::class)
         ->shouldReceive('call')
@@ -407,7 +458,9 @@ it('falls back to the default event extraction rule if the AiTemplate row is mis
 
 // ── Job: event creation ──────────────────────────────────────────────────────
 
-it('creates an event document from the extracted fields and posts an in-channel confirmation', function () {
+it('creates an event document from the extracted fields, tagged with an existing project category, and posts an in-channel confirmation', function () {
+    $category = $this->project->categories()->create(['name' => 'Offsite', 'color' => 'blue']);
+
     $this->mock(LlmDriver::class)
         ->shouldReceive('call')
         ->once()
@@ -436,7 +489,7 @@ it('creates an event document from the extracted fields and posts an in-channel 
         ->and($document->due_at)->toBe('2026-09-10 00:00:00')
         ->and($document->creator_id)->toBe($this->user->id)
         ->and($document->metadata['created_from'])->toBe('slack')
-        ->and($document->categories->pluck('name'))->toContain('offsite');
+        ->and($document->categories->pluck('id'))->toContain($category->id);
 
     Http::assertSent(function ($request) use ($document) {
         return $request->url() === 'https://hooks.slack.com/commands/fake'
@@ -444,6 +497,34 @@ it('creates an event document from the extracted fields and posts an in-channel 
             && str_contains($request['text'], 'Team Offsite')
             && str_contains($request['text'], (string) $document->id);
     });
+});
+
+it('leaves an event untagged rather than creating a new category when the extracted tag matches none of the project\'s existing tags', function () {
+    $this->project->categories()->create(['name' => 'Client Meeting', 'color' => 'blue']);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturn(['status' => 'success', 'content' => ['records' => [[
+            'name' => 'Team Offsite',
+            'priority' => null,
+            'task_status' => null,
+            'due_at' => '2026-09-10',
+            'assignee' => null,
+            'start_date' => null,
+            'description' => 'Annual team offsite at the lake house.',
+            'tag' => 'offsite',
+        ]]]]);
+
+    Http::fake(['hooks.slack.com/*' => Http::response(['ok' => true], 200)]);
+
+    CreateEventFromSlackCommand::dispatchSync($this->project, $this->user, 'team offsite next Thursday', 'https://hooks.slack.com/commands/fake');
+
+    $document = Document::where('project_id', $this->project->id)->where('type', 'event')->first();
+
+    expect($document)->not->toBeNull()
+        ->and($document->categories)->toBeEmpty()
+        ->and($this->project->familyCategories()->pluck('name')->all())->toBe(['Client Meeting']);
 });
 
 it('falls back to the raw command text when extraction fails, still creating an event', function () {
