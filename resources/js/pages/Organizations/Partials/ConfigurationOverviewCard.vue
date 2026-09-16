@@ -31,6 +31,9 @@ import {
     LLM_DRIVERS,
     MEETING_PROVIDERS,
     VECTOR_DRIVERS,
+    llmDriverLabel,
+    meetingProviderLabel,
+    vectorDriverLabel,
 } from '@/lib/constants';
 import organizationRoutes from '@/routes/organizations/index';
 import organizationPdfBrandingRoutes from '@/routes/organizations/pdf-branding/index';
@@ -112,6 +115,15 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// reka-ui's <SelectItem> rejects an empty-string value (used to mean "clear the
+// selection"), but '' is exactly what LLM_DRIVERS/VECTOR_DRIVERS/MEETING_PROVIDERS use
+// for "System Default"/"None". Swap in this sentinel only at the Select boundary — the
+// underlying form fields keep using '' everywhere else.
+const DEFAULT_OPTION_VALUE = '__default__';
+const toSelectValue = (value: string) => value || DEFAULT_OPTION_VALUE;
+const fromSelectValue = (value: string) =>
+    value === DEFAULT_OPTION_VALUE ? '' : value;
 
 // Only one section's sub-level details are shown at a time, directly in the card —
 // there's no more "Configure" button/dialog for these, so this is the sole way in.
@@ -496,228 +508,90 @@ const meetingNeedsSetup = computed(() => {
     <div
         class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-gray-900/60"
     >
-        <div
-            class="flex items-center gap-3 border-b border-gray-100 pb-4 dark:border-gray-800"
-        >
-            <input
-                id="uses_external_due_dates"
-                type="checkbox"
-                v-model="dueDatesForm.uses_external_due_dates"
-                :disabled="dueDatesForm.processing"
-                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
-                @change="saveDueDates"
-            />
-            <Label
-                for="uses_external_due_dates"
-                class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-                Track separate internal and external due dates on tasks
-            </Label>
-        </div>
-
         <div class="divide-y divide-gray-100 dark:divide-gray-800">
-            <!-- LLM Driver -->
+            <!-- Due Dates -->
             <div class="py-4">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-if="llmDriverForm.llm_driver"
-                            type="button"
-                            @click="toggleSection('llm')"
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <ChevronDown
-                                class="h-4 w-4 transition-transform"
-                                :class="{ 'rotate-180': openSection === 'llm' }"
-                            />
-                        </button>
-                        <span v-else class="h-6 w-6 shrink-0"></span>
-                        <span
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >LLM Driver</span
-                        >
-                        <span
-                            v-if="llmNeedsSetup"
-                            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
-                            >Needs Setup</span
-                        >
-                    </div>
-                    <select
-                        v-model="llmDriverForm.llm_driver"
-                        :disabled="llmDriverForm.processing"
-                        @change="onLlmDriverChange"
-                        class="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-projector-primary-500/20 dark:border-white/10 dark:bg-gray-950 dark:text-gray-100"
+                <div class="flex items-center gap-3">
+                    <input
+                        id="uses_external_due_dates"
+                        type="checkbox"
+                        v-model="dueDatesForm.uses_external_due_dates"
+                        :disabled="dueDatesForm.processing"
+                        class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
+                        @change="saveDueDates"
+                    />
+                    <Label
+                        for="uses_external_due_dates"
+                        class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
                     >
-                        <option
-                            v-for="d in LLM_DRIVERS"
-                            :key="d.value"
-                            :value="d.value"
-                        >
-                            {{ d.label }}
-                        </option>
-                    </select>
-                </div>
-
-                <div
-                    v-if="openSection === 'llm'"
-                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
-                >
-                    <div v-if="llmUsesApiKey" class="grid gap-2">
-                        <Label
-                            for="llm_key"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >API Key</Label
-                        >
-                        <Input
-                            id="llm_key"
-                            v-model="llmDriverForm.llm_config.key"
-                            type="password"
-                            autocomplete="off"
-                            :placeholder="llmKeyPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div v-if="llmUsesHost" class="grid gap-2">
-                        <Label
-                            for="llm_host"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Ollama Host URL</Label
-                        >
-                        <Input
-                            id="llm_host"
-                            v-model="llmDriverForm.llm_config.host"
-                            type="url"
-                            placeholder="http://localhost:11434"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label
-                            for="llm_model"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Model</Label
-                        >
-                        <Input
-                            id="llm_model"
-                            v-model="llmDriverForm.llm_config.model"
-                            :placeholder="llmDefaultModelPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div class="flex justify-end">
-                        <Button
-                            type="button"
-                            size="sm"
-                            :disabled="llmDriverForm.processing"
-                            @click="saveLlmDriver"
-                            >Save</Button
-                        >
-                    </div>
+                        Track separate internal and external due dates on tasks
+                    </Label>
                 </div>
             </div>
 
-            <!-- Embeddings Driver -->
+            <!-- PDF Branding -->
             <div class="py-4">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                         <button
-                            v-if="vectorShowsConfig"
                             type="button"
-                            @click="toggleSection('vector')"
+                            @click="toggleSection('branding')"
                             class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                         >
                             <ChevronDown
                                 class="h-4 w-4 transition-transform"
                                 :class="{
-                                    'rotate-180': openSection === 'vector',
+                                    '-rotate-90': openSection !== 'branding',
                                 }"
                             />
                         </button>
-                        <span v-else class="h-6 w-6 shrink-0"></span>
                         <span
                             class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >Embeddings Driver</span
-                        >
-                        <span
-                            v-if="vectorNeedsSetup"
-                            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
-                            >Needs Setup</span
+                            >PDF Branding</span
                         >
                     </div>
-                    <select
-                        v-model="vectorDriverForm.vector_driver"
-                        :disabled="vectorDriverForm.processing"
-                        @change="onVectorDriverChange"
-                        class="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-projector-primary-500/20 dark:border-white/10 dark:bg-gray-950 dark:text-gray-100"
+                    <span
+                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                        >{{ brandingLabel }}</span
                     >
-                        <option
-                            v-for="d in VECTOR_DRIVERS"
-                            :key="d.value"
-                            :value="d.value"
-                            :disabled="
-                                d.value === 'same' && vectorSameAsLlmDisabled
-                            "
-                        >
-                            {{ d.label }}
-                        </option>
-                    </select>
                 </div>
 
                 <div
-                    v-if="openSection === 'vector'"
-                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+                    v-if="openSection === 'branding'"
+                    class="mt-4 space-y-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
                 >
-                    <div v-if="vectorUsesApiKey" class="grid gap-2">
-                        <Label
-                            for="vector_key"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >API Key</Label
-                        >
-                        <Input
-                            id="vector_key"
-                            v-model="vectorDriverForm.vector_config.key"
-                            type="password"
-                            autocomplete="off"
-                            :placeholder="vectorKeyPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div v-if="vectorUsesHost" class="grid gap-2">
-                        <Label
-                            for="vector_host"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Ollama Host URL</Label
-                        >
-                        <Input
-                            id="vector_host"
-                            v-model="vectorDriverForm.vector_config.host"
-                            type="url"
-                            placeholder="http://localhost:11434"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label
-                            for="vector_model"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Embedding Model</Label
-                        >
-                        <Input
-                            id="vector_model"
-                            v-model="vectorDriverForm.vector_config.model"
-                            :placeholder="vectorDefaultModelPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div class="flex justify-end">
-                        <Button
-                            type="button"
-                            size="sm"
-                            :disabled="vectorDriverForm.processing"
-                            @click="saveVectorDriver"
-                            >Save</Button
-                        >
-                    </div>
+                    <LogoUpload
+                        :current-logo-url="organization.pdf_header_url ?? null"
+                        :upload-url="
+                            organizationPdfBrandingRoutes.store.url({
+                                organization: organization.id,
+                                type: 'header',
+                            })
+                        "
+                        :delete-url="
+                            organizationPdfBrandingRoutes.destroy.url({
+                                organization: organization.id,
+                                type: 'header',
+                            })
+                        "
+                        label="PDF Header Image"
+                    />
+                    <LogoUpload
+                        :current-logo-url="organization.pdf_footer_url ?? null"
+                        :upload-url="
+                            organizationPdfBrandingRoutes.store.url({
+                                organization: organization.id,
+                                type: 'footer',
+                            })
+                        "
+                        :delete-url="
+                            organizationPdfBrandingRoutes.destroy.url({
+                                organization: organization.id,
+                                type: 'footer',
+                            })
+                        "
+                        label="PDF Footer Image"
+                    />
                 </div>
             </div>
 
@@ -734,7 +608,7 @@ const meetingNeedsSetup = computed(() => {
                             <ChevronDown
                                 class="h-4 w-4 transition-transform"
                                 :class="{
-                                    'rotate-180': openSection === 'meeting',
+                                    '-rotate-90': openSection !== 'meeting',
                                 }"
                             />
                         </button>
@@ -749,26 +623,96 @@ const meetingNeedsSetup = computed(() => {
                             >Needs Setup</span
                         >
                     </div>
-                    <select
-                        v-model="meetingProviderForm.meeting_provider"
-                        :disabled="meetingProviderForm.processing"
-                        @change="onMeetingProviderChange"
-                        class="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-projector-primary-500/20 dark:border-white/10 dark:bg-gray-950 dark:text-gray-100"
+                    <span
+                        v-if="meetingProviderForm.meeting_provider"
+                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                        >{{
+                            meetingProviderLabel(
+                                meetingProviderForm.meeting_provider,
+                            )
+                        }}</span
                     >
-                        <option
-                            v-for="p in MEETING_PROVIDERS"
-                            :key="p.value"
-                            :value="p.value"
-                        >
-                            {{ p.label }}
-                        </option>
-                    </select>
+                    <Select
+                        v-else
+                        :model-value="
+                            toSelectValue(meetingProviderForm.meeting_provider)
+                        "
+                        :disabled="meetingProviderForm.processing"
+                        @update:model-value="
+                            (v) => {
+                                meetingProviderForm.meeting_provider =
+                                    fromSelectValue(v as string);
+                                onMeetingProviderChange();
+                            }
+                        "
+                    >
+                        <SelectTrigger size="sm" class="w-[190px] text-sm">
+                            <SelectValue>{{
+                                meetingProviderLabel(
+                                    meetingProviderForm.meeting_provider,
+                                )
+                            }}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="p in MEETING_PROVIDERS"
+                                :key="p.value"
+                                :value="toSelectValue(p.value)"
+                            >
+                                {{ p.label }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div
                     v-if="openSection === 'meeting'"
                     class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
                 >
+                    <div class="grid gap-2">
+                        <Label
+                            for="meeting_provider_select"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Meeting Provider</Label
+                        >
+                        <Select
+                            :model-value="
+                                toSelectValue(
+                                    meetingProviderForm.meeting_provider,
+                                )
+                            "
+                            :disabled="meetingProviderForm.processing"
+                            @update:model-value="
+                                (v) => {
+                                    meetingProviderForm.meeting_provider =
+                                        fromSelectValue(v as string);
+                                    onMeetingProviderChange();
+                                }
+                            "
+                        >
+                            <SelectTrigger
+                                id="meeting_provider_select"
+                                size="sm"
+                                class="w-[190px] text-sm"
+                            >
+                                <SelectValue>{{
+                                    meetingProviderLabel(
+                                        meetingProviderForm.meeting_provider,
+                                    )
+                                }}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="p in MEETING_PROVIDERS"
+                                    :key="p.value"
+                                    :value="toSelectValue(p.value)"
+                                >
+                                    {{ p.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <button
                         type="button"
                         @click="isMeetingSetupGuideOpen = true"
@@ -945,7 +889,7 @@ const meetingNeedsSetup = computed(() => {
                             <ChevronDown
                                 class="h-4 w-4 transition-transform"
                                 :class="{
-                                    'rotate-180': openSection === 'slack',
+                                    '-rotate-90': openSection !== 'slack',
                                 }"
                             />
                         </button>
@@ -1127,7 +1071,7 @@ const meetingNeedsSetup = computed(() => {
                             <ChevronDown
                                 class="h-4 w-4 transition-transform"
                                 :class="{
-                                    'rotate-180': openSection === 'dropbox',
+                                    '-rotate-90': openSection !== 'dropbox',
                                 }"
                             />
                         </button>
@@ -1295,69 +1239,339 @@ const meetingNeedsSetup = computed(() => {
                 </div>
             </div>
 
-            <!-- PDF Branding -->
+            <!-- LLM Driver -->
             <div class="py-4">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                         <button
+                            v-if="llmDriverForm.llm_driver"
                             type="button"
-                            @click="toggleSection('branding')"
+                            @click="toggleSection('llm')"
+                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                            <ChevronDown
+                                class="h-4 w-4 transition-transform"
+                                :class="{ '-rotate-90': openSection !== 'llm' }"
+                            />
+                        </button>
+                        <span v-else class="h-6 w-6 shrink-0"></span>
+                        <span
+                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >LLM Driver</span
+                        >
+                        <span
+                            v-if="llmNeedsSetup"
+                            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
+                            >Needs Setup</span
+                        >
+                    </div>
+                    <span
+                        v-if="llmDriverForm.llm_driver"
+                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                        >{{ llmDriverLabel(llmDriverForm.llm_driver) }}</span
+                    >
+                    <Select
+                        v-else
+                        :model-value="toSelectValue(llmDriverForm.llm_driver)"
+                        :disabled="llmDriverForm.processing"
+                        @update:model-value="
+                            (v) => {
+                                llmDriverForm.llm_driver = fromSelectValue(
+                                    v as string,
+                                );
+                                onLlmDriverChange();
+                            }
+                        "
+                    >
+                        <SelectTrigger size="sm" class="w-[190px] text-sm">
+                            <SelectValue>{{
+                                llmDriverLabel(llmDriverForm.llm_driver)
+                            }}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="d in LLM_DRIVERS"
+                                :key="d.value"
+                                :value="toSelectValue(d.value)"
+                            >
+                                {{ d.label }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div
+                    v-if="openSection === 'llm'"
+                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+                >
+                    <div class="grid gap-2">
+                        <Label
+                            for="llm_driver_select"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >LLM Driver</Label
+                        >
+                        <Select
+                            :model-value="
+                                toSelectValue(llmDriverForm.llm_driver)
+                            "
+                            :disabled="llmDriverForm.processing"
+                            @update:model-value="
+                                (v) => {
+                                    llmDriverForm.llm_driver = fromSelectValue(
+                                        v as string,
+                                    );
+                                    onLlmDriverChange();
+                                }
+                            "
+                        >
+                            <SelectTrigger
+                                id="llm_driver_select"
+                                size="sm"
+                                class="w-[190px] text-sm"
+                            >
+                                <SelectValue>{{
+                                    llmDriverLabel(llmDriverForm.llm_driver)
+                                }}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="d in LLM_DRIVERS"
+                                    :key="d.value"
+                                    :value="toSelectValue(d.value)"
+                                >
+                                    {{ d.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div v-if="llmUsesApiKey" class="grid gap-2">
+                        <Label
+                            for="llm_key"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >API Key</Label
+                        >
+                        <Input
+                            id="llm_key"
+                            v-model="llmDriverForm.llm_config.key"
+                            type="password"
+                            autocomplete="off"
+                            :placeholder="llmKeyPlaceholder"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div v-if="llmUsesHost" class="grid gap-2">
+                        <Label
+                            for="llm_host"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Ollama Host URL</Label
+                        >
+                        <Input
+                            id="llm_host"
+                            v-model="llmDriverForm.llm_config.host"
+                            type="url"
+                            placeholder="http://localhost:11434"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label
+                            for="llm_model"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Model</Label
+                        >
+                        <Input
+                            id="llm_model"
+                            v-model="llmDriverForm.llm_config.model"
+                            :placeholder="llmDefaultModelPlaceholder"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div class="flex justify-end">
+                        <Button
+                            type="button"
+                            size="sm"
+                            :disabled="llmDriverForm.processing"
+                            @click="saveLlmDriver"
+                            >Save</Button
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- Embeddings Driver -->
+            <div class="py-4">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <button
+                            v-if="vectorDriverForm.vector_driver"
+                            type="button"
+                            @click="toggleSection('vector')"
                             class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                         >
                             <ChevronDown
                                 class="h-4 w-4 transition-transform"
                                 :class="{
-                                    'rotate-180': openSection === 'branding',
+                                    '-rotate-90': openSection !== 'vector',
                                 }"
                             />
                         </button>
+                        <span v-else class="h-6 w-6 shrink-0"></span>
                         <span
                             class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >PDF Branding</span
+                            >Embeddings Driver</span
+                        >
+                        <span
+                            v-if="vectorNeedsSetup"
+                            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
+                            >Needs Setup</span
                         >
                     </div>
                     <span
+                        v-if="vectorDriverForm.vector_driver"
                         class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >{{ brandingLabel }}</span
+                        >{{
+                            vectorDriverLabel(vectorDriverForm.vector_driver)
+                        }}</span
                     >
+                    <Select
+                        v-else
+                        :model-value="
+                            toSelectValue(vectorDriverForm.vector_driver)
+                        "
+                        :disabled="vectorDriverForm.processing"
+                        @update:model-value="
+                            (v) => {
+                                vectorDriverForm.vector_driver =
+                                    fromSelectValue(v as string);
+                                onVectorDriverChange();
+                            }
+                        "
+                    >
+                        <SelectTrigger size="sm" class="w-[190px] text-sm">
+                            <SelectValue>{{
+                                vectorDriverLabel(
+                                    vectorDriverForm.vector_driver,
+                                )
+                            }}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="d in VECTOR_DRIVERS"
+                                :key="d.value"
+                                :value="toSelectValue(d.value)"
+                                :disabled="
+                                    d.value === 'same' &&
+                                    vectorSameAsLlmDisabled
+                                "
+                            >
+                                {{ d.label }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div
-                    v-if="openSection === 'branding'"
-                    class="mt-4 space-y-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+                    v-if="openSection === 'vector'"
+                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
                 >
-                    <LogoUpload
-                        :current-logo-url="organization.pdf_header_url ?? null"
-                        :upload-url="
-                            organizationPdfBrandingRoutes.store.url({
-                                organization: organization.id,
-                                type: 'header',
-                            })
-                        "
-                        :delete-url="
-                            organizationPdfBrandingRoutes.destroy.url({
-                                organization: organization.id,
-                                type: 'header',
-                            })
-                        "
-                        label="PDF Header Image"
-                    />
-                    <LogoUpload
-                        :current-logo-url="organization.pdf_footer_url ?? null"
-                        :upload-url="
-                            organizationPdfBrandingRoutes.store.url({
-                                organization: organization.id,
-                                type: 'footer',
-                            })
-                        "
-                        :delete-url="
-                            organizationPdfBrandingRoutes.destroy.url({
-                                organization: organization.id,
-                                type: 'footer',
-                            })
-                        "
-                        label="PDF Footer Image"
-                    />
+                    <div class="grid gap-2">
+                        <Label
+                            for="vector_driver_select"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Embeddings Driver</Label
+                        >
+                        <Select
+                            :model-value="
+                                toSelectValue(vectorDriverForm.vector_driver)
+                            "
+                            :disabled="vectorDriverForm.processing"
+                            @update:model-value="
+                                (v) => {
+                                    vectorDriverForm.vector_driver =
+                                        fromSelectValue(v as string);
+                                    onVectorDriverChange();
+                                }
+                            "
+                        >
+                            <SelectTrigger
+                                id="vector_driver_select"
+                                size="sm"
+                                class="w-[190px] text-sm"
+                            >
+                                <SelectValue>{{
+                                    vectorDriverLabel(
+                                        vectorDriverForm.vector_driver,
+                                    )
+                                }}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="d in VECTOR_DRIVERS"
+                                    :key="d.value"
+                                    :value="toSelectValue(d.value)"
+                                    :disabled="
+                                        d.value === 'same' &&
+                                        vectorSameAsLlmDisabled
+                                    "
+                                >
+                                    {{ d.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div v-if="vectorUsesApiKey" class="grid gap-2">
+                        <Label
+                            for="vector_key"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >API Key</Label
+                        >
+                        <Input
+                            id="vector_key"
+                            v-model="vectorDriverForm.vector_config.key"
+                            type="password"
+                            autocomplete="off"
+                            :placeholder="vectorKeyPlaceholder"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div v-if="vectorUsesHost" class="grid gap-2">
+                        <Label
+                            for="vector_host"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Ollama Host URL</Label
+                        >
+                        <Input
+                            id="vector_host"
+                            v-model="vectorDriverForm.vector_config.host"
+                            type="url"
+                            placeholder="http://localhost:11434"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div v-if="vectorShowsConfig" class="grid gap-2">
+                        <Label
+                            for="vector_model"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Embedding Model</Label
+                        >
+                        <Input
+                            id="vector_model"
+                            v-model="vectorDriverForm.vector_config.model"
+                            :placeholder="vectorDefaultModelPlaceholder"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div class="flex justify-end">
+                        <Button
+                            type="button"
+                            size="sm"
+                            :disabled="vectorDriverForm.processing"
+                            @click="saveVectorDriver"
+                            >Save</Button
+                        >
+                    </div>
                 </div>
             </div>
         </div>
