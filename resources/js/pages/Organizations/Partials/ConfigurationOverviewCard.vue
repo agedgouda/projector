@@ -505,135 +505,174 @@ const meetingNeedsSetup = computed(() => {
 </script>
 
 <template>
-    <div
-        class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-gray-900/60"
-    >
-        <div class="divide-y divide-gray-100 dark:divide-gray-800">
-            <!-- Due Dates -->
-            <div class="py-4">
-                <div class="flex items-center gap-3">
-                    <input
-                        id="uses_external_due_dates"
-                        type="checkbox"
-                        v-model="dueDatesForm.uses_external_due_dates"
-                        :disabled="dueDatesForm.processing"
-                        class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
-                        @change="saveDueDates"
-                    />
-                    <Label
-                        for="uses_external_due_dates"
-                        class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                        Track separate internal and external due dates on tasks
-                    </Label>
-                </div>
-            </div>
-
-            <!-- PDF Branding -->
-            <div class="py-4">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <button
-                            type="button"
-                            @click="toggleSection('branding')"
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <ChevronDown
-                                class="h-4 w-4 transition-transform"
-                                :class="{
-                                    '-rotate-90': openSection !== 'branding',
-                                }"
-                            />
-                        </button>
-                        <span
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >PDF Branding</span
-                        >
-                    </div>
-                    <span
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >{{ brandingLabel }}</span
-                    >
-                </div>
-
-                <div
-                    v-if="openSection === 'branding'"
-                    class="mt-4 space-y-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+    <div class="divide-y divide-gray-100 dark:divide-gray-800">
+        <!-- Due Dates -->
+        <div class="py-4">
+            <div class="flex items-center gap-3">
+                <input
+                    id="uses_external_due_dates"
+                    type="checkbox"
+                    v-model="dueDatesForm.uses_external_due_dates"
+                    :disabled="dueDatesForm.processing"
+                    class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
+                    @change="saveDueDates"
+                />
+                <Label
+                    for="uses_external_due_dates"
+                    class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                    <LogoUpload
-                        :current-logo-url="organization.pdf_header_url ?? null"
-                        :upload-url="
-                            organizationPdfBrandingRoutes.store.url({
-                                organization: organization.id,
-                                type: 'header',
-                            })
-                        "
-                        :delete-url="
-                            organizationPdfBrandingRoutes.destroy.url({
-                                organization: organization.id,
-                                type: 'header',
-                            })
-                        "
-                        label="PDF Header Image"
-                    />
-                    <LogoUpload
-                        :current-logo-url="organization.pdf_footer_url ?? null"
-                        :upload-url="
-                            organizationPdfBrandingRoutes.store.url({
-                                organization: organization.id,
-                                type: 'footer',
-                            })
-                        "
-                        :delete-url="
-                            organizationPdfBrandingRoutes.destroy.url({
-                                organization: organization.id,
-                                type: 'footer',
-                            })
-                        "
-                        label="PDF Footer Image"
-                    />
+                    Track separate internal and external due dates on tasks
+                </Label>
+            </div>
+        </div>
+
+        <!-- PDF Branding -->
+        <div class="py-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        @click="toggleSection('branding')"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                        <ChevronDown
+                            class="h-4 w-4 transition-transform"
+                            :class="{
+                                '-rotate-90': openSection !== 'branding',
+                            }"
+                        />
+                    </button>
+                    <span
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >PDF Branding</span
+                    >
                 </div>
+                <span
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >{{ brandingLabel }}</span
+                >
             </div>
 
-            <!-- Meeting Provider -->
-            <div class="py-4">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-if="meetingProviderForm.meeting_provider"
-                            type="button"
-                            @click="toggleSection('meeting')"
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <ChevronDown
-                                class="h-4 w-4 transition-transform"
-                                :class="{
-                                    '-rotate-90': openSection !== 'meeting',
-                                }"
-                            />
-                        </button>
-                        <span v-else class="h-6 w-6 shrink-0"></span>
-                        <span
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >Meeting Provider</span
-                        >
-                        <span
-                            v-if="meetingNeedsSetup"
-                            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
-                            >Needs Setup</span
-                        >
-                    </div>
-                    <span
+            <div
+                v-if="openSection === 'branding'"
+                class="mt-4 space-y-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+            >
+                <LogoUpload
+                    :current-logo-url="organization.pdf_header_url ?? null"
+                    :upload-url="
+                        organizationPdfBrandingRoutes.store.url({
+                            organization: organization.id,
+                            type: 'header',
+                        })
+                    "
+                    :delete-url="
+                        organizationPdfBrandingRoutes.destroy.url({
+                            organization: organization.id,
+                            type: 'header',
+                        })
+                    "
+                    label="PDF Header Image"
+                />
+                <LogoUpload
+                    :current-logo-url="organization.pdf_footer_url ?? null"
+                    :upload-url="
+                        organizationPdfBrandingRoutes.store.url({
+                            organization: organization.id,
+                            type: 'footer',
+                        })
+                    "
+                    :delete-url="
+                        organizationPdfBrandingRoutes.destroy.url({
+                            organization: organization.id,
+                            type: 'footer',
+                        })
+                    "
+                    label="PDF Footer Image"
+                />
+            </div>
+        </div>
+
+        <!-- Meeting Provider -->
+        <div class="py-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <button
                         v-if="meetingProviderForm.meeting_provider"
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >{{
+                        type="button"
+                        @click="toggleSection('meeting')"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                        <ChevronDown
+                            class="h-4 w-4 transition-transform"
+                            :class="{
+                                '-rotate-90': openSection !== 'meeting',
+                            }"
+                        />
+                    </button>
+                    <span v-else class="h-6 w-6 shrink-0"></span>
+                    <span
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >Meeting Provider</span
+                    >
+                    <span
+                        v-if="meetingNeedsSetup"
+                        class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
+                        >Needs Setup</span
+                    >
+                </div>
+                <span
+                    v-if="meetingProviderForm.meeting_provider"
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >{{
+                        meetingProviderLabel(
+                            meetingProviderForm.meeting_provider,
+                        )
+                    }}</span
+                >
+                <Select
+                    v-else
+                    :model-value="
+                        toSelectValue(meetingProviderForm.meeting_provider)
+                    "
+                    :disabled="meetingProviderForm.processing"
+                    @update:model-value="
+                        (v) => {
+                            meetingProviderForm.meeting_provider =
+                                fromSelectValue(v as string);
+                            onMeetingProviderChange();
+                        }
+                    "
+                >
+                    <SelectTrigger size="sm" class="w-[190px] text-sm">
+                        <SelectValue>{{
                             meetingProviderLabel(
                                 meetingProviderForm.meeting_provider,
                             )
-                        }}</span
+                        }}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="p in MEETING_PROVIDERS"
+                            :key="p.value"
+                            :value="toSelectValue(p.value)"
+                        >
+                            {{ p.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div
+                v-if="openSection === 'meeting'"
+                class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+            >
+                <div class="grid gap-2">
+                    <Label
+                        for="meeting_provider_select"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Meeting Provider</Label
                     >
                     <Select
-                        v-else
                         :model-value="
                             toSelectValue(meetingProviderForm.meeting_provider)
                         "
@@ -646,7 +685,11 @@ const meetingNeedsSetup = computed(() => {
                             }
                         "
                     >
-                        <SelectTrigger size="sm" class="w-[190px] text-sm">
+                        <SelectTrigger
+                            id="meeting_provider_select"
+                            size="sm"
+                            class="w-[190px] text-sm"
+                        >
                             <SelectValue>{{
                                 meetingProviderLabel(
                                     meetingProviderForm.meeting_provider,
@@ -665,613 +708,578 @@ const meetingNeedsSetup = computed(() => {
                     </Select>
                 </div>
 
-                <div
-                    v-if="openSection === 'meeting'"
-                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+                <button
+                    type="button"
+                    @click="isMeetingSetupGuideOpen = true"
+                    class="flex items-center gap-1 text-[10px] font-black tracking-widest text-projector-primary-500 uppercase transition-colors hover:text-projector-primary-700 dark:hover:text-projector-primary-300"
                 >
+                    <HelpCircle class="h-3.5 w-3.5" />
+                    Setup Guide
+                </button>
+
+                <div v-if="isZoom" class="grid gap-2">
+                    <Label
+                        for="meeting_account_id"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Account ID</Label
+                    >
+                    <Input
+                        id="meeting_account_id"
+                        v-model="meetingProviderForm.meeting_config.account_id"
+                        placeholder="Your Zoom Account ID"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+
+                <div v-if="isTeams" class="grid gap-2">
+                    <Label
+                        for="meeting_tenant_id"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Tenant ID</Label
+                    >
+                    <Input
+                        id="meeting_tenant_id"
+                        v-model="meetingProviderForm.meeting_config.tenant_id"
+                        placeholder="Your Azure Tenant ID"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+
+                <template v-if="!isGoogleMeet && !isSlackMeeting">
                     <div class="grid gap-2">
                         <Label
-                            for="meeting_provider_select"
+                            for="meeting_client_id"
                             class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Meeting Provider</Label
+                            >Client ID</Label
                         >
-                        <Select
-                            :model-value="
-                                toSelectValue(
-                                    meetingProviderForm.meeting_provider,
-                                )
+                        <Input
+                            id="meeting_client_id"
+                            v-model="
+                                meetingProviderForm.meeting_config.client_id
                             "
-                            :disabled="meetingProviderForm.processing"
-                            @update:model-value="
-                                (v) => {
-                                    meetingProviderForm.meeting_provider =
-                                        fromSelectValue(v as string);
-                                    onMeetingProviderChange();
-                                }
-                            "
+                            placeholder="OAuth Client ID"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label
+                            for="meeting_client_secret"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Client Secret</Label
                         >
-                            <SelectTrigger
-                                id="meeting_provider_select"
-                                size="sm"
-                                class="w-[190px] text-sm"
+                        <Input
+                            id="meeting_client_secret"
+                            v-model="
+                                meetingProviderForm.meeting_config.client_secret
+                            "
+                            type="password"
+                            autocomplete="off"
+                            :placeholder="meetingClientSecretPlaceholder"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                </template>
+
+                <template v-if="isGoogleMeet">
+                    <div class="grid gap-2">
+                        <Label
+                            for="meeting_service_account_email"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Service Account Email</Label
+                        >
+                        <Input
+                            id="meeting_service_account_email"
+                            v-model="
+                                meetingProviderForm.meeting_config
+                                    .service_account_email
+                            "
+                            type="email"
+                            placeholder="name@project.iam.gserviceaccount.com"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label
+                            for="meeting_private_key"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Private Key (PEM)</Label
+                        >
+                        <textarea
+                            id="meeting_private_key"
+                            v-model="
+                                meetingProviderForm.meeting_config.private_key
+                            "
+                            rows="6"
+                            :placeholder="meetingPrivateKeyPlaceholder"
+                            class="w-full resize-y rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-xs text-gray-700 outline-none focus:border-projector-primary-500 focus:ring-2 focus:ring-projector-primary-500/30 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label
+                            for="meeting_impersonate_email"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Impersonate Email</Label
+                        >
+                        <Input
+                            id="meeting_impersonate_email"
+                            v-model="
+                                meetingProviderForm.meeting_config
+                                    .impersonate_email
+                            "
+                            type="email"
+                            placeholder="user@yourworkspace.com"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                </template>
+
+                <template v-if="isSlackMeeting">
+                    <div class="grid gap-2">
+                        <Label
+                            for="meeting_bot_token"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                            >Bot User OAuth Token</Label
+                        >
+                        <Input
+                            id="meeting_bot_token"
+                            v-model="
+                                meetingProviderForm.meeting_config.bot_token
+                            "
+                            type="password"
+                            autocomplete="off"
+                            :placeholder="meetingBotTokenPlaceholder"
+                            class="h-10 font-mono text-sm"
+                        />
+                    </div>
+                </template>
+
+                <div class="flex justify-end">
+                    <Button
+                        type="button"
+                        size="sm"
+                        :disabled="meetingProviderForm.processing"
+                        @click="saveMeetingProvider"
+                        >Save</Button
+                    >
+                </div>
+            </div>
+        </div>
+
+        <!-- Slack -->
+        <div class="py-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <button
+                        v-if="slackConnected"
+                        type="button"
+                        @click="toggleSection('slack')"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                        <ChevronDown
+                            class="h-4 w-4 transition-transform"
+                            :class="{
+                                '-rotate-90': openSection !== 'slack',
+                            }"
+                        />
+                    </button>
+                    <span v-else class="h-6 w-6 shrink-0"></span>
+                    <span
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >Slack</span
+                    >
+                </div>
+                <span
+                    v-if="slackConnected"
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >Connected</span
+                >
+                <a
+                    v-else-if="slackConfigured"
+                    :href="connectSlack(organization.id).url"
+                >
+                    <Button type="button" variant="outline" size="sm"
+                        >Connect</Button
+                    >
+                </a>
+                <span
+                    v-else
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >Not configured</span
+                >
+            </div>
+
+            <div
+                v-if="openSection === 'slack'"
+                class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+            >
+                <div
+                    class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
+                >
+                    <div class="space-y-0.5">
+                        <p
+                            class="text-sm font-medium text-slate-900 dark:text-slate-100"
+                        >
+                            Connected
+                        </p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ slackTeamName }}
+                        </p>
+                    </div>
+                    <Form
+                        v-bind="disconnectSlack.form(organization.id)"
+                        v-slot="{ processing }"
+                    >
+                        <Button
+                            type="submit"
+                            variant="secondary"
+                            :disabled="processing"
+                            >Disconnect</Button
+                        >
+                    </Form>
+                </div>
+
+                <div class="space-y-3">
+                    <p
+                        v-if="slackBindings.length === 0"
+                        class="text-sm text-muted-foreground"
+                    >
+                        No channels are bound yet.
+                    </p>
+                    <div
+                        v-for="binding in slackBindings"
+                        :key="binding.id"
+                        class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
+                    >
+                        <div class="space-y-0.5">
+                            <p
+                                class="text-sm font-medium text-slate-900 dark:text-slate-100"
                             >
-                                <SelectValue>{{
-                                    meetingProviderLabel(
-                                        meetingProviderForm.meeting_provider,
-                                    )
-                                }}</SelectValue>
+                                #{{ binding.channel_name }}
+                            </p>
+                            <p class="text-sm text-muted-foreground">
+                                {{ binding.project.name }}
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="removeSlackBinding(binding)"
+                            >Remove</Button
+                        >
+                    </div>
+                </div>
+
+                <div
+                    class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
+                >
+                    <p
+                        class="text-sm font-medium text-slate-900 dark:text-slate-100"
+                    >
+                        Add A Channel
+                    </p>
+                    <p
+                        v-if="slackAvailableChannels.length === 0"
+                        class="text-sm text-muted-foreground"
+                    >
+                        No unbound channels found — the bot may need to be
+                        invited to more channels, or every visible channel is
+                        already bound.
+                    </p>
+                    <div v-else class="flex flex-wrap items-center gap-3">
+                        <Select
+                            :model-value="selectedSlackChannelId"
+                            @update:model-value="
+                                (v) => (selectedSlackChannelId = v as string)
+                            "
+                        >
+                            <SelectTrigger class="h-9 w-[220px] text-[13px]">
+                                <SelectValue placeholder="Select a channel…" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem
-                                    v-for="p in MEETING_PROVIDERS"
-                                    :key="p.value"
-                                    :value="toSelectValue(p.value)"
+                                    v-for="channel in slackAvailableChannels"
+                                    :key="channel.id"
+                                    :value="channel.id"
+                                    ># {{ channel.name }}</SelectItem
                                 >
-                                    {{ p.label }}
-                                </SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
-
-                    <button
-                        type="button"
-                        @click="isMeetingSetupGuideOpen = true"
-                        class="flex items-center gap-1 text-[10px] font-black tracking-widest text-projector-primary-500 uppercase transition-colors hover:text-projector-primary-700 dark:hover:text-projector-primary-300"
-                    >
-                        <HelpCircle class="h-3.5 w-3.5" />
-                        Setup Guide
-                    </button>
-
-                    <div v-if="isZoom" class="grid gap-2">
-                        <Label
-                            for="meeting_account_id"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Account ID</Label
-                        >
-                        <Input
-                            id="meeting_account_id"
-                            v-model="
-                                meetingProviderForm.meeting_config.account_id
+                        <Select
+                            :model-value="selectedSlackProjectId"
+                            @update:model-value="
+                                (v) => (selectedSlackProjectId = v as string)
                             "
-                            placeholder="Your Zoom Account ID"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-
-                    <div v-if="isTeams" class="grid gap-2">
-                        <Label
-                            for="meeting_tenant_id"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Tenant ID</Label
                         >
-                        <Input
-                            id="meeting_tenant_id"
-                            v-model="
-                                meetingProviderForm.meeting_config.tenant_id
-                            "
-                            placeholder="Your Azure Tenant ID"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-
-                    <template v-if="!isGoogleMeet && !isSlackMeeting">
-                        <div class="grid gap-2">
-                            <Label
-                                for="meeting_client_id"
-                                class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                                >Client ID</Label
-                            >
-                            <Input
-                                id="meeting_client_id"
-                                v-model="
-                                    meetingProviderForm.meeting_config.client_id
-                                "
-                                placeholder="OAuth Client ID"
-                                class="h-10 font-mono text-sm"
-                            />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label
-                                for="meeting_client_secret"
-                                class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                                >Client Secret</Label
-                            >
-                            <Input
-                                id="meeting_client_secret"
-                                v-model="
-                                    meetingProviderForm.meeting_config
-                                        .client_secret
-                                "
-                                type="password"
-                                autocomplete="off"
-                                :placeholder="meetingClientSecretPlaceholder"
-                                class="h-10 font-mono text-sm"
-                            />
-                        </div>
-                    </template>
-
-                    <template v-if="isGoogleMeet">
-                        <div class="grid gap-2">
-                            <Label
-                                for="meeting_service_account_email"
-                                class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                                >Service Account Email</Label
-                            >
-                            <Input
-                                id="meeting_service_account_email"
-                                v-model="
-                                    meetingProviderForm.meeting_config
-                                        .service_account_email
-                                "
-                                type="email"
-                                placeholder="name@project.iam.gserviceaccount.com"
-                                class="h-10 font-mono text-sm"
-                            />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label
-                                for="meeting_private_key"
-                                class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                                >Private Key (PEM)</Label
-                            >
-                            <textarea
-                                id="meeting_private_key"
-                                v-model="
-                                    meetingProviderForm.meeting_config
-                                        .private_key
-                                "
-                                rows="6"
-                                :placeholder="meetingPrivateKeyPlaceholder"
-                                class="w-full resize-y rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-xs text-gray-700 outline-none focus:border-projector-primary-500 focus:ring-2 focus:ring-projector-primary-500/30 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200"
-                            />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label
-                                for="meeting_impersonate_email"
-                                class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                                >Impersonate Email</Label
-                            >
-                            <Input
-                                id="meeting_impersonate_email"
-                                v-model="
-                                    meetingProviderForm.meeting_config
-                                        .impersonate_email
-                                "
-                                type="email"
-                                placeholder="user@yourworkspace.com"
-                                class="h-10 font-mono text-sm"
-                            />
-                        </div>
-                    </template>
-
-                    <template v-if="isSlackMeeting">
-                        <div class="grid gap-2">
-                            <Label
-                                for="meeting_bot_token"
-                                class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                                >Bot User OAuth Token</Label
-                            >
-                            <Input
-                                id="meeting_bot_token"
-                                v-model="
-                                    meetingProviderForm.meeting_config.bot_token
-                                "
-                                type="password"
-                                autocomplete="off"
-                                :placeholder="meetingBotTokenPlaceholder"
-                                class="h-10 font-mono text-sm"
-                            />
-                        </div>
-                    </template>
-
-                    <div class="flex justify-end">
+                            <SelectTrigger class="h-9 w-[220px] text-[13px]">
+                                <SelectValue placeholder="Select a project…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="project in slackProjects"
+                                    :key="project.id"
+                                    :value="project.id"
+                                    >{{ project.name }}</SelectItem
+                                >
+                            </SelectContent>
+                        </Select>
                         <Button
                             type="button"
-                            size="sm"
-                            :disabled="meetingProviderForm.processing"
-                            @click="saveMeetingProvider"
-                            >Save</Button
+                            :disabled="
+                                !selectedSlackChannelId ||
+                                !selectedSlackProjectId ||
+                                slackSubmitting
+                            "
+                            @click="addSlackBinding"
+                            >Add</Button
                         >
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Slack -->
-            <div class="py-4">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-if="slackConnected"
-                            type="button"
-                            @click="toggleSection('slack')"
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <ChevronDown
-                                class="h-4 w-4 transition-transform"
-                                :class="{
-                                    '-rotate-90': openSection !== 'slack',
-                                }"
-                            />
-                        </button>
-                        <span v-else class="h-6 w-6 shrink-0"></span>
-                        <span
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >Slack</span
-                        >
-                    </div>
-                    <span
-                        v-if="slackConnected"
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >Connected</span
-                    >
-                    <a
-                        v-else-if="slackConfigured"
-                        :href="connectSlack(organization.id).url"
-                    >
-                        <Button type="button" variant="outline" size="sm"
-                            >Connect</Button
-                        >
-                    </a>
-                    <span
-                        v-else
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >Not configured</span
-                    >
-                </div>
-
-                <div
-                    v-if="openSection === 'slack'"
-                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
-                >
-                    <div
-                        class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
-                    >
-                        <div class="space-y-0.5">
-                            <p
-                                class="text-sm font-medium text-slate-900 dark:text-slate-100"
-                            >
-                                Connected
-                            </p>
-                            <p class="text-sm text-muted-foreground">
-                                {{ slackTeamName }}
-                            </p>
-                        </div>
-                        <Form
-                            v-bind="disconnectSlack.form(organization.id)"
-                            v-slot="{ processing }"
-                        >
-                            <Button
-                                type="submit"
-                                variant="secondary"
-                                :disabled="processing"
-                                >Disconnect</Button
-                            >
-                        </Form>
-                    </div>
-
-                    <div class="space-y-3">
-                        <p
-                            v-if="slackBindings.length === 0"
-                            class="text-sm text-muted-foreground"
-                        >
-                            No channels are bound yet.
-                        </p>
-                        <div
-                            v-for="binding in slackBindings"
-                            :key="binding.id"
-                            class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
-                        >
-                            <div class="space-y-0.5">
-                                <p
-                                    class="text-sm font-medium text-slate-900 dark:text-slate-100"
-                                >
-                                    #{{ binding.channel_name }}
-                                </p>
-                                <p class="text-sm text-muted-foreground">
-                                    {{ binding.project.name }}
-                                </p>
-                            </div>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                @click="removeSlackBinding(binding)"
-                                >Remove</Button
-                            >
-                        </div>
-                    </div>
-
-                    <div
-                        class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
-                    >
-                        <p
-                            class="text-sm font-medium text-slate-900 dark:text-slate-100"
-                        >
-                            Add A Channel
-                        </p>
-                        <p
-                            v-if="slackAvailableChannels.length === 0"
-                            class="text-sm text-muted-foreground"
-                        >
-                            No unbound channels found — the bot may need to be
-                            invited to more channels, or every visible channel
-                            is already bound.
-                        </p>
-                        <div v-else class="flex flex-wrap items-center gap-3">
-                            <Select
-                                :model-value="selectedSlackChannelId"
-                                @update:model-value="
-                                    (v) =>
-                                        (selectedSlackChannelId = v as string)
-                                "
-                            >
-                                <SelectTrigger
-                                    class="h-9 w-[220px] text-[13px]"
-                                >
-                                    <SelectValue
-                                        placeholder="Select a channel…"
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem
-                                        v-for="channel in slackAvailableChannels"
-                                        :key="channel.id"
-                                        :value="channel.id"
-                                        ># {{ channel.name }}</SelectItem
-                                    >
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                :model-value="selectedSlackProjectId"
-                                @update:model-value="
-                                    (v) =>
-                                        (selectedSlackProjectId = v as string)
-                                "
-                            >
-                                <SelectTrigger
-                                    class="h-9 w-[220px] text-[13px]"
-                                >
-                                    <SelectValue
-                                        placeholder="Select a project…"
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem
-                                        v-for="project in slackProjects"
-                                        :key="project.id"
-                                        :value="project.id"
-                                        >{{ project.name }}</SelectItem
-                                    >
-                                </SelectContent>
-                            </Select>
-                            <Button
-                                type="button"
-                                :disabled="
-                                    !selectedSlackChannelId ||
-                                    !selectedSlackProjectId ||
-                                    slackSubmitting
-                                "
-                                @click="addSlackBinding"
-                                >Add</Button
-                            >
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Dropbox -->
-            <div class="py-4">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-if="dropboxConnected"
-                            type="button"
-                            @click="toggleSection('dropbox')"
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <ChevronDown
-                                class="h-4 w-4 transition-transform"
-                                :class="{
-                                    '-rotate-90': openSection !== 'dropbox',
-                                }"
-                            />
-                        </button>
-                        <span v-else class="h-6 w-6 shrink-0"></span>
-                        <span
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >Dropbox</span
-                        >
-                    </div>
-                    <span
+        <!-- Dropbox -->
+        <div class="py-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <button
                         v-if="dropboxConnected"
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >Connected</span
+                        type="button"
+                        @click="toggleSection('dropbox')"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
-                    <a
-                        v-else-if="dropboxConfigured"
-                        :href="connectDropbox(organization.id).url"
-                    >
-                        <Button type="button" variant="outline" size="sm"
-                            >Connect</Button
-                        >
-                    </a>
+                        <ChevronDown
+                            class="h-4 w-4 transition-transform"
+                            :class="{
+                                '-rotate-90': openSection !== 'dropbox',
+                            }"
+                        />
+                    </button>
+                    <span v-else class="h-6 w-6 shrink-0"></span>
                     <span
-                        v-else
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >Not configured</span
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >Dropbox</span
                     >
                 </div>
-
-                <div
-                    v-if="openSection === 'dropbox'"
-                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+                <span
+                    v-if="dropboxConnected"
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >Connected</span
                 >
+                <a
+                    v-else-if="dropboxConfigured"
+                    :href="connectDropbox(organization.id).url"
+                >
+                    <Button type="button" variant="outline" size="sm"
+                        >Connect</Button
+                    >
+                </a>
+                <span
+                    v-else
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >Not configured</span
+                >
+            </div>
+
+            <div
+                v-if="openSection === 'dropbox'"
+                class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+            >
+                <div
+                    class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
+                >
+                    <div class="space-y-0.5">
+                        <p
+                            class="text-sm font-medium text-slate-900 dark:text-slate-100"
+                        >
+                            Connected
+                        </p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ dropboxAccountName }}
+                        </p>
+                    </div>
+                    <Form
+                        v-bind="disconnectDropbox.form(organization.id)"
+                        v-slot="{ processing }"
+                    >
+                        <Button
+                            type="submit"
+                            variant="secondary"
+                            :disabled="processing"
+                            >Disconnect</Button
+                        >
+                    </Form>
+                </div>
+
+                <div class="space-y-3">
+                    <p
+                        v-if="dropboxBindings.length === 0"
+                        class="text-sm text-muted-foreground"
+                    >
+                        No folders are bound yet.
+                    </p>
                     <div
+                        v-for="binding in dropboxBindings"
+                        :key="binding.id"
                         class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
                     >
                         <div class="space-y-0.5">
                             <p
                                 class="text-sm font-medium text-slate-900 dark:text-slate-100"
                             >
-                                Connected
+                                {{ binding.folder_path }}
                             </p>
                             <p class="text-sm text-muted-foreground">
-                                {{ dropboxAccountName }}
+                                {{ binding.project.name }}
                             </p>
                         </div>
-                        <Form
-                            v-bind="disconnectDropbox.form(organization.id)"
-                            v-slot="{ processing }"
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            @click="removeDropboxBinding(binding)"
+                            >Remove</Button
                         >
-                            <Button
-                                type="submit"
-                                variant="secondary"
-                                :disabled="processing"
-                                >Disconnect</Button
-                            >
-                        </Form>
                     </div>
+                </div>
 
-                    <div class="space-y-3">
-                        <p
-                            v-if="dropboxBindings.length === 0"
-                            class="text-sm text-muted-foreground"
-                        >
-                            No folders are bound yet.
-                        </p>
-                        <div
-                            v-for="binding in dropboxBindings"
-                            :key="binding.id"
-                            class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
-                        >
-                            <div class="space-y-0.5">
-                                <p
-                                    class="text-sm font-medium text-slate-900 dark:text-slate-100"
-                                >
-                                    {{ binding.folder_path }}
-                                </p>
-                                <p class="text-sm text-muted-foreground">
-                                    {{ binding.project.name }}
-                                </p>
-                            </div>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                @click="removeDropboxBinding(binding)"
-                                >Remove</Button
-                            >
-                        </div>
-                    </div>
-
-                    <div
-                        class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
+                <div
+                    class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-gray-950"
+                >
+                    <p
+                        class="text-sm font-medium text-slate-900 dark:text-slate-100"
                     >
-                        <p
-                            class="text-sm font-medium text-slate-900 dark:text-slate-100"
+                        Add A Folder
+                    </p>
+                    <p
+                        v-if="dropboxAvailableFolders.length === 0"
+                        class="text-sm text-muted-foreground"
+                    >
+                        No unbound top-level folders found in the connected
+                        account.
+                    </p>
+                    <div v-else class="flex flex-wrap items-center gap-3">
+                        <Select
+                            :model-value="selectedDropboxFolderId"
+                            @update:model-value="
+                                (v) => (selectedDropboxFolderId = v as string)
+                            "
                         >
-                            Add A Folder
-                        </p>
-                        <p
-                            v-if="dropboxAvailableFolders.length === 0"
-                            class="text-sm text-muted-foreground"
+                            <SelectTrigger class="h-9 w-[220px] text-[13px]">
+                                <SelectValue placeholder="Select a folder…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="folder in dropboxAvailableFolders"
+                                    :key="folder.id"
+                                    :value="folder.id"
+                                    >{{ folder.path }}</SelectItem
+                                >
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            :model-value="selectedDropboxProjectId"
+                            @update:model-value="
+                                (v) => (selectedDropboxProjectId = v as string)
+                            "
                         >
-                            No unbound top-level folders found in the connected
-                            account.
-                        </p>
-                        <div v-else class="flex flex-wrap items-center gap-3">
-                            <Select
-                                :model-value="selectedDropboxFolderId"
-                                @update:model-value="
-                                    (v) =>
-                                        (selectedDropboxFolderId = v as string)
-                                "
-                            >
-                                <SelectTrigger
-                                    class="h-9 w-[220px] text-[13px]"
+                            <SelectTrigger class="h-9 w-[220px] text-[13px]">
+                                <SelectValue placeholder="Select a project…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="project in dropboxProjects"
+                                    :key="project.id"
+                                    :value="project.id"
+                                    >{{ project.name }}</SelectItem
                                 >
-                                    <SelectValue
-                                        placeholder="Select a folder…"
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem
-                                        v-for="folder in dropboxAvailableFolders"
-                                        :key="folder.id"
-                                        :value="folder.id"
-                                        >{{ folder.path }}</SelectItem
-                                    >
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                :model-value="selectedDropboxProjectId"
-                                @update:model-value="
-                                    (v) =>
-                                        (selectedDropboxProjectId = v as string)
-                                "
-                            >
-                                <SelectTrigger
-                                    class="h-9 w-[220px] text-[13px]"
-                                >
-                                    <SelectValue
-                                        placeholder="Select a project…"
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem
-                                        v-for="project in dropboxProjects"
-                                        :key="project.id"
-                                        :value="project.id"
-                                        >{{ project.name }}</SelectItem
-                                    >
-                                </SelectContent>
-                            </Select>
-                            <Button
-                                type="button"
-                                :disabled="
-                                    !selectedDropboxFolderId ||
-                                    !selectedDropboxProjectId ||
-                                    dropboxSubmitting
-                                "
-                                @click="addDropboxBinding"
-                                >Add</Button
-                            >
-                        </div>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            :disabled="
+                                !selectedDropboxFolderId ||
+                                !selectedDropboxProjectId ||
+                                dropboxSubmitting
+                            "
+                            @click="addDropboxBinding"
+                            >Add</Button
+                        >
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- LLM Driver -->
-            <div class="py-4">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-if="llmDriverForm.llm_driver"
-                            type="button"
-                            @click="toggleSection('llm')"
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <ChevronDown
-                                class="h-4 w-4 transition-transform"
-                                :class="{ '-rotate-90': openSection !== 'llm' }"
-                            />
-                        </button>
-                        <span v-else class="h-6 w-6 shrink-0"></span>
-                        <span
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >LLM Driver</span
-                        >
-                        <span
-                            v-if="llmNeedsSetup"
-                            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
-                            >Needs Setup</span
-                        >
-                    </div>
-                    <span
+        <!-- LLM Driver -->
+        <div class="py-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <button
                         v-if="llmDriverForm.llm_driver"
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >{{ llmDriverLabel(llmDriverForm.llm_driver) }}</span
+                        type="button"
+                        @click="toggleSection('llm')"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                        <ChevronDown
+                            class="h-4 w-4 transition-transform"
+                            :class="{ '-rotate-90': openSection !== 'llm' }"
+                        />
+                    </button>
+                    <span v-else class="h-6 w-6 shrink-0"></span>
+                    <span
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >LLM Driver</span
+                    >
+                    <span
+                        v-if="llmNeedsSetup"
+                        class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
+                        >Needs Setup</span
+                    >
+                </div>
+                <span
+                    v-if="llmDriverForm.llm_driver"
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >{{ llmDriverLabel(llmDriverForm.llm_driver) }}</span
+                >
+                <Select
+                    v-else
+                    :model-value="toSelectValue(llmDriverForm.llm_driver)"
+                    :disabled="llmDriverForm.processing"
+                    @update:model-value="
+                        (v) => {
+                            llmDriverForm.llm_driver = fromSelectValue(
+                                v as string,
+                            );
+                            onLlmDriverChange();
+                        }
+                    "
+                >
+                    <SelectTrigger size="sm" class="w-[190px] text-sm">
+                        <SelectValue>{{
+                            llmDriverLabel(llmDriverForm.llm_driver)
+                        }}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="d in LLM_DRIVERS"
+                            :key="d.value"
+                            :value="toSelectValue(d.value)"
+                        >
+                            {{ d.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div
+                v-if="openSection === 'llm'"
+                class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+            >
+                <div class="grid gap-2">
+                    <Label
+                        for="llm_driver_select"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >LLM Driver</Label
                     >
                     <Select
-                        v-else
                         :model-value="toSelectValue(llmDriverForm.llm_driver)"
                         :disabled="llmDriverForm.processing"
                         @update:model-value="
@@ -1283,7 +1291,11 @@ const meetingNeedsSetup = computed(() => {
                             }
                         "
                     >
-                        <SelectTrigger size="sm" class="w-[190px] text-sm">
+                        <SelectTrigger
+                            id="llm_driver_select"
+                            size="sm"
+                            class="w-[190px] text-sm"
+                        >
                             <SelectValue>{{
                                 llmDriverLabel(llmDriverForm.llm_driver)
                             }}</SelectValue>
@@ -1300,142 +1312,139 @@ const meetingNeedsSetup = computed(() => {
                     </Select>
                 </div>
 
-                <div
-                    v-if="openSection === 'llm'"
-                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
-                >
-                    <div class="grid gap-2">
-                        <Label
-                            for="llm_driver_select"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >LLM Driver</Label
-                        >
-                        <Select
-                            :model-value="
-                                toSelectValue(llmDriverForm.llm_driver)
-                            "
-                            :disabled="llmDriverForm.processing"
-                            @update:model-value="
-                                (v) => {
-                                    llmDriverForm.llm_driver = fromSelectValue(
-                                        v as string,
-                                    );
-                                    onLlmDriverChange();
-                                }
-                            "
-                        >
-                            <SelectTrigger
-                                id="llm_driver_select"
-                                size="sm"
-                                class="w-[190px] text-sm"
-                            >
-                                <SelectValue>{{
-                                    llmDriverLabel(llmDriverForm.llm_driver)
-                                }}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="d in LLM_DRIVERS"
-                                    :key="d.value"
-                                    :value="toSelectValue(d.value)"
-                                >
-                                    {{ d.label }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div v-if="llmUsesApiKey" class="grid gap-2">
-                        <Label
-                            for="llm_key"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >API Key</Label
-                        >
-                        <Input
-                            id="llm_key"
-                            v-model="llmDriverForm.llm_config.key"
-                            type="password"
-                            autocomplete="off"
-                            :placeholder="llmKeyPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div v-if="llmUsesHost" class="grid gap-2">
-                        <Label
-                            for="llm_host"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Ollama Host URL</Label
-                        >
-                        <Input
-                            id="llm_host"
-                            v-model="llmDriverForm.llm_config.host"
-                            type="url"
-                            placeholder="http://localhost:11434"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label
-                            for="llm_model"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Model</Label
-                        >
-                        <Input
-                            id="llm_model"
-                            v-model="llmDriverForm.llm_config.model"
-                            :placeholder="llmDefaultModelPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div class="flex justify-end">
-                        <Button
-                            type="button"
-                            size="sm"
-                            :disabled="llmDriverForm.processing"
-                            @click="saveLlmDriver"
-                            >Save</Button
-                        >
-                    </div>
+                <div v-if="llmUsesApiKey" class="grid gap-2">
+                    <Label
+                        for="llm_key"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >API Key</Label
+                    >
+                    <Input
+                        id="llm_key"
+                        v-model="llmDriverForm.llm_config.key"
+                        type="password"
+                        autocomplete="off"
+                        :placeholder="llmKeyPlaceholder"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+                <div v-if="llmUsesHost" class="grid gap-2">
+                    <Label
+                        for="llm_host"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Ollama Host URL</Label
+                    >
+                    <Input
+                        id="llm_host"
+                        v-model="llmDriverForm.llm_config.host"
+                        type="url"
+                        placeholder="http://localhost:11434"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+                <div class="grid gap-2">
+                    <Label
+                        for="llm_model"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Model</Label
+                    >
+                    <Input
+                        id="llm_model"
+                        v-model="llmDriverForm.llm_config.model"
+                        :placeholder="llmDefaultModelPlaceholder"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+                <div class="flex justify-end">
+                    <Button
+                        type="button"
+                        size="sm"
+                        :disabled="llmDriverForm.processing"
+                        @click="saveLlmDriver"
+                        >Save</Button
+                    >
                 </div>
             </div>
+        </div>
 
-            <!-- Embeddings Driver -->
-            <div class="py-4">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <button
-                            v-if="vectorDriverForm.vector_driver"
-                            type="button"
-                            @click="toggleSection('vector')"
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <ChevronDown
-                                class="h-4 w-4 transition-transform"
-                                :class="{
-                                    '-rotate-90': openSection !== 'vector',
-                                }"
-                            />
-                        </button>
-                        <span v-else class="h-6 w-6 shrink-0"></span>
-                        <span
-                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >Embeddings Driver</span
-                        >
-                        <span
-                            v-if="vectorNeedsSetup"
-                            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
-                            >Needs Setup</span
-                        >
-                    </div>
-                    <span
+        <!-- Embeddings Driver -->
+        <div class="py-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <button
                         v-if="vectorDriverForm.vector_driver"
-                        class="text-sm font-medium text-gray-900 dark:text-gray-100"
-                        >{{
+                        type="button"
+                        @click="toggleSection('vector')"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                        <ChevronDown
+                            class="h-4 w-4 transition-transform"
+                            :class="{
+                                '-rotate-90': openSection !== 'vector',
+                            }"
+                        />
+                    </button>
+                    <span v-else class="h-6 w-6 shrink-0"></span>
+                    <span
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >Embeddings Driver</span
+                    >
+                    <span
+                        v-if="vectorNeedsSetup"
+                        class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-900/30 dark:text-amber-300"
+                        >Needs Setup</span
+                    >
+                </div>
+                <span
+                    v-if="vectorDriverForm.vector_driver"
+                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >{{
+                        vectorDriverLabel(vectorDriverForm.vector_driver)
+                    }}</span
+                >
+                <Select
+                    v-else
+                    :model-value="toSelectValue(vectorDriverForm.vector_driver)"
+                    :disabled="vectorDriverForm.processing"
+                    @update:model-value="
+                        (v) => {
+                            vectorDriverForm.vector_driver = fromSelectValue(
+                                v as string,
+                            );
+                            onVectorDriverChange();
+                        }
+                    "
+                >
+                    <SelectTrigger size="sm" class="w-[190px] text-sm">
+                        <SelectValue>{{
                             vectorDriverLabel(vectorDriverForm.vector_driver)
-                        }}</span
+                        }}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="d in VECTOR_DRIVERS"
+                            :key="d.value"
+                            :value="toSelectValue(d.value)"
+                            :disabled="
+                                d.value === 'same' && vectorSameAsLlmDisabled
+                            "
+                        >
+                            {{ d.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div
+                v-if="openSection === 'vector'"
+                class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
+            >
+                <div class="grid gap-2">
+                    <Label
+                        for="vector_driver_select"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Embeddings Driver</Label
                     >
                     <Select
-                        v-else
                         :model-value="
                             toSelectValue(vectorDriverForm.vector_driver)
                         "
@@ -1448,7 +1457,11 @@ const meetingNeedsSetup = computed(() => {
                             }
                         "
                     >
-                        <SelectTrigger size="sm" class="w-[190px] text-sm">
+                        <SelectTrigger
+                            id="vector_driver_select"
+                            size="sm"
+                            class="w-[190px] text-sm"
+                        >
                             <SelectValue>{{
                                 vectorDriverLabel(
                                     vectorDriverForm.vector_driver,
@@ -1471,107 +1484,56 @@ const meetingNeedsSetup = computed(() => {
                     </Select>
                 </div>
 
-                <div
-                    v-if="openSection === 'vector'"
-                    class="mt-4 space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40"
-                >
-                    <div class="grid gap-2">
-                        <Label
-                            for="vector_driver_select"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Embeddings Driver</Label
-                        >
-                        <Select
-                            :model-value="
-                                toSelectValue(vectorDriverForm.vector_driver)
-                            "
-                            :disabled="vectorDriverForm.processing"
-                            @update:model-value="
-                                (v) => {
-                                    vectorDriverForm.vector_driver =
-                                        fromSelectValue(v as string);
-                                    onVectorDriverChange();
-                                }
-                            "
-                        >
-                            <SelectTrigger
-                                id="vector_driver_select"
-                                size="sm"
-                                class="w-[190px] text-sm"
-                            >
-                                <SelectValue>{{
-                                    vectorDriverLabel(
-                                        vectorDriverForm.vector_driver,
-                                    )
-                                }}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="d in VECTOR_DRIVERS"
-                                    :key="d.value"
-                                    :value="toSelectValue(d.value)"
-                                    :disabled="
-                                        d.value === 'same' &&
-                                        vectorSameAsLlmDisabled
-                                    "
-                                >
-                                    {{ d.label }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div v-if="vectorUsesApiKey" class="grid gap-2">
-                        <Label
-                            for="vector_key"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >API Key</Label
-                        >
-                        <Input
-                            id="vector_key"
-                            v-model="vectorDriverForm.vector_config.key"
-                            type="password"
-                            autocomplete="off"
-                            :placeholder="vectorKeyPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div v-if="vectorUsesHost" class="grid gap-2">
-                        <Label
-                            for="vector_host"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Ollama Host URL</Label
-                        >
-                        <Input
-                            id="vector_host"
-                            v-model="vectorDriverForm.vector_config.host"
-                            type="url"
-                            placeholder="http://localhost:11434"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div v-if="vectorShowsConfig" class="grid gap-2">
-                        <Label
-                            for="vector_model"
-                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
-                            >Embedding Model</Label
-                        >
-                        <Input
-                            id="vector_model"
-                            v-model="vectorDriverForm.vector_config.model"
-                            :placeholder="vectorDefaultModelPlaceholder"
-                            class="h-10 font-mono text-sm"
-                        />
-                    </div>
-                    <div class="flex justify-end">
-                        <Button
-                            type="button"
-                            size="sm"
-                            :disabled="vectorDriverForm.processing"
-                            @click="saveVectorDriver"
-                            >Save</Button
-                        >
-                    </div>
+                <div v-if="vectorUsesApiKey" class="grid gap-2">
+                    <Label
+                        for="vector_key"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >API Key</Label
+                    >
+                    <Input
+                        id="vector_key"
+                        v-model="vectorDriverForm.vector_config.key"
+                        type="password"
+                        autocomplete="off"
+                        :placeholder="vectorKeyPlaceholder"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+                <div v-if="vectorUsesHost" class="grid gap-2">
+                    <Label
+                        for="vector_host"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Ollama Host URL</Label
+                    >
+                    <Input
+                        id="vector_host"
+                        v-model="vectorDriverForm.vector_config.host"
+                        type="url"
+                        placeholder="http://localhost:11434"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+                <div v-if="vectorShowsConfig" class="grid gap-2">
+                    <Label
+                        for="vector_model"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >Embedding Model</Label
+                    >
+                    <Input
+                        id="vector_model"
+                        v-model="vectorDriverForm.vector_config.model"
+                        :placeholder="vectorDefaultModelPlaceholder"
+                        class="h-10 font-mono text-sm"
+                    />
+                </div>
+                <div class="flex justify-end">
+                    <Button
+                        type="button"
+                        size="sm"
+                        :disabled="vectorDriverForm.processing"
+                        @click="saveVectorDriver"
+                        >Save</Button
+                    >
                 </div>
             </div>
         </div>
