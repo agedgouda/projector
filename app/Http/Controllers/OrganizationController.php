@@ -321,23 +321,32 @@ class OrganizationController extends Controller
         // We exclude the config arrays from the initial fill to let the model method handle them
         $organization->fill($request->safe()->except(['llm_config', 'vector_config', 'meeting_config']));
 
-        // 2. Explicitly pass the input arrays to the merge logic
-        $organization->fillConfiguration(
-            'llm',
-            $request->input('llm_driver'),
-            $request->input('llm_config', [])
-        );
+        // 2. Explicitly pass the input arrays to the merge logic.
+        // The Configuration tab now saves each section independently, so a request may
+        // only carry one driver/provider's fields — only touch the ones actually submitted,
+        // otherwise an unrelated section's save would null out the others.
+        if ($request->has('llm_driver')) {
+            $organization->fillConfiguration(
+                'llm',
+                $request->input('llm_driver'),
+                $request->input('llm_config', [])
+            );
+        }
 
-        $organization->fillConfiguration(
-            'vector',
-            $request->input('vector_driver'),
-            $request->input('vector_config', [])
-        );
+        if ($request->has('vector_driver')) {
+            $organization->fillConfiguration(
+                'vector',
+                $request->input('vector_driver'),
+                $request->input('vector_config', [])
+            );
+        }
 
-        $organization->fillMeetingConfiguration(
-            $request->input('meeting_provider'),
-            $request->input('meeting_config', [])
-        );
+        if ($request->has('meeting_provider')) {
+            $organization->fillMeetingConfiguration(
+                $request->input('meeting_provider'),
+                $request->input('meeting_config', [])
+            );
+        }
 
         // 3. Save everything
         $organization->save();

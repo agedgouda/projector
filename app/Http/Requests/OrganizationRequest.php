@@ -42,7 +42,7 @@ class OrganizationRequest extends FormRequest
 
         return [
             'name' => [
-                'required', 'string', 'max:255',
+                $organization ? 'sometimes' : 'required', 'required', 'string', 'max:255',
                 function ($attribute, $value, $fail) use ($organization, $slug, $normalized) {
                     $conflict = Organization::where(function ($query) use ($slug, $normalized) {
                         $query->where('slug', $slug)

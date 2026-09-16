@@ -113,6 +113,9 @@ export const LLM_DRIVERS: AiDriverOption[] = [
     { value: 'ollama', label: 'Ollama (self-hosted)' },
 ];
 
+export const llmDriverLabel = (driver: string | null): string =>
+    LLM_DRIVERS.find((d) => d.value === (driver ?? ''))?.label ?? 'System Default';
+
 export const MEETING_PROVIDERS: { value: string; label: string }[] = [
     { value: '', label: 'None' },
     { value: 'zoom', label: 'Zoom' },
@@ -132,3 +135,6 @@ export const VECTOR_DRIVERS: AiDriverOption[] = [
     { value: 'gemini', label: 'Google Gemini' },
     { value: 'ollama', label: 'Ollama (self-hosted)' },
 ];
+
+export const vectorDriverLabel = (driver: string | null): string =>
+    VECTOR_DRIVERS.find((d) => d.value === (driver ?? ''))?.label ?? 'System Default';

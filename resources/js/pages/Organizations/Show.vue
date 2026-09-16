@@ -35,10 +35,10 @@ import {
     UserPlus,
     Users,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
-import DropboxIntegration from './Partials/DropboxIntegration.vue';
-import OrganizationForm from './Partials/OrganizationForm.vue';
-import SlackIntegration from './Partials/SlackIntegration.vue';
+import { computed, ref, watch } from 'vue';
+import ConfigurationOverviewCard from './Partials/ConfigurationOverviewCard.vue';
+import OrganizationHeaderLogo from './Partials/OrganizationHeaderLogo.vue';
+import OrganizationHeaderName from './Partials/OrganizationHeaderName.vue';
 
 const props = defineProps<{
     users: User[];
@@ -52,12 +52,11 @@ const props = defineProps<{
             account_id: string;
             tenant_id: string;
             client_id: string;
-            client_secret: string;
             service_account_email: string;
             impersonate_email: string;
-            private_key: string;
-            has_client_secret?: boolean;
-            has_private_key?: boolean;
+            has_client_secret: boolean;
+            has_private_key: boolean;
+            has_bot_token: boolean;
         };
     };
     allRoles: string[];
@@ -130,8 +129,66 @@ const activeTab = ref<OrganizationTab>(
         : 'team',
 );
 
+// Keep the URL's ?tab= in sync so a manual refresh reopens the same tab instead of
+// always landing back on "Team".
+watch(activeTab, (tab) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', url);
+});
+
 const formatDocs = (n: number) =>
     `${n.toLocaleString()} ${n === 1 ? 'document' : 'documents'}`;
+
+// Only counts a non-default option that's been picked but not yet backed by saved
+// credentials — System Default / None are left alone, same as the row-level badges.
+const meetingProviderIncomplete = (
+    provider: string | null | undefined,
+    config: typeof props.currentOrg.meeting_config_form,
+): boolean => {
+    if (!provider) return false;
+    switch (provider) {
+        case 'zoom':
+            return (
+                !config?.account_id ||
+                !config?.client_id ||
+                !config?.has_client_secret
+            );
+        case 'teams':
+            return (
+                !config?.tenant_id ||
+                !config?.client_id ||
+                !config?.has_client_secret
+            );
+        case 'google_meet':
+            return (
+                !config?.service_account_email ||
+                !config?.has_private_key ||
+                !config?.impersonate_email
+            );
+        case 'slack':
+            return !config?.has_bot_token;
+        default:
+            return false;
+    }
+};
+
+const configurationIncompleteCount = computed(() => {
+    const org = props.currentOrg;
+    let count = 0;
+    if (org.llm_driver && !org.llm_config_form?.model) count++;
+    if (
+        org.vector_driver &&
+        org.vector_driver !== 'same' &&
+        !org.vector_config_form?.model
+    )
+        count++;
+    if (
+        meetingProviderIncomplete(org.meeting_provider, org.meeting_config_form)
+    )
+        count++;
+    return count;
+});
 
 const clientUsageRows = computed(() => {
     return Object.entries(props.usageByClient)
@@ -316,30 +373,9 @@ const submitInvite = (orgId: string) => {
             </div>
 
             <div class="flex items-center gap-4">
-                <div
-                    v-if="currentOrg.logo_url"
-                    class="size-16 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-zinc-700"
-                >
-                    <img
-                        :src="currentOrg.logo_url"
-                        :alt="currentOrg.name"
-                        class="size-full object-contain"
-                    />
-                </div>
-                <div
-                    v-else
-                    class="flex size-16 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 dark:border-zinc-700 dark:bg-zinc-800"
-                >
-                    <Building2
-                        class="h-8 w-8 text-gray-300 dark:text-zinc-600"
-                    />
-                </div>
+                <OrganizationHeaderLogo :organization="currentOrg" />
                 <div>
-                    <h2
-                        class="text-3xl font-black tracking-tighter text-gray-900 uppercase dark:text-white"
-                    >
-                        {{ currentOrg.name }}
-                    </h2>
+                    <OrganizationHeaderName :organization="currentOrg" />
                     <div
                         class="mt-1 flex flex-wrap gap-4 text-sm text-gray-500 dark:text-zinc-400"
                     >
@@ -403,6 +439,12 @@ const submitInvite = (orgId: string) => {
                     >
                         <SlidersHorizontal class="h-3.5 w-3.5" />
                         Configuration
+                        <span
+                            v-if="configurationIncompleteCount > 0"
+                            class="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-black text-white"
+                        >
+                            {{ configurationIncompleteCount }}
+                        </span>
                     </button>
                     <button
                         type="button"
@@ -523,25 +565,14 @@ const submitInvite = (orgId: string) => {
                     v-if="activeTab === 'configuration'"
                     class="space-y-6 pt-6"
                 >
-                    <OrganizationForm
+                    <ConfigurationOverviewCard
                         :organization="currentOrg"
-                        @success="() => {}"
-                        @cancel="() => {}"
-                    />
-
-                    <SlackIntegration
-                        :organization-id="currentOrg.id"
                         :slack-connected="slackConnected"
                         :slack-team-name="slackTeamName"
                         :slack-configured="slackConfigured"
                         :slack-bindings="slackBindings"
                         :slack-available-channels="slackAvailableChannels"
                         :slack-projects="slackProjects"
-                        :status="status"
-                    />
-
-                    <DropboxIntegration
-                        :organization-id="currentOrg.id"
                         :dropbox-connected="dropboxConnected"
                         :dropbox-account-name="dropboxAccountName"
                         :dropbox-configured="dropboxConfigured"
