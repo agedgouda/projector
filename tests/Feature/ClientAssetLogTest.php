@@ -3,7 +3,7 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
-it('logs a stale asset chunk report without requiring auth', function () {
+it('accepts a stale asset chunk report without requiring auth', function () {
     Log::spy();
 
     $response = $this->postJson('/client-logs/stale-asset', [
@@ -15,16 +15,10 @@ it('logs a stale asset chunk report without requiring auth', function () {
 
     $response->assertNoContent();
 
-    Log::shouldHaveReceived('warning')
-        ->once()
-        ->withArgs(fn (string $message, array $context) => $message === 'Stale asset chunk failed to load'
-            && $context['chunk'] === 'Documents/Create'
-            && $context['client_version'] === 'old-hash'
-            && array_key_exists('server_version', $context)
-            && $context['user_id'] === null);
+    Log::shouldNotHaveReceived('warning');
 });
 
-it('logs the authenticated user id when available', function () {
+it('accepts a stale asset chunk report from an authenticated user', function () {
     Log::spy();
 
     $user = User::factory()->create();
@@ -33,7 +27,5 @@ it('logs the authenticated user id when available', function () {
         'chunk' => 'Documents/Create',
     ])->assertNoContent();
 
-    Log::shouldHaveReceived('warning')
-        ->once()
-        ->withArgs(fn (string $message, array $context) => $context['user_id'] === $user->id);
+    Log::shouldNotHaveReceived('warning');
 });

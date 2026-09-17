@@ -20,14 +20,14 @@ class PruneUnapprovedRecordings extends Command
      *
      * @var string
      */
-    protected $description = 'Delete source audio for mobile-recorded notes that were never explicitly confirmed, once older than the configured retention window. Time-based fallback alongside the explicit "confirm" action.';
+    protected $description = 'Delete source audio for mobile- or browser-recorded notes that were never explicitly confirmed, once older than the configured retention window. Time-based fallback alongside the explicit "confirm" action.';
 
     public function handle(): int
     {
         $configuredDays = config('services.assemblyai.retention_days', 30);
         $retentionDays = is_numeric($configuredDays) ? (int) $configuredDays : 30;
 
-        $recordings = Document::where('metadata->recording_source', 'mobile_recording')
+        $recordings = Document::whereIn('metadata->recording_source', ['mobile_recording', 'browser_capture'])
             ->where(function ($query) {
                 $query->whereNull('metadata->audio_status')
                     ->orWhere('metadata->audio_status', '!=', 'approved');

@@ -30,6 +30,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectLogoController;
 use App\Http\Controllers\ProjectTypeController;
+use App\Http\Controllers\RecordingCaptureController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
@@ -46,18 +47,9 @@ Route::get('/invite/{token}', [InvitationController::class, 'accept'])
 // deploy that built the tab's own bundle has since been superseded and the old chunk file is
 // gone) — deliberately not behind `auth`, since the app might have logged the user out by the
 // time this fires, and exempted from CSRF in bootstrap/app.php for the same reason: a stale
-// tab's CSRF token can't be trusted to still be valid either.
-Route::post('/client-logs/stale-asset', function (Request $request) {
-    Log::warning('Stale asset chunk failed to load', [
-        'user_id' => auth()->id(),
-        'chunk' => $request->input('chunk'),
-        'message' => $request->input('message'),
-        'page_url' => $request->input('page_url'),
-        'client_version' => $request->input('client_version'),
-        'server_version' => Inertia::getVersion(),
-        'user_agent' => $request->userAgent(),
-    ]);
-
+// tab's CSRF token can't be trusted to still be valid either. No longer logged server-side
+// (was debug-only noise); the endpoint still 204s so the client's fetch doesn't error.
+Route::post('/client-logs/stale-asset', function () {
     return response()->noContent();
 })->middleware('throttle:20,1')->name('client-logs.stale-asset');
 
@@ -461,6 +453,12 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/transcripts/import-file', [DocumentImportController::class, 'importFile'])
                 ->middleware('throttle:20,1')
                 ->name('transcripts.import-file');
+
+            Route::post('/browser-recordings', [RecordingCaptureController::class, 'store'])
+                ->middleware('throttle:20,1')
+                ->name('browser-recordings.store');
+            Route::get('/browser-recordings/{document}/status', [RecordingCaptureController::class, 'status'])
+                ->name('browser-recordings.status');
         });
     });
 });

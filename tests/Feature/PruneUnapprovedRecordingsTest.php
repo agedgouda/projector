@@ -81,7 +81,18 @@ it('keeps audio for approved recordings even when old', function () {
     expect($approved->fresh()->getFirstMedia('recording'))->not->toBeNull();
 });
 
-it('ignores documents that are not mobile recordings', function () {
+it('deletes audio for unapproved browser-captured recordings older than the retention window', function () {
+    $old = createRecordingWithAudio(
+        ['recording_source' => 'browser_capture', 'audio_status' => 'pending'],
+        now()->subDays(40)
+    );
+
+    $this->artisan('app:prune-unapproved-recordings')->assertSuccessful();
+
+    expect($old->fresh()->getFirstMedia('recording'))->toBeNull();
+});
+
+it('ignores documents that are not mobile or browser recordings', function () {
     $notARecording = createRecordingWithAudio([], now()->subDays(90));
 
     $this->artisan('app:prune-unapproved-recordings')->assertSuccessful();

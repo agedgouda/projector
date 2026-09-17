@@ -19,7 +19,7 @@ class RecordingIntakeService
      * dispatch AI processing before there's any real content); TranscribeRecording fills in
      * the content and only then lets the normal Notes -> Action Items step run.
      */
-    public function store(Project $project, UploadedFile $audio, ?string $name = null, ?string $recordedAt = null): Document
+    public function store(Project $project, UploadedFile $audio, ?string $name = null, ?string $recordedAt = null, string $source = 'mobile_recording'): Document
     {
         $document = $project->documents()->create([
             'type' => config('workflow.intake_key'),
@@ -27,7 +27,7 @@ class RecordingIntakeService
             'content' => '',
             'processed_at' => now(),
             'metadata' => [
-                'recording_source' => 'mobile_recording',
+                'recording_source' => $source,
                 'audio_status' => 'pending',
                 'recorded_at' => $recordedAt,
             ],
