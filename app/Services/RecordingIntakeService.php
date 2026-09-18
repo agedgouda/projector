@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Jobs\TranscribeRecording;
-use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +22,8 @@ class RecordingIntakeService
     // ever sends what MediaRecorder produced from an audio-only stream, so this never actually
     // admits real video.
     public const RECORDING_MIMES = 'audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/webm,video/webm';
+
+    public function __construct(private readonly DocumentImportFinalizer $finalizer) {}
 
     /**
      * Shared by both the Sanctum API (Api\RecordingController, for a true native/external
@@ -93,24 +94,13 @@ class RecordingIntakeService
                 ]);
             }
 
-            // Same pre-creation IntakeImportService::import() uses for every other transcript
-            // source (Google Doc, file, provider-imported recording) — the user should never
-            // land on the raw transcript page, so a blank Meeting Notes child is created up
-            // front whenever the "Transcript to Meeting Notes" template is single_output.
-            // ProcessDocumentAI::handle() finds this one pre-existing child and fills it in
-            // place once TranscribeRecording -> AI actually runs, so its id (and anything
-            // already pointed at it) never changes.
-            $templateId = config('workflow.intake_to_action_items_ai_template_id');
-            $isSingleOutput = is_int($templateId) && (bool) AiTemplate::find($templateId)?->single_output;
-
-            if ($isSingleOutput) {
-                $project->documents()->create([
-                    'parent_id' => $document->id,
-                    'type' => config('workflow.action_items_key'),
-                    'name' => $document->name,
-                    'content' => '',
-                ]);
-            }
+            // Same DocumentImportFinalizer every other transcript source (Google Doc, file,
+            // provider-imported recording) uses — the user should never land on the raw
+            // transcript page, so a blank Meeting Notes child is created up front whenever the
+            // "Transcript to Meeting Notes" template is single_output. ProcessDocumentAI::
+            // handle() finds this one pre-existing child and fills it in place once
+            // TranscribeRecording -> AI actually runs, so its id never changes.
+            $this->finalizer->finalize($project, $document);
 
             return $document;
         });

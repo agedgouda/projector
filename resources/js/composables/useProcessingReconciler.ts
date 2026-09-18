@@ -27,13 +27,22 @@ let timer: ReturnType<typeof setInterval> | null = null;
 let startDelayTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function refresh(): Promise<void> {
-    const { data } = await axios.get('/processing-status');
-    processingDocumentIds.value = new Set(
-        (data.processing_document_ids ?? []).map(String),
-    );
-    processingOrgDocumentIds.value = new Set(
-        (data.processing_org_document_ids ?? []).map(String),
-    );
+    // A failed request must never permanently disable this fallback — it's the thing that's
+    // supposed to recover from the primary (broadcast) path failing, so it needs to survive
+    // failing itself. Leaving the existing ids untouched means the next scheduled tick (the
+    // setInterval in beginPolling() below keeps running regardless) just tries again, instead
+    // of every future watch() comparison silently running against permanently-stale data.
+    try {
+        const { data } = await axios.get('/processing-status');
+        processingDocumentIds.value = new Set(
+            (data.processing_document_ids ?? []).map(String),
+        );
+        processingOrgDocumentIds.value = new Set(
+            (data.processing_org_document_ids ?? []).map(String),
+        );
+    } catch {
+        // Swallowed deliberately — see comment above.
+    }
 }
 
 // Skips the request entirely when nothing is actually being tracked right now — the one-shot

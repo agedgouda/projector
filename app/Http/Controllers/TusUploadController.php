@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Document;
 use App\Models\Project;
 use App\Models\TusUpload;
+use App\Services\DocumentImportFinalizer;
 use App\Services\RecordingIntakeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,7 +36,10 @@ class TusUploadController extends Controller
 {
     private const TUS_VERSION = '1.0.0';
 
-    public function __construct(private readonly RecordingIntakeService $recordings) {}
+    public function __construct(
+        private readonly RecordingIntakeService $recordings,
+        private readonly DocumentImportFinalizer $finalizer,
+    ) {}
 
     public function options(Project $project): Response
     {
@@ -222,6 +226,14 @@ class TusUploadController extends Controller
             Storage::disk('local')->delete($partial->storage_path);
         }
         TusUpload::whereIn('id', $ids)->delete();
+
+        // Same "Importing "{title}"…" toast every other import source shows on landing —
+        // storeFromPath() above already ran the child-creation decision via
+        // DocumentImportFinalizer, so only its message wording is needed here, not a second
+        // finalize() call. Flashed now (not returned in the JSON body) because the frontend's
+        // very next request is the router.visit() navigation to the target document, which is
+        // what actually reads this out of the session.
+        session()->flash('success', $this->finalizer->messageFor($document));
 
         return response()->json([
             'recording' => $this->recordings->summarize($document),
