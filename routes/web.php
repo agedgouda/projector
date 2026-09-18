@@ -35,6 +35,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskListImportController;
+use App\Http\Controllers\TusUploadController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -459,6 +460,21 @@ Route::middleware(['auth'])->group(function () {
                 ->name('browser-recordings.store');
             Route::get('/browser-recordings/{document}/status', [RecordingCaptureController::class, 'status'])
                 ->name('browser-recordings.status');
+
+            // Chunked/resumable browser capture (see TusUploadController) — a real recording
+            // session hits create()/patch() far more often than the single-shot upload above
+            // (once per ~20s interval, not once per whole recording), so this gets its own,
+            // more generous throttle.
+            Route::post('/browser-recordings/tus', [TusUploadController::class, 'create'])
+                ->middleware('throttle:120,1')
+                ->name('browser-recordings.tus.create');
+            Route::options('/browser-recordings/tus', [TusUploadController::class, 'options'])
+                ->name('browser-recordings.tus.options');
+            Route::match(['head'], '/browser-recordings/tus/{upload}', [TusUploadController::class, 'head'])
+                ->name('browser-recordings.tus.head');
+            Route::patch('/browser-recordings/tus/{upload}', [TusUploadController::class, 'patch'])
+                ->middleware('throttle:120,1')
+                ->name('browser-recordings.tus.chunk');
         });
     });
 });

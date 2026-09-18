@@ -4,7 +4,6 @@ import { computed } from 'vue';
 import { AlertCircle } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
-import BrowserAudioCapture from '@/pages/Projects/Partials/BrowserAudioCapture.vue';
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import { meetingProviderLabel } from '@/lib/constants';
 import projectRoutes from '@/routes/projects/index';
@@ -49,10 +48,6 @@ const providerLabel = computed(() => meetingProviderLabel(props.provider));
                     </p>
                 </div>
             </div>
-
-            <!-- Live capture straight from the browser — no meeting provider needed, works for
-                 any call the user has open in a tab (or, on Windows, anywhere on screen). -->
-            <BrowserAudioCapture :project-id="project.id" :can-manage="canManageTranscripts" />
 
             <!-- Import a document directly (Google Doc, Word, or text file) — independent of
                  whether a meeting provider is configured below. -->

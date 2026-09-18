@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\RecordingIntakeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -213,6 +214,18 @@ class Document extends Model implements HasMedia
     }
 
     /**
+     * Users who have opened this document at least once — drives the per-user unread dot on
+     * an async-imported transcript (Documentation tab and its row in the tree). Only ever
+     * written to from DocumentController::show(), and only ever grows.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function readers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'document_reads')->withTimestamps();
+    }
+
+    /**
      * Source audio for a mobile-recorded note, pending transcription. Kept on the private
      * 'local' disk (never public) — recorded meeting audio is sensitive and only ever needs
      * to be streamed back to its owner via an authenticated route, not linked directly.
@@ -222,14 +235,6 @@ class Document extends Model implements HasMedia
         $this->addMediaCollection('recording')
             ->useDisk('local')
             ->singleFile()
-            ->acceptsMimeTypes([
-                'audio/mpeg',
-                'audio/mp4',
-                'audio/x-m4a',
-                'audio/aac',
-                'audio/wav',
-                'audio/x-wav',
-                'audio/webm',
-            ]);
+            ->acceptsMimeTypes(explode(',', RecordingIntakeService::RECORDING_MIMES));
     }
 }

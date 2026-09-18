@@ -102,6 +102,8 @@ class DocumentController extends Controller
             abort(404);
         }
 
+        $document->readers()->syncWithoutDetaching([auth()->id()]);
+
         // Every other board in this task's subproject family (see Project::familyProjectIds())
         // — what the "Move to" picker in DocumentSidebar.vue chooses from. Empty for a
         // project with no parent and no siblings, in which case the frontend just doesn't

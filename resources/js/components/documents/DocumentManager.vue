@@ -18,10 +18,12 @@ const props = withDefaults(defineProps<{
     liveDocuments?: ProjectDocument[]; // The '?' makes it optional
     documentTypeCatalog?: DocumentSchemaItem[];
     isGenerating: boolean;
+    unreadDocumentIds?: Set<string>;
 }>(), {
     liveDocuments: () => [], // Provides a default empty array
     documentTypeCatalog: () => [],
-    isGenerating: false
+    isGenerating: false,
+    unreadDocumentIds: () => new Set(),
 });
 
 
@@ -180,6 +182,7 @@ onMounted(() => {
                 :uses-external-due-dates="usesExternalDueDates"
                 :is-read-only="project.inactive"
                 :columns="project.kanban_columns ?? []"
+                :unread-document-ids="unreadDocumentIds"
                 @toggle-root="toggleRoot"
                 @on-delete-requested="onDeleteRequested"
                 @update-task="(id, field, val) => updateField(String(id), field, val)"

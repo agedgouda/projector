@@ -35,6 +35,23 @@ export function visibleDocumentTypeKeys(
 }
 
 /**
+ * Whether a document arrived through an asynchronous transcription/import process — browser
+ * audio capture, mobile recording (both tagged via metadata.recording_source, see
+ * RecordingIntakeService::store() on the backend), or a provider-imported Zoom/Teams/Meet
+ * transcript (tagged via metadata.recording_id, see MeetingTranscriptController::store()).
+ * Excludes synchronous imports (Google Doc/file upload, tagged import_source instead) — the
+ * user who just triggered those already knows about them. Drives the unread dot on the
+ * Documentation tab and its row in the tree (see Projects/Show.vue, TraceabilityRow.vue).
+ */
+export function isAsyncImportedDocument(document: ProjectDocument): boolean {
+    const metadata = document.metadata ?? {};
+
+    return metadata.recording_id != null
+        || metadata.recording_source === 'mobile_recording'
+        || metadata.recording_source === 'browser_capture';
+}
+
+/**
  * A type's catalog label when it has one (e.g. "intake" -> "Transcription" — already Title
  * Case, DocumentTypeDefinition normalizes it on save), or a best-effort fallback for a type
  * that was never added to the catalog at all (e.g. a one-off type like "event_list_import").

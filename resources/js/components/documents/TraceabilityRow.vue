@@ -19,7 +19,7 @@ import {
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     item: any;
     level: number;
     index?: number;
@@ -30,7 +30,10 @@ const props = defineProps<{
     usesExternalDueDates?: boolean;
     isReadOnly?: boolean;
     columns: KanbanColumnDef[];
-}>();
+    unreadDocumentIds?: Set<string>;
+}>(), {
+    unreadDocumentIds: () => new Set(),
+});
 
 const emit = defineEmits<{
     (e: 'toggleRoot', id: string | number): void;
@@ -46,6 +49,15 @@ const isTreeExpanded = computed(
 const isSelected = computed(() => props.selectedSheetId === props.item.id);
 const isGroup = computed(() => !!props.item.isTypeGroup);
 const isTask = computed(() => props.isTaskType(props.item.type));
+
+// Recursive since a document's own children (e.g. AI-generated action items) render through
+// this same component — a row (folder or document) needs its dot whenever the unread document
+// is itself or nested anywhere underneath.
+const containsUnread = (item: any): boolean => {
+    if (props.unreadDocumentIds.has(String(item.id))) return true;
+    return (item.children ?? []).some(containsUnread);
+};
+const isUnread = computed(() => containsUnread(props.item));
 
 // Non-task rows show no date info anywhere else (see below) — shown generically off
 // due_at/start_at rather than gated to a specific type, so any non-task document with dates
@@ -179,6 +191,11 @@ const handleRowClick = () => {
                     </span>
 
                     <span
+                        v-if="isUnread"
+                        class="h-1.5 w-1.5 shrink-0 rounded-full bg-projector-primary-500"
+                    />
+
+                    <span
                         v-if="nonTaskDateRange"
                         class="flex shrink-0 items-center gap-1 text-[9px] font-black text-slate-400 dark:text-slate-500"
                     >
@@ -235,6 +252,7 @@ const handleRowClick = () => {
                 :uses-external-due-dates="usesExternalDueDates"
                 :is-read-only="isReadOnly"
                 :columns="columns"
+                :unread-document-ids="unreadDocumentIds"
                 @toggle-root="(id) => emit('toggleRoot', id)"
                 @on-delete-requested="(i) => emit('onDeleteRequested', i)"
                 @update-task="

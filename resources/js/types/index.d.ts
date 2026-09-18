@@ -168,6 +168,8 @@ declare global {
         };
         error?: string;
         failed_at?: string;
+        recording_id?: string | null;
+        recording_source?: 'mobile_recording' | 'browser_capture';
         [key: string]: any;
     }
 

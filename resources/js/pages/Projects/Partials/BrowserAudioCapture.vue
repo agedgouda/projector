@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
-import axios from 'axios';
-import { Link } from '@inertiajs/vue3';
-import { AlertTriangle, Mic, RefreshCw, Square } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import * as tus from 'tus-js-client';
+import { router } from '@inertiajs/vue3';
+import { AlertTriangle, Mic, Square } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import browserRecordingRoutes from '@/routes/projects/browser-recordings';
+import { BANNER_PRIORITY, useGlobalProcessingBanner } from '@/composables/useGlobalProcessingBanner';
+import tusRoutes from '@/routes/projects/browser-recordings/tus';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { redirectIfLoggedOut, redirectIfSessionExpiredError } from '@/lib/sessionExpiry';
+import { goToLogin } from '@/lib/sessionExpiry';
 
 const props = defineProps<{
     projectId: string;
     canManage: boolean;
 }>();
 
-type Phase = 'idle' | 'requesting-permission' | 'recording' | 'uploading' | 'processing' | 'done' | 'error';
+type Phase = 'idle' | 'requesting-permission' | 'recording' | 'uploading' | 'error';
 
 // getDisplayMedia audio capture is Chromium-only in practice (Safari doesn't reliably expose
 // an audio track, older browsers don't have the API at all) — checked once up front so the
@@ -23,16 +24,62 @@ const isUnsupported = computed(() => typeof navigator === 'undefined' || !naviga
 const phase = ref<Phase>('idle');
 const errorMessage = ref('');
 const elapsedSeconds = ref(0);
-const documentId = ref<string | null>(null);
+
+// A chunk this small is durable on the server within a couple of seconds of being produced, so
+// this is the real bound on "how much can closing the tab lose" — not the whole recording.
+const CHUNK_INTERVAL_MS = 20_000;
 
 let mediaRecorder: MediaRecorder | null = null;
-let chunks: BlobPart[] = [];
+// One entry per MediaRecorder interval, in recording order — each resolves to that chunk's
+// finished tus upload URL once tus-js-client's own automatic retry/resume gets it there. Built
+// with input order preserved regardless of completion order (see stopCapture()'s Promise.all).
+let chunkUploads: Promise<string>[] = [];
+let recordedAt: string | null = null;
 // captureStream carries the video track getDisplayMedia forces on us (stopped immediately,
 // never recorded); audioStream is the video-free stream actually fed to MediaRecorder.
 let captureStream: MediaStream | null = null;
 let audioStream: MediaStream | null = null;
 let timerInterval: ReturnType<typeof window.setInterval> | undefined;
-let pollInterval: ReturnType<typeof window.setInterval> | undefined;
+let progressTimer: ReturnType<typeof window.setInterval> | undefined;
+
+// The single shared "AI Sync Active" banner (AppLayout.vue's one <AiProcessingHeader>) instead
+// of a page-local spinner — same pattern as every other async operation in the app. Progress is
+// a fake creep, same as StatusMeetings/Index.vue's own copy of this pattern: with chunks
+// already uploading continuously throughout the recording, this phase only covers the brief
+// "let the last chunk finish, then concatenate" window, too short for real progress to be
+// worth wiring up.
+const { setBanner, clearBanner } = useGlobalProcessingBanner();
+const uploadProgress = ref(0);
+const BANNER_KEY = 'browser-capture-upload';
+
+watch(() => phase.value === 'uploading', (isUploading) => {
+    if (isUploading) {
+        uploadProgress.value = 5;
+        progressTimer = window.setInterval(() => {
+            if (uploadProgress.value < 80) uploadProgress.value += 2;
+        }, 800);
+    } else {
+        if (progressTimer !== undefined) window.clearInterval(progressTimer);
+        progressTimer = undefined;
+        if (uploadProgress.value > 0) {
+            uploadProgress.value = 100;
+            window.setTimeout(() => { uploadProgress.value = 0; }, 600);
+        }
+    }
+});
+
+watch([() => phase.value === 'uploading', uploadProgress], ([isUploading, progress]) => {
+    if (isUploading) {
+        setBanner(BANNER_KEY, {
+            title: 'AI Sync Active',
+            message: 'Finishing upload…',
+            progress,
+            priority: BANNER_PRIORITY.AI_PROCESSING,
+        });
+    } else {
+        clearBanner(BANNER_KEY);
+    }
+});
 
 const formattedElapsed = computed(() => {
     const m = Math.floor(elapsedSeconds.value / 60).toString().padStart(2, '0');
@@ -40,21 +87,17 @@ const formattedElapsed = computed(() => {
     return `${m}:${s}`;
 });
 
-const documentUrl = computed(() =>
-    documentId.value ? projectDocumentsRoutes.show({ project: props.projectId, document: documentId.value }).url : null,
-);
-
 const pickMimeType = (): string | undefined => {
     if (typeof MediaRecorder === 'undefined') return undefined;
 
     return ['audio/webm', 'audio/mp4', 'audio/wav'].find(type => MediaRecorder.isTypeSupported(type));
 };
 
-const extensionFor = (mimeType: string): string => {
-    if (mimeType.includes('webm')) return 'webm';
-    if (mimeType.includes('mp4')) return 'm4a';
-    if (mimeType.includes('wav')) return 'wav';
-    return 'webm';
+// axios elsewhere in this app reads the XSRF-TOKEN cookie automatically; tus-js-client doesn't,
+// so every tus request needs this passed through its own `headers` option by hand.
+const csrfHeader = (): Record<string, string> => {
+    const cookie = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+    return cookie ? { 'X-XSRF-TOKEN': decodeURIComponent(cookie.split('=')[1]) } : {};
 };
 
 const stopStreams = () => {
@@ -69,14 +112,11 @@ const clearTimer = () => {
     timerInterval = undefined;
 };
 
-const clearPoll = () => {
-    if (pollInterval !== undefined) window.clearInterval(pollInterval);
-    pollInterval = undefined;
-};
-
-// Warns against closing the tab mid-capture or mid-upload — there's no background recording
-// or resumable upload here, so losing the tab loses the whole recording (same accepted
-// limitation as the mobile flow).
+// Warns against closing the tab mid-capture — chunks already uploaded are safe (see
+// CHUNK_INTERVAL_MS above), but the recording itself only gets transcribed once Stop actually
+// runs the concatenation step below; closing early leaves those chunks orphaned (cleaned up
+// automatically after a day — see App\Console\Commands\PruneAbandonedTusUploads) rather than
+// turned into a note.
 const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     event.preventDefault();
     event.returnValue = '';
@@ -84,6 +124,28 @@ const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
 
 const guardUnload = () => window.addEventListener('beforeunload', beforeUnloadHandler);
 const unguardUnload = () => window.removeEventListener('beforeunload', beforeUnloadHandler);
+
+// Uploads one MediaRecorder interval as its own small, complete tus upload — tus-js-client
+// handles retrying a dropped connection and resuming from the correct byte offset on its own,
+// which is the entire reason to use it here instead of a plain POST per chunk.
+const uploadChunk = (blob: Blob, index: number): Promise<string> => new Promise((resolve, reject) => {
+    const upload = new tus.Upload(blob, {
+        endpoint: tusRoutes.create({ project: props.projectId }).url,
+        headers: csrfHeader(),
+        metadata: {
+            filename: `chunk-${index}.webm`,
+            filetype: blob.type || 'audio/webm',
+            recorded_at: recordedAt ?? new Date().toISOString(),
+        },
+        retryDelays: [0, 1000, 3000, 5000, 10000],
+        onSuccess: () => {
+            if (upload.url) resolve(upload.url);
+            else reject(new Error('Upload finished without a URL.'));
+        },
+        onError: (error) => reject(error),
+    });
+    upload.start();
+});
 
 const startCapture = async () => {
     errorMessage.value = '';
@@ -113,21 +175,23 @@ const startCapture = async () => {
     // Covers the browser/OS's own "Stop sharing" control, not just our in-app Stop button.
     audioTracks[0].onended = () => stopCapture();
 
-    chunks = [];
+    chunkUploads = [];
+    recordedAt = new Date().toISOString();
     const mimeType = pickMimeType();
     mediaRecorder = mimeType ? new MediaRecorder(audioStream, { mimeType }) : new MediaRecorder(audioStream);
 
+    let chunkIndex = 0;
     mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunks.push(event.data);
+        if (event.data.size > 0) chunkUploads.push(uploadChunk(event.data, chunkIndex++));
     };
 
     mediaRecorder.onstop = () => {
         stopStreams();
         clearTimer();
-        void upload(new Blob(chunks, { type: mediaRecorder?.mimeType || 'audio/webm' }));
+        void finalize();
     };
 
-    mediaRecorder.start();
+    mediaRecorder.start(CHUNK_INTERVAL_MS);
     elapsedSeconds.value = 0;
     phase.value = 'recording';
     guardUnload();
@@ -138,68 +202,78 @@ const stopCapture = () => {
     mediaRecorder?.stop();
 };
 
-const upload = async (blob: Blob) => {
+const finalize = async () => {
     phase.value = 'uploading';
 
-    const formData = new FormData();
-    formData.append('audio', blob, `recording.${extensionFor(blob.type)}`);
-    formData.append('recorded_at', new Date().toISOString());
-
     try {
-        const response = await axios.post(browserRecordingRoutes.store(props.projectId).url, formData);
+        // Preserves recording order regardless of which chunk's upload happened to finish
+        // first — Promise.all resolves in input-array order, not completion order.
+        const partialUrls = await Promise.all(chunkUploads);
         unguardUnload();
-        if (redirectIfLoggedOut(response)) return;
 
-        phase.value = 'processing';
-        startPolling(response.data.recording.id as string);
+        if (partialUrls.length === 0) {
+            phase.value = 'error';
+            errorMessage.value = 'No audio was captured. Please try again.';
+            return;
+        }
+
+        const response = await fetch(tusRoutes.create({ project: props.projectId }).url, {
+            method: 'POST',
+            headers: {
+                ...csrfHeader(),
+                'Tus-Resumable': '1.0.0',
+                'Upload-Concat': `final;${partialUrls.join(' ')}`,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        // Fetch-native counterparts of sessionExpiry.ts's axios-based helpers, which expect an
+        // AxiosResponse/AxiosError shape this raw fetch call doesn't produce.
+        if (response.status === 401 || response.status === 419) {
+            goToLogin();
+            return;
+        }
+        const contentType = response.headers.get('content-type');
+        if (typeof contentType === 'string' && !contentType.includes('application/json')) {
+            goToLogin();
+            return;
+        }
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => null);
+            throw new Error(body?.message ?? 'Failed to finish uploading the recording.');
+        }
+
+        const body = await response.json();
+
+        // Same as every other transcript source (Google Doc, file, provider-imported
+        // recording) — never leave the user on the raw transcript, go straight to the
+        // Meeting Notes document it's about to generate (see RecordingIntakeService::store()
+        // and summarize()). Falls back to the transcript itself only when no single-output
+        // template is configured, matching IntakeImportService::import()'s own fallback.
+        const targetId = body.recording.notes_id ?? body.recording.id;
+        router.visit(projectDocumentsRoutes.show({ project: props.projectId, document: targetId }).url);
     } catch (error) {
         unguardUnload();
-        if (redirectIfSessionExpiredError(error)) return;
-
         phase.value = 'error';
-        errorMessage.value = 'Failed to upload the recording. Please try again.';
+        errorMessage.value = error instanceof Error ? error.message : 'Failed to upload the recording. Please try again.';
     }
-};
-
-const startPolling = (newDocumentId: string) => {
-    clearPoll();
-
-    pollInterval = window.setInterval(async () => {
-        try {
-            const response = await axios.get(
-                browserRecordingRoutes.status({ project: props.projectId, document: newDocumentId }).url,
-            );
-            if (redirectIfLoggedOut(response)) { clearPoll(); return; }
-
-            const status = response.data.recording.status as string;
-
-            if (status === 'processed') {
-                clearPoll();
-                documentId.value = newDocumentId;
-                phase.value = 'done';
-            } else if (status === 'failed') {
-                clearPoll();
-                phase.value = 'error';
-                errorMessage.value = "Transcription didn't complete for this recording.";
-            }
-        } catch (error) {
-            if (redirectIfSessionExpiredError(error)) clearPoll();
-            // Otherwise keep polling — a single transient blip shouldn't end the whole flow.
-        }
-    }, 4000);
 };
 
 const reset = () => {
     phase.value = 'idle';
     errorMessage.value = '';
-    documentId.value = null;
 };
 
 onBeforeUnmount(() => {
     clearTimer();
-    clearPoll();
     stopStreams();
     unguardUnload();
+    // Success leaves phase at 'uploading' right up until the router.visit() redirect unmounts
+    // this component — the watch above never sees it leave that state, so the banner and its
+    // creep timer need clearing here too, not just on the error path.
+    if (progressTimer !== undefined) window.clearInterval(progressTimer);
+    clearBanner(BANNER_KEY);
 });
 </script>
 
@@ -209,7 +283,8 @@ onBeforeUnmount(() => {
         <p class="mt-1 max-w-xl text-sm text-slate-500 dark:text-slate-400">
             Share this browser tab (or, on Windows, your whole screen) while a call is running, and it's transcribed
             automatically once you stop. On a Mac this only works for calls running in a browser tab — not a native
-            desktop app like Zoom or Slack.
+            desktop app like Zoom or Slack. Audio uploads continuously as you record, so a dropped connection or a
+            closed tab only risks the last few seconds, not the whole meeting.
         </p>
 
         <p v-if="isUnsupported" class="mt-4 text-sm text-slate-500 dark:text-slate-400">
@@ -240,23 +315,6 @@ onBeforeUnmount(() => {
                     <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
                     <span class="text-lg font-black tabular-nums text-slate-900 dark:text-white">{{ formattedElapsed }}</span>
                 </div>
-            </div>
-
-            <div v-else-if="phase === 'uploading' || phase === 'processing'" class="mt-4 flex items-center gap-3 text-slate-500 dark:text-slate-400">
-                <RefreshCw class="h-5 w-5 animate-spin" />
-                <span class="text-sm font-bold">
-                    {{ phase === 'uploading' ? 'Uploading recording…' : "Transcribing… you can navigate away, it'll show up here once it's ready." }}
-                </span>
-            </div>
-
-            <div v-else-if="phase === 'done'" class="mt-4 flex items-center gap-4">
-                <p class="text-sm font-bold text-emerald-600 dark:text-emerald-400">Transcript ready.</p>
-                <Link v-if="documentUrl" :href="documentUrl" class="text-sm font-bold text-projector-primary-600 hover:underline dark:text-projector-primary-400">
-                    View note
-                </Link>
-                <button type="button" class="text-[11px] font-black uppercase tracking-widest text-slate-400" @click="reset">
-                    Capture Another
-                </button>
             </div>
 
             <div v-else-if="phase === 'error'" class="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/20">

@@ -130,6 +130,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Documents this user has opened at least once — backs the per-user unread dot on an
+     * async-imported transcript (Document::readers() is the inverse side).
+     *
+     * @return BelongsToMany<Document, $this>
+     */
+    public function readDocuments(): BelongsToMany
+    {
+        return $this->belongsToMany(Document::class, 'document_reads')->withTimestamps();
+    }
+
+    /**
      * Check if user is an admin of a specific organization.
      */
     public function isOrgAdmin(string $organizationId): bool

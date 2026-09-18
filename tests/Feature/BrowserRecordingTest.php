@@ -1,11 +1,13 @@
 <?php
 
 use App\Jobs\TranscribeRecording;
+use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\RecordingIntakeService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -58,6 +60,36 @@ it('uploads a browser-captured recording and tags it with the browser_capture so
     Queue::assertPushed(TranscribeRecording::class, fn ($job) => $job->document->is($document));
 });
 
+it('pre-creates a blank Meeting Notes child and reports it as notes_id, same as every other transcript source', function () {
+    Queue::fake();
+
+    $template = AiTemplate::create([
+        'name' => 'Transcript to Meeting Notes',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => 'y',
+        'single_output' => true,
+    ]);
+    config(['workflow.intake_to_action_items_ai_template_id' => $template->id]);
+
+    $response = $this->actingAs($this->user)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->postJson(route('projects.browser-recordings.store', $this->project), [
+            'audio' => fakeWavFile(),
+            'name' => 'Client Sync',
+        ]);
+
+    $response->assertCreated();
+    $intake = Document::findOrFail($response->json('recording.id'));
+    $meetingNotes = $this->project->documents()->where('parent_id', $intake->id)->firstOrFail();
+
+    expect($meetingNotes->type)->toBe(config('workflow.action_items_key'))
+        ->and($meetingNotes->name)->toBe('Client Sync')
+        ->and($meetingNotes->content)->toBe('');
+
+    expect($response->json('recording.notes_id'))->toBe($meetingNotes->id);
+});
+
 it('rejects a browser recording upload for a project outside the user\'s organization', function () {
     $otherOrg = Organization::create(['name' => 'Other Org']);
     $otherClient = Client::create([
@@ -75,6 +107,41 @@ it('rejects a browser recording upload for a project outside the user\'s organiz
         ->withSession(['active_org_id' => $this->org->id])
         ->postJson(route('projects.browser-recordings.store', $otherProject), ['audio' => fakeWavFile()])
         ->assertNotFound();
+});
+
+it('accepts video/webm, because that is what libmagic sniffs a real audio-only WebM/Opus recording as', function () {
+    // Reproduced against a real Chrome-recorded getDisplayMedia(audio-only) blob: the browser
+    // reports it as audio/webm, but PHP's mimetypes rule validates the libmagic-detected type,
+    // not the browser's Content-Type — and libmagic identifies audio-only WebM as video/webm
+    // since the container doesn't signal "audio-only" at the level it inspects. Every upload
+    // path here only ever sends what MediaRecorder produced from an audio-only stream, so
+    // accepting video/webm never actually admits real video.
+    expect(explode(',', RecordingIntakeService::RECORDING_MIMES))->toContain('video/webm');
+});
+
+it('returns a clean validation error and leaves no orphaned document when the file exceeds the media library size cap', function () {
+    Queue::fake();
+    config(['media-library.max_file_size' => 100]); // fakeWavFile() is larger than this
+
+    $before = Document::count();
+
+    $response = $this->actingAs($this->user)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->postJson(route('projects.browser-recordings.store', $this->project), [
+            'audio' => fakeWavFile(),
+        ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors('audio');
+    expect($response->json('errors.audio.0'))
+        ->toContain('too large')
+        ->not->toContain('/tmp') // Spatie's own message leaks the server temp path — ours must not
+        ->not->toContain('php');
+
+    // The transaction must have rolled back the placeholder document(s) along with the
+    // failed media attachment — no permanently-empty, unrecoverable document left behind.
+    expect(Document::count())->toBe($before);
+    Queue::assertNotPushed(TranscribeRecording::class);
 });
 
 it('rejects a non-audio file uploaded from the browser capture panel', function () {

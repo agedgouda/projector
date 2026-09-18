@@ -9,6 +9,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
+import BrowserAudioCapture from '@/pages/Projects/Partials/BrowserAudioCapture.vue';
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
 import { Deferred, router } from '@inertiajs/vue3';
@@ -35,6 +36,7 @@ import {
     reprocessDescription,
     useWorkflow,
 } from '@/composables/useWorkflow';
+import { isAsyncImportedDocument } from '@/lib/documentTypes';
 import { setPersistentCookie } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import projectRoutes from '@/routes/projects/index';
@@ -57,6 +59,7 @@ const props = defineProps<{
     documentTypeCatalog: DocumentSchemaItem[];
     canManageTranscripts: boolean;
     canManageProject: boolean;
+    readDocumentIds: (string | number)[];
     meetingProvider: string | null;
     googlePickerConfigured: boolean;
     googleApiKey: string | null;
@@ -259,6 +262,21 @@ const aiProcessedParentIds = computed(() => {
     const ids = new Set<string>();
     (props.currentProject?.documents ?? []).forEach((d: ProjectDocument) => {
         if (d.parent_id) ids.add(d.parent_id);
+    });
+    return ids;
+});
+
+// Async-imported transcripts (browser capture, mobile, provider-imported meeting) the current
+// user hasn't opened yet — drives the Documentation tab dot and each row's own dot in
+// TraceabilityRow.vue. A manual Google Doc/file import never lands here (see
+// isAsyncImportedDocument) since the user who just did that already knows about it.
+const unreadDocumentIds = computed(() => {
+    const readIds = new Set(props.readDocumentIds.map(String));
+    const ids = new Set<string>();
+    (props.currentProject?.documents ?? []).forEach((d: ProjectDocument) => {
+        if (isAsyncImportedDocument(d) && !readIds.has(String(d.id))) {
+            ids.add(String(d.id));
+        }
     });
     return ids;
 });
@@ -628,7 +646,7 @@ watch(
                     :key="tab"
                     @click="updateTab(tab)"
                     :class="[
-                        '-mb-[1px] border-b-2 px-8 py-4 text-[10px] font-black tracking-[0.2em] uppercase transition-all',
+                        '-mb-[1px] flex items-center gap-1.5 border-b-2 px-8 py-4 text-[10px] font-black tracking-[0.2em] uppercase transition-all',
                         activeTab === tab
                             ? 'border-projector-primary-500 text-projector-primary-600'
                             : 'border-transparent text-gray-400 hover:text-gray-600',
@@ -645,6 +663,10 @@ watch(
                                   ? 'Reports'
                                   : 'Tasks'
                     }}
+                    <span
+                        v-if="tab === 'hierarchy' && unreadDocumentIds.size > 0"
+                        class="h-1.5 w-1.5 shrink-0 rounded-full bg-projector-primary-500"
+                    />
                 </button>
             </div>
 
@@ -775,12 +797,20 @@ watch(
                     :live-documents="currentProject.documents"
                     :document-type-catalog="documentTypeCatalog"
                     :is-generating="isGenerating"
+                    :unread-document-ids="unreadDocumentIds"
                     @confirm-delete="confirmDelete"
                     @generate="generateDeliverables"
                 />
             </div>
 
             <div v-show="activeTab === 'recordings'">
+                <!-- Live capture straight from the browser — no meeting provider needed, works
+                     for any call the user has open in a tab (or, on Windows, anywhere on
+                     screen), so it's shown regardless of whether one is configured below. -->
+                <div class="mb-6">
+                    <BrowserAudioCapture :project-id="currentProject.id" :can-manage="canManageTranscripts" />
+                </div>
+
                 <div class="mb-4">
                     <div
                         v-if="!meetingProvider"

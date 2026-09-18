@@ -94,6 +94,10 @@ class ProjectController extends Controller
 
         $user = auth()->user();
 
+        if (! $user) {
+            abort(401);
+        }
+
         // 1. Get projects using your custom collection
         $projects = Project::visibleTo($user)->where('inactive', false)->latest()->with(['media', 'parent.media'])->get()->withDashboardContext()
             ->map(fn (Project $p) => array_merge($p->toArray(), ['logo_url' => $p->logo_url]));
@@ -158,6 +162,7 @@ class ProjectController extends Controller
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'canManageTranscripts' => $canManageTranscripts,
             'canManageProject' => Gate::allows('update', $project),
+            'readDocumentIds' => $user->readDocuments()->where('documents.project_id', $project->id)->pluck('documents.id'),
             'meetingProvider' => $organization->meeting_provider,
             'googlePickerConfigured' => filled(config('services.google.client_id'))
                 && filled(config('services.google.client_secret'))
