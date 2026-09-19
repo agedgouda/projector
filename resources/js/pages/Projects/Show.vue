@@ -168,8 +168,25 @@ const { setDocToProcessing, setDocToTransitioning } = useDocumentActions(
 const targetBeingCreated = ref<string | null>(null);
 const isGenerating = ref(false);
 
+// Object.values(localKanbanData.value).flat() alone (the old implementation) only ever
+// contains task-type documents — Project::getKanbanDocuments() filters to is_task types before
+// this ever reaches the client — so useAiProcessing()'s isAiProcessing below could never detect
+// a still-processing Transcription/Meeting-Notes document (created via "New Document" -> the
+// intake type, or any other non-task type): its "AI Sync Active" banner never appeared, and
+// since isAiProcessing never went true, the reconciler poll fallback never started either, so a
+// missed broadcast for that document had no self-healing path at all, only a manual refresh.
+// Blending in every other currentProject.documents (own id not already present from Kanban, so
+// the optimistically-updated Kanban copy always wins for a task) fixes both: detection now
+// covers every document type, not just tasks.
 const allDocs = computed(() => {
-    return Object.values(localKanbanData.value).flat() as ProjectDocument[];
+    const fromKanban = Object.values(
+        localKanbanData.value,
+    ).flat() as ProjectDocument[];
+    const kanbanIds = new Set(fromKanban.map((d) => String(d.id)));
+    const fromProjectDocs = (props.currentProject?.documents ?? []).filter(
+        (d: ProjectDocument) => !kanbanIds.has(String(d.id)),
+    );
+    return [...fromKanban, ...fromProjectDocs];
 });
 
 const projectIdForEcho = computed(
@@ -270,11 +287,29 @@ const aiProcessedParentIds = computed(() => {
 // user hasn't opened yet — drives the Documentation tab dot and each row's own dot in
 // TraceabilityRow.vue. A manual Google Doc/file import never lands here (see
 // isAsyncImportedDocument) since the user who just did that already knows about it.
+//
+// A document with a child is skipped entirely, same as useDocumentTree.ts hiding it from the
+// Documentation tab's own list once something's been generated from it — the child (which now
+// carries the same recording_source/recording_id metadata, see DocumentImportFinalizer) is what
+// the user is actually shown, so it's the one tracked instead. This also sidesteps an intake
+// document's own processed_at being meaningless as a "done" signal (stamped up front to suppress
+// its creation-time AI dispatch, see RecordingIntakeService) — only the child's processed_at,
+// left genuinely null until ProcessDocumentAI fills it in, is checked below. Without this, the
+// dot would light up the instant an import starts rather than once it's actually ready to look
+// at.
 const unreadDocumentIds = computed(() => {
     const readIds = new Set(props.readDocumentIds.map(String));
+    const docs = props.currentProject?.documents ?? [];
+
+    const parentIdsWithChildren = new Set<string>();
+    docs.forEach((d: ProjectDocument) => {
+        if (d.parent_id != null) parentIdsWithChildren.add(String(d.parent_id));
+    });
+
     const ids = new Set<string>();
-    (props.currentProject?.documents ?? []).forEach((d: ProjectDocument) => {
-        if (isAsyncImportedDocument(d) && !readIds.has(String(d.id))) {
+    docs.forEach((d: ProjectDocument) => {
+        if (parentIdsWithChildren.has(String(d.id))) return;
+        if (isAsyncImportedDocument(d) && d.processed_at != null && !readIds.has(String(d.id))) {
             ids.add(String(d.id));
         }
     });

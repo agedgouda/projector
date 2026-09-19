@@ -24,6 +24,17 @@ const resolvedReverbHost =
         ? reverbHost
         : window.location.hostname;
 
+// VITE_REVERB_SCHEME has the same "server config leaking into client config" problem as
+// VITE_REVERB_HOST above — it's "http" by default (Reverb's own listener speaks plain
+// HTTP/WS; Herd's TLS proxy sits in front of it and terminates HTTPS/WSS for the browser),
+// but forceTLS was trusting it directly. A page loaded over https can never reliably open a
+// plain ws:// socket (browsers block/fail it as mixed content), so this was silently forcing
+// every private-channel subscription into the same permanently "unavailable" state described
+// above whenever the site itself is served over HTTPS (Herd's normal case) — derived from the
+// page's own protocol instead, which is always correct rather than trusting a value meant for
+// Reverb's own server binding.
+const forceTLS = window.location.protocol === 'https:';
+
 // Keep your existing plugin config as well
 configureEcho({
     broadcaster: 'reverb',
@@ -31,7 +42,7 @@ configureEcho({
     wsHost: resolvedReverbHost,
     wsPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
     wssPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
-    forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+    forceTLS,
     enabledTransports: ['ws', 'wss'],
 });
 

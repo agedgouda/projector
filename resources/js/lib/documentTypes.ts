@@ -42,6 +42,12 @@ export function visibleDocumentTypeKeys(
  * Excludes synchronous imports (Google Doc/file upload, tagged import_source instead) — the
  * user who just triggered those already knows about them. Drives the unread dot on the
  * Documentation tab and its row in the tree (see Projects/Show.vue, TraceabilityRow.vue).
+ *
+ * DocumentImportFinalizer (backend) copies this same metadata onto a pre-created Meeting Notes
+ * child, so this matches that child too — the document import sources actually redirect the
+ * user to, not just the raw transcript most of them no longer send anyone to directly. Callers
+ * still need their own processed_at check alongside this one (see Projects/Show.vue) since this
+ * alone doesn't distinguish "still generating" from "done."
  */
 export function isAsyncImportedDocument(document: ProjectDocument): boolean {
     const metadata = document.metadata ?? {};

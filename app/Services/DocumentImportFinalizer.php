@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AiTemplate;
 use App\Models\Document;
 use App\Models\Project;
+use Illuminate\Support\Arr;
 
 /**
  * The one place every intake-document import path (a browser/mobile-recorded audio file, a
@@ -26,11 +27,21 @@ class DocumentImportFinalizer
             // Notes document it's about to generate (blank for now) and send them there instead.
             // ProcessDocumentAI::handle() finds this same pre-existing row and fills it in
             // place once the AI call returns, so its id never changes.
+            //
+            // recording_source/recording_id are copied onto it from the parent (when present)
+            // so isAsyncImportedDocument() — and the Documentation tab's unread dot it drives —
+            // can attach to whichever document the user is actually redirected to, instead of
+            // only ever the raw transcript most import sources no longer send anyone to
+            // directly. processed_at is deliberately left null here (unlike the parent, which
+            // sets it up front to suppress its own auto-dispatch) — it stays null until
+            // ProcessDocumentAI actually fills this row in, which is exactly the "done
+            // processing" signal the dot is gated on.
             $target = $project->documents()->create([
                 'parent_id' => $document->id,
                 'type' => config('workflow.action_items_key'),
                 'name' => $document->name,
                 'content' => '',
+                'metadata' => Arr::only($document->metadata ?? [], ['recording_source', 'recording_id']),
             ]);
         }
 
