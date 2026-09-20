@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Slack;
 use App\Http\Controllers\Controller;
 use App\Jobs\CreateEventFromSlackCommand;
 use App\Jobs\CreateTaskFromSlackCommand;
+use App\Jobs\GenerateReportFromSlackCommand;
 use App\Models\SlackChannelBinding;
 use App\Models\SlackUserIdentity;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,7 @@ class CommandsController extends Controller
     private const COMMANDS = [
         '/task' => ['example' => 'follow up with the client about the contract by Friday', 'noun' => 'task'],
         '/events' => ['example' => 'team offsite next Thursday', 'noun' => 'event'],
+        '/report' => ['example' => 'Jane\'s high priority tasks due next week as a PDF', 'noun' => 'report'],
     ];
 
     /**
@@ -46,7 +48,8 @@ class CommandsController extends Controller
         $text = $request->input('text');
         $text = is_string($text) ? trim($text) : '';
 
-        if ($text === '') {
+        // /report's text is optional — no text means the full, unfiltered report.
+        if ($command !== '/report' && $text === '') {
             return $this->ephemeral("Usage: `{$command} <description>` — e.g. `{$command} {$example}`.");
         }
 
@@ -77,6 +80,16 @@ class CommandsController extends Controller
             $connectUrl = route('integrations.edit');
 
             return $this->ephemeral("Connect your Slack account in Projector first, so {$noun}s you create are attributed to you: {$connectUrl}");
+        }
+
+        if ($command === '/report') {
+            if (! $identity->user->can('view', $binding->project)) {
+                return $this->ephemeral("You don't have access to this project's reports.");
+            }
+
+            GenerateReportFromSlackCommand::dispatch($binding->project, $identity->user, $binding->slackWorkspace, $channelId, $text, $responseUrl);
+
+            return $this->ephemeral('⏳ Generating report…');
         }
 
         if ($command === '/task') {

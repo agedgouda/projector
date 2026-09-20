@@ -77,4 +77,15 @@ trait FormatsTaskFields
 
         return trim((string) preg_replace('/\n{3,}/', "\n\n", $text));
     }
+
+    /**
+     * Comma-joined tag names for a task, for the exports (Word/Excel/Google/PDF) where a
+     * plain string cell is needed instead of the on-screen report's colored pill chips.
+     */
+    private function tagsLabel(Document $task): string
+    {
+        $names = $task->categories->pluck('name');
+
+        return $names->isNotEmpty() ? $names->implode(', ') : '—';
+    }
 }

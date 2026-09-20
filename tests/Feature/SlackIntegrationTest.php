@@ -66,7 +66,7 @@ it('redirects to slack with the org-scoped bot scopes and a fixed callback url',
     $location = $response->headers->get('Location');
     expect($location)->toContain('slack.com/oauth/v2/authorize')
         ->and($location)->toContain('client_id=fake-client-id')
-        ->and(urldecode($location))->toContain('scope=chat:write,commands,files:read,channels:history,channels:read,groups:read,users:read')
+        ->and(urldecode($location))->toContain('scope=chat:write,commands,files:read,files:write,channels:history,channels:read,groups:read,users:read')
         ->and(urldecode($location))->toContain('redirect_uri='.route('organizations.slack.callback'));
 
     expect(session('slack_connect_state'))->not->toBeNull()

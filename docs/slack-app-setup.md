@@ -1,6 +1,8 @@
 # Slack Integration Setup
 
-This guide covers how to configure a Slack app so an organization can connect its Slack workspace to Projector — creating tasks and events, and importing files, from Slack. Unlike [Google Drive export](google-drive-export-setup.md) (a per-user connection), this is a **per-organization connection**: one org-admin installs the app into the org's Slack workspace from that organization's own settings page, and every bound channel then acts on behalf of that organization.
+This guide covers how to configure a Slack app so an organization can connect its Slack workspace to Projector — creating tasks and events, importing files, and generating task reports, from Slack. Unlike [Google Drive export](google-drive-export-setup.md) (a per-user connection), this is a **per-organization connection**: one org-admin installs the app into the org's Slack workspace from that organization's own settings page, and every bound channel then acts on behalf of that organization.
+
+**`/report` needs the `files:write` scope** (Step 11) — workspaces connected before it was added must be reconnected from the organization's Configuration tab, and the `/report` slash command must be added to the Slack app (both are in the manifest below).
 
 Outbound messages (the daily digest, Step 9) use only the `chat:write` scope already listed below — no manifest change is needed for that feature specifically. The same is true of the file-upload import behavior in Step 10, including its document-type fallback and `#tag` override — both read fields already delivered on the `message.channels` event this app already subscribes to, so no scope or manifest change is needed for either.
 
@@ -31,6 +33,11 @@ features:
       description: Create an event from text
       usage_hint: "[description] — e.g. /events team offsite next Thursday"
       should_escape: false
+    - command: /report
+      url: https://projecthq.app/slack/commands
+      description: Post this project's task report as a file
+      usage_hint: "[what you want] — e.g. /report Jane's high priority tasks due next week as a PDF"
+      should_escape: false
   shortcuts:
     - name: Create Task
       type: message
@@ -49,6 +56,7 @@ oauth_config:
       - chat:write
       - commands
       - files:read
+      - files:write
       - channels:history
       - channels:read
       - channels:join
@@ -227,3 +235,32 @@ Drop a CSV, TXT, XLSX, XLS, or DOCX file straight into a bound channel and Proje
 Either way, the file shows up on the Import Wizard landing page (`/import`) under **Needs Review**, visible to anyone who can manage imports for that project. Opening a queued file re-derives its data (re-parses a spreadsheet, or re-extracts a document's text) and opens the same AI-assisted modal a manually-picked "smart" import uses, so a human finishes (or confirms) the classification by hand — the file itself doesn't need to be re-uploaded, since it was already downloaded and stored when it was queued. For a document, the reviewer can accept the AI's proposed type, switch it to any other type in the project's catalog via the "File As" picker, or fill in a task/event extraction rule directly. Completing that review imports the file, and for a spreadsheet also teaches the project that mapping, so the same layout auto-imports next time without a trip through the queue.
 
 Same two requirements as everything else: the channel must be bound to a project, and you (the uploader) must have linked your Slack identity (Step 5) — the bot will tell you if the latter's missing. Any other file type (images, PDFs, etc.) is silently ignored — nothing about this changes how a normal file share in the channel behaves.
+
+---
+
+## Step 11: Generate a Report with `/report`
+
+Once a channel is bound to a project (Step 4) and you've linked your Slack identity (Step 5), run `/report` in that channel to get the project's task report as a file — the same rows, ordering, and layout as the download buttons on the project's Reports tab. Say what you want in plain English; the AI works out the filters and the file format.
+
+- `/report` — every task, as an Excel workbook (the default).
+- `/report my tasks that are in progress`
+- `/report Penny's high priority tasks due next week as a PDF`
+- `/report what got done last month, csv`
+- `/report unassigned marketing tasks due before Friday`
+
+Everything the Reports tab's search form can filter on is understood: **assignee** (a person by name, "me"/"my", or unassigned), **status**, **priority**, **tags**, **sub-project**, a **date or date range** (relative dates like "next week" or "in March" are resolved against today in your own timezone), and whether the dates mean **due date** or **done date** ("what got done last week" filters by when tasks were completed). The format is Excel unless you ask for CSV or PDF.
+
+What happens:
+
+1. You immediately see an ephemeral "⏳ Generating report…" (only you see this).
+2. Projector reads your request, builds the report for the bound project and its sub-projects, and uploads it **into the channel** as the Projector bot. The upload message says who requested it and lists the filters it applied (e.g. `Filters: Assignee: Penny Lane · Priority: High · Due 09/21/2026 – 09/27/2026`), so you can check it understood you.
+
+You must be a member of the project's organization to run it.
+
+The AI only proposes names and dates; each one is checked against the project's real people, statuses, tags, and sub-projects. If it names something that doesn't exist (a person who isn't in the organization, a status the project doesn't have, an impossible date), you get an ephemeral message saying what it couldn't find and **no report is generated** — it never quietly drops a filter and hands back a broader report than you asked for. The same goes for an AI failure: you're asked to rephrase, and the full report is not substituted.
+
+Other ephemeral replies, without posting anything:
+- The channel isn't bound to a project yet, or you haven't linked your Slack identity.
+- The project has no tasks, or none matched your filters (the filters it applied are listed).
+- The bot isn't in the channel (a private channel needs `/invite @Projector`).
+- The workspace was connected before `files:write` existed — an org-admin needs to reconnect Slack.

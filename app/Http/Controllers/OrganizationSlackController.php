@@ -13,11 +13,11 @@ use Illuminate\Support\Str;
 class OrganizationSlackController extends Controller
 {
     /**
-     * Bot scopes requested for the whole Slack feature set (task/event creation, file import) up
+     * Bot scopes requested for the whole Slack feature set (task/event creation, file import, report upload) up
      * front, since Slack requires a fresh install/re-authorization any time the requested scopes
      * change — not just whatever the currently-built slice of the feature needs.
      */
-    private const SLACK_BOT_SCOPES = ['chat:write', 'commands', 'files:read', 'channels:history', 'channels:read', 'groups:read', 'users:read'];
+    private const SLACK_BOT_SCOPES = ['chat:write', 'commands', 'files:read', 'files:write', 'channels:history', 'channels:read', 'groups:read', 'users:read'];
 
     /**
      * Redirect to Slack's "Add to Slack" consent screen to install the bot into this

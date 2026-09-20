@@ -7,16 +7,11 @@ use App\Models\Document;
 use App\Models\Project;
 use App\Models\ReportFilterPreference;
 use App\Services\Google\GoogleExportService;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\Reports\TaskReportBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpWord\PhpWord;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -36,7 +31,7 @@ class ReportController extends Controller
         Gate::authorize('view', $project);
 
         $filters = $request->validate($this->filterRules());
-        $query = $this->buildTasksQuery($filters, $project);
+        $query = $this->reports()->buildTasksQuery($filters, $project);
 
         $tasks = $query?->get([
             'id', 'project_id', 'name', 'due_at', 'external_due_at', 'status_changed_at',
@@ -58,7 +53,7 @@ class ReportController extends Controller
             $tasks = collect();
         }
 
-        $projectNames = $this->projectNamesMap($project);
+        $projectNames = $this->reports()->projectNamesMap($project);
 
         return response()->json($tasks->map(fn (Document $task) => $this->taskToArray($task, $projectNames)));
     }
@@ -128,25 +123,12 @@ class ReportController extends Controller
 
         [$tasks, $includeDetails, $projectNames, $mode] = $this->tasksForExport($request, $project);
 
-        $project->loadMissing('client.organization', 'kanbanColumns');
-        $organization = $project->client?->organization;
+        $contents = $this->reports()->pdfContents($project, $tasks, $includeDetails, $projectNames, $mode);
 
-        $pdf = Pdf::loadView('pdfs.task-report', [
-            'project' => $project,
-            'client' => $project->client,
-            'tasks' => $tasks,
-            'columns' => $project->kanbanColumns,
-            'includeDetails' => $includeDetails,
-            'isDoneMode' => $mode === 'done',
-            'usesExternalDueDates' => (bool) $organization?->uses_external_due_dates,
-            'hasSubprojects' => count($projectNames) > 1,
-            'projectNames' => $projectNames,
-            'logoPath' => $project->getFirstMedia('logo')?->getPath(),
-            'headerImagePath' => $organization?->getFirstMedia('pdf_header')?->getPath(),
-            'footerImagePath' => $organization?->getFirstMedia('pdf_footer')?->getPath(),
-        ])->setPaper('a4', 'landscape');
-
-        return $pdf->download(Str::slug($project->name).'-task-report.pdf');
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$this->reports()->filename($project, 'pdf').'"',
+        ]);
     }
 
     /**
@@ -221,64 +203,12 @@ class ReportController extends Controller
         Gate::authorize('view', $project);
 
         [$tasks, $includeDetails, $projectNames, $mode] = $this->tasksForExport($request, $project);
-        $hasSubprojects = count($projectNames) > 1;
 
-        $project->loadMissing('kanbanColumns');
+        $contents = $this->reports()->excelContents($project, $tasks, $includeDetails, $projectNames, $mode);
 
-        $spreadsheet = new Spreadsheet;
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Task Report');
-
-        $dueColumnLabel = $mode === 'done' ? 'Done Date' : 'Due Date';
-        $headers = $hasSubprojects
-            ? ['Project', 'Status', $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags']
-            : ['Status', $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags'];
-        if ($includeDetails) {
-            $headers[] = 'Details';
-        }
-
-        foreach ($headers as $i => $header) {
-            $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1).'1', $header);
-        }
-        $sheet->getStyle([1, 1, count($headers), 1])->getFont()->setBold(true);
-        $sheet->getStyle([1, 1, count($headers), 1])->getFill()
-            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F1F5F9');
-
-        $row = 2;
-        foreach ($tasks as $task) {
-            $col = 'A';
-            if ($hasSubprojects) {
-                $sheet->setCellValue($col.$row, $projectNames[$task->project_id] ?? '—');
-                $col++;
-            }
-            $sheet->setCellValue($col.$row, $this->statusLabel($task, $project->kanbanColumns));
-            $col++;
-            $sheet->setCellValue($col.$row, $this->formatDate($this->dueOrDoneDateValue($task, $mode)));
-            $col++;
-            $sheet->setCellValue($col.$row, $task->name ?? '');
-            $col++;
-            $sheet->setCellValue($col.$row, $this->assigneeLabel($task));
-            $col++;
-            $sheet->setCellValue($col.$row, $task->priority ? ucfirst($task->priority) : '—');
-            $col++;
-            $sheet->setCellValue($col.$row, $this->tagsLabel($task));
-            $col++;
-            if ($includeDetails) {
-                $sheet->setCellValue($col.$row, $this->plainTextContent($task->content));
-            }
-            $row++;
-        }
-
-        foreach (range('A', $sheet->getHighestColumn()) as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
-
-        $writer = new Xlsx($spreadsheet);
-        $filename = Str::slug($project->name).'-task-report.xlsx';
-
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, $filename, [
+        return response()->streamDownload(function () use ($contents) {
+            echo $contents;
+        }, $this->reports()->filename($project, 'xlsx'), [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -342,37 +272,8 @@ class ReportController extends Controller
     private function googleExportHeadersAndRows(Request $request, Project $project): array
     {
         [$tasks, $includeDetails, $projectNames, $mode] = $this->tasksForExport($request, $project);
-        $hasSubprojects = count($projectNames) > 1;
 
-        $project->loadMissing('kanbanColumns');
-
-        $dueColumnLabel = $mode === 'done' ? 'Done Date' : 'Due Date';
-        $headers = $hasSubprojects
-            ? ['Project', 'Status', $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags']
-            : ['Status', $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags'];
-        if ($includeDetails) {
-            $headers[] = 'Details';
-        }
-
-        $rows = $tasks->map(function (Document $task) use ($project, $includeDetails, $hasSubprojects, $projectNames, $mode) {
-            $row = [];
-            if ($hasSubprojects) {
-                $row[] = $projectNames[$task->project_id] ?? '—';
-            }
-            $row[] = $this->statusLabel($task, $project->kanbanColumns);
-            $row[] = $this->formatDate($this->dueOrDoneDateValue($task, $mode));
-            $row[] = $task->name ?? '';
-            $row[] = $this->assigneeLabel($task);
-            $row[] = $task->priority ? ucfirst($task->priority) : '—';
-            $row[] = $this->tagsLabel($task);
-            if ($includeDetails) {
-                $row[] = $this->plainTextContent($task->content);
-            }
-
-            return $row;
-        })->all();
-
-        return [$headers, $rows];
+        return $this->reports()->headersAndRows($project, $tasks, $includeDetails, $projectNames, $mode);
     }
 
     /**
@@ -398,173 +299,6 @@ class ReportController extends Controller
     }
 
     /**
-     * This project's own id plus its direct sub-projects' ids (2-level cap, mirroring
-     * Project::calendarItems()) — the report always spans a project and its sub-projects,
-     * not just the one being viewed.
-     *
-     * @return array<int, string>
-     */
-    private function projectIdsIncludingChildren(Project $project): array
-    {
-        $project->loadMissing('children:id,parent_id,name');
-
-        return [$project->id, ...$project->children->map(fn (Project $child) => (string) $child->id)->values()];
-    }
-
-    /**
-     * Maps every project/sub-project id in scope to its name, so exports can label each
-     * task's originating project without an extra per-row relation load.
-     *
-     * @return array<string, string>
-     */
-    private function projectNamesMap(Project $project): array
-    {
-        $project->loadMissing('children:id,parent_id,name');
-
-        $names = [(string) $project->id => (string) $project->name];
-        foreach ($project->children as $child) {
-            $names[(string) $child->id] = (string) $child->name;
-        }
-
-        return $names;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function stringValues(mixed $value): array
-    {
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_filter($value, 'is_string'));
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
-     * @return Builder<Document>|null
-     */
-    private function buildTasksQuery(array $filters, Project $project): ?Builder
-    {
-        $taskTypeKeys = $project->documentTypeCatalog()
-            ->filter(fn ($definition) => $definition->is_task)
-            ->keys()
-            ->all();
-
-        if (empty($taskTypeKeys)) {
-            return null;
-        }
-
-        $assignees = $this->stringValues($filters['assignee'] ?? null);
-        $taskStatuses = $this->stringValues($filters['task_status'] ?? null);
-        $priorities = $this->stringValues($filters['priority'] ?? null);
-        $dueFrom = is_string($filters['due_from'] ?? null) ? $filters['due_from'] : null;
-        $dueTo = is_string($filters['due_to'] ?? null) ? $filters['due_to'] : null;
-        $mode = ($filters['mode'] ?? null) === 'done' ? 'done' : 'due';
-        $projectIds = $this->stringValues($filters['project_id'] ?? null);
-        $categoryIds = $this->stringValues($filters['category_id'] ?? null);
-
-        $query = Document::query()
-            ->whereIn('project_id', $this->projectIdsIncludingChildren($project))
-            ->whereIn('type', $taskTypeKeys);
-
-        if ($assignees !== []) {
-            // Three disjoint kinds of "assignee" value can appear in the same multi-select:
-            // a real user id, a pending invitee (`inv:{id}`), and the "Unassigned" sentinel,
-            // which matches neither assignee_id nor pending_assignee_invitation_id being set.
-            $invitationIds = [];
-            $userIds = [];
-            $wantsUnassigned = false;
-
-            foreach ($assignees as $value) {
-                if ($value === 'unassigned') {
-                    $wantsUnassigned = true;
-                } elseif (str_starts_with($value, 'inv:')) {
-                    $invitationIds[] = (int) substr($value, 4);
-                } else {
-                    $userIds[] = (int) $value;
-                }
-            }
-
-            $query->where(function (Builder $subQuery) use ($invitationIds, $userIds, $wantsUnassigned) {
-                if ($invitationIds !== []) {
-                    $subQuery->orWhereIn('pending_assignee_invitation_id', $invitationIds);
-                }
-                if ($userIds !== []) {
-                    $subQuery->orWhereIn('assignee_id', $userIds);
-                }
-                if ($wantsUnassigned) {
-                    $subQuery->orWhere(function (Builder $unassignedQuery) {
-                        $unassignedQuery->whereNull('assignee_id')->whereNull('pending_assignee_invitation_id');
-                    });
-                }
-            });
-        }
-
-        if ($taskStatuses !== []) {
-            $query->whereIn('task_status', $taskStatuses);
-        }
-
-        if ($priorities !== []) {
-            $query->whereIn('priority', $priorities);
-        }
-
-        // "Done" mode retargets the same From/To range onto status_changed_at instead of
-        // due_at, and additionally restricts to tasks actually marked done — a task whose
-        // status_changed_at happens to fall in range but isn't currently 'done' (e.g. it was
-        // done then reopened) shouldn't show up as if it were completed in that window.
-        if ($mode === 'done') {
-            $query->where('task_status', 'done');
-
-            if (! empty($dueFrom)) {
-                $query->whereDate('status_changed_at', '>=', $dueFrom);
-            }
-
-            if (! empty($dueTo)) {
-                $query->whereDate('status_changed_at', '<=', $dueTo);
-            }
-        } else {
-            if (! empty($dueFrom)) {
-                $query->whereDate('due_at', '>=', $dueFrom);
-            }
-
-            if (! empty($dueTo)) {
-                $query->whereDate('due_at', '<=', $dueTo);
-            }
-        }
-
-        if ($projectIds !== []) {
-            $query->whereIn('project_id', $projectIds);
-        }
-
-        if ($categoryIds !== []) {
-            // Mirrors the assignee filter's 'unassigned' sentinel above: 'none' matches
-            // tasks with zero tags, alongside any real tag ids in the same multi-select —
-            // same 'none' sentinel the Kanban board's own tag filter uses (see
-            // TAG_FILTER_NONE in useKanbanQueries.ts).
-            $wantsNoTags = in_array('none', $categoryIds, true);
-            $realCategoryIds = array_values(array_filter($categoryIds, fn (string $id) => $id !== 'none'));
-
-            $query->where(function (Builder $subQuery) use ($realCategoryIds, $wantsNoTags) {
-                if ($realCategoryIds !== []) {
-                    $subQuery->orWhereHas(
-                        'categories',
-                        fn (Builder $categoryQuery) => $categoryQuery->whereIn('categories.id', $realCategoryIds)
-                    );
-                }
-                if ($wantsNoTags) {
-                    $subQuery->orWhereDoesntHave('categories');
-                }
-            });
-        }
-
-        return $query
-            ->with(['assignee:id,first_name,last_name', 'pendingAssignee:id,email,first_name,last_name', 'categories'])
-            ->orderBy($mode === 'done' ? 'status_changed_at' : 'due_at');
-    }
-
-    /**
      * @return array{0: \Illuminate\Support\Collection<int, Document>, 1: bool, 2: array<string, string>, 3: string}
      */
     private function tasksForExport(Request $request, Project $project): array
@@ -575,83 +309,12 @@ class ReportController extends Controller
             'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
         ]);
 
-        $includeDetails = (bool) ($validated['include_details'] ?? false);
-        $mode = ($validated['mode'] ?? null) === 'done' ? 'done' : 'due';
-
-        $query = $this->buildTasksQuery($validated, $project);
-
-        $columns = [
-            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'status_changed_at',
-            'priority', 'task_status', 'assignee_id', 'pending_assignee_invitation_id',
-        ];
-        if ($includeDetails) {
-            $columns[] = 'content';
-        }
-
-        $tasks = $query?->get($columns) ?? collect();
-        $projectNames = $this->projectNamesMap($project);
-
-        // The on-screen table sorts client-side, independently of this query's own
-        // ->orderBy('due_at') — a downloaded file can't be re-sorted after the fact, so it
-        // needs to replicate whichever column/direction the user had active when exporting.
-        $project->loadMissing('kanbanColumns');
-        $sortBy = is_string($validated['sort_by'] ?? null) ? $validated['sort_by'] : ($mode === 'done' ? 'status_changed_at' : 'due_at');
-        $sortDir = is_string($validated['sort_dir'] ?? null) ? $validated['sort_dir'] : 'asc';
-        $tasks = $this->sortTasksForExport($tasks, $project, $sortBy, $sortDir, $projectNames);
-
-        return [$tasks, $includeDetails, $projectNames, $mode];
+        return $this->reports()->tasksForExport($validated, $project);
     }
 
-    /**
-     * Mirrors TaskReportTable.vue's own sortValue()/compare() exactly (same column
-     * mapping, same "nulls always sort last regardless of direction" rule) so a Details
-     * export always matches what was on screen when the user clicked the button.
-     *
-     * @param  \Illuminate\Support\Collection<int, Document>  $tasks
-     * @param  array<string, string>  $projectNames
-     * @return \Illuminate\Support\Collection<int, Document>
-     */
-    private function sortTasksForExport(\Illuminate\Support\Collection $tasks, Project $project, string $sortBy, string $sortDir, array $projectNames = []): \Illuminate\Support\Collection
+    private function reports(): TaskReportBuilder
     {
-        $direction = $sortDir === 'desc' ? -1 : 1;
-        $priorityWeight = ['low' => 1, 'medium' => 2, 'high' => 3];
-
-        $sortValue = function (Document $task) use ($sortBy, $project, $priorityWeight, $projectNames) {
-            return match ($sortBy) {
-                'status' => $project->kanbanColumns->firstWhere('key', $task->task_status)?->order,
-                'external_due_at' => $task->external_due_at,
-                'status_changed_at' => $task->status_changed_at,
-                'name' => mb_strtolower($task->name ?? ''),
-                'assignee' => mb_strtolower($this->assigneeLabel($task)),
-                'priority' => $task->priority ? ($priorityWeight[$task->priority] ?? null) : null,
-                'project_name' => mb_strtolower($projectNames[$task->project_id] ?? ''),
-                'tags' => $task->categories->isNotEmpty()
-                    ? mb_strtolower($task->categories->pluck('name')->sort()->implode(', '))
-                    : null,
-                default => $task->due_at,
-            };
-        };
-
-        $items = $tasks->all();
-
-        usort($items, function (Document $a, Document $b) use ($sortValue, $direction) {
-            $valueA = $sortValue($a);
-            $valueB = $sortValue($b);
-
-            if ($valueA === null && $valueB === null) {
-                return 0;
-            }
-            if ($valueA === null) {
-                return 1;
-            }
-            if ($valueB === null) {
-                return -1;
-            }
-
-            return $direction * ($valueA <=> $valueB);
-        });
-
-        return collect($items);
+        return app(TaskReportBuilder::class);
     }
 
     /**
@@ -714,16 +377,5 @@ class ReportController extends Controller
                 ] : null,
             ])->all(),
         ];
-    }
-
-    /**
-     * Comma-joined tag names for a task, for the exports (Word/Excel/Google/PDF) where a
-     * plain string cell is needed instead of the on-screen report's colored pill chips.
-     */
-    private function tagsLabel(Document $task): string
-    {
-        $names = $task->categories->pluck('name');
-
-        return $names->isNotEmpty() ? $names->implode(', ') : '—';
     }
 }
