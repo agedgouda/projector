@@ -26,6 +26,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string|null $last_output_key
  * @property AiTemplate|null $lastAiTemplate
  * @property \Illuminate\Support\Carbon|null $content_updated_at
+ * @property \Illuminate\Support\Carbon|null $status_changed_at
  * @property-read bool $locked_next_workflow_step_exists Only present after loadExists('lockedNextWorkflowStep').
  */
 class Document extends Model implements HasMedia
@@ -44,6 +45,7 @@ class Document extends Model implements HasMedia
         'metadata' => 'array',
         'processed_at' => 'datetime',
         'content_updated_at' => 'datetime',
+        'status_changed_at' => 'datetime',
         'creator_id' => 'integer',
         'editor_id' => 'integer',
         'assignee_id' => 'integer',

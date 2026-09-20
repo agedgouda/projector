@@ -21,6 +21,7 @@ import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';
 import orgDocumentsDraftRoutes from '@/routes/organizations/documents/draft/index';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
+import { formatTimestampMdy } from '@/lib/utils';
 
 const props = defineProps<{
     currentOrg: { id: string; name: string };
@@ -180,8 +181,7 @@ const canProcess = (meeting: StatusMeeting) =>
     meeting.ai_draft_status !== 'processing' &&
     !processingIds.value.has(meeting.id);
 
-const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+const formatDate = formatTimestampMdy;
 
 const showUrl = (meeting: StatusMeeting) =>
     orgDocumentsRoutes.show({ organization: props.currentOrg.id, orgDocument: meeting.id }).url;

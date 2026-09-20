@@ -8,6 +8,7 @@ use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Role;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -258,6 +259,83 @@ it('filters by due date range', function () {
 
     expect($response->json())->toHaveCount(1)
         ->and($response->json('0.name'))->toBe('In Range');
+});
+
+it('mode=due (explicit or omitted) filters by due_at exactly as before', function () {
+    Document::create(['project_id' => $this->project->id, 'name' => 'Too Early', 'type' => 'action_items', 'content' => 'x', 'due_at' => '2026-01-01']);
+    Document::create(['project_id' => $this->project->id, 'name' => 'In Range', 'type' => 'action_items', 'content' => 'x', 'due_at' => '2026-02-15']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project).'?mode=due&due_from=2026-02-01&due_to=2026-02-28')
+        ->assertOk();
+
+    expect($response->json())->toHaveCount(1)
+        ->and($response->json('0.name'))->toBe('In Range');
+});
+
+it('mode=done filters by task_status=done and status_changed_at range instead of due_at', function () {
+    Carbon::setTestNow('2026-02-15 00:00:00');
+    $done = Document::create(['project_id' => $this->project->id, 'name' => 'Done In Range', 'type' => 'action_items', 'content' => 'x', 'task_status' => 'todo', 'due_at' => '2099-01-01']);
+    $done->update(['task_status' => 'done']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project).'?mode=done&due_from=2026-02-01&due_to=2026-02-28')
+        ->assertOk();
+
+    // due_at ('2099-01-01', far outside the queried range) proves the filter really switched
+    // to status_changed_at in this mode rather than coincidentally still matching due_at.
+    expect($response->json())->toHaveCount(1)
+        ->and($response->json('0.name'))->toBe('Done In Range');
+
+    Carbon::setTestNow();
+});
+
+it('mode=done excludes a done task whose status_changed_at falls outside the range, and a non-done task whose status_changed_at falls inside it', function () {
+    Carbon::setTestNow('2026-01-01 00:00:00');
+    $doneEarly = Document::create(['project_id' => $this->project->id, 'name' => 'Done Too Early', 'type' => 'action_items', 'content' => 'x', 'task_status' => 'todo']);
+    $doneEarly->update(['task_status' => 'done']);
+
+    // Marked done inside the queried range, but reopened afterward — currently not 'done',
+    // so must be excluded even though its (stale) status_changed_at falls in range.
+    $reopened = Document::create(['project_id' => $this->project->id, 'name' => 'Reopened', 'type' => 'action_items', 'content' => 'x', 'task_status' => 'todo']);
+    Carbon::setTestNow('2026-02-15 00:00:00');
+    $reopened->update(['task_status' => 'done']);
+    $reopened->update(['task_status' => 'in_progress']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->getJson(route('projects.reports.tasks', $this->project).'?mode=done&due_from=2026-02-01&due_to=2026-02-28')
+        ->assertOk();
+
+    expect($response->json())->toHaveCount(0);
+
+    Carbon::setTestNow();
+});
+
+it('reflects Done mode in the Excel export header and date column', function () {
+    Carbon::setTestNow('2026-02-15 00:00:00');
+    $done = Document::create(['project_id' => $this->project->id, 'name' => 'Done Task', 'type' => 'action_items', 'content' => 'x', 'task_status' => 'todo']);
+    $done->update(['task_status' => 'done']);
+
+    setPermissionsTeamId($this->org->id);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->get(route('projects.reports.tasks.exportExcel', $this->project).'?mode=done&due_from=2026-02-01&due_to=2026-02-28')
+        ->assertOk();
+
+    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load(
+        tap(tempnam(sys_get_temp_dir(), 'xlsx'), fn ($path) => file_put_contents($path, $response->streamedContent()))
+    )->getActiveSheet();
+
+    expect($sheet->getCell('B1')->getValue())->toBe('Done Date')
+        ->and($sheet->getCell('B2')->getValue())->toBe('02/15/2026');
+
+    Carbon::setTestNow();
 });
 
 it('includes a task\'s tags in the response', function () {

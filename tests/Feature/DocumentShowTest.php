@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectType;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Role;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -221,6 +222,106 @@ it('does not stamp content_updated_at when only sidebar attributes are patched',
     expect($document->fresh())
         ->task_status->toBe('done')
         ->content_updated_at->toBeNull();
+});
+
+it('stamps status_changed_at when a task\'s status actually changes', function () {
+    Carbon::setTestNow('2026-01-01 00:00:00');
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+    $createdAt = $document->status_changed_at;
+    expect($createdAt)->not->toBeNull();
+
+    Carbon::setTestNow('2026-01-02 00:00:00');
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'task_status' => 'done',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->status_changed_at)->toEqual(Carbon::parse('2026-01-02 00:00:00'));
+
+    Carbon::setTestNow();
+});
+
+it('does not restamp status_changed_at when the same task_status is re-saved', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+    $originalStamp = $document->status_changed_at;
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'task_status' => 'todo',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->status_changed_at)->toEqual($originalStamp);
+});
+
+it('does not restamp status_changed_at when an unrelated field is patched', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'task_status' => 'todo',
+        'priority' => 'low',
+        'processed_at' => now(),
+    ]);
+    $originalStamp = $document->status_changed_at;
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'priority' => 'high',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh())
+        ->priority->toBe('high')
+        ->status_changed_at->toEqual($originalStamp);
+});
+
+it('stamps status_changed_at when task_status changes via the full document update form', function () {
+    // status_changed_at is whole-second precision (like every other timestamp column on this
+    // table) — control time explicitly so creation and the update below can't land in the same
+    // second and make this assertion flaky.
+    Carbon::setTestNow('2026-01-01 00:00:00');
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+    $originalStamp = $document->status_changed_at;
+
+    Carbon::setTestNow('2026-01-01 00:00:01');
+    $this->actingAs($this->admin)
+        ->put(route('projects.documents.update', [$this->project, $document]), [
+            'name' => $document->name,
+            'content' => $document->content,
+            'priority' => 'low',
+            'task_status' => 'done',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh())
+        ->task_status->toBe('done')
+        ->status_changed_at->not->toEqual($originalStamp);
+
+    Carbon::setTestNow();
 });
 
 it('flashes a "Task updated." confirmation for a task-type document', function () {

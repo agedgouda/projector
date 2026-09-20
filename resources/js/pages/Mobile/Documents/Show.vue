@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import { RefreshCw, User as UserIcon, Calendar } from 'lucide-vue-next';
 import mobileNoteRoutes from '@/routes/mobile/notes';
 import { PRIORITY_LABELS, kanbanDotClasses, priorityDotClasses } from '@/lib/constants';
+import { formatDateMdy } from '@/lib/utils';
 
 interface DocumentItem {
     id: string;
@@ -28,7 +29,7 @@ const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
 
 const formatDate = (value: string | null) => {
     if (!value) { return null; }
-    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatDateMdy(value);
 };
 </script>
 

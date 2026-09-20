@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import DateField from '@/components/DateField.vue';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
-    MultiSelect,
-    type MultiSelectOption,
-} from '@/components/ui/multi-select';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+} from '@/components/ui/select';
 import { mergeAssigneeOptions } from '@/lib/assignees';
-import { RotateCcw, Search, X } from 'lucide-vue-next';
+import { ChevronDown, RotateCcw, Search } from 'lucide-vue-next';
 import { computed, reactive, watch } from 'vue';
 
 export interface TaskSearchFilters {
@@ -17,6 +19,7 @@ export interface TaskSearchFilters {
     priority: string[];
     due_from: string;
     due_to: string;
+    mode: 'due' | 'done';
     project_id: string[];
     category_id: string[];
 }
@@ -79,9 +82,18 @@ const filters = reactive<TaskSearchFilters>({
     priority: props.initialFilters?.priority ?? [],
     due_from: props.initialFilters?.due_from || '',
     due_to: props.initialFilters?.due_to || '',
+    mode: props.initialFilters?.mode ?? 'due',
     project_id: props.initialFilters?.project_id ?? [],
     category_id: props.initialFilters?.category_id ?? [],
 });
+
+// "Due To" becomes "Done To" while Done mode is active, so the label stays accurate to
+// which date field is actually being filtered — same date fields, different meaning
+// depending on mode (see TaskSearchFilters.mode). The first field's own "Due"/"Done" word is
+// the mode dropdown itself (see template) rather than a second computed label.
+const dateToLabel = computed(() =>
+    filters.mode === 'done' ? 'Done To' : 'Due To',
+);
 
 // initialFilters can resolve after this component has already mounted and rendered with
 // defaults — the caller doesn't know whether to restore from the URL, from the server, or not
@@ -94,13 +106,13 @@ watch(
         // Fall back per-field rather than trusting `value` to have every key — a filter set
         // saved (server-side preferences, see TaskReport.vue's loadPersistedFilters()) before
         // a field like category_id existed won't have it, and an unguarded direct assignment
-        // here would leave filters.category_id undefined, crashing chipsFor()'s .includes()
-        // the moment this component re-renders.
+        // here would leave filters.category_id undefined.
         filters.assignee = value.assignee ?? [];
         filters.task_status = value.task_status ?? [];
         filters.priority = value.priority ?? [];
         filters.due_from = value.due_from ?? '';
         filters.due_to = value.due_to ?? '';
+        filters.mode = value.mode === 'done' ? 'done' : 'due';
         filters.project_id = value.project_id ?? [];
         filters.category_id = value.category_id ?? [];
     },
@@ -112,6 +124,7 @@ const snapshot = (): TaskSearchFilters => ({
     priority: [...filters.priority],
     due_from: filters.due_from,
     due_to: filters.due_to,
+    mode: filters.mode,
     project_id: [...filters.project_id],
     category_id: [...filters.category_id],
 });
@@ -126,68 +139,11 @@ const reset = () => {
     filters.priority = [];
     filters.due_from = '';
     filters.due_to = '';
+    filters.mode = 'due';
     filters.project_id = [];
     filters.category_id = [];
     emit('reset', snapshot());
 };
-
-interface FilterChip {
-    id: string;
-    label: string;
-    remove: () => void;
-}
-
-// One chip per individually-selected value (not one per field) — so "Assignee: Alice, Bob"
-// shows and removes as two chips, matching how each was chosen and letting either be dropped
-// without reopening that field's dropdown to find it again.
-const chipsFor = (
-    field:
-        | 'assignee'
-        | 'task_status'
-        | 'priority'
-        | 'project_id'
-        | 'category_id',
-    options: MultiSelectOption[],
-): FilterChip[] =>
-    options
-        .filter((option) => filters[field].includes(option.value))
-        .map((option) => ({
-            id: `${field}:${option.value}`,
-            label: option.label,
-            remove: () => {
-                filters[field] = filters[field].filter(
-                    (value) => value !== option.value,
-                );
-            },
-        }));
-
-const activeChips = computed<FilterChip[]>(() => [
-    ...chipsFor('project_id', projectSelectOptions.value),
-    ...chipsFor('assignee', assigneeOptions.value),
-    ...chipsFor('task_status', statusOptions.value),
-    ...(filters.due_from
-        ? [
-              {
-                  id: 'due_from',
-                  label: `Due from ${filters.due_from}`,
-                  remove: () => {
-                      filters.due_from = '';
-                  },
-              },
-          ]
-        : []),
-    ...(filters.due_to
-        ? [
-              {
-                  id: 'due_to',
-                  label: `Due to ${filters.due_to}`,
-                  remove: () => {
-                      filters.due_to = '';
-                  },
-              },
-          ]
-        : []),
-]);
 </script>
 
 <template>
@@ -235,11 +191,25 @@ const activeChips = computed<FilterChip[]>(() => [
         </div>
 
         <div class="grid gap-2">
-            <Label
-                for="report-due-from"
-                class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
-                >Due From</Label
-            >
+            <div class="flex items-center gap-1">
+                <Select v-model="filters.mode">
+                    <SelectTrigger
+                        class="h-auto w-auto gap-1 border-none bg-transparent p-0 text-[11px] leading-none font-black tracking-widest text-slate-500 uppercase shadow-none data-[size=default]:h-auto [&_svg]:hidden hover:text-slate-700 dark:hover:text-slate-300"
+                    >
+                        {{ filters.mode === 'done' ? 'Done' : 'Due' }}
+                        <ChevronDown class="!block size-3 text-slate-400" />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                        <SelectItem value="due">Due</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Label
+                    for="report-due-from"
+                    class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
+                    >From</Label
+                >
+            </div>
             <DateField
                 id="report-due-from"
                 v-model="filters.due_from"
@@ -253,7 +223,7 @@ const activeChips = computed<FilterChip[]>(() => [
             <Label
                 for="report-due-to"
                 class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
-                >Due To</Label
+                >{{ dateToLabel }}</Label
             >
             <DateField
                 id="report-due-to"
@@ -262,28 +232,6 @@ const activeChips = computed<FilterChip[]>(() => [
                 icon-class="h-4 w-4 text-muted-foreground"
                 trigger-class="h-9 w-full justify-start rounded-md border border-input px-3 text-[13px] shadow-xs hover:bg-accent/50"
             />
-        </div>
-
-        <div
-            v-if="activeChips.length"
-            :class="['flex flex-wrap gap-1.5 sm:col-span-2', formColSpanClass]"
-        >
-            <Badge
-                v-for="chip in activeChips"
-                :key="chip.id"
-                variant="secondary"
-                class="gap-1 pr-1 text-[11px] font-medium"
-            >
-                {{ chip.label }}
-                <button
-                    type="button"
-                    class="rounded-full p-0.5 hover:bg-slate-300/60 dark:hover:bg-white/10"
-                    :aria-label="`Remove ${chip.label}`"
-                    @click="chip.remove"
-                >
-                    <X class="h-3 w-3" />
-                </button>
-            </Badge>
         </div>
 
         <div :class="['flex gap-2 sm:col-span-2', formColSpanClass]">

@@ -8,6 +8,7 @@ import {
     SelectTrigger,
 } from '@/components/ui/select';
 import { Calendar } from 'lucide-vue-next';
+import { formatDateMdy } from '@/lib/utils';
 
 const props = defineProps<{
     doc: ProjectDocument;
@@ -64,7 +65,7 @@ const handleUpdate = (field: string, value: any) => {
 
         <!-- Due date — fixed width, right-justified read-only, a dash when empty. -->
         <div v-if="readOnly" class="flex w-28 items-center justify-end gap-1">
-            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ dueValue || '--' }}</span>
+            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ formatDateMdy(dueValue) || '--' }}</span>
             <Calendar class="h-3 w-3 shrink-0 text-slate-400" />
         </div>
         <div v-else class="flex w-28 items-center">

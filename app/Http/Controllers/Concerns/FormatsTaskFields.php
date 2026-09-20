@@ -45,7 +45,19 @@ trait FormatsTaskFields
             return '—';
         }
 
-        return Carbon::parse($value)->format('M j, Y');
+        return Carbon::parse($value)->format('m/d/Y');
+    }
+
+    /**
+     * Whichever date the report's active Due/Done mode is showing for this task —
+     * due_at (a plain string column) in 'due' mode, status_changed_at (datetime-cast, so
+     * converted to a string here) in 'done' mode. Centralizes the mode ternary once instead
+     * of repeating it — and the due_at/status_changed_at type difference it papers over —
+     * at every export call site.
+     */
+    private function dueOrDoneDateValue(Document $task, string $mode): ?string
+    {
+        return $mode === 'done' ? $task->status_changed_at?->toDateTimeString() : $task->due_at;
     }
 
     /**

@@ -5,6 +5,7 @@ import { Coffee } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue';
 import projectRoutes from '@/routes/projects/index';
+import { formatDateMdy } from '@/lib/utils';
 
 // Demo of dashboard redesign "option 2", now iterated to: one card per project/subproject
 // family, each starting collapsed to just its combined pie chart of not-done tasks — expanding
@@ -102,13 +103,8 @@ function allDeliverables(members: Project[]) {
     return members.flatMap((member) => props.kanbanData[member.id] ?? []);
 }
 
-// No year — these cards are narrow (3-up grid), and the fixed-width date column was eating so
-// much room that task names were truncating down to a handful of characters. Dropping the year
-// (due dates here are always near-term) reclaims that space for the name, which is the part
-// someone's actually trying to read.
 function formatDate(value: string | null) {
-    if (!value) return '—';
-    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return formatDateMdy(value) || '—';
 }
 
 function upcomingDeliverables(members: Project[], limit = 6) {

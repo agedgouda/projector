@@ -81,6 +81,13 @@ const includeDetails = ref(false);
 // match what's currently on screen, not whatever the form happens to hold right now.
 const activeParams = ref<Record<string, string | string[]>>({});
 
+// The Due/Done mode of the last-run search — read from activeParams, same reasoning as
+// above: the table/exports need to reflect what's actually on screen, not whatever the form
+// happens to hold if the user has changed the dropdown without re-searching yet.
+const reportMode = computed<'due' | 'done'>(() =>
+    activeParams.value.mode === 'done' ? 'done' : 'due',
+);
+
 // Mirrors TaskReportTable's own default (due_at/asc) so an export triggered before the
 // user ever clicks a column header still matches what's on screen.
 const currentSort = ref<{ key: SortKey; dir: SortDir }>({
@@ -290,7 +297,7 @@ const ARRAY_FILTER_KEYS = [
     'project_id',
     'category_id',
 ] as const;
-const STRING_FILTER_KEYS = ['due_from', 'due_to'] as const;
+const STRING_FILTER_KEYS = ['due_from', 'due_to', 'mode'] as const;
 
 // The results/hasSearched state above is local to this component instance, which doesn't
 // survive navigating away (e.g. clicking a row) and back — that's a fresh mount, same as
@@ -313,6 +320,7 @@ const filtersFromUrl = (): TaskSearchFilters | null => {
         priority: params.getAll('priority'),
         due_from: params.get('due_from') ?? '',
         due_to: params.get('due_to') ?? '',
+        mode: params.get('mode') === 'done' ? 'done' : 'due',
         project_id: params.getAll('project_id'),
         category_id: params.getAll('category_id'),
     };
@@ -334,6 +342,7 @@ const normalizeFilters = (
         priority: filters.priority ?? [],
         due_from: filters.due_from ?? '',
         due_to: filters.due_to ?? '',
+        mode: filters.mode === 'done' ? 'done' : 'due',
         project_id: filters.project_id ?? [],
         category_id: filters.category_id ?? [],
     };
@@ -642,6 +651,7 @@ defineExpose({
                 :tasks="results"
                 :columns="project.kanban_columns"
                 :uses-external-due-dates="usesExternalDueDates"
+                :mode="reportMode"
                 :has-subprojects="hasSubprojects"
                 :assignee-options="assigneeOptions"
                 :categories="project.categories"

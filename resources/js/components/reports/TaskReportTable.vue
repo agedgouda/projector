@@ -9,6 +9,7 @@ import {
 import { invitationName, type AssigneeOption } from '@/lib/assignees';
 import { kanbanDotClasses } from '@/lib/constants';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { formatDateOnly } from '@/lib/utils';
 import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
@@ -19,6 +20,7 @@ export interface TaskReportRow {
     name: string;
     due_at: string | null;
     external_due_at: string | null;
+    status_changed_at: string | null;
     priority: string | null;
     task_status: string | null;
     assignee_id: number | null;
@@ -47,6 +49,7 @@ export interface TaskReportRow {
 export type SortKey =
     | 'status'
     | 'due_at'
+    | 'status_changed_at'
     | 'external_due_at'
     | 'name'
     | 'assignee'
@@ -57,6 +60,10 @@ const props = defineProps<{
     tasks: TaskReportRow[];
     columns?: KanbanColumnDef[];
     usesExternalDueDates?: boolean;
+    // Which date the primary due-date column is showing/filtering — 'due' (default) shows
+    // due_at, editable inline same as always; 'done' shows the read-only status_changed_at
+    // instead (see ReportController::buildTasksQuery()'s own mode handling).
+    mode?: 'due' | 'done';
     hasSubprojects?: boolean;
     assigneeOptions?: AssigneeOption[];
     // The task family's full tag catalog (see Project::familyCategories()) — offered as
@@ -142,6 +149,13 @@ const assigneeSelectValue = (task: TaskReportRow): string => {
 const sortKey = ref<SortKey>('due_at');
 const sortDir = ref<SortDir>('asc');
 
+// The primary due-date column's own header/sort-toggle follows whichever field it's actually
+// showing — status_changed_at in Done mode, due_at otherwise. Computed once rather than
+// repeating the mode ternary at each of the header's several usages below.
+const dueSortKey = computed<SortKey>(() =>
+    props.mode === 'done' ? 'status_changed_at' : 'due_at',
+);
+
 // The export buttons (see TaskReport.vue) build a fresh document server-side, so they
 // can't just re-sort whatever's already on screen the way this table does — they need
 // to know the current sort to ask the backend to replicate it.
@@ -178,6 +192,8 @@ const sortValue = (
             return statusFor(task.task_status)?.order ?? null;
         case 'due_at':
             return task.due_at;
+        case 'status_changed_at':
+            return task.status_changed_at;
         case 'external_due_at':
             return task.external_due_at;
         case 'name':
@@ -280,18 +296,21 @@ const sortedTasks = computed(() => {
             <button
                 type="button"
                 class="flex flex-col items-center text-center leading-tight hover:text-slate-600 dark:hover:text-slate-300"
-                @click="toggleSort('due_at')"
+                @click="toggleSort(dueSortKey)"
             >
-                <span v-if="usesExternalDueDates">Internal</span>
+                <span v-if="mode === 'done'">Done</span>
+                <span v-else-if="usesExternalDueDates">Internal</span>
                 <span v-else>Due Date</span>
                 <span class="flex items-center gap-1">
-                    <template v-if="usesExternalDueDates">Due</template>
+                    <template v-if="mode !== 'done' && usesExternalDueDates"
+                        >Due</template
+                    >
                     <ChevronUp
-                        v-if="sortKey === 'due_at' && sortDir === 'asc'"
+                        v-if="sortKey === dueSortKey && sortDir === 'asc'"
                         class="h-3 w-3"
                     />
                     <ChevronDown
-                        v-else-if="sortKey === 'due_at' && sortDir === 'desc'"
+                        v-else-if="sortKey === dueSortKey && sortDir === 'desc'"
                         class="h-3 w-3"
                     />
                     <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
@@ -418,21 +437,25 @@ const sortedTasks = computed(() => {
 
             <div class="contents" @click.stop>
                 <DateField
+                    v-if="mode !== 'done'"
                     :model-value="dueDateInputValue(task.due_at)"
                     :show-icon="false"
-                    format="mdy"
                     trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
                     @update:model-value="
                         (val) => emit('update-field', task, 'due_at', val)
                     "
                 />
+                <span
+                    v-else
+                    class="flex w-full min-w-0 items-center text-[13px] text-slate-500 dark:text-slate-400"
+                    >{{ formatDateOnly(task.status_changed_at) || '—' }}</span
+                >
             </div>
 
             <div v-if="usesExternalDueDates" class="contents" @click.stop>
                 <DateField
                     :model-value="dueDateInputValue(task.external_due_at)"
                     :show-icon="false"
-                    format="mdy"
                     trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
                     @update:model-value="
                         (val) =>

@@ -6,7 +6,7 @@ import { ChevronRight, FileText, RefreshCw, Mic } from 'lucide-vue-next';
 import mobileRoutes from '@/routes/mobile';
 import mobileNoteRoutes from '@/routes/mobile/notes';
 import mobileRecordRoutes from '@/routes/mobile/record';
-import { formatProjectLabel } from '@/lib/utils';
+import { formatProjectLabel, formatTimestampMdy } from '@/lib/utils';
 
 const props = defineProps<{
     project: { id: string; name: string; client_name: string | null };
@@ -17,7 +17,7 @@ const title = computed(() => formatProjectLabel(props.project));
 
 const formatDate = (value: string | null) => {
     if (!value) { return ''; }
-    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return formatTimestampMdy(value);
 };
 </script>
 

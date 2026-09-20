@@ -8,7 +8,7 @@ import { PRIORITY_LABELS, priorityClasses, kanbanClasses, kanbanDotClasses } fro
 import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED } from '@/lib/flat-ui';
 import { Badge } from '@/components/ui/badge';
 
-import { formatDate } from '@/lib/utils';
+import { formatDateMdy, formatTimestampMdy } from '@/lib/utils';
 
 import { useDocumentActions } from '@/composables/useDocumentActions';
 
@@ -91,7 +91,7 @@ const { navigateToDetails } = useDocumentActions({
                 </div>
 
                 <div class="w-[100px] text-[11px] font-mono text-slate-400">
-                    {{ formatDate(task.due_at) }}
+                    {{ formatDateMdy(task.due_at) }}
                 </div>
 
                 <div class="text-slate-300 group-hover:text-slate-500 transition-colors">
@@ -115,7 +115,7 @@ const { navigateToDetails } = useDocumentActions({
                         Details
                     </button>
 
-                    <span class="text-[10px] text-slate-400">Created {{ new Date(task.created_at).toLocaleDateString() }}</span>
+                    <span class="text-[10px] text-slate-400">Created {{ formatTimestampMdy(task.created_at) }}</span>
                 </div>
             </div>
         </div>

@@ -309,7 +309,6 @@ onMounted(() => {
                                 <DateField
                                     :model-value="dueAtProxy"
                                     :disabled="project.inactive"
-                                    format="mdy"
                                     placeholder="MM/DD/YYYY"
                                     align="end"
                                     @update:model-value="
@@ -350,7 +349,6 @@ onMounted(() => {
                                             : ''
                                     "
                                     :disabled="project.inactive"
-                                    format="mdy"
                                     placeholder="MM/DD/YYYY"
                                     align="end"
                                     @update:model-value="
@@ -523,7 +521,6 @@ onMounted(() => {
                                 <DateField
                                     :model-value="startAtProxy"
                                     :disabled="project.inactive"
-                                    format="mdy"
                                     placeholder="MM/DD/YYYY"
                                     align="end"
                                     @update:model-value="
@@ -559,7 +556,6 @@ onMounted(() => {
                                 <DateField
                                     :model-value="dueAtProxy"
                                     :disabled="project.inactive"
-                                    format="mdy"
                                     placeholder="MM/DD/YYYY"
                                     align="end"
                                     @update:model-value="

@@ -44,6 +44,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, nextTick, reactive, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import { formatTimestampMdy } from '@/lib/utils';
 
 const props = withDefaults(
     defineProps<{
@@ -545,13 +546,7 @@ const createTask = async () => {
     }
 };
 
-const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
-};
+const formatDate = formatTimestampMdy;
 
 // `document.type` is a raw catalog key (e.g. "task", "action_items"), not already a display
 // label — used only for the delete confirmation's title ("Delete Task", not "Delete
@@ -780,7 +775,6 @@ const handleUpdate = (field: string, value: any) => {
                                                 : ''
                                         "
                                         align="end"
-                                        format="mdy"
                                         icon-class="h-3.5 w-3.5 text-gray-400"
                                         trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
                                         @update:model-value="
@@ -808,7 +802,6 @@ const handleUpdate = (field: string, value: any) => {
                                                 : ''
                                         "
                                         align="end"
-                                        format="mdy"
                                         icon-class="h-3.5 w-3.5 text-gray-400"
                                         trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
                                         @update:model-value="

@@ -58,7 +58,7 @@ class RecordingIntakeService
         $document = DB::transaction(function () use ($project, $audio, $sizeBytes, $name, $recordedAt, $source) {
             $document = $project->documents()->create([
                 'type' => config('workflow.intake_key'),
-                'name' => $name ?? 'Recording — '.now()->format('M j, Y g:ia'),
+                'name' => $name ?? 'Recording — '.now()->format('m/d/Y g:ia'),
                 'content' => '',
                 'processed_at' => now(),
                 'metadata' => [

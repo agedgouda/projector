@@ -71,23 +71,40 @@ export function htmlPreviewText(
     return text.slice(0, maxLength).trimEnd() + '…';
 }
 
-// Formats a calendar date (a plain `YYYY-MM-DD` value, or a timestamp whose time-of-day is
-// irrelevant — e.g. a stored due_at/start_at) as a local date without shifting it by a day.
-// `new Date('2026-09-01')` parses the string as UTC midnight, and toLocaleDateString() then
-// renders the *previous* day in any timezone behind UTC — parsing the y/m/d components
-// directly into a local Date avoids that entirely.
+// The one place a calendar date (a plain `YYYY-MM-DD` value, or a timestamp whose time-of-day
+// is irrelevant) becomes user-visible numeric text: always MM/DD/YYYY, never ISO. Pure string
+// slicing rather than `new Date()`, so there's no timezone shift.
+export const formatDateMdy = (value: string | null | undefined): string => {
+    if (!value) return '';
+    const [year, month, day] = value.slice(0, 10).split('-');
+    return `${month}/${day}/${year}`;
+};
+
+// A real instant (created_at, updated_at, started_at) rendered as a local-timezone
+// MM/DD/YYYY — the counterpart to formatDateMdy for values whose time-of-day matters to
+// which calendar day they land on.
+export const formatTimestampMdy = (value: string | Date | null | undefined): string => {
+    if (!value) return '';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${month}/${day}/${date.getFullYear()}`;
+};
+
+// A calendar date (a plain `YYYY-MM-DD` value, or a timestamp whose time-of-day is
+// irrelevant — e.g. a stored due_at/start_at) as MM/DD/YYYY, optionally prefixed with the
+// weekday. The weekday is derived from the y/m/d components directly so it can't shift a day.
 export const formatDateOnly = (
     value: string | null | undefined,
     options?: { weekday?: boolean },
 ): string => {
     if (!value) return '';
+    const formatted = formatDateMdy(value);
+    if (!options?.weekday) return formatted;
     const [year, month, day] = value.slice(0, 10).split('-').map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
-        ...(options?.weekday ? { weekday: 'short' as const } : {}),
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
+    const weekday = new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'short' });
+    return `${weekday}, ${formatted}`;
 };
 
 export const formatDate = (dateString: string | null) => {
@@ -115,8 +132,5 @@ export const formatDate = (dateString: string | null) => {
     }
 
     // Otherwise, show the date
-    return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-    }).format(date);
+    return formatTimestampMdy(date);
 };

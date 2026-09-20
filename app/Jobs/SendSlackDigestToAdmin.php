@@ -148,7 +148,7 @@ class SendSlackDigestToAdmin implements ShouldQueue
             ->get();
 
         return $upcoming->map(function (Document $document) {
-            $dueLabel = Carbon::parse($document->due_at)->format('M j');
+            $dueLabel = Carbon::parse($document->due_at)->format('m/d/Y');
             $project = $document->project->name ?? 'Unknown project';
 
             return "• {$this->taskLink($document)} — {$project} (due {$dueLabel})";

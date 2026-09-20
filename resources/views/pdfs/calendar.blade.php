@@ -266,7 +266,7 @@
         @else
             <table>
                 <tr>
-                    <td>Generated {{ now()->format('F j, Y') }}</td>
+                    <td>Generated {{ now()->format('m/d/Y') }}</td>
                     <td style="text-align: right;">Page <span class="page-number"></span></td>
                 </tr>
             </table>

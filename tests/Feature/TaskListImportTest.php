@@ -12,6 +12,7 @@ use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
@@ -261,10 +262,21 @@ it('creates an import document and one task per row', function () {
 });
 
 it('updates an existing task instead of creating a duplicate when a re-imported row matches on name and due date', function () {
+    // documents.status_changed_at (like every other timestamp column on this table) is
+    // whole-second precision — two real requests fired back to back in a fast test run can
+    // otherwise land in the same second and produce identical stamps, so time is controlled
+    // explicitly here rather than relied on to have actually elapsed between the two imports.
+    Carbon::setTestNow('2026-01-01 00:00:00');
     $this->actingAs($this->admin)
         ->postJson(route('projects.task-lists.store', $this->project), importPayload())
         ->assertSuccessful();
 
+    $statusChangedAtAfterFirstImport = Document::where('type', 'task')
+        ->where('name', 'Write report')
+        ->first()
+        ->status_changed_at;
+
+    Carbon::setTestNow('2026-01-02 00:00:00');
     $response = $this->actingAs($this->admin)
         ->postJson(route('projects.task-lists.store', $this->project), importPayload([
             'rows' => [
@@ -281,6 +293,15 @@ it('updates an existing task instead of creating a duplicate when a re-imported 
     expect($tasks)->toHaveCount(1)
         ->and($tasks->first()->priority)->toBe('low')
         ->and($tasks->first()->task_status)->toBe('done');
+
+    // Proves DocumentObserver::updating() catches this job's forceFill()->save() write too, not
+    // just controller-driven updates — the whole reason status_changed_at is stamped from the
+    // observer rather than inline at each of task_status's several write sites.
+    expect($tasks->first()->status_changed_at)
+        ->not->toBeNull()
+        ->not->toEqual($statusChangedAtAfterFirstImport);
+
+    Carbon::setTestNow();
 });
 
 it('creates a separate task, not an update, when a re-imported row has the same name but a different due date', function () {

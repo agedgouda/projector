@@ -5,7 +5,7 @@ import { computed, ref, watch } from 'vue';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
+import { cn, formatDateMdy } from '@/lib/utils';
 
 // A single shared date-editing control, replacing the native `<input type="date">` used
 // (each with its own copy of the same shrink-the-icon or overlay-an-invisible-input
@@ -18,11 +18,6 @@ const props = withDefaults(
         modelValue: string | null | undefined;
         disabled?: boolean;
         placeholder?: string;
-        // How the built-in trigger (ignored if the default slot is overridden) renders a
-        // non-empty value — 'iso' preserves what every dense-row usage already showed
-        // (e.g. TaskRowFields' read-only span next to this same field), 'mdy' matches
-        // DocumentSidebar's own formatDateDisplay().
-        format?: 'iso' | 'mdy';
         showIcon?: boolean;
         iconClass?: string;
         triggerClass?: string;
@@ -34,7 +29,6 @@ const props = withDefaults(
     {
         disabled: false,
         placeholder: '--',
-        format: 'iso',
         showIcon: true,
         align: 'start',
     },
@@ -71,20 +65,15 @@ const mdyToIso = (raw: string): string => {
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
-const isoToMdy = (iso: string): string => {
-    const [year, month, day] = iso.split('-');
-    return `${month}/${day}/${year}`;
-};
-
 // Edited independently of modelValue until Enter/blur commits a valid date — a v-model
 // bound straight to the parsed value would fight every keystroke of a partially-typed date.
-// Always shown as MM/DD/YYYY, regardless of the `format` this field displays its trigger
-// in — the ISO value underneath is an implementation detail no one types or reads directly.
-const textValue = ref(props.modelValue ? isoToMdy(props.modelValue) : '');
+// Always shown as MM/DD/YYYY — the ISO value underneath is an implementation detail no one
+// types or reads directly.
+const textValue = ref(formatDateMdy(props.modelValue));
 watch(
     () => props.modelValue,
     (value) => {
-        textValue.value = value ? isoToMdy(value) : '';
+        textValue.value = formatDateMdy(value);
     },
 );
 
@@ -100,17 +89,11 @@ const commitText = () => {
         emit('update:modelValue', iso);
     } catch {
         // Revert rather than emit garbage.
-        textValue.value = props.modelValue ? isoToMdy(props.modelValue) : '';
+        textValue.value = formatDateMdy(props.modelValue);
     }
 };
 
-const displayValue = computed(() => {
-    if (!props.modelValue) return props.placeholder;
-    if (props.format === 'iso') return props.modelValue;
-
-    const [year, month, day] = props.modelValue.split('-');
-    return `${month}/${day}/${year}`;
-});
+const displayValue = computed(() => formatDateMdy(props.modelValue) || props.placeholder);
 </script>
 
 <template>

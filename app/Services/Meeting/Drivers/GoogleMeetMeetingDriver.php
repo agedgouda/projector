@@ -106,8 +106,8 @@ class GoogleMeetMeetingDriver implements MeetingDriver
                 'title' => 'Google Meet — '.($conf['startTime']
                     ? (new \DateTime($conf['startTime'], new \DateTimeZone('UTC')))
                         ->setTimezone(new \DateTimeZone('America/Los_Angeles'))
-                        ->format('n/j/Y g:ia')
-                    : now()->setTimezone('America/Los_Angeles')->format('n/j/Y')),
+                        ->format('m/d/Y g:ia')
+                    : now()->setTimezone('America/Los_Angeles')->format('m/d/Y')),
                 'started_at' => $conf['startTime'] ?? now()->toISOString(),
                 'duration_minutes' => isset($conf['startTime'], $conf['endTime'])
                     ? (int) round((strtotime($conf['endTime']) - strtotime($conf['startTime'])) / 60)

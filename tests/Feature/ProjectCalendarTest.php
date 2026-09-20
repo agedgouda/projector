@@ -362,7 +362,7 @@ it('lays out the calendar csv as flat Date/Title/Tags rows, joining multiple tag
         ->streamedContent();
 
     expect($csv)->toContain("Date,Title,Tags\n")
-        ->toContain('"Sep 1, 2026","Multi-tag Task","Launch, Press"');
+        ->toContain('09/01/2026,"Multi-tag Task","Launch, Press"');
 });
 
 it('lays out the calendar excel workbook as flat Date/Title/Tags rows', function () {
@@ -389,7 +389,7 @@ it('lays out the calendar excel workbook as flat Date/Title/Tags rows', function
     expect($sheet->getCell('A2')->getValue())->toBe('Date')
         ->and($sheet->getCell('B2')->getValue())->toBe('Title')
         ->and($sheet->getCell('C2')->getValue())->toBe('Tags')
-        ->and($sheet->getCell('A3')->getValue())->toBe('Sep 1, 2026')
+        ->and($sheet->getCell('A3')->getValue())->toBe('09/01/2026')
         ->and($sheet->getCell('B3')->getValue())->toBe('Own Event')
         ->and($sheet->getCell('C3')->getValue())->toBe('Launch');
 });
@@ -474,9 +474,9 @@ it('includes items due in every month, not just one', function () {
     $csv = $response->streamedContent();
 
     expect($csv)->toContain('September Event')
-        ->toContain('Sep 1, 2026')
+        ->toContain('09/01/2026')
         ->toContain('October Event')
-        ->toContain('Oct 1, 2026');
+        ->toContain('10/01/2026');
 });
 
 it('excludes an item due last month from the calendar csv export', function () {
@@ -588,7 +588,7 @@ it('defaults to the current month when none is requested', function () {
     $csv = $response->streamedContent();
 
     expect($csv)->toContain('Today Event')
-        ->toContain(now()->format('M j, Y'));
+        ->toContain(now()->format('m/d/Y'));
 });
 
 it('filters the calendar csv export down to events with a selected tag', function () {
@@ -778,8 +778,8 @@ it('formats an item by external_due_at, not due_at, when the org uses external d
         ->streamedContent();
 
     expect($csv)->toContain('Dual Date Event')
-        ->toContain('Oct 1, 2026')
-        ->not->toContain('Sep 1, 2026');
+        ->toContain('10/01/2026')
+        ->not->toContain('09/01/2026');
 });
 
 it('still includes an item that only has due_at when the org uses external due dates', function () {

@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import PublicLayout from '@/layouts/PublicLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Calendar, ArrowLeft } from 'lucide-vue-next';
+import { formatDateMdy } from '@/lib/utils';
 
 interface BlogPost {
     id: string;
@@ -23,7 +24,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const formatDate = (date: string | null) => {
     if (!date) return null;
-    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return formatDateMdy(date);
 };
 </script>
 

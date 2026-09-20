@@ -709,7 +709,7 @@ class ProjectController extends Controller
     {
         $raw = $this->resolveEffectiveDueDate($item, $usesExternalDueDates);
 
-        return $raw !== null ? \Illuminate\Support\Carbon::parse(substr($raw, 0, 10))->format('M j, Y') : '';
+        return $raw !== null ? \Illuminate\Support\Carbon::parse(substr($raw, 0, 10))->format('m/d/Y') : '';
     }
 
     /**

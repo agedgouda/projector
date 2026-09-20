@@ -162,7 +162,7 @@
         @else
             <table>
                 <tr>
-                    <td>Generated {{ now()->format('F j, Y') }}</td>
+                    <td>Generated {{ now()->format('m/d/Y') }}</td>
                     <td style="text-align: right;">Page <span class="page-number"></span></td>
                 </tr>
             </table>
@@ -179,7 +179,7 @@
                     <th>Project</th>
                 @endif
                 <th>Status</th>
-                <th>{{ $usesExternalDueDates ? 'Internal Due' : 'Due Date' }}</th>
+                <th>{{ $isDoneMode ? 'Done Date' : ($usesExternalDueDates ? 'Internal Due' : 'Due Date') }}</th>
                 @if ($usesExternalDueDates)
                     <th>External Due</th>
                 @endif
@@ -198,15 +198,16 @@
                     $column = $columns->firstWhere('key', $task->task_status);
                     $assigneeName = $task->assignee?->name
                         ?? ($task->pendingAssignee ? trim(($task->pendingAssignee->first_name ?? '').' '.($task->pendingAssignee->last_name ?? '')) ?: $task->pendingAssignee->email : 'Unassigned');
+                    $dueOrDoneValue = $isDoneMode ? $task->status_changed_at : $task->due_at;
                 @endphp
                 <tr>
                     @if ($hasSubprojects)
                         <td>{{ $projectNames[$task->project_id] ?? '—' }}</td>
                     @endif
                     <td>{{ $column?->label ?? $task->task_status ?? '—' }}</td>
-                    <td>{{ $task->due_at ? \Illuminate\Support\Carbon::parse($task->due_at)->format('M j, Y') : '—' }}</td>
+                    <td>{{ $dueOrDoneValue ? \Illuminate\Support\Carbon::parse($dueOrDoneValue)->format('m/d/Y') : '—' }}</td>
                     @if ($usesExternalDueDates)
-                        <td>{{ $task->external_due_at ? \Illuminate\Support\Carbon::parse($task->external_due_at)->format('M j, Y') : '—' }}</td>
+                        <td>{{ $task->external_due_at ? \Illuminate\Support\Carbon::parse($task->external_due_at)->format('m/d/Y') : '—' }}</td>
                     @endif
                     <td>{{ $task->name }}</td>
                     <td>{{ $assigneeName }}</td>

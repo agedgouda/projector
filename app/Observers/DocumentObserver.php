@@ -80,6 +80,15 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
             $document->task_status = 'todo'; // Keep both in sync for your board
         }
 
+        // Every task gets an initial status_changed_at the moment it's created — not just ones
+        // defaulted to 'todo' above, since a task created with an explicit status still has a
+        // real "since when" for that status. wasChanged()/isDirty() are meaningless here (a
+        // brand-new model has no prior state to diff against), so this is unconditional rather
+        // than gated on a change — see updating() below for the case that actually changes.
+        if ($isTask && is_null($document->status_changed_at)) {
+            $document->status_changed_at = now();
+        }
+
         // A root-level task's content is complete the moment it's typed/entered — it's never
         // waiting on an AI step the way a generated child document is — so it should never read
         // as "processing" to useAiProcessing.ts's `processed_at === null` check. Root-level only
@@ -88,6 +97,28 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         // stamping it once *that* document's own generation actually finishes.
         if ($isTask && is_null($document->parent_id) && is_null($document->processed_at)) {
             $document->processed_at = now();
+        }
+    }
+
+    /**
+     * Stamps status_changed_at whenever task_status actually changes — covers every write site
+     * (the full document edit form, the Kanban/task-attribute PATCH, and the bulk import/Slack
+     * jobs that write via forceFill()) with no per-call-site code, the same reason updated()
+     * below reacts to specific fields via the model rather than each controller/job stamping it
+     * individually.
+     *
+     * Deliberately isDirty() in updating() here, not wasChanged() in updated() like the
+     * content/processed_at branches below — those defer to after the transaction commits
+     * because they trigger external side effects (a dispatched job, a broadcast event) that
+     * must not fire if the save rolls back. A plain column has no such requirement, and setting
+     * it here lets it ride into the same UPDATE statement already in flight (exactly like
+     * editor_id, set the same way in Document::booted()) instead of costing a second, wasted
+     * query the way setting it in updated() would (dirty-tracking has already reset by then).
+     */
+    public function updating(Document $document): void
+    {
+        if ($this->isTaskType($document) && $document->isDirty('task_status')) {
+            $document->status_changed_at = now();
         }
     }
 

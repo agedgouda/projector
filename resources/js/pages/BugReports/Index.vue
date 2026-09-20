@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { type BreadcrumbItem } from '@/types';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { formatDateMdy } from '@/lib/utils';
 import bugReportsRoutes from '@/routes/bug-reports/index';
 
 interface BugReport {
@@ -66,7 +67,7 @@ const toggleStatus = (report: BugReport) => {
                                 <h2 class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ report.title }}</h2>
                             </div>
                             <p class="text-[11px] text-slate-400">
-                                {{ report.reporter }} &middot; {{ report.reporter_email }} &middot; {{ report.created_at }}
+                                {{ report.reporter }} &middot; {{ report.reporter_email }} &middot; {{ formatDateMdy(report.created_at) }} {{ report.created_at.slice(11) }}
                             </p>
                         </div>
                         <Button
