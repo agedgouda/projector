@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Contracts\LlmDriver;
+use App\Models\AiTemplate;
 use App\Models\Category;
 use App\Models\KanbanColumn;
 use App\Models\Project;
@@ -23,7 +24,12 @@ use Illuminate\Support\Facades\Log;
  */
 class ReportRequestParser
 {
-    private const SYSTEM_PROMPT = <<<'PROMPT'
+    /**
+     * Used only if the 'slack_report_request' AiTemplate row is ever missing or blank (e.g. a
+     * fresh environment before migrations seed it) — the row, editable by super-admins in the
+     * Transformation Library, is the normal source of both prompts.
+     */
+    private const DEFAULT_SYSTEM_PROMPT = <<<'PROMPT'
         You turn a person's plain-English request for a task report into structured filters. The
         request comes from a chat message, so it may be terse or informal.
 
@@ -44,6 +50,16 @@ class ReportRequestParser
           or "mine" or "I". Use "Unassigned" for tasks with nobody assigned.
         - statuses: use the status key from the list (the value before the colon).
         - format: "excel", "csv", or "pdf" if the request asks for one, otherwise null.
+        PROMPT;
+
+    private const DEFAULT_USER_PROMPT = <<<'PROMPT'
+        Today: {{today}}
+        People: {{people}}
+        Statuses (key: label): {{statuses}}
+        Tags: {{tags}}
+        Projects: {{projects}}
+
+        Request: {{request}}
         PROMPT;
 
     public function __construct(
@@ -95,17 +111,26 @@ class ReportRequestParser
     {
         $today = Carbon::now($user->effectiveTimezone());
 
-        $lists = [
-            'Today: '.$today->format('Y-m-d (l)'),
-            'People: '.($people === [] ? 'none' : implode(', ', array_column($people, 'name'))),
-            'Statuses (key: label): '.($columns->isEmpty() ? 'none' : $columns->map(fn (KanbanColumn $column) => "{$column->key}: {$column->label}")->implode(', ')),
-            'Tags: '.($categories->isEmpty() ? 'none' : $categories->pluck('name')->implode(', ')),
-            'Projects: '.implode(', ', array_values($projectNames)),
-        ];
+        [$systemPrompt, $userTemplate] = $this->prompts();
 
-        $userPrompt = implode("\n", $lists)."\n\nRequest: ".$text;
+        // One pass (strtr) rather than sequential replaces, so text a person types that happens to
+        // contain a placeholder like "{{people}}" is never expanded a second time.
+        $userPrompt = strtr($userTemplate, [
+            '{{today}}' => $today->format('Y-m-d (l)'),
+            '{{people}}' => $people === [] ? 'none' : implode(', ', array_column($people, 'name')),
+            '{{statuses}}' => $columns->isEmpty() ? 'none' : $columns->map(fn (KanbanColumn $column) => "{$column->key}: {$column->label}")->implode(', '),
+            '{{tags}}' => $categories->isEmpty() ? 'none' : $categories->pluck('name')->implode(', '),
+            '{{projects}}' => implode(', ', array_values($projectNames)),
+            '{{request}}' => $text,
+        ]);
 
-        $result = $this->llmDriver->call(self::SYSTEM_PROMPT, $userPrompt, $this->schema());
+        // An edited template that dropped {{request}} would otherwise silently ignore what the
+        // person typed.
+        if (! str_contains($userTemplate, '{{request}}')) {
+            $userPrompt .= "\n\nRequest: ".$text;
+        }
+
+        $result = $this->llmDriver->call($systemPrompt, $userPrompt, $this->schema());
 
         if (($result['status'] ?? '') !== 'success' || ! is_array($result['content'] ?? null)) {
             Log::warning('ReportRequestParser LLM failure', ['error' => $result['message'] ?? 'unknown']);
@@ -125,6 +150,26 @@ class ReportRequestParser
 
         /** @var array<string, mixed> */
         return $result['content'];
+    }
+
+    /**
+     * The 'slack_report_request' AiTemplate's system and user prompts, editable by super-admins in
+     * the Transformation Library — each falling back to its built-in default independently if
+     * that half is missing or blank.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function prompts(): array
+    {
+        $template = AiTemplate::where('type', 'slack_report_request')->first();
+
+        $system = $template?->system_prompt;
+        $user = $template?->user_prompt;
+
+        return [
+            is_string($system) && trim($system) !== '' ? $system : self::DEFAULT_SYSTEM_PROMPT,
+            is_string($user) && trim($user) !== '' ? $user : self::DEFAULT_USER_PROMPT,
+        ];
     }
 
     /**

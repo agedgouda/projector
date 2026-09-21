@@ -2,6 +2,7 @@
 
 use App\Contracts\LlmDriver;
 use App\Jobs\GenerateReportFromSlackCommand;
+use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
@@ -756,4 +757,107 @@ it('says so when there are no events to put on a calendar', function () {
 
     assertNoReportUploaded();
     assertReportReply('no upcoming events');
+});
+
+// ── Prompts are admin-editable ──────────────────────────────────────────────
+
+/**
+ * Runs a request through the job while capturing the exact system/user prompts the AI is sent.
+ *
+ * @return array{system: string, user: string}
+ */
+function promptsSentFor(string $text): array
+{
+    $sent = [];
+
+    test()->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->andReturnUsing(function (string $system, string $user) use (&$sent) {
+            $sent = ['system' => $system, 'user' => $user];
+
+            return ['status' => 'success', 'content' => [
+                'assignees' => [], 'statuses' => [], 'priorities' => [], 'tags' => [], 'projects' => [],
+                'date_from' => null, 'date_to' => null, 'date_kind' => null, 'format' => null,
+            ]];
+        });
+
+    createReportTask('Ship the thing');
+    fakeSlackFileUpload();
+
+    runReportJob($text);
+
+    return $sent;
+}
+
+it('seeds the report-request template so super-admins have something to edit', function () {
+    $template = AiTemplate::where('type', 'slack_report_request')->first();
+
+    expect($template)->not->toBeNull()
+        ->and($template->organization_id)->toBeNull()
+        ->and($template->system_prompt)->toContain('date_kind')
+        ->and($template->user_prompt)->toContain('{{request}}');
+});
+
+it('sends the AI the system and user prompts from the template', function () {
+    AiTemplate::where('type', 'slack_report_request')->update([
+        'system_prompt' => 'CUSTOM SYSTEM MARKER',
+        'user_prompt' => 'CUSTOM USER MARKER for {{request}}',
+    ]);
+
+    $sent = promptsSentFor('penny stuff');
+
+    expect($sent['system'])->toBe('CUSTOM SYSTEM MARKER')
+        ->and($sent['user'])->toBe('CUSTOM USER MARKER for penny stuff');
+});
+
+it('fills every placeholder in an edited user prompt', function () {
+    $this->travelTo('2026-09-21 10:00:00');
+    $this->project->categories()->create(['name' => 'Marketing', 'color' => '#ff0000']);
+    AiTemplate::where('type', 'slack_report_request')->update([
+        'user_prompt' => 'D={{today}}|P={{people}}|S={{statuses}}|T={{tags}}|J={{projects}}|R={{request}}',
+    ]);
+
+    $sent = promptsSentFor('penny stuff');
+
+    expect($sent['user'])->toContain('D=2026-09-21 (Monday)')
+        ->and($sent['user'])->toContain('P='.$this->user->name)
+        ->and($sent['user'])->toContain('S=todo: To Do, in_progress: In Progress')
+        ->and($sent['user'])->toContain('T=Marketing')
+        ->and($sent['user'])->toContain('J=Test Project')
+        ->and($sent['user'])->toEndWith('R=penny stuff')
+        ->and($sent['user'])->not->toContain('{{');
+});
+
+it('still passes the request along when an edited user prompt forgot the placeholder for it', function () {
+    AiTemplate::where('type', 'slack_report_request')->update(['user_prompt' => 'Just be helpful.']);
+
+    $sent = promptsSentFor('penny stuff');
+
+    expect($sent['user'])->toContain('Just be helpful.')
+        ->and($sent['user'])->toContain('Request: penny stuff');
+});
+
+it('does not expand a placeholder someone types into their request', function () {
+    $sent = promptsSentFor('show {{people}} tasks');
+
+    expect($sent['user'])->toContain('Request: show {{people}} tasks');
+});
+
+it('falls back to the built-in prompts if the template row is missing', function () {
+    AiTemplate::where('type', 'slack_report_request')->delete();
+
+    $sent = promptsSentFor('penny stuff');
+
+    expect($sent['system'])->toContain('You turn a person\'s plain-English request')
+        ->and($sent['user'])->toContain('Request: penny stuff');
+});
+
+it('falls back to the built-in prompt for whichever half of the template is blank', function () {
+    AiTemplate::where('type', 'slack_report_request')->update(['system_prompt' => '   ', 'user_prompt' => 'CUSTOM USER {{request}}']);
+
+    $sent = promptsSentFor('penny stuff');
+
+    expect($sent['system'])->toContain('You turn a person\'s plain-English request')
+        ->and($sent['user'])->toBe('CUSTOM USER penny stuff');
 });

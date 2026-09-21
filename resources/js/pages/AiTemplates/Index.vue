@@ -100,6 +100,7 @@ const SYSTEM_TEMPLATE_TYPES = [
     'spreadsheet_column_classification',
     'slack_task_extraction',
     'slack_event_extraction',
+    'slack_report_request',
 ];
 
 const buildSection = (items: AiTemplateWithPerms[]) => {

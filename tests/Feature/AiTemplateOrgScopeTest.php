@@ -700,3 +700,60 @@ it('super-admin can edit the slack event-extraction rule', function () {
 
     expect($template->fresh()->user_prompt)->toBe('Extract only a title, nothing else.');
 });
+
+it('excludes the internal slack report-request template from an org-admin\'s listing', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $response = $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->not->toContain('Slack /report Request Interpretation');
+});
+
+it('super-admin sees the internal slack report-request template', function () {
+    setPermissionsTeamId(null);
+
+    $response = $this->actingAs($this->superAdmin)
+        ->get(route('transformation-library.index'));
+
+    $response->assertOk();
+
+    $names = collect($response->original->getData()['page']['props']['templates'])->pluck('name');
+    expect($names)->toContain('Slack /report Request Interpretation');
+});
+
+it('super-admin can edit both prompts of the slack report-request template', function () {
+    setPermissionsTeamId(null);
+
+    $template = AiTemplate::where('type', 'slack_report_request')->firstOrFail();
+
+    $this->actingAs($this->superAdmin)
+        ->put(route('transformation-library.update', $template), [
+            'name' => $template->name,
+            'system_prompt' => 'Read the request carefully.',
+            'user_prompt' => 'Request: {{request}}',
+        ])
+        ->assertRedirect();
+
+    expect($template->fresh()->system_prompt)->toBe('Read the request carefully.')
+        ->and($template->fresh()->user_prompt)->toBe('Request: {{request}}');
+});
+
+it('does not let an org-admin edit the slack report-request template', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $template = AiTemplate::where('type', 'slack_report_request')->firstOrFail();
+
+    $this->actingAs($this->orgAAdmin)
+        ->put(route('transformation-library.update', $template), [
+            'name' => $template->name,
+            'system_prompt' => 'changed',
+            'user_prompt' => 'changed',
+        ])
+        ->assertNotFound();
+
+    expect($template->fresh()->system_prompt)->not->toBe('changed');
+});
