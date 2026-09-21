@@ -1,3 +1,4 @@
+import { flushSaveReports } from '@/lib/clientLog';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { configureEcho } from '@laravel/echo-vue';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -111,7 +112,9 @@ function queueStaleAssetReport(report: StaleAssetReport): void {
 async function flushPendingStaleAssetReports(): Promise<void> {
     let pending: StaleAssetReport[];
     try {
-        pending = JSON.parse(localStorage.getItem(STALE_ASSET_PENDING_KEY) ?? '[]');
+        pending = JSON.parse(
+            localStorage.getItem(STALE_ASSET_PENDING_KEY) ?? '[]',
+        );
     } catch {
         return;
     }
@@ -137,7 +140,10 @@ async function flushPendingStaleAssetReports(): Promise<void> {
     }
 }
 
-function reportStaleAssetAndReload(chunk: string, error: unknown): Promise<never> {
+function reportStaleAssetAndReload(
+    chunk: string,
+    error: unknown,
+): Promise<never> {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`Stale asset chunk failed to load (${chunk}):`, error);
 
@@ -149,7 +155,9 @@ function reportStaleAssetAndReload(chunk: string, error: unknown): Promise<never
     });
     flushPendingStaleAssetReports().catch(() => {});
 
-    const lastReloadAt = Number(sessionStorage.getItem(STALE_ASSET_RELOAD_KEY) ?? 0);
+    const lastReloadAt = Number(
+        sessionStorage.getItem(STALE_ASSET_RELOAD_KEY) ?? 0,
+    );
     if (Date.now() - lastReloadAt < STALE_ASSET_RELOAD_COOLDOWN_MS) {
         return Promise.reject(error);
     }
@@ -163,6 +171,7 @@ function reportStaleAssetAndReload(chunk: string, error: unknown): Promise<never
 // network was still down at the moment of failure) — every successful app boot gets another
 // chance to flush them.
 flushPendingStaleAssetReports().catch(() => {});
+flushSaveReports().catch(() => {});
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

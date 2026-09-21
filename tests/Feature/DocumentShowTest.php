@@ -407,3 +407,68 @@ it('accepts a project\'s custom kanban column as task_status', function () {
 
     expect($document->fresh()->task_status)->toBe('blocked');
 });
+
+it('saves task attributes for a JSON caller and answers with a confirmation instead of a redirect', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'priority' => 'high',
+            'task_status' => 'done',
+        ])
+        ->assertOk()
+        ->assertExactJson(['message' => 'Task updated.']);
+
+    expect($document->fresh())
+        ->priority->toBe('high')
+        ->task_status->toBe('done');
+});
+
+it('answers a JSON attribute save that fails validation with a 422 and saves nothing', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'priority' => 'high',
+            'task_status' => 'not-a-real-column',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('task_status');
+
+    expect($document->fresh())
+        ->priority->toBe('low')
+        ->task_status->toBe('todo');
+});
+
+it('still redirects an Inertia attribute save as before', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), ['priority' => 'high'])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Task updated.');
+});

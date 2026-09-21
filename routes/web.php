@@ -38,7 +38,9 @@ use App\Http\Controllers\TaskListImportController;
 use App\Http\Controllers\TusUploadController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 Route::get('/invite/{token}', [InvitationController::class, 'accept'])
@@ -69,6 +71,25 @@ Route::post('/client-logs/create-sheet-blocked', function (Request $request) {
 
     return response()->noContent();
 })->middleware(['auth', 'throttle:20,1'])->name('client-logs.create-sheet-blocked');
+
+// The browser's own account of a save that didn't work (see saveRecord() in serialVisits.ts) —
+// the failures the server can never log itself, because the request never reached it (network
+// down, cancelled, session expired and redirected to login). Like stale-asset above it isn't behind
+// `auth` or CSRF: an expired session is one of the things being reported.
+Route::post('/client-logs/record-save', function (Request $request, \App\Services\Logging\RecordSaveLogger $log) {
+    $reportedSaveId = $request->input('save_id');
+
+    $log->warning('client-reported: '.Str::limit((string) $request->input('event', 'unknown'), 40, ''), array_filter([
+        'save_id' => is_string($reportedSaveId) ? Str::limit($reportedSaveId, 64, '') : null,
+    ]) + [
+        'report' => $log->describeInput(Arr::wrap($request->input('data', []))),
+        'client' => $request->only(['method', 'url', 'status', 'code', 'message', 'duration_ms', 'online', 'queued_saves', 'attempt', 'page_url', 'client_version']),
+        'user_agent' => $request->userAgent(),
+        'ip' => $request->ip(),
+    ]);
+
+    return response()->noContent();
+})->middleware('throttle:60,1')->name('client-logs.record-save');
 
 Route::get('/login/{organization}', [OrganizationLoginController::class, 'create'])
     ->name('organization.login');

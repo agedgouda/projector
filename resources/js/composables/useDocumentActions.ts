@@ -1,3 +1,4 @@
+import { saveRecord, saveVisit } from '@/lib/serialVisits';
 import {
     redirectIfLoggedOut,
     redirectIfSessionExpiredError,
@@ -40,12 +41,11 @@ export function useDocumentActions(
             project: props.project.id,
             document: docId,
         }).url;
-        router.patch(url, data, {
-            preserveScroll: true,
+        saveRecord('patch', url, data, {
             onSuccess: () => {
                 if (updateDocState) updateDocState(docId, data);
             },
-            onError: (errors) => console.error('PATCH FAILED:', errors),
+            onError: (message) => console.error('PATCH FAILED:', message),
         });
     };
 
@@ -75,7 +75,8 @@ export function useDocumentActions(
             project: props.project.id,
             document: docId,
         }).url;
-        router.patch(
+        saveVisit(
+            'patch',
             url,
             { project_id: targetProjectId },
             {
@@ -100,19 +101,15 @@ export function useDocumentActions(
             project: props.project.id,
             document: docId,
         }).url;
-        router.put(
+        saveRecord(
+            'put',
             url,
             { category_ids: categories.map((c) => c.id) },
             {
-                preserveScroll: true,
                 onSuccess: () => {
                     if (updateDocState) updateDocState(docId, { categories });
                 },
-                onError: (errors) =>
-                    onError?.(
-                        Object.values(errors)[0] ??
-                            "Could not update this task's tags.",
-                    ),
+                onError: (message) => onError?.(message),
             },
         );
     };

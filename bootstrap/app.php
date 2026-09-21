@@ -47,6 +47,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'slack/interactivity',
             'dropbox/events',
             'client-logs/stale-asset',
+            'client-logs/record-save',
+        ]);
+
+        // First in the web stack, not on the routes themselves: a 404 from route-model binding or a
+        // 419 from an expired session happens before any route-level middleware would run, and
+        // those are exactly the failed saves that otherwise leave no trace. It only acts on the
+        // document-save routes (see LogRecordSaves::ROUTES).
+        $middleware->web(prepend: [
+            \App\Http\Middleware\LogRecordSaves::class,
         ]);
 
         $middleware->web(append: [

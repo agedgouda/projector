@@ -73,6 +73,17 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Every attempt to save a change to a task/document and how it turned out — see
+        // App\Services\Logging\RecordSaveLogger. Its own file, kept longer than the default,
+        // because a problem here is usually reported days after it happened.
+        'record_saves' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/record-saves.log'),
+            'level' => 'debug',
+            'days' => env('LOG_RECORD_SAVES_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

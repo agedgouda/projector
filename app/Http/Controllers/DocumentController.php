@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Rules\ValidKanbanColumn;
 use App\Services\Google\GoogleExportService;
+use App\Services\Logging\RecordSaveLogger;
 use App\Services\VectorService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -296,6 +297,12 @@ class DocumentController extends Controller
             ['editor_id' => $request->user()->id, 'content_updated_at' => now()]
         ));
 
+        $this->logApplied($document);
+
+        if (($unsaved = $this->unsavedAttributes($document, $validated)) !== []) {
+            return $this->saveDidNotPersist($request, $document, $unsaved);
+        }
+
         return back()->with('success', 'Document updated.');
     }
 
@@ -323,7 +330,15 @@ class DocumentController extends Controller
             ? $this->resolveAssignee($request->input('assignee_id'), $request, $project)
             : [];
 
-        $document->update(array_merge($assigneeData, $otherValidated, ['editor_id' => $request->user()->id]));
+        $requested = array_merge($assigneeData, $otherValidated);
+
+        $document->update(array_merge($requested, ['editor_id' => $request->user()->id]));
+
+        $this->logApplied($document);
+
+        if (($unsaved = $this->unsavedAttributes($document, $requested)) !== []) {
+            return $this->saveDidNotPersist($request, $document, $unsaved);
+        }
 
         // This endpoint isn't task-only in practice — Events use it for their Start/End Date
         // fields too (see DocumentSidebar.vue's isEvent block) — so the confirmation should
@@ -332,6 +347,13 @@ class DocumentController extends Controller
         // a type not in the catalog (confirmed at runtime) — false positive, kept intentionally.
         // @phpstan-ignore nullsafe.neverNull
         $typeLabel = $project->documentTypeCatalog()->get($document->type)?->label ?? 'Document';
+
+        // A JSON caller (see saveRecord() in serialVisits.ts) has no page to redirect back to and
+        // re-render — it already knows what it just saved — so it gets the confirmation directly
+        // instead of a redirect that would make the browser fetch the whole page again.
+        if ($request->expectsJson()) {
+            return response()->json(['message' => "{$typeLabel} updated."]);
+        }
 
         return back()->with('success', "{$typeLabel} updated.");
     }
@@ -342,7 +364,7 @@ class DocumentController extends Controller
      * semantics (like the old board-linking endpoint this shape is borrowed from): always
      * sends the full desired set, not a single add/remove.
      */
-    public function updateCategories(Request $request, Project $project, Document $document): RedirectResponse
+    public function updateCategories(Request $request, Project $project, Document $document): RedirectResponse|JsonResponse
     {
         Gate::authorize('updateAttributes', $document);
 
@@ -362,7 +384,24 @@ class DocumentController extends Controller
             'category_ids.*' => ['uuid', Rule::exists('categories', 'id')->where('project_id', $root->id)],
         ]);
 
-        $document->categories()->sync($validated['category_ids']);
+        $result = $document->categories()->sync($validated['category_ids']);
+
+        $this->saves()->info('applied', [
+            'document_id' => $document->id,
+            'tags_attached' => $result['attached'],
+            'tags_detached' => $result['detached'],
+        ]);
+
+        $expected = collect($validated['category_ids'])->map(fn ($id) => (string) $id)->sort()->values()->all();
+        $persisted = $document->categories()->pluck('categories.id')->map(fn ($id) => (string) $id)->sort()->values()->all();
+
+        if ($expected !== $persisted) {
+            return $this->saveDidNotPersist($request, $document, ['category_ids' => ['expected' => $expected, 'saved' => $persisted]]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Tags updated.']);
+        }
 
         return back()->with('success', 'Tags updated.');
     }
@@ -413,6 +452,95 @@ class DocumentController extends Controller
         return redirect()
             ->route('projects.documents.show', ['project' => $target->id, 'document' => $document->id])
             ->with('success', 'Task moved.');
+    }
+
+    private function saves(): RecordSaveLogger
+    {
+        return app(RecordSaveLogger::class);
+    }
+
+    /**
+     * What a save just changed, as the model itself reports it — the values before and after for
+     * the attributes worth recording. `noop` marks a save that changed none of them (the request
+     * asked for what was already there — the editor and updated_at always change, so those don't
+     * count), which reads very differently in a log than a real change.
+     */
+    private function logApplied(Document $document): void
+    {
+        $tracked = array_flip(RecordSaveLogger::TRACKED_ATTRIBUTES);
+        $changed = array_intersect_key($document->getChanges(), $tracked);
+
+        $this->saves()->info('applied', [
+            'document_id' => $document->id,
+            'noop' => $changed === [],
+            'changed' => $changed,
+            'previous' => array_intersect_key($document->getPrevious(), $changed),
+            'content_changed' => $document->wasChanged('content'),
+            'updated_at' => $document->updated_at?->toDateTimeString(),
+        ]);
+    }
+
+    /**
+     * Re-reads the record from the database and reports every requested value that isn't what's
+     * actually stored. A save that "succeeded" without persisting — the case that produced a
+     * success toast for an edit that never landed — shows up here instead of being reported to the
+     * person as saved.
+     *
+     * @param  array<string, mixed>  $expected
+     * @return array<string, array{expected: mixed, saved: mixed}>
+     */
+    private function unsavedAttributes(Document $document, array $expected): array
+    {
+        $stored = Document::query()->find($document->getKey());
+        $unsaved = [];
+
+        foreach ($expected as $key => $value) {
+            if (is_array($value) || $key === 'editor_id' || $key === 'content_updated_at') {
+                continue;
+            }
+
+            $actual = $stored?->getAttribute($key);
+
+            if (! $this->sameStoredValue($key, $value, $actual)) {
+                $unsaved[$key] = ['expected' => $value, 'saved' => $actual];
+            }
+        }
+
+        return $unsaved;
+    }
+
+    private function sameStoredValue(string $key, mixed $expected, mixed $actual): bool
+    {
+        if ($expected === null || $actual === null) {
+            return $expected === $actual;
+        }
+
+        // Dates are compared by day, since the column stores a timestamp for what the request
+        // sends as a plain date.
+        if (in_array($key, ['due_at', 'external_due_at', 'start_at'], true)) {
+            return substr((string) $expected, 0, 10) === substr((string) $actual, 0, 10);
+        }
+
+        return (string) $expected === (string) $actual;
+    }
+
+    /**
+     * @param  array<string, array{expected: mixed, saved: mixed}>  $unsaved
+     */
+    private function saveDidNotPersist(Request $request, Document $document, array $unsaved): RedirectResponse|JsonResponse
+    {
+        $this->saves()->error('did not persist', [
+            'document_id' => $document->id,
+            'unsaved' => $unsaved,
+        ]);
+
+        $message = 'This change could not be saved. Please try again.';
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], 500);
+        }
+
+        return back()->withErrors(['save' => $message]);
     }
 
     /**

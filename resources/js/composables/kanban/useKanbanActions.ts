@@ -1,3 +1,4 @@
+import { saveRecord } from '@/lib/serialVisits';
 import projectRoutes from '@/routes/projects';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -39,21 +40,14 @@ export function useKanbanActions(
             document: docIdStr,
         });
 
-        router.patch(route.url, data, {
-            preserveScroll: true,
-            preserveState: true,
-            onBefore: () => {
-                // 1. Trigger the visual move immediately
-                applyLocalUpdate(documentId, data);
-            },
-            onSuccess: () => {
-                if (successMessage) toast.success(successMessage);
-            },
+        // The card moves/changes on screen immediately; the save and the page refresh that
+        // follows it happen in the background (see saveRecord()). If the save fails, that refresh
+        // puts the card back the way the server has it.
+        applyLocalUpdate(documentId, data);
+
+        saveRecord('patch', route.url, data, {
+            successMessage,
             onError: () => {
-                // 2. Rollback happens automatically!
-                // When Inertia gets an error, it re-renders the page with
-                // the "old" props. Our watcher in useKanbanState will see
-                // the old props and reset localKanbanData automatically.
                 toast.error('Failed to save changes. Reverting...');
             },
         });
@@ -78,15 +72,13 @@ export function useKanbanActions(
             document: docIdStr,
         });
 
-        router.put(
+        applyLocalUpdate(documentId, { categories });
+
+        saveRecord(
+            'put',
             route.url,
             { category_ids: categories.map((c) => c.id) },
             {
-                preserveScroll: true,
-                preserveState: true,
-                onBefore: () => {
-                    applyLocalUpdate(documentId, { categories });
-                },
                 onError: () => {
                     toast.error('Failed to save tags. Reverting...');
                 },

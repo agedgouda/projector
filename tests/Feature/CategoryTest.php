@@ -336,3 +336,37 @@ it('lets a subproject document use a tag owned by its family root', function () 
 
     expect($document->fresh()->categories()->pluck('categories.id')->all())->toBe([$category->id]);
 });
+
+it('syncs a document\'s tags for a JSON caller and answers with a confirmation instead of a redirect', function () {
+    $design = Category::create(['project_id' => $this->project->id, 'name' => 'Design', 'color' => 'pink']);
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A task',
+        'type' => 'task',
+        'content' => 'content',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->putJson(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => [$design->id],
+        ])
+        ->assertOk()
+        ->assertExactJson(['message' => 'Tags updated.']);
+
+    expect($document->fresh()->categories()->pluck('categories.id')->all())->toBe([$design->id]);
+});
+
+it('answers a JSON tag save with an unknown tag with a 422', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A task',
+        'type' => 'task',
+        'content' => 'content',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->putJson(route('projects.documents.updateCategories', [$this->project, $document]), [
+            'category_ids' => ['00000000-0000-0000-0000-000000000000'],
+        ])
+        ->assertUnprocessable();
+});

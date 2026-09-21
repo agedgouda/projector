@@ -27,8 +27,9 @@ import {
 } from '@/composables/useDocumentActions';
 import { useWorkflow } from '@/composables/useWorkflow';
 import { mergeAssigneeOptions } from '@/lib/assignees';
+import { saveRecord } from '@/lib/serialVisits';
 import projectDocumentsRoutes from '@/routes/projects/documents';
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
     FileSpreadsheet,
@@ -137,11 +138,14 @@ const onUpdateField = (
         project: task.project_id,
         document: String(task.id),
     }).url;
-    router.patch(
+    saveRecord(
+        'patch',
         url,
         { [field]: normalizedValue },
         {
-            preserveScroll: true,
+            // This table keeps its own copy of every row (updated in place below) and the page
+            // behind it isn't showing them, so there's nothing to re-fetch.
+            refresh: false,
             onSuccess: () => {
                 if (field === 'assignee_id') {
                     const isInvitation =
@@ -195,7 +199,7 @@ const onUpdateField = (
 };
 
 // DocumentDetailSheet's title editor saves directly against DocumentController::update()
-// (see its own name-updated emit comment), bypassing onUpdateField's router.patch entirely
+// (see its own name-updated emit comment), bypassing onUpdateField's saveRecord entirely
 // — so, same as onUpdateField/onUpdateTags, the row object needs a matching in-place mutation
 // or the table underneath keeps showing the old title until the next full search.
 const onUpdateName = (task: TaskReportRow, name: string) => {
@@ -210,11 +214,12 @@ const onUpdateTags = (task: TaskReportRow, categories: CategoryDef[]) => {
         project: task.project_id,
         document: String(task.id),
     }).url;
-    router.put(
+    saveRecord(
+        'put',
         url,
         { category_ids: categories.map((c) => c.id) },
         {
-            preserveScroll: true,
+            refresh: false,
             onError: () => {
                 task.categories = previous;
                 toast.error("Could not update this task's tags.");

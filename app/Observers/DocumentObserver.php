@@ -8,6 +8,7 @@ use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
+use App\Services\Logging\RecordSaveLogger;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class DocumentObserver implements ShouldHandleEventsAfterCommit
@@ -135,8 +136,46 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         return $definition instanceof DocumentTypeDefinition && $definition->is_task;
     }
 
+    /**
+     * Routes whose controllers already log exactly what they changed (see
+     * DocumentController::logApplied()), so this listener doesn't repeat it.
+     *
+     * @var list<string>
+     */
+    private const SELF_LOGGING_ROUTES = ['projects.documents.updateAttributes', 'projects.documents.update'];
+
+    /**
+     * Records every change to a tracked attribute (status, assignee, dates, priority…) made by
+     * anything *other* than those two controllers — a queued job, an import, the move-to-board
+     * endpoint, a command — so a value that changes, or is changed back, without a person's edit
+     * behind it shows up in the record-saves log with what wrote it.
+     */
+    private function logChangeFromOtherWriters(Document $document): void
+    {
+        $changed = array_intersect_key($document->getChanges(), array_flip(RecordSaveLogger::TRACKED_ATTRIBUTES));
+
+        if ($changed === []) {
+            return;
+        }
+
+        $route = request()->route()?->getName();
+
+        if (in_array($route, self::SELF_LOGGING_ROUTES, true)) {
+            return;
+        }
+
+        app(RecordSaveLogger::class)->info('changed by other writer', [
+            'document_id' => $document->id,
+            'source' => app()->runningInConsole() ? 'console/queue: '.($_SERVER['argv'][1] ?? 'unknown') : 'web: '.($route ?? request()->path()),
+            'changed' => $changed,
+            'previous' => array_intersect_key($document->getPrevious(), $changed),
+        ]);
+    }
+
     public function updated(Document $document): void
     {
+        $this->logChangeFromOtherWriters($document);
+
         // wasChanged(), not isDirty() — this class implements ShouldHandleEventsAfterCommit,
         // so this listener only actually runs after the enclosing transaction commits, by
         // which point save() has already called syncOriginal() and isDirty() would always
