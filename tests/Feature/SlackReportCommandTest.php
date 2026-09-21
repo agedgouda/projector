@@ -26,6 +26,13 @@ beforeEach(function () {
         'is_task' => true,
         'order' => 1,
     ]);
+    DocumentTypeDefinition::create([
+        'organization_id' => null,
+        'key' => 'event',
+        'label' => 'Event',
+        'is_task' => false,
+        'order' => 2,
+    ]);
 
     $this->org = Organization::create(['name' => 'Test Org']);
     $this->client = Client::create([
@@ -103,6 +110,34 @@ function createReportTask(string $name, array $attributes = []): Document
     }
 
     return $document;
+}
+
+/**
+ * @param  array<string, mixed>  $attributes
+ */
+function createReportEvent(string $name, array $attributes = []): Document
+{
+    return Document::create(array_merge([
+        'project_id' => test()->project->id,
+        'name' => $name,
+        'type' => 'event',
+        'content' => 'x',
+        'due_at' => now()->addDays(10)->toDateString(),
+        'processed_at' => now(),
+    ], $attributes));
+}
+
+/**
+ * The filenames of every file the job has asked Slack to reserve an upload for, in order.
+ *
+ * @return list<string>
+ */
+function uploadedFilenames(): array
+{
+    return Http::recorded(fn ($request) => $request->url() === 'https://slack.com/api/files.getUploadURLExternal')
+        ->map(fn (array $pair) => $pair[0]['filename'])
+        ->values()
+        ->all();
 }
 
 /**
@@ -200,23 +235,18 @@ function fakeSlackFileUpload(): void
 }
 
 /**
- * The raw bytes the job sent to Slack's upload URL.
+ * The raw bytes the job sent to Slack's upload URL — the first file by default, when a request
+ * produced more than one.
  */
-function uploadedReportBytes(): string
+function uploadedReportBytes(int $index = 0): string
 {
-    $bytes = null;
+    $bodies = Http::recorded(fn ($request) => $request->url() === 'https://files.slack.com/upload/v1/abc')
+        ->map(fn (array $pair) => $pair[0]->body())
+        ->values();
 
-    Http::assertSent(function ($request) use (&$bytes) {
-        if ($request->url() === 'https://files.slack.com/upload/v1/abc') {
-            $bytes = $request->body();
+    expect($bodies)->not->toBeEmpty();
 
-            return true;
-        }
-
-        return false;
-    });
-
-    return (string) $bytes;
+    return (string) $bodies[$index];
 }
 
 // ── Command ─────────────────────────────────────────────────────────────────
@@ -440,7 +470,9 @@ it('filters by a due date range', function () {
 
 it('filters by when tasks were completed, not when they were due', function () {
     $done = createReportTask('Finished last week', ['due_at' => '2099-01-01']);
-    $done->update(['task_status' => 'done', 'status_changed_at' => '2026-09-16 12:00:00']);
+    $done->update(['task_status' => 'done']);
+    // The observer stamps "now" on a status change, so the completion date has to be set raw.
+    Document::query()->whereKey($done->id)->toBase()->update(['status_changed_at' => '2026-09-16 12:00:00']);
     createReportTask('Due last week but not done', ['due_at' => '2026-09-16']);
     fakeSlackFileUpload();
     mockReportInterpretation(['date_from' => '2026-09-14', 'date_to' => '2026-09-20', 'date_kind' => 'done']);
@@ -588,4 +620,140 @@ it('asks for the bot to be invited when it is not in the channel', function () {
     }
 
     assertReportReply('/invite @Projector');
+});
+
+// ── Job: event calendars ────────────────────────────────────────────────────
+
+it('sends a PDF event calendar by default when the request says events', function () {
+    createReportEvent('Launch party');
+    createReportTask('A task, not an event');
+    fakeSlackFileUpload();
+    mockReportInterpretation();
+
+    runReportJob('all Events');
+
+    expect(uploadedFilenames())->toBe(['test-project-calendar.pdf'])
+        ->and(uploadedReportBytes())->toStartWith('%PDF')
+        ->and(uploadComment())->toContain('📅 Event calendar for *Test Project*');
+});
+
+it('sends the calendar as CSV or Excel when asked, with only the events on it', function (string $format, string $extension) {
+    createReportEvent('Launch party');
+    createReportTask('A task, not an event');
+    fakeSlackFileUpload();
+    mockReportInterpretation(['format' => $format]);
+
+    runReportJob("events as {$format}");
+
+    expect(uploadedFilenames())->toBe(["test-project-calendar.{$extension}"]);
+
+    if ($format === 'csv') {
+        expect(uploadedReportBytes())->toContain('Launch party')
+            ->and(uploadedReportBytes())->not->toContain('A task, not an event');
+    } else {
+        expect(uploadedReportBytes())->toStartWith('PK');
+    }
+})->with([
+    'csv' => ['csv', 'csv'],
+    'excel' => ['excel', 'xlsx'],
+]);
+
+it('still makes the task report when the request says tasks', function () {
+    createReportEvent('Launch party');
+    createReportTask('Ship the thing');
+    fakeSlackFileUpload();
+    mockReportInterpretation();
+
+    runReportJob('all tasks');
+
+    expect(uploadedFilenames())->toBe(['test-project-task-report.xlsx'])
+        ->and(uploadedTaskNames())->toBe(['Ship the thing']);
+});
+
+it('makes both reports when the request says tasks and events', function () {
+    createReportEvent('Launch party');
+    createReportTask('Ship the thing');
+    fakeSlackFileUpload();
+    mockReportInterpretation();
+
+    runReportJob('tasks and events');
+
+    expect(uploadedFilenames())->toBe(['test-project-task-report.xlsx', 'test-project-calendar.pdf']);
+});
+
+it('filters the calendar by tag', function () {
+    $marketing = $this->project->categories()->create(['name' => 'Marketing', 'color' => '#ff0000']);
+    createReportEvent('Tagged event')->categories()->sync([$marketing->id]);
+    createReportEvent('Untagged event');
+    fakeSlackFileUpload();
+    mockReportInterpretation(['tags' => ['marketing'], 'format' => 'csv']);
+
+    runReportJob('marketing events csv');
+
+    expect(uploadedReportBytes())->toContain('Tagged event')
+        ->and(uploadedReportBytes())->not->toContain('Untagged event')
+        ->and(uploadComment())->toContain('Filters: Tag: Marketing');
+});
+
+it('filters the calendar by an explicit date range, even one in the past', function () {
+    createReportEvent('March event', ['due_at' => '2026-03-10']);
+    createReportEvent('April event', ['due_at' => '2026-04-10']);
+    createReportEvent('Upcoming event');
+    fakeSlackFileUpload();
+    mockReportInterpretation(['date_from' => '2026-03-01', 'date_to' => '2026-03-31', 'format' => 'csv']);
+
+    runReportJob('events in march');
+
+    expect(uploadedReportBytes())->toContain('March event')
+        ->and(uploadedReportBytes())->not->toContain('April event')
+        ->and(uploadedReportBytes())->not->toContain('Upcoming event')
+        ->and(uploadComment())->toContain('Due 03/01/2026 – 03/31/2026');
+});
+
+it('filters the calendar by sub-project', function () {
+    $sub = Project::create(['name' => 'Sub Project', 'client_id' => $this->client->id, 'parent_id' => $this->project->id]);
+    createReportEvent('Parent event');
+    createReportEvent('Sub event', ['project_id' => $sub->id]);
+    fakeSlackFileUpload();
+    mockReportInterpretation(['projects' => ['sub project'], 'format' => 'csv']);
+
+    runReportJob('events for the sub project');
+
+    expect(uploadedReportBytes())->toContain('Sub event')
+        ->and(uploadedReportBytes())->not->toContain('Parent event');
+});
+
+it('refuses an events-only request filtered by something events do not have', function () {
+    createReportEvent('Launch party');
+    fakeSlackFileUpload();
+    mockReportInterpretation(['assignees' => ['me'], 'statuses' => ['todo']]);
+
+    runReportJob('my events that are todo');
+
+    assertNoReportUploaded();
+    assertReportReply('I can\'t filter events by assignee, status');
+});
+
+it('applies task-only filters to the tasks and not the events when both are requested', function () {
+    createReportEvent('Launch party');
+    createReportTask('Mine', ['assignee_id' => $this->user->id]);
+    createReportTask('Not mine');
+    fakeSlackFileUpload();
+    mockReportInterpretation(['assignees' => ['me']]);
+
+    runReportJob('my tasks and events');
+
+    expect(uploadedFilenames())->toBe(['test-project-task-report.xlsx', 'test-project-calendar.pdf'])
+        ->and(uploadedTaskNames())->toBe(['Mine']);
+});
+
+it('says so when there are no events to put on a calendar', function () {
+    createReportTask('Ship the thing');
+    fakeSlackFileUpload();
+    mockReportInterpretation();
+
+    runReportJob('events');
+
+    assertNoReportUploaded();
+    assertReportReply('no upcoming events');
 });

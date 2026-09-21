@@ -54,9 +54,9 @@ class ReportRequestParser
 
     /**
      * @return array{
-     *     format: 'xlsx'|'csv'|'pdf',
+     *     format: 'xlsx'|'csv'|'pdf'|null,
      *     filters: array<string, mixed>,
-     *     summary: list<string>,
+     *     summary: array<string, string>,
      *     unresolved: list<string>
      * }
      *
@@ -68,7 +68,7 @@ class ReportRequestParser
         $text = trim($text);
 
         if ($text === '') {
-            return ['format' => 'xlsx', 'filters' => ['mode' => 'due'], 'summary' => [], 'unresolved' => []];
+            return ['format' => null, 'filters' => ['mode' => 'due'], 'summary' => [], 'unresolved' => []];
         }
 
         $project->loadMissing('client.organization.users', 'client.organization.invitations', 'kanbanColumns');
@@ -133,7 +133,7 @@ class ReportRequestParser
      * @param  Collection<int, KanbanColumn>  $columns
      * @param  Collection<int, Category>  $categories
      * @param  array<string, string>  $projectNames
-     * @return array{format: 'xlsx'|'csv'|'pdf', filters: array<string, mixed>, summary: list<string>, unresolved: list<string>}
+     * @return array{format: 'xlsx'|'csv'|'pdf'|null, filters: array<string, mixed>, summary: array<string, string>, unresolved: list<string>}
      */
     private function resolve(array $interpreted, User $user, array $people, Collection $columns, Collection $categories, array $projectNames): array
     {
@@ -164,7 +164,7 @@ class ReportRequestParser
         }
         if ($assignees !== []) {
             $filters['assignee'] = $assignees;
-            $summary[] = 'Assignee: '.implode(', ', $assigneeLabels);
+            $summary['assignee'] = 'Assignee: '.implode(', ', $assigneeLabels);
         }
 
         $statusKeys = [];
@@ -184,13 +184,13 @@ class ReportRequestParser
         }
         if ($statusKeys !== []) {
             $filters['task_status'] = $statusKeys;
-            $summary[] = 'Status: '.implode(', ', $statusLabels);
+            $summary['status'] = 'Status: '.implode(', ', $statusLabels);
         }
 
         $priorities = array_values(array_intersect($this->strings($interpreted['priorities'] ?? null), ['low', 'medium', 'high']));
         if ($priorities !== []) {
             $filters['priority'] = $priorities;
-            $summary[] = 'Priority: '.implode(', ', array_map('ucfirst', $priorities));
+            $summary['priority'] = 'Priority: '.implode(', ', array_map('ucfirst', $priorities));
         }
 
         $categoryIds = [];
@@ -216,7 +216,7 @@ class ReportRequestParser
         }
         if ($categoryIds !== []) {
             $filters['category_id'] = $categoryIds;
-            $summary[] = 'Tag: '.implode(', ', $tagLabels);
+            $summary['tag'] = 'Tag: '.implode(', ', $tagLabels);
         }
 
         $projectIds = [];
@@ -235,7 +235,7 @@ class ReportRequestParser
         }
         if ($projectIds !== []) {
             $filters['project_id'] = $projectIds;
-            $summary[] = 'Project: '.implode(', ', $projectLabels);
+            $summary['project'] = 'Project: '.implode(', ', $projectLabels);
         }
 
         $from = $this->date($interpreted['date_from'] ?? null);
@@ -255,21 +255,24 @@ class ReportRequestParser
 
         $dateLabel = $mode === 'done' ? 'Done' : 'Due';
         if ($from !== null && $to !== null) {
-            $summary[] = $from->equalTo($to)
+            $summary['dates'] = $from->equalTo($to)
                 ? "{$dateLabel} on {$from->format('m/d/Y')}"
                 : "{$dateLabel} {$from->format('m/d/Y')} – {$to->format('m/d/Y')}";
         } elseif ($from !== null) {
-            $summary[] = "{$dateLabel} on or after {$from->format('m/d/Y')}";
+            $summary['dates'] = "{$dateLabel} on or after {$from->format('m/d/Y')}";
         } elseif ($to !== null) {
-            $summary[] = "{$dateLabel} on or before {$to->format('m/d/Y')}";
+            $summary['dates'] = "{$dateLabel} on or before {$to->format('m/d/Y')}";
         } elseif ($mode === 'done') {
-            $summary[] = 'Completed tasks';
+            $summary['dates'] = 'Completed tasks';
         }
 
+        // Null when the request names no format — the default differs by report kind (Excel for a
+        // task report, PDF for an event calendar), so it's the caller's to choose.
         $format = match ($interpreted['format'] ?? null) {
+            'excel' => 'xlsx',
             'csv' => 'csv',
             'pdf' => 'pdf',
-            default => 'xlsx',
+            default => null,
         };
 
         return ['format' => $format, 'filters' => $filters, 'summary' => $summary, 'unresolved' => $unresolved];

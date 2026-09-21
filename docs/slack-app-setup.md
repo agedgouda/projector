@@ -240,13 +240,24 @@ Same two requirements as everything else: the channel must be bound to a project
 
 ## Step 11: Generate a Report with `/report`
 
-Once a channel is bound to a project (Step 4) and you've linked your Slack identity (Step 5), run `/report` in that channel to get the project's task report as a file — the same rows, ordering, and layout as the download buttons on the project's Reports tab. Say what you want in plain English; the AI works out the filters and the file format.
+Once a channel is bound to a project (Step 4) and you've linked your Slack identity (Step 5), run `/report` in that channel to get a report as a file. Say what you want in plain English; the AI works out the filters and the file format.
+
+Which report you get depends on the words you use:
+
+- **"tasks"** (or neither word) — the task report, the same rows, ordering, and layout as the download buttons on the project's Reports tab. Excel by default.
+- **"events"** — an event calendar, the same as the download buttons on the Campaign Calendar tab. A **PDF** month-grid calendar by default; ask for CSV or Excel to get the flat Date/Title/Tags list instead.
+- **both words** — you get both files.
+
+Event calendars only list upcoming events (from the start of the current month on, like the Campaign Calendar's own downloads) unless you name a period, e.g. `/report events in March`. They can be filtered by tag, sub-project, and dates only — events have no assignee, status, or priority, so asking for those on an events-only request gets an explanation instead of a file.
 
 - `/report` — every task, as an Excel workbook (the default).
 - `/report my tasks that are in progress`
 - `/report Penny's high priority tasks due next week as a PDF`
 - `/report what got done last month, csv`
 - `/report unassigned marketing tasks due before Friday`
+- `/report events` — the event calendar as a PDF
+- `/report marketing events in October as excel`
+- `/report tasks and events` — both files
 
 Everything the Reports tab's search form can filter on is understood: **assignee** (a person by name, "me"/"my", or unassigned), **status**, **priority**, **tags**, **sub-project**, a **date or date range** (relative dates like "next week" or "in March" are resolved against today in your own timezone), and whether the dates mean **due date** or **done date** ("what got done last week" filters by when tasks were completed). The format is Excel unless you ask for CSV or PDF.
 

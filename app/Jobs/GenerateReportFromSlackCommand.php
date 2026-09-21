@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Project;
 use App\Models\SlackWorkspace;
 use App\Models\User;
+use App\Services\Reports\CalendarExportBuilder;
 use App\Services\Reports\ReportRequestParser;
 use App\Services\Reports\TaskReportBuilder;
 use App\Services\Slack\SlackFileUploader;
@@ -13,14 +14,17 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Reads what the person asked for in plain English (ReportRequestParser), builds the project's
- * task report for it — the same rows, sorting, and file layout the Reports tab's own downloads
- * produce (see TaskReportBuilder) — and uploads it into the channel `/report` was run in.
+ * Reads what the person asked for in plain English (ReportRequestParser), builds the report for
+ * it — a task report (the Reports tab's downloads, see TaskReportBuilder) when the request says
+ * "tasks" or names neither kind, an event calendar (the Campaign Calendar's downloads, see
+ * CalendarExportBuilder) when it says "events", both when it says both — and uploads each into
+ * the channel `/report` was run in.
  * Deferred to a queue since the AI call, generating a file, and uploading it can't finish inside
  * Slack's 3-second ack window; anything that goes wrong is reported back ephemerally through the
  * command's `response_url`.
@@ -42,7 +46,7 @@ class GenerateReportFromSlackCommand implements ShouldQueue
         public string $responseUrl,
     ) {}
 
-    public function handle(TaskReportBuilder $builder, SlackFileUploader $uploader, ReportRequestParser $parser): void
+    public function handle(TaskReportBuilder $tasks, CalendarExportBuilder $calendars, SlackFileUploader $uploader, ReportRequestParser $parser): void
     {
         try {
             $request = $parser->parse($this->text, $this->project, $this->user);
@@ -62,6 +66,29 @@ class GenerateReportFromSlackCommand implements ShouldQueue
             return;
         }
 
+        $wantsEvents = preg_match('/\bevents?\b/i', $this->text) === 1;
+        $wantsTasks = preg_match('/\btasks?\b/i', $this->text) === 1 || ! $wantsEvents;
+
+        if ($wantsEvents && ! $wantsTasks && ($unsupported = $this->filtersEventsCannotUse($request['filters'])) !== []) {
+            $this->reply('An event calendar can only be filtered by tag, sub-project, and dates, so I didn\'t generate one — I can\'t filter events by '.implode(', ', $unsupported).'. Ask for tasks to filter by those.');
+
+            return;
+        }
+
+        if ($wantsTasks) {
+            $this->sendTaskReport($tasks, $uploader, $request);
+        }
+
+        if ($wantsEvents) {
+            $this->sendEventCalendar($calendars, $uploader, $request);
+        }
+    }
+
+    /**
+     * @param  array{format: 'xlsx'|'csv'|'pdf'|null, filters: array<string, mixed>, summary: array<string, string>, unresolved: list<string>}  $request
+     */
+    private function sendTaskReport(TaskReportBuilder $builder, SlackFileUploader $uploader, array $request): void
+    {
         [$tasks, $includeDetails, $projectNames, $mode] = $builder->tasksForExport($request['filters'], $this->project);
 
         if ($tasks->isEmpty()) {
@@ -72,7 +99,7 @@ class GenerateReportFromSlackCommand implements ShouldQueue
             return;
         }
 
-        $format = $request['format'];
+        $format = $request['format'] ?? 'xlsx';
 
         $contents = match ($format) {
             'csv' => $builder->csvContents($this->project, $tasks, $includeDetails, $projectNames, $mode),
@@ -85,13 +112,87 @@ class GenerateReportFromSlackCommand implements ShouldQueue
             $comment .= "\nFilters: ".implode(' · ', $request['summary']);
         }
 
-        $uploader->upload(
-            $this->workspace,
-            $this->channelId,
-            $builder->filename($this->project, $format),
-            $contents,
-            $comment,
+        $uploader->upload($this->workspace, $this->channelId, $builder->filename($this->project, $format), $contents, $comment);
+    }
+
+    /**
+     * The calendar has no assignees, statuses, or priorities to filter on, and no notion of a
+     * "done" date — only what the Campaign Calendar tab itself can filter by (tags and
+     * sub-projects), plus a date window.
+     *
+     * @param  array{format: 'xlsx'|'csv'|'pdf'|null, filters: array<string, mixed>, summary: array<string, string>, unresolved: list<string>}  $request
+     */
+    private function sendEventCalendar(CalendarExportBuilder $builder, SlackFileUploader $uploader, array $request): void
+    {
+        $filters = $request['filters'];
+        $summary = array_intersect_key($request['summary'], array_flip(['tag', 'project', 'dates']));
+
+        $items = $builder->items(
+            $this->project,
+            tags: $this->stringList($filters['category_id'] ?? null),
+            showTasks: false,
+            showEvents: true,
+            from: $this->date($filters['due_from'] ?? null),
+            to: $this->date($filters['due_to'] ?? null),
+            onlyProjects: $this->stringList($filters['project_id'] ?? null),
         );
+
+        if ($builder->excludeUndatedItems($items, $builder->usesExternalDueDates($this->project))->isEmpty()) {
+            $this->reply($summary === []
+                ? "There are no upcoming events in {$this->project->name} to put on a calendar."
+                : 'No events matched: '.implode(' · ', $summary));
+
+            return;
+        }
+
+        $format = $request['format'] ?? 'pdf';
+
+        $contents = match ($format) {
+            'csv' => $builder->csvContents($this->project, $items),
+            'xlsx' => $builder->excelContents($this->project, $items),
+            'pdf' => $builder->pdfContents($this->project, $items),
+        };
+
+        $comment = "📅 Event calendar for *{$this->project->name}* — requested by {$this->user->name}";
+        if ($summary !== []) {
+            $comment .= "\nFilters: ".implode(' · ', $summary);
+        }
+
+        $uploader->upload($this->workspace, $this->channelId, $builder->filename($this->project, $format), $contents, $comment);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return list<string>
+     */
+    private function filtersEventsCannotUse(array $filters): array
+    {
+        $unsupported = [];
+
+        foreach (['assignee' => 'assignee', 'task_status' => 'status', 'priority' => 'priority'] as $key => $label) {
+            if (! empty($filters[$key])) {
+                $unsupported[] = $label;
+            }
+        }
+
+        if (($filters['mode'] ?? null) === 'done') {
+            $unsupported[] = 'completion date';
+        }
+
+        return $unsupported;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function stringList(mixed $value): array
+    {
+        return is_array($value) ? array_values(array_filter($value, 'is_string')) : [];
+    }
+
+    private function date(mixed $value): ?Carbon
+    {
+        return is_string($value) ? Carbon::parse($value) : null;
     }
 
     public function failed(Throwable $exception): void
