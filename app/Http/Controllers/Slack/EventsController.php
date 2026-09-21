@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\ImportSlackFile;
 use App\Models\SlackChannelBinding;
 use App\Models\SlackUserIdentity;
+use App\Models\SlackWorkspace;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -81,6 +82,15 @@ class EventsController extends Controller
                 'channel' => $channelId,
                 'has_files' => is_array($files) && $files !== [],
             ]);
+
+            return;
+        }
+
+        // Files the bot itself posts (a /report upload) come back through this same event. The bot
+        // is never a linked Projector user, so without this it would be told to "connect its Slack
+        // account" — and if it ever were linked, would re-import its own report as tasks.
+        if (filled($request->input('event.bot_id')) || SlackWorkspace::where('team_id', $teamId)->where('bot_user_id', $slackUserId)->exists()) {
+            Log::info('Ignored a file shared by a bot', ['team_id' => $teamId, 'channel' => $channelId]);
 
             return;
         }

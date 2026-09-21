@@ -233,3 +233,34 @@ it('tells an unlinked uploader to connect their slack account instead of importi
             && str_contains($request['text'], 'Connect your Slack account');
     });
 });
+
+it('ignores a file shared by a bot, without asking it to connect a Slack account', function (array $eventOverrides) {
+    Bus::fake();
+    bindSlackChannelToProject()['workspace']->update(['bot_user_id' => 'UBOT']);
+    Http::fake();
+
+    $payload = fileShareEventPayload([], $eventOverrides);
+    $this->withHeaders(signSlackRequest(json_encode($payload)))
+        ->postJson('/slack/events', $payload)
+        ->assertNoContent();
+
+    Bus::assertNotDispatched(ImportSlackFile::class);
+    Http::assertNothingSent();
+})->with([
+    'a message carrying a bot_id' => [['bot_id' => 'B123', 'user' => 'UBOT']],
+    'a message from the workspace\'s own bot user' => [['user' => 'UBOT']],
+]);
+
+it('does not import a file the bot uploaded even if the bot user has a linked identity', function () {
+    Bus::fake();
+    $context = bindSlackChannelToProject();
+    $context['workspace']->update(['bot_user_id' => 'UBOT']);
+    SlackUserIdentity::factory()->create(['user_id' => $context['user']->id, 'slack_team_id' => 'T123', 'slack_user_id' => 'UBOT']);
+
+    $payload = fileShareEventPayload(['name' => 'jimmy-task-report.xlsx'], ['user' => 'UBOT']);
+    $this->withHeaders(signSlackRequest(json_encode($payload)))
+        ->postJson('/slack/events', $payload)
+        ->assertNoContent();
+
+    Bus::assertNotDispatched(ImportSlackFile::class);
+});
