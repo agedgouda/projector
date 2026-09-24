@@ -72,7 +72,7 @@ Route::post('/client-logs/create-sheet-blocked', function (Request $request) {
     return response()->noContent();
 })->middleware(['auth', 'throttle:20,1'])->name('client-logs.create-sheet-blocked');
 
-// The browser's own account of a save that didn't work (see saveRecord() in serialVisits.ts) —
+// The browser's own account of a save that didn't work (see saveDocument() in saveDocument.ts) —
 // the failures the server can never log itself, because the request never reached it (network
 // down, cancelled, session expired and redirected to login). Like stale-asset above it isn't behind
 // `auth` or CSRF: an expired session is one of the things being reported.
@@ -386,8 +386,6 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.transitionOptions');
             Route::patch('/documents/{document}/attributes', [DocumentController::class, 'updateAttributes'])
                 ->name('documents.updateAttributes');
-            Route::put('/documents/{document}/categories', [DocumentController::class, 'updateCategories'])
-                ->name('documents.updateCategories');
             Route::patch('/documents/{document}/move', [DocumentController::class, 'move'])
                 ->name('documents.move');
             Route::get('/documents/{document}/export-pdf', [DocumentController::class, 'exportPdf'])

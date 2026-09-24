@@ -15,6 +15,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -307,10 +308,11 @@ class DocumentController extends Controller
     }
 
     /**
-     * Update only task attributes (assignee, status, due date).
-     * Allowed by any org member, unlike the full update which requires project access.
+     * Saves any subset of a document's editable fields in one request and answers with the saved
+     * record, so the caller shows exactly what is stored. Status, priority, dates, assignee and tags
+     * are open to any org member; the name and content also need full project-edit access.
      */
-    public function updateAttributes(Request $request, Project $project, Document $document)
+    public function updateAttributes(Request $request, Project $project, Document $document): RedirectResponse|JsonResponse
     {
         Gate::authorize('updateAttributes', $document);
 
@@ -318,73 +320,68 @@ class DocumentController extends Controller
             abort(404);
         }
 
-        $otherValidated = $request->validate([
+        if ($request->hasAny(['name', 'content'])) {
+            Gate::authorize('update', $document);
+        }
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'content' => ['sometimes', 'string'],
             'task_status' => ['nullable', 'string', new ValidKanbanColumn($project->id)],
             'priority' => ['nullable', 'string'],
             'due_at' => ['nullable', 'date'],
             'external_due_at' => ['nullable', 'date'],
             'start_at' => ['nullable', 'date'],
+            // Events mark a single occurrence on the calendar, so — unlike every other
+            // document type — only one tag makes sense.
+            'category_ids' => array_filter([
+                'sometimes', 'array', $document->type === 'event' ? 'max:1' : null,
+            ]),
+            'category_ids.*' => ['uuid', Rule::exists('categories', 'id')->where('project_id', $project->familyRoot()->id)],
         ]);
 
         $assigneeData = $request->has('assignee_id')
             ? $this->resolveAssignee($request->input('assignee_id'), $request, $project)
             : [];
 
-        $requested = array_merge($assigneeData, $otherValidated);
+        $requested = array_merge($assigneeData, Arr::except($validated, ['category_ids']));
 
-        $document->update(array_merge($requested, ['editor_id' => $request->user()->id]));
+        $document->update(array_merge($requested, ['editor_id' => $request->user()?->id], array_key_exists('content', $requested) ? ['content_updated_at' => now()] : []));
 
         $this->logApplied($document);
 
-        if (($unsaved = $this->unsavedAttributes($document, $requested)) !== []) {
+        $unsaved = $this->unsavedAttributes($document, $requested);
+
+        if (isset($validated['category_ids'])) {
+            $unsaved += $this->syncCategories($document, $validated['category_ids']);
+        }
+
+        if ($unsaved !== []) {
             return $this->saveDidNotPersist($request, $document, $unsaved);
         }
 
-        // This endpoint isn't task-only in practice — Events use it for their Start/End Date
-        // fields too (see DocumentSidebar.vue's isEvent block) — so the confirmation should
-        // name whatever type was actually just edited, not always say "Task". PHPStan flags
-        // the nullsafe below as unnecessary, but Collection::get() genuinely returns null for
-        // a type not in the catalog (confirmed at runtime) — false positive, kept intentionally.
         // @phpstan-ignore nullsafe.neverNull
         $typeLabel = $project->documentTypeCatalog()->get($document->type)?->label ?? 'Document';
 
-        // A JSON caller (see saveRecord() in serialVisits.ts) has no page to redirect back to and
-        // re-render — it already knows what it just saved — so it gets the confirmation directly
-        // instead of a redirect that would make the browser fetch the whole page again.
         if ($request->expectsJson()) {
-            return response()->json(['message' => "{$typeLabel} updated."]);
+            return response()->json([
+                'message' => "{$typeLabel} updated.",
+                'document' => $project->kanbanDocument($document),
+            ]);
         }
 
         return back()->with('success', "{$typeLabel} updated.");
     }
 
     /**
-     * Set the complete list of tags on a task, within its project family — a task can have
-     * any number of tags (including none), unlike the single-value attributes above. Sync
-     * semantics (like the old board-linking endpoint this shape is borrowed from): always
-     * sends the full desired set, not a single add/remove.
+     * Sets the complete list of tags on a document and reports any that did not end up stored.
+     *
+     * @param  list<string>  $categoryIds
+     * @return array<string, array{expected: mixed, saved: mixed}>
      */
-    public function updateCategories(Request $request, Project $project, Document $document): RedirectResponse|JsonResponse
+    private function syncCategories(Document $document, array $categoryIds): array
     {
-        Gate::authorize('updateAttributes', $document);
-
-        if ($document->project_id !== $project->id) {
-            abort(404);
-        }
-
-        $root = $project->familyRoot();
-
-        $validated = $request->validate([
-            // Events mark a single occurrence on the calendar, so — unlike every other
-            // document type — only one tag makes sense; everything else keeps the normal
-            // any-number-of-tags behavior.
-            'category_ids' => array_filter([
-                'present', 'array', $document->type === 'event' ? 'max:1' : null,
-            ]),
-            'category_ids.*' => ['uuid', Rule::exists('categories', 'id')->where('project_id', $root->id)],
-        ]);
-
-        $result = $document->categories()->sync($validated['category_ids']);
+        $result = $document->categories()->sync($categoryIds);
 
         $this->saves()->info('applied', [
             'document_id' => $document->id,
@@ -392,18 +389,10 @@ class DocumentController extends Controller
             'tags_detached' => $result['detached'],
         ]);
 
-        $expected = collect($validated['category_ids'])->map(fn ($id) => (string) $id)->sort()->values()->all();
-        $persisted = $document->categories()->pluck('categories.id')->map(fn ($id) => (string) $id)->sort()->values()->all();
+        $expected = collect($categoryIds)->map(fn ($id) => (string) $id)->sort()->values()->all();
+        $persisted = $document->categories()->get()->map(fn ($category) => (string) $category->id)->sort()->values()->all();
 
-        if ($expected !== $persisted) {
-            return $this->saveDidNotPersist($request, $document, ['category_ids' => ['expected' => $expected, 'saved' => $persisted]]);
-        }
-
-        if ($request->expectsJson()) {
-            return response()->json(['message' => 'Tags updated.']);
-        }
-
-        return back()->with('success', 'Tags updated.');
+        return $expected === $persisted ? [] : ['category_ids' => ['expected' => $expected, 'saved' => $persisted]];
     }
 
     /**
@@ -463,7 +452,7 @@ class DocumentController extends Controller
      * What a save just changed, as the model itself reports it — the values before and after for
      * the attributes worth recording. `noop` marks a save that changed none of them (the request
      * asked for what was already there — the editor and updated_at always change, so those don't
-     * count), which reads very differently in a log than a real change.
+     * count; a change to the content does, since it is recorded only as `content_changed`), which reads very differently in a log than a real change.
      */
     private function logApplied(Document $document): void
     {
@@ -472,7 +461,7 @@ class DocumentController extends Controller
 
         $this->saves()->info('applied', [
             'document_id' => $document->id,
-            'noop' => $changed === [],
+            'noop' => $changed === [] && ! $document->wasChanged('content'),
             'changed' => $changed,
             'previous' => array_intersect_key($document->getPrevious(), $changed),
             'content_changed' => $document->wasChanged('content'),

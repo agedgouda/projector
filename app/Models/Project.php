@@ -390,10 +390,33 @@ class Project extends Model implements HasMedia
 
         return $this->documents
             ->filter(fn (Document $doc) => $this->isTaskType($catalog, $doc->type))
-            ->map(fn (Document $doc) => array_merge($doc->toArray(), [
-                'type_label' => $this->labelForType($catalog, $doc->type),
-            ]))
+            ->map(fn (Document $doc) => $this->boardRecord($doc, $catalog))
             ->values();
+    }
+
+    /**
+     * One document as the board shows it — the same shape getKanbanDocuments() lists — freshly
+     * read, so a save can answer with exactly what is stored.
+     *
+     * @return array<string, mixed>
+     */
+    public function kanbanDocument(Document $document): array
+    {
+        $document->refresh()->unsetRelation('project')->load(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'categories', 'comments.user'])
+            ->loadExists('lockedNextWorkflowStep');
+
+        return $this->boardRecord($document, $this->documentTypeCatalog());
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
+     * @return array<string, mixed>
+     */
+    private function boardRecord(Document $document, \Illuminate\Support\Collection $catalog): array
+    {
+        return array_merge($document->toArray(), [
+            'type_label' => $this->labelForType($catalog, $document->type),
+        ]);
     }
 
     /**
@@ -454,7 +477,7 @@ class Project extends Model implements HasMedia
                     'start_at' => $doc->start_at,
                     'task_status' => $doc->task_status,
                     // Events are capped to a single tag (see
-                    // DocumentController::updateCategories()); tasks can carry any number.
+                    // DocumentController::updateAttributes()); tasks can carry any number.
                     'categories' => $doc->categories->map(fn (Category $category): array => [
                         'id' => $category->id,
                         'name' => $category->name,

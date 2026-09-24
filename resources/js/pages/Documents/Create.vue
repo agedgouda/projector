@@ -94,7 +94,7 @@ const isUploading = ref(false);
 
 // Tags are picked here (before the document exists) and sent along with the create
 // request, then attached server-side once the document's been made — unlike Show.vue's
-// addTag/removeTag, which PUT to an existing document's updateCategories endpoint
+// addTag/removeTag, which PATCH to an existing document's updateAttributes endpoint
 // immediately.
 const selectedCategories = computed(() =>
     (props.project.categories ?? []).filter((c) => form.category_ids.includes(c.id)),

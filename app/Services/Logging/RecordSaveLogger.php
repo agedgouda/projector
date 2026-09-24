@@ -15,7 +15,7 @@ use Psr\Log\LogLevel;
  * where a person looking for an error looks first.
  *
  * Every line carries the `save_id` the browser generated for that save (X-Save-Id header, see
- * saveRecord() in serialVisits.ts) so the browser's own report of a failure, the request that
+ * saveDocument() in saveDocument.ts) so the browser's own report of a failure, the request that
  * arrived, the change made, and the response sent can all be lined up.
  */
 class RecordSaveLogger

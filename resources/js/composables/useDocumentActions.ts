@@ -1,4 +1,4 @@
-import { saveRecord, saveVisit } from '@/lib/serialVisits';
+import { saveDocument } from '@/lib/saveDocument';
 import {
     redirectIfLoggedOut,
     redirectIfSessionExpiredError,
@@ -36,36 +36,29 @@ export function useDocumentActions(
         assignee_id: null as number | null,
     });
 
-    const patchField = (docId: string, data: Record<string, any>) => {
-        const url = projectDocumentsRoutes.updateAttributes({
-            project: props.project.id,
-            document: docId,
-        }).url;
-        saveRecord('patch', url, data, {
-            onSuccess: () => {
-                if (updateDocState) updateDocState(docId, data);
-            },
-            onError: (message) => console.error('PATCH FAILED:', message),
+    /**
+     * Saves fields on a document (see saveDocument()). Where the page keeps its own copy of the
+     * documents (`updateDocState`) the saved record goes there; a page that only has what the
+     * server sent it (Documents/Show) is given the fresh record by re-reading its `item`.
+     */
+    const saveFields = async (
+        docId: string,
+        fields: Record<string, unknown>,
+    ) => {
+        const saved = await saveDocument(props.project.id, docId, fields, {
+            apply: (values) => updateDocState?.(docId, values),
         });
+
+        if (saved && !updateDocState) {
+            router.reload({ only: ['item'] });
+        }
     };
 
-    const updateField = (id: string, fieldName: string, rawValue: unknown) => {
-        let normalizedValue: string | number | null = null;
-        if (rawValue === 'unassigned' || rawValue == null)
-            normalizedValue = null;
-        else if (typeof rawValue === 'string' || typeof rawValue === 'number')
-            normalizedValue = rawValue;
-        else if (typeof rawValue === 'bigint')
-            normalizedValue = Number(rawValue);
-        else return;
+    const updateField = (id: string, fieldName: string, value: unknown) =>
+        saveFields(id, { [fieldName]: value });
 
-        patchField(id, { [fieldName]: normalizedValue });
-    };
-
-    // Reassigns a task's home board — distinct from patchField()/updateField() above, which
-    // only ever touch task_status/priority/due_at/assignee_id via updateAttributes; this hits
-    // a separate endpoint (DocumentController::move()) since moving between boards has its
-    // own family/matching-columns validation the attribute endpoint doesn't do.
+    // Reassigns a task's home board — a separate endpoint (DocumentController::move()) since
+    // moving between boards has its own family/matching-columns validation.
     const moveToBoard = (
         docId: string,
         targetProjectId: string,
@@ -75,8 +68,7 @@ export function useDocumentActions(
             project: props.project.id,
             document: docId,
         }).url;
-        saveVisit(
-            'patch',
+        router.patch(
             url,
             { project_id: targetProjectId },
             {
@@ -90,29 +82,9 @@ export function useDocumentActions(
     };
 
     // Sets the complete list of tags on a task — sync semantics (send the full desired set,
-    // not a single add/remove). Takes the resolved CategoryDef objects so the caller can
-    // optimistically update local state before the round trip.
-    const updateTags = (
-        docId: string,
-        categories: CategoryDef[],
-        onError?: (message: string) => void,
-    ) => {
-        const url = projectDocumentsRoutes.updateCategories({
-            project: props.project.id,
-            document: docId,
-        }).url;
-        saveRecord(
-            'put',
-            url,
-            { category_ids: categories.map((c) => c.id) },
-            {
-                onSuccess: () => {
-                    if (updateDocState) updateDocState(docId, { categories });
-                },
-                onError: (message) => onError?.(message),
-            },
-        );
-    };
+    // not a single add/remove).
+    const updateTags = (docId: string, categories: CategoryDef[]) =>
+        saveFields(docId, { category_ids: categories.map((c) => c.id) });
 
     const safeJsonParse = (data: unknown) => {
         if (!data) return { criteria: [] };
@@ -304,7 +276,6 @@ export function useDocumentActions(
         setDocToProcessing,
         setDocToTransitioning,
         targetBeingCreated,
-        patchField,
         updateField,
         moveToBoard,
         updateTags,

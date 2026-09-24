@@ -9,6 +9,7 @@ use App\Jobs\ProcessDocumentAI;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
 use App\Services\Logging\RecordSaveLogger;
+use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class DocumentObserver implements ShouldHandleEventsAfterCommit
@@ -58,7 +59,7 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         // listener (parseProcessingStatus treats a falsy statusMessage as "nothing to report") —
         // there's no AI process happening here to narrate, just a document to add to the board.
         if ($this->isTaskType($document) && is_null($document->parent_id)) {
-            event(new DocumentProcessingUpdate($document, '', 0));
+            $this->broadcastWithoutFailingTheSave(fn () => event(new DocumentProcessingUpdate($document, '', 0)));
         }
     }
 
@@ -187,7 +188,7 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
 
         // Broadcast when AI processing finishes
         if ($document->wasChanged('processed_at') && $document->processed_at) {
-            broadcast(new DocumentVectorized($document))->toOthers();
+            $this->broadcastWithoutFailingTheSave(fn () => broadcast(new DocumentVectorized($document))->toOthers());
         }
     }
 
@@ -213,5 +214,22 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
     public function forceDeleted(Document $document): void
     {
         //
+    }
+
+    /**
+     * Sends a live-update broadcast without letting a broadcasting outage fail the save that
+     * triggered it. The record is already stored by the time this runs, so a failed broadcast
+     * only means other open screens don't update live — reporting an error for the save itself
+     * would tell the person it didn't work when it did.
+     *
+     * @param  \Closure(): mixed  $broadcast
+     */
+    private function broadcastWithoutFailingTheSave(\Closure $broadcast): void
+    {
+        try {
+            $broadcast();
+        } catch (BroadcastException $exception) {
+            report($exception);
+        }
     }
 }

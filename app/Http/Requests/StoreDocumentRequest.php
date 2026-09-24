@@ -77,7 +77,7 @@ class StoreDocumentRequest extends FormRequest
             'metadata' => ['nullable', 'array'],
             'custom_prompt' => ['nullable', 'string'],
             // Events mark a single occurrence on the calendar, so — unlike every other
-            // document type — only one tag makes sense; mirrors updateCategories()'s rule.
+            // document type — only one tag makes sense; mirrors updateAttributes()'s rule.
             'category_ids' => array_filter([
                 'sometimes', 'array', $this->input('type') === 'event' ? 'max:1' : null,
             ]),

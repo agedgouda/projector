@@ -243,7 +243,7 @@ declare global {
         external_due_at: string | null;
         start_at: string | null;
         task_status: TaskStatus;
-        // Events are capped to a single tag (see DocumentController::updateCategories()); tasks can carry any number.
+        // Events are capped to a single tag (see DocumentController::updateAttributes()); tasks can carry any number.
         categories: CategoryDef[];
     }
 

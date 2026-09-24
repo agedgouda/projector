@@ -222,7 +222,7 @@ class ProcessDocumentAI implements ShouldQueue
                     $newDocumentCount++;
 
                     // Events mark a single occurrence on the calendar, so only one tag makes
-                    // sense — same rule DocumentController::updateCategories() enforces for
+                    // sense — same rule DocumentController::updateAttributes() enforces for
                     // manual edits — everything else can carry any number the AI picked.
                     $categoryIds = $data['_category_ids'] ?? [];
                     if ($outputType === 'event') {

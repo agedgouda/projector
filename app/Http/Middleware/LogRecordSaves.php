@@ -24,7 +24,6 @@ class LogRecordSaves
      */
     private const ROUTES = [
         'projects.documents.updateAttributes',
-        'projects.documents.updateCategories',
         'projects.documents.move',
         'projects.documents.update',
     ];

@@ -28,6 +28,7 @@ import {
     kanbanDotClasses,
     priorityDotClasses,
 } from '@/lib/constants';
+import { formatTimestampMdy } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { router, usePage } from '@inertiajs/vue3';
 import { EditorContent } from '@tiptap/vue-3';
@@ -44,7 +45,6 @@ import {
 } from 'lucide-vue-next';
 import { computed, nextTick, reactive, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
-import { formatTimestampMdy } from '@/lib/utils';
 
 const props = withDefaults(
     defineProps<{
@@ -58,6 +58,9 @@ const props = withDefaults(
         // Only meaningful in 'create' mode — there's no document.project_id yet to resolve it
         // from.
         projectId?: string;
+        // Saves fields on the shown document (see saveDocument()) and resolves whether it
+        // worked. Required in 'edit' mode.
+        save?: (fields: Record<string, unknown>) => Promise<boolean>;
     }>(),
     {
         mode: 'edit',
@@ -67,9 +70,6 @@ const props = withDefaults(
 const emit = defineEmits<{
     // Standard V-Model for the Sheet
     (e: 'update:open', val: boolean): void;
-
-    // Your custom attribute update funnel
-    (e: 'update-attribute', field: string, value: string | number | null): void;
 
     // A task was created (create mode only) — the caller patches it into whatever local
     // list/board is showing rather than reloading.
@@ -90,19 +90,9 @@ const emit = defineEmits<{
         },
     ): void;
 
-    // Full desired tag list (sync semantics), matching useKanbanActions'/useDocumentActions'
-    // own updateTags(id, categories) signature — not a single add/remove.
-    (e: 'update-tags', id: string | number, categories: CategoryDef[]): void;
-
     // A comment was posted or deleted. `document.comments` isn't always a live Inertia prop
     // (see CommentSection.vue's own `changed` emit), so the caller needs to know to re-fetch it.
     (e: 'comments-changed', id: string | number): void;
-
-    // The title was saved (see saveName() below — it POSTs directly to
-    // DocumentController::update() rather than through the update-attribute funnel), so the
-    // Kanban card / reports row showing this same document elsewhere on screen won't pick up
-    // the new name on their own — the caller needs to patch its own copy in place.
-    (e: 'name-updated', id: string | number, name: string): void;
 }>();
 const page = usePage<AppPageProps>();
 
@@ -130,7 +120,7 @@ const columns = computed(() => documentProject.value?.kanban_columns ?? []);
 // Draft state for create mode — mirrors Documents/Create.vue's own form fields/defaults.
 // Staged locally and only sent to the server once "Create Task" is clicked, unlike edit
 // mode's per-field autosave (`handleUpdate` below writes here instead of emitting
-// `update-attribute` when `mode === 'create'`).
+// `save` when `mode === 'create'`).
 const draft = reactive({
     name: '',
     content: '',
@@ -227,10 +217,12 @@ const addTag = (category: CategoryDef) => {
         draft.category_ids = [...draft.category_ids, category.id];
         return;
     }
-    emit('update-tags', props.document!.id, [
-        ...(props.document!.categories ?? []),
-        category,
-    ]);
+    void props.save?.({
+        category_ids: [
+            ...(props.document!.categories ?? []).map((c) => c.id),
+            category.id,
+        ],
+    });
 };
 const removeTag = (category: CategoryDef) => {
     if (props.mode === 'create') {
@@ -239,29 +231,26 @@ const removeTag = (category: CategoryDef) => {
         );
         return;
     }
-    emit(
-        'update-tags',
-        props.document!.id,
-        (props.document!.categories ?? []).filter((c) => c.id !== category.id),
-    );
+    void props.save?.({
+        category_ids: (props.document!.categories ?? [])
+            .filter((c) => c.id !== category.id)
+            .map((c) => c.id),
+    });
 };
 
-// Staged locally rather than emitted straight through on every keystroke (contrast
-// InlineDocumentForm.vue's editor, which writes through to its Inertia form field
-// immediately) — this sheet's content is always live/persisted data, not a draft form, so
-// edits shouldn't reach the server until Save is actually clicked. `savedContent` is the
-// last-known-persisted value, used instead of `document.content` itself for dirty-tracking —
-// see saveContent()'s own comment for why.
-const savedContent = ref(props.document?.content ?? '');
+// Staged locally rather than saved on every keystroke (contrast InlineDocumentForm.vue's
+// editor, which writes through to its Inertia form field immediately) — this sheet's content is
+// always live/persisted data, not a draft form, so edits shouldn't reach the server until Save
+// is actually clicked.
 const draftContent = ref(props.document?.content ?? '');
 const isContentDirty = computed(
-    () => draftContent.value !== savedContent.value,
+    () => draftContent.value !== (props.document?.content ?? ''),
 );
 
 // Same useDocumentEditor composable as every other rich-text field in the app (comments,
 // document create/edit forms) — configuring Tiptap in exactly one place means a change
 // there (extensions, upload handling, mention behavior) reaches this sheet too. In create
-// mode there's no staged/saved split (see saveContent()'s comment below) — the editor writes
+// mode there's no saved document to compare against — the editor writes
 // straight into `draft.content`, submitted whole once "Create Task" is clicked.
 const { editor, triggerUpload } = useDocumentEditor(
     () => (props.mode === 'create' ? draft.content : props.document?.content),
@@ -280,95 +269,41 @@ const { editor, triggerUpload } = useDocumentEditor(
     () => documentProject.value?.id,
 );
 
-// Resets the draft (and its saved baseline) when a different document is opened in this
-// same (reused) sheet — not when *this* component's own save changes `content` server-side,
-// since saveContent() below deliberately never touches `document.content` itself.
+// Resets the draft when a different document is opened in this same (reused) sheet, and when a
+// save's answer brings back the stored content.
 watch(
     () => props.document?.content,
     (val) => {
-        savedContent.value = val ?? '';
         draftContent.value = val ?? '';
     },
 );
 
-// Deliberately not routed through the `update-attribute` emit (unlike every other field in
-// this sheet) — that funnel ultimately hits DocumentController::updateAttributes(), whose
-// validation only accepts task_status/priority/due_at/assignee_id, so a `content` key sent
-// there is silently dropped (the request still returns 200, but nothing is persisted).
-// updateAttributes() is also gated by the looser "any org member" policy check rather than
-// full project-edit access, which content edits should require — the same authorization
-// InlineDocumentForm.vue's edit flow already goes through. So this saves directly against
-// DocumentController::update() instead, matching that existing content-editing path.
-//
-// Uses axios directly rather than Inertia's router.patch() — mirroring
-// useDocumentActions.ts's updateDocument() — specifically to avoid a full-page Inertia visit:
-// this sheet is reused across the Kanban board, the Dashboard, and the Reports table, and in
-// every one of those a full visit's fresh props briefly replace the local document/task state
-// this sheet's `document` prop is sourced from, which was closing the sheet out from under
-// the user right after a successful save. Since nothing else on screen shows document content
-// (no Kanban card preview, etc.), there's nothing that actually needs that round trip — this
-// component already knows exactly what it just saved.
 const isSavingContent = ref(false);
 
 const saveContent = async () => {
-    if (!documentProject.value) {
-        return;
-    }
-
     isSavingContent.value = true;
-    try {
-        await axios.post(
-            projectDocumentsRoutes.update.url({
-                project: documentProject.value.id,
-                document: String(props.document!.id),
-            }),
-            { content: draftContent.value, _method: 'put' },
-        );
-        savedContent.value = draftContent.value;
-        toast.success('Changes saved');
-    } catch {
-        toast.error('Could not save changes.');
-    } finally {
-        isSavingContent.value = false;
-    }
+    await props.save?.({ content: draftContent.value });
+    isSavingContent.value = false;
 };
 
 const cancelContentEdit = () => {
-    draftContent.value = savedContent.value;
-    editor.value?.commands.setContent(savedContent.value, {
+    draftContent.value = props.document?.content ?? '';
+    editor.value?.commands.setContent(draftContent.value, {
         emitUpdate: false,
     });
 };
 
-// Same reasoning as content above: `name` isn't in updateAttributes()'s validated field
-// list either, so this also saves directly against DocumentController::update() rather than
-// through the update-attribute emit, and — same as content — the sheet stays open since
-// there's no Inertia visit to replace the props it's reading from out from under it.
-// Displayed name when not editing. Mirrors savedContent above: the raw `document.name` prop
-// never reflects a save made through this bypass path (no Inertia visit refreshes it), so the
-// read-only span would revert to the stale prop value right after a successful save without
-// this local copy.
-const savedName = ref(props.document?.name ?? '');
 const isEditingName = ref(false);
 const draftName = ref(props.document?.name ?? '');
 const isSavingName = ref(false);
 const nameInput = useTemplateRef('nameInput');
 const createNameInput = useTemplateRef('createNameInput');
 // True when saving would be a no-op (untouched, or trimmed down to nothing) — drives the
-// Save button's disabled state, same pattern as isContentDirty above but inverted.
+// Save button's disabled state.
 const isNameUnchanged = computed(
-    () => draftName.value.trim() === savedName.value || !draftName.value.trim(),
-);
-
-// Same "different document opened in this reused sheet" case as content's own watcher above
-// — guarded so it never clobbers an edit actually in progress.
-watch(
-    () => props.document?.name,
-    (val) => {
-        if (val === undefined) return;
-        savedName.value = val;
-        if (!isEditingName.value) draftName.value = val;
-    },
+    () =>
+        draftName.value.trim() === props.document?.name ||
+        !draftName.value.trim(),
 );
 
 // A <textarea> (not <input>) so a long title wraps instead of silently scrolling the caret
@@ -384,7 +319,7 @@ const resizeNameInput = () => resizeTextareaEl(nameInput.value);
 const resizeCreateNameInput = () => resizeTextareaEl(createNameInput.value);
 
 const startEditingName = async () => {
-    draftName.value = savedName.value;
+    draftName.value = props.document?.name ?? '';
     isEditingName.value = true;
     await nextTick();
     nameInput.value?.focus();
@@ -393,7 +328,7 @@ const startEditingName = async () => {
 };
 
 const cancelEditingName = () => {
-    draftName.value = savedName.value;
+    draftName.value = props.document?.name ?? '';
     isEditingName.value = false;
 };
 
@@ -408,35 +343,18 @@ const saveName = async () => {
         return;
     }
 
-    const trimmed = draftName.value.trim();
-
-    if (!documentProject.value) {
-        return;
-    }
-
     isSavingName.value = true;
-    try {
-        await axios.post(
-            projectDocumentsRoutes.update.url({
-                project: documentProject.value.id,
-                document: String(props.document!.id),
-            }),
-            { name: trimmed, _method: 'put' },
-        );
-        savedName.value = trimmed;
-        emit('name-updated', props.document!.id, trimmed);
-        toast.success('Changes saved');
+    const saved = await props.save?.({ name: draftName.value.trim() });
+    isSavingName.value = false;
+
+    if (saved) {
         isEditingName.value = false;
-    } catch {
-        toast.error('Could not save changes.');
-    } finally {
-        isSavingName.value = false;
     }
 };
 
 // Delete — same ConfirmDeleteModal + confirmDeletion() shape as Documents/Show.vue's own
 // delete flow (see useDocumentForm.ts), including using a real Inertia router.delete() rather
-// than the axios bypass every other edit-mode action in this file uses: unlike an edit, a
+// than a JSON save like every edit in this file: unlike an edit, a
 // deleted task shouldn't stay visible anywhere, so the normal fresh-props reload this triggers
 // is exactly what's wanted — it's what makes the task disappear from the Kanban board/report
 // underneath (and, since documentsById/selectedDocument are both derived from that same
@@ -560,9 +478,8 @@ const documentTypeLabel = computed(() =>
 );
 
 /**
- * Handle updates with type-casting.
- * We use 'any' for value here to accept the broad 'AcceptableValue' type
- * coming from the Select components.
+ * We use 'any' for value here to accept the broad 'AcceptableValue' type coming from the Select
+ * components.
  */
 const handleUpdate = (field: string, value: any) => {
     // Create mode has no document to PATCH yet — every field just stages into `draft`,
@@ -575,21 +492,7 @@ const handleUpdate = (field: string, value: any) => {
         return;
     }
 
-    let finalValue = value;
-
-    if (field === 'assignee_id') {
-        finalValue =
-            value === 'unassigned' || value === null
-                ? null
-                : parseInt(value, 10);
-    }
-
-    // Ensure that if a date is cleared, we send null, otherwise send the string
-    if (field === 'due_at' || field === 'external_due_at') {
-        finalValue = value === '' ? null : value;
-    }
-
-    emit('update-attribute', field, finalValue);
+    void props.save?.({ [field]: value });
 };
 </script>
 
@@ -656,7 +559,7 @@ const handleUpdate = (field: string, value: any) => {
                                     v-else
                                     class="cursor-pointer rounded transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
                                     @click="startEditingName"
-                                    >{{ savedName }}</span
+                                    >{{ document?.name }}</span
                                 >
                             </SheetTitle>
                             <div

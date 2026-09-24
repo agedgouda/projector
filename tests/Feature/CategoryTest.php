@@ -144,7 +144,7 @@ it('syncs a document\'s tags to the given set', function () {
     ]);
 
     $this->actingAs($this->admin)
-        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => [$design->id, $backend->id],
         ])
         ->assertRedirect();
@@ -163,7 +163,7 @@ it('allows an event document exactly one tag', function () {
     ]);
 
     $this->actingAs($this->admin)
-        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => [$design->id],
         ])
         ->assertRedirect();
@@ -182,7 +182,7 @@ it('rejects assigning an event document a second tag', function () {
     ]);
 
     $this->actingAs($this->admin)
-        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => [$design->id, $backend->id],
         ])
         ->assertSessionHasErrors('category_ids');
@@ -273,7 +273,7 @@ it('removes tags no longer present when syncing a document\'s tags', function ()
     $document->categories()->attach([$design->id, $backend->id]);
 
     $this->actingAs($this->admin)
-        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => [$design->id],
         ])
         ->assertRedirect();
@@ -292,7 +292,7 @@ it('clears all tags when synced with an empty list', function () {
     $document->categories()->attach($design->id);
 
     $this->actingAs($this->admin)
-        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => [],
         ])
         ->assertRedirect();
@@ -311,7 +311,7 @@ it('rejects assigning a document a tag from an unrelated project', function () {
     ]);
 
     $this->actingAs($this->admin)
-        ->put(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => [$category->id],
         ])
         ->assertSessionHasErrors('category_ids.0');
@@ -329,7 +329,7 @@ it('lets a subproject document use a tag owned by its family root', function () 
     ]);
 
     $this->actingAs($this->admin)
-        ->put(route('projects.documents.updateCategories', [$this->child, $document]), [
+        ->patch(route('projects.documents.updateAttributes', [$this->child, $document]), [
             'category_ids' => [$category->id],
         ])
         ->assertRedirect();
@@ -347,11 +347,12 @@ it('syncs a document\'s tags for a JSON caller and answers with a confirmation i
     ]);
 
     $this->actingAs($this->admin)
-        ->putJson(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => [$design->id],
         ])
         ->assertOk()
-        ->assertExactJson(['message' => 'Tags updated.']);
+        ->assertJsonPath('message', 'Document updated.')
+        ->assertJsonPath('document.categories.0.id', $design->id);
 
     expect($document->fresh()->categories()->pluck('categories.id')->all())->toBe([$design->id]);
 });
@@ -365,7 +366,7 @@ it('answers a JSON tag save with an unknown tag with a 422', function () {
     ]);
 
     $this->actingAs($this->admin)
-        ->putJson(route('projects.documents.updateCategories', [$this->project, $document]), [
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), [
             'category_ids' => ['00000000-0000-0000-0000-000000000000'],
         ])
         ->assertUnprocessable();

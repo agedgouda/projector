@@ -68,7 +68,7 @@ const props = defineProps<{
     assigneeOptions?: AssigneeOption[];
     // The task family's full tag catalog (see Project::familyCategories()) — offered as
     // "add a tag" options on every row regardless of which sub-project it's on, since tags
-    // are shared at the family root (DocumentController::updateCategories() validates
+    // are shared at the family root (DocumentController::updateAttributes() validates
     // against $project->familyRoot(), not the task's own immediate project).
     categories?: CategoryDef[];
 }>();

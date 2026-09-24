@@ -1,5 +1,7 @@
 <?php
 
+use App\Events\DocumentProcessingUpdate;
+use App\Events\DocumentVectorized;
 use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Document;
@@ -8,7 +10,11 @@ use App\Models\Project;
 use App\Models\ProjectType;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Role;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -425,7 +431,10 @@ it('saves task attributes for a JSON caller and answers with a confirmation inst
             'task_status' => 'done',
         ])
         ->assertOk()
-        ->assertExactJson(['message' => 'Task updated.']);
+        ->assertJsonPath('message', 'Task updated.')
+        ->assertJsonPath('document.id', $document->id)
+        ->assertJsonPath('document.priority', 'high')
+        ->assertJsonPath('document.task_status', 'done');
 
     expect($document->fresh())
         ->priority->toBe('high')
@@ -471,4 +480,157 @@ it('still redirects an Inertia attribute save as before', function () {
         ->patch(route('projects.documents.updateAttributes', [$this->project, $document]), ['priority' => 'high'])
         ->assertRedirect()
         ->assertSessionHas('success', 'Task updated.');
+});
+
+it('answers a JSON save with the stored record, including its assignee', function () {
+    $member = User::factory()->create();
+    $this->org->users()->attach($member->id, ['role' => 'member']);
+
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'assignee_id' => (string) $member->id,
+        ])
+        ->assertOk()
+        ->assertJsonPath('document.assignee_id', $member->id)
+        ->assertJsonPath('document.assignee.name', $member->name)
+        ->assertJsonPath('document.type_label', 'Task')
+        ->assertJsonMissingPath('document.project');
+});
+
+it('saves a name and content through the same endpoint and stamps the content time', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Old name',
+        'type' => 'task',
+        'content' => 'Old content',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), [
+            'name' => 'New name',
+            'content' => '<p>New content</p>',
+        ])
+        ->assertOk()
+        ->assertJsonPath('document.name', 'New name')
+        ->assertJsonPath('document.content', '<p>New content</p>');
+
+    expect($document->fresh())
+        ->name->toBe('New name')
+        ->content->toBe('<p>New content</p>')
+        ->content_updated_at->not->toBeNull();
+});
+
+it('does not stamp the content time when only an attribute is saved', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), ['priority' => 'high'])
+        ->assertOk();
+
+    expect($document->fresh()->content_updated_at)->toBeNull();
+});
+
+it('rejects an empty name and leaves the record alone', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Keep me',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $document]), ['name' => ''])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('name');
+
+    expect($document->fresh()->name)->toBe('Keep me');
+});
+
+it('lets an org member without project access change status but not name or content', function () {
+    $member = User::factory()->create();
+    $this->org->users()->attach($member->id, ['role' => 'member']);
+
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'A Task',
+        'type' => 'task',
+        'content' => 'Do it',
+        'priority' => 'low',
+        'task_status' => 'todo',
+        'processed_at' => now(),
+    ]);
+
+    $url = route('projects.documents.updateAttributes', [$this->project, $document]);
+
+    $this->actingAs($member)->patchJson($url, ['task_status' => 'done'])->assertOk();
+    $this->actingAs($member)->patchJson($url, ['name' => 'Hijacked'])->assertNotFound();
+    $this->actingAs($member)->patchJson($url, ['content' => 'Hijacked'])->assertNotFound();
+
+    expect($document->fresh())
+        ->task_status->toBe('done')
+        ->name->toBe('A Task')
+        ->content->toBe('Do it');
+});
+
+it('answers a task creation with the task even when the live-update broadcast fails', function () {
+    Queue::fake();
+    Exceptions::fake();
+    Event::listen(DocumentProcessingUpdate::class, fn () => throw new BroadcastException('Reverb is down'));
+
+    $this->actingAs($this->admin)
+        ->postJson(route('projects.documents.store', $this->project), [
+            'name' => 'Made while broadcasting is down',
+            'type' => 'task',
+            'content' => 'Do it',
+            'priority' => 'low',
+            'task_status' => 'todo',
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('name', 'Made while broadcasting is down');
+
+    expect(Document::where('name', 'Made while broadcasting is down')->exists())->toBeTrue();
+
+    Exceptions::assertReported(BroadcastException::class);
+});
+
+it('saves a finished-processing stamp even when the live-update broadcast fails', function () {
+    $document = Document::create([
+        'project_id' => $this->project->id,
+        'name' => 'Notes',
+        'type' => 'action_items',
+        'content' => 'Some notes',
+    ]);
+
+    Exceptions::fake();
+    Event::listen(DocumentVectorized::class, fn () => throw new BroadcastException('Reverb is down'));
+
+    $document->update(['processed_at' => now()]);
+
+    expect($document->fresh()->processed_at)->not->toBeNull();
+
+    Exceptions::assertReported(BroadcastException::class);
 });

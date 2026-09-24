@@ -142,14 +142,12 @@ const addTag = (category: CategoryDef) =>
         isSingleTagType.value
             ? [category]
             : [...(props.item.categories ?? []), category],
-        (message) => toast.error(message),
     );
 
 const removeTag = (category: CategoryDef) =>
     updateTags(
         props.item.id as string,
         (props.item.categories ?? []).filter((c) => c.id !== category.id),
-        (message) => toast.error(message),
     );
 
 /* ---------------------------

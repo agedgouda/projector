@@ -125,6 +125,14 @@ it('flags a save that changed nothing as a no-op', function () {
     expect(saveLogContents())->toContain('"noop":true');
 });
 
+it('does not flag a save that changed only the content as a no-op', function () {
+    $this->actingAs($this->user)->patchJson(attributesUrl(), ['content' => '<p>Changed</p>'])->assertOk();
+
+    expect(saveLogContents())
+        ->toContain('"noop":false')
+        ->toContain('"content_changed":true');
+});
+
 it('logs a rejected save with the validation errors, in both logs', function () {
     $this->actingAs($this->user)
         ->withHeaders(['X-Save-Id' => 'save-rejected'])
@@ -218,7 +226,7 @@ it('logs a tag save and the tags it attached', function () {
 
     $this->actingAs($this->user)
         ->withHeaders(['X-Save-Id' => 'save-tags'])
-        ->putJson(route('projects.documents.updateCategories', [$this->project, $this->document]), ['category_ids' => [$design->id]])
+        ->patchJson(route('projects.documents.updateAttributes', [$this->project, $this->document]), ['category_ids' => [$design->id]])
         ->assertOk();
 
     expect(saveLogContents())->toContain('save-tags')

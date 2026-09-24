@@ -27,8 +27,7 @@ import {
 } from '@/composables/useDocumentActions';
 import { useWorkflow } from '@/composables/useWorkflow';
 import { mergeAssigneeOptions } from '@/lib/assignees';
-import { saveRecord } from '@/lib/serialVisits';
-import projectDocumentsRoutes from '@/routes/projects/documents';
+import { saveDocument } from '@/lib/saveDocument';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
@@ -40,7 +39,6 @@ import {
     Table2,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
-import { toast } from 'vue-sonner';
 
 const props = defineProps<{
     project: Project;
@@ -99,133 +97,21 @@ const onSortChange = (key: SortKey, dir: SortDir) => {
     currentSort.value = { key, dir };
 };
 
-// Each row's inline edits hit its own task's project (a sub-project when the report spans
-// several — see hasSubprojects above), not this component's own `project` prop, so the
-// request URL is built per-task rather than reusing a single fixed project id the way
-// useDocumentActions does for a single-project document tree.
-//
-// Uses Inertia's router (not plain axios) — same as useDocumentActions' patchField/updateTags
-// — because DocumentController::updateAttributes/updateCategories return back(), a 302 to the
-// referring page. Inertia's own PATCH/PUT/DELETE visits send an X-Inertia header that its
-// Laravel middleware uses to upgrade that redirect to a 303, which every client (browser and
-// axios alike) always downgrades to a GET when following it. A plain axios.patch/put has no
-// such header, so the backend leaves it a 302 — and per the Fetch spec, only POST gets
-// downgraded to GET on 301/302; PATCH/PUT are replayed with their original method. Since
-// back()'s target here is this same project's own URL (session's last non-AJAX GET — almost
-// always wherever the user is currently looking at this project from), the replayed PATCH/PUT
-// landed on ProjectController::update at that same /projects/{project} URL instead, failing
-// its unrelated "name" validation.
-const onUpdateField = (
-    task: TaskReportRow,
-    field: string,
-    rawValue: unknown,
-) => {
-    let normalizedValue: string | number | null = null;
-    if (rawValue === 'unassigned' || rawValue == null) normalizedValue = null;
-    else if (typeof rawValue === 'string' || typeof rawValue === 'number')
-        normalizedValue = rawValue;
-    else return;
+// Each row's edits hit its own task's project (a sub-project when the report spans several — see
+// hasSubprojects above), not this component's own `project` prop. This table keeps its own copy of
+// every row, so the saved record is merged into the row in place.
+const saveTask = (task: TaskReportRow, fields: Record<string, unknown>) =>
+    saveDocument(task.project_id, task.id, fields, {
+        current: task,
+        apply: (values) => Object.assign(task, values),
+    });
 
-    // Matches TaskRowFields.vue's own handleUpdate — an empty date input clears the field
-    // rather than sending an empty string, which the backend's `date` validation rejects.
-    if (
-        (field === 'due_at' || field === 'external_due_at') &&
-        normalizedValue === ''
-    )
-        normalizedValue = null;
-
-    const url = projectDocumentsRoutes.updateAttributes({
-        project: task.project_id,
-        document: String(task.id),
-    }).url;
-    saveRecord(
-        'patch',
-        url,
-        { [field]: normalizedValue },
-        {
-            // This table keeps its own copy of every row (updated in place below) and the page
-            // behind it isn't showing them, so there's nothing to re-fetch.
-            refresh: false,
-            onSuccess: () => {
-                if (field === 'assignee_id') {
-                    const isInvitation =
-                        typeof normalizedValue === 'string' &&
-                        normalizedValue.startsWith('inv:');
-                    const option =
-                        normalizedValue != null
-                            ? assigneeOptions.value.find(
-                                  (o) => o.value === normalizedValue,
-                              )
-                            : null;
-                    task.assignee =
-                        !isInvitation && option
-                            ? {
-                                  id: Number(normalizedValue),
-                                  name: option.label,
-                              }
-                            : null;
-                    // `email` holds the option's already-resolved display label, not a real email
-                    // address — invitationName() falls back to it once first/last name are absent,
-                    // which is all this local, display-only update needs (the next real fetch
-                    // replaces it with the server's actual pending_assignee shape).
-                    task.pending_assignee =
-                        isInvitation && option
-                            ? {
-                                  id: Number(
-                                      (normalizedValue as string).slice(4),
-                                  ),
-                                  email: option.label,
-                                  first_name: null,
-                                  last_name: null,
-                              }
-                            : null;
-                    task.assignee_id =
-                        !isInvitation && normalizedValue != null
-                            ? Number(normalizedValue)
-                            : null;
-                    task.pending_assignee_invitation_id = isInvitation
-                        ? Number((normalizedValue as string).slice(4))
-                        : null;
-                } else {
-                    (task as unknown as Record<string, unknown>)[field] =
-                        normalizedValue;
-                }
-            },
-            onError: () => {
-                toast.error('Could not update this task.');
-            },
-        },
-    );
-};
-
-// DocumentDetailSheet's title editor saves directly against DocumentController::update()
-// (see its own name-updated emit comment), bypassing onUpdateField's saveRecord entirely
-// — so, same as onUpdateField/onUpdateTags, the row object needs a matching in-place mutation
-// or the table underneath keeps showing the old title until the next full search.
-const onUpdateName = (task: TaskReportRow, name: string) => {
-    task.name = name;
+const onUpdateField = (task: TaskReportRow, field: string, value: unknown) => {
+    void saveTask(task, { [field]: value ?? null });
 };
 
 const onUpdateTags = (task: TaskReportRow, categories: CategoryDef[]) => {
-    const previous = task.categories;
-    task.categories = categories;
-
-    const url = projectDocumentsRoutes.updateCategories({
-        project: task.project_id,
-        document: String(task.id),
-    }).url;
-    saveRecord(
-        'put',
-        url,
-        { category_ids: categories.map((c) => c.id) },
-        {
-            refresh: false,
-            onError: () => {
-                task.categories = previous;
-                toast.error("Could not update this task's tags.");
-            },
-        },
-    );
+    void saveTask(task, { category_ids: categories.map((c) => c.id) });
 };
 
 // The slide-in detail sheet — same component the Kanban board opens on a card click (see
@@ -683,20 +569,7 @@ defineExpose({
             :document="selectedReportTask as unknown as UIProjectDocument"
             :reprocessable-types="reprocessableTypes"
             :ai-processed-parent-ids="emptyAiProcessedParentIds"
-            @update-attribute="
-                (field, val) =>
-                    selectedReportTask &&
-                    onUpdateField(selectedReportTask, field, val)
-            "
-            @update-tags="
-                (id, categories) =>
-                    selectedReportTask &&
-                    onUpdateTags(selectedReportTask, categories)
-            "
-            @name-updated="
-                (id, name) =>
-                    selectedReportTask && onUpdateName(selectedReportTask, name)
-            "
+            :save="(fields) => saveTask(selectedReportTask!, fields)"
             @handle-reprocess="handleReportReprocess"
             @handle-transition="handleReportTransition"
             @comments-changed="handleReportCommentsChanged"

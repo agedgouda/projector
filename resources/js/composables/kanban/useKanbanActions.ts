@@ -1,9 +1,7 @@
-import { saveRecord } from '@/lib/serialVisits';
-import projectRoutes from '@/routes/projects';
+import { saveDocument } from '@/lib/saveDocument';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import type { Ref } from 'vue';
-import { toast } from 'vue-sonner';
 import type { KanbanProps } from './useKanbanBoard';
 
 export function useKanbanActions(
@@ -24,66 +22,35 @@ export function useKanbanActions(
     };
 
     /**
-     * Updates a document attribute with Optimistic UI support
+     * Saves changes to a document (see saveDocument()) and keeps the board's copy in step.
      */
     const updateAttribute = (
         documentId: string | number,
         data: Record<string, any>,
         successMessage?: string,
-    ) => {
+    ): Promise<boolean> => {
         const projectId = projectIdForDoc(documentId);
-        if (!projectId) return;
+        const current = documentsById.value[documentId];
+        if (!projectId || !current) return Promise.resolve(false);
 
-        const docIdStr = String(documentId);
-        const route = projectRoutes.documents.updateAttributes({
-            project: projectId,
-            document: docIdStr,
-        });
-
-        // The card moves/changes on screen immediately; the save and the page refresh that
-        // follows it happen in the background (see saveRecord()). If the save fails, that refresh
-        // puts the card back the way the server has it.
-        applyLocalUpdate(documentId, data);
-
-        saveRecord('patch', route.url, data, {
+        return saveDocument(projectId, documentId, data, {
+            current,
+            apply: (values) => applyLocalUpdate(documentId, values),
             successMessage,
-            onError: () => {
-                toast.error('Failed to save changes. Reverting...');
-            },
         });
     };
 
     /**
-     * Sets the complete list of tags on a task — sync semantics, like updateBoards used to
-     * be (send the full desired set, not a single add/remove). Takes the resolved CategoryDef
-     * objects (not just ids) so the optimistic local update can render pills immediately,
-     * without waiting for the round trip to bring back the relation.
+     * Sets the complete list of tags on a task — sync semantics (send the full desired set, not a
+     * single add/remove).
      */
     const updateTags = (
         documentId: string | number,
         categories: CategoryDef[],
     ) => {
-        const projectId = projectIdForDoc(documentId);
-        if (!projectId) return;
-
-        const docIdStr = String(documentId);
-        const route = projectRoutes.documents.updateCategories({
-            project: projectId,
-            document: docIdStr,
+        void updateAttribute(documentId, {
+            category_ids: categories.map((c) => c.id),
         });
-
-        applyLocalUpdate(documentId, { categories });
-
-        saveRecord(
-            'put',
-            route.url,
-            { category_ids: categories.map((c) => c.id) },
-            {
-                onError: () => {
-                    toast.error('Failed to save tags. Reverting...');
-                },
-            },
-        );
     };
 
     // Comments aren't part of a document's usual attribute set, so there's nothing to send

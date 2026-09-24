@@ -946,17 +946,15 @@ watch(
             :document="selectedDocument as ProjectDocument"
             @handle-reprocess="handleReprocess"
             @handle-transition="handleTransition"
-            @update-attribute="
-                (attr, val) =>
+            :save="
+                (fields) =>
                     updateAttribute(
                         selectedDocument!.id,
-                        { [attr]: val },
+                        fields,
                         'Changes saved',
                     )
             "
-            @update-tags="(id, categories) => updateTags(id, categories)"
             @comments-changed="(id) => refreshComments(id)"
-            @name-updated="(id, name) => applyLocalUpdate(id, { name })"
         />
 
         <DocumentDetailSheet
