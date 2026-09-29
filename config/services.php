@@ -42,6 +42,16 @@ return [
         'signing_secret' => env('SLACK_SIGNING_SECRET'),
     ],
 
+    // The Microsoft Teams bot, mirroring the Slack app above. Unlike Slack there's one set of
+    // credentials for every customer tenant — no per-org token. Azure no longer allows new
+    // multi-tenant bot resources, so the bot is single-tenant: its tokens are always requested
+    // from our own home tenant_id, even when replying into a customer's tenant.
+    'teams' => [
+        'app_id' => env('TEAMS_APP_ID'),
+        'app_secret' => env('TEAMS_APP_SECRET'),
+        'tenant_id' => env('TEAMS_TENANT_ID'),
+    ],
+
     // The Dropbox app installed per-organization, mirroring the Slack connection above — lets
     // Projector import files dropped in a bound Dropbox folder the same way it already does for
     // a bound Slack channel. app_secret both signs the OAuth client_secret role and verifies

@@ -547,4 +547,5 @@ Route::middleware(['auth'])->prefix('app')->name('mobile.')->group(function () {
 
 require __DIR__.'/settings.php';
 require __DIR__.'/slack.php';
+require __DIR__.'/teams.php';
 require __DIR__.'/dropbox.php';
