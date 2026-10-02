@@ -24,6 +24,11 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
      *                                 $childrenReplaced, listeners derive which documents
      *                                 those are from parent_id on each child's own
      *                                 broadcasts rather than an explicit ID list.
+     *
+     * The document is cloned because this event broadcasts synchronously (ShouldBroadcastNow)
+     * from inside the caller's own request — formatDocument()'s makeHidden('content') and the
+     * relations loaded here would otherwise leak onto the caller's instance, e.g. stripping
+     * content from DocumentController::store()'s JSON response for a newly created task.
      */
     public function __construct(
         public Document $document,
@@ -31,7 +36,9 @@ class DocumentProcessingUpdate implements ShouldBroadcastNow
         public int $progress = 0, // Added progress property
         public bool $childrenReplaced = false,
         public int $newDocumentCount = 0,
-    ) {}
+    ) {
+        $this->document = clone $document;
+    }
 
     /**
      * Also broadcast org-wide, on top of the project channel, so a global "something's

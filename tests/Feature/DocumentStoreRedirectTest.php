@@ -104,6 +104,20 @@ it('returns the created document as JSON for a plain axios post (no X-Inertia he
     expect($response->json('id'))->toBeString();
 });
 
+it('includes content in the JSON response even though the created() broadcast hides it from its own payload', function () {
+    // DocumentObserver::created() fires DocumentProcessingUpdate (ShouldBroadcastNow) in the
+    // same request, on the same model instance store() then serializes — its payload must
+    // strip content without mutating that model, or the create sheet's caller gets a task
+    // with no content to show until the next full reload.
+    Queue::fake();
+
+    $response = $this->actingAs($this->admin)
+        ->postJson(route('projects.documents.store', $this->project), storeDocumentPayload('task'));
+
+    $response->assertSuccessful();
+    $response->assertJsonPath('content', 'Some content');
+});
+
 it('still redirects for an Inertia-flagged post even when it also wants JSON', function () {
     Queue::fake();
 
