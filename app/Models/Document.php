@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CustomPromptMode;
 use App\Services\RecordingIntakeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -22,6 +23,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property OrganizationInvitation|null $pendingAssignee
  * @property string|null $locked_project_type_id
  * @property string|null $custom_prompt
+ * @property \App\Enums\CustomPromptMode|null $custom_prompt_mode
  * @property int|null $last_ai_template_id
  * @property string|null $last_output_key
  * @property AiTemplate|null $lastAiTemplate
@@ -52,6 +54,7 @@ class Document extends Model implements HasMedia
         'pending_assignee_invitation_id' => 'integer',
         'last_ai_template_id' => 'integer',
         'processing_triggered_by_user_id' => 'integer',
+        'custom_prompt_mode' => CustomPromptMode::class,
     ];
 
     protected $hidden = ['embedding'];
@@ -78,6 +81,7 @@ class Document extends Model implements HasMedia
         'start_at',
         'locked_project_type_id',
         'custom_prompt',
+        'custom_prompt_mode',
         'last_ai_template_id',
         'last_output_key',
     ];

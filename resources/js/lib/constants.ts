@@ -127,6 +127,27 @@ export const MEETING_PROVIDERS: { value: string; label: string }[] = [
 export const meetingProviderLabel = (provider: string | null): string | null =>
     MEETING_PROVIDERS.find((p) => p.value === provider)?.label ?? null;
 
+/**
+ * How a document's optional AI instructions relate to its standard processing — mirrors
+ * App\Enums\CustomPromptMode. A stored null predates this choice and behaves as 'replace'.
+ */
+export type CustomPromptMode = 'add' | 'replace';
+
+export const CUSTOM_PROMPT_MODES: { value: CustomPromptMode; label: string; description: string }[] = [
+    {
+        value: 'add',
+        label: 'Add to the standard instructions',
+        description: 'Extra guidance on top of the usual processing.',
+    },
+    {
+        value: 'replace',
+        label: 'Replace the standard instructions',
+        description: 'Your text is the whole instruction — for creating something new.',
+    },
+];
+
+export type CustomPrompt = { text: string; mode: CustomPromptMode };
+
 /** Claude is excluded — Anthropic has no public embeddings API. */
 export const VECTOR_DRIVERS: AiDriverOption[] = [
     { value: '', label: 'System Default' },

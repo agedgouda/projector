@@ -157,7 +157,7 @@ const showPasswordConfirmation = ref(false);
             <div class="text-center text-sm text-muted-foreground">
                 Already have an account?
                 <TextLink
-                    :href="organizationLogin(organization).url"
+                    :href="organizationLogin(organization, { query: { invitation: invitationToken } }).url"
                     class="underline underline-offset-4 cursor-pointer"
                     :tabindex="7"
                     >Log in</TextLink

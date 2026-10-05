@@ -510,6 +510,12 @@ class DocumentController extends Controller
             return substr((string) $expected, 0, 10) === substr((string) $actual, 0, 10);
         }
 
+        // Enum-cast columns (e.g. custom_prompt_mode) come back as the enum, not the raw value
+        // the request sent.
+        if ($actual instanceof \BackedEnum) {
+            $actual = $actual->value;
+        }
+
         return (string) $expected === (string) $actual;
     }
 
@@ -659,14 +665,31 @@ class DocumentController extends Controller
             abort(404);
         }
 
+        $orgId = $project->client?->organization_id;
+
+        // Only a global transformation or one of this project's own organization's — never
+        // another organization's — matching what transitionOptions() offers.
         $validated = $request->validate([
             'to_key' => ['sometimes', 'string', 'max:255'],
-            'ai_template_id' => ['required', 'integer', 'exists:ai_templates,id'],
+            'ai_template_id' => [
+                'required',
+                'integer',
+                Rule::exists('ai_templates', 'id')->where(function ($query) use ($orgId) {
+                    $query->where('type', 'workflow')
+                        ->where(fn ($query) => $query->whereNull('organization_id')->when($orgId, fn ($query) => $query->orWhere('organization_id', $orgId)));
+                }),
+            ],
             'single_output' => ['sometimes', 'boolean'],
-            'project_type_id' => ['sometimes', 'nullable', 'uuid', 'exists:project_types,id'],
+            'project_type_id' => [
+                'sometimes',
+                'nullable',
+                'uuid',
+                Rule::exists('project_types', 'id')->where(
+                    fn ($query) => $query->whereNull('organization_id')->when($orgId, fn ($query) => $query->orWhere('organization_id', $orgId))
+                ),
+            ],
         ]);
 
-        $orgId = $project->client?->organization_id;
         $org = $orgId ? \App\Models\Organization::find($orgId) : null;
         if ($org && ($block = \App\Services\MembershipGuard::check($org, 'ai_docs'))) {
             return $block;
@@ -746,6 +769,7 @@ class DocumentController extends Controller
         // The universal Notes -> Action Items template runs automatically for every intake
         // document (see ProjectAiService::process()) and is never a manual choice.
         $aiTemplates = \App\Models\AiTemplate::where('type', 'workflow')
+            ->availableToOrganization($orgId)
             ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'))
             ->orderBy('name')
             ->get(['id', 'name']);

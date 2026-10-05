@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import transcriptRoutes from '@/routes/projects/transcripts/index';
 import { type PickedGoogleDoc } from '@/composables/transcripts/useGooglePicker';
+import { type CustomPrompt } from '@/lib/constants';
 
 // What the picker chose the imported content should become — an existing catalog type (the
 // intake type included, still the default), or a brand-new one the user is naming right now.
@@ -16,13 +17,14 @@ export function useDocumentImportActions(projectId: string) {
     const importingGoogleDoc = ref(false);
     const importingFile = ref<'docx' | 'txt' | null>(null);
 
-    const importGoogleDoc = (file: PickedGoogleDoc, customPrompt: string | null | undefined, typeChoice: ImportTypeChoice) => {
+    const importGoogleDoc = (file: PickedGoogleDoc, customPrompt: CustomPrompt | null, typeChoice: ImportTypeChoice) => {
         importingGoogleDoc.value = true;
 
         router.post(transcriptRoutes.importGoogleDoc.url(projectId), {
             file_id: file.id,
             title: file.name,
-            custom_prompt: customPrompt || null,
+            custom_prompt: customPrompt?.text ?? null,
+            custom_prompt_mode: customPrompt?.mode ?? null,
             type: 'type' in typeChoice ? typeChoice.type : null,
             new_type_label: 'newTypeLabel' in typeChoice ? typeChoice.newTypeLabel : null,
         }, {
@@ -34,12 +36,13 @@ export function useDocumentImportActions(projectId: string) {
         });
     };
 
-    const importFile = (file: File, kind: 'docx' | 'txt', customPrompt: string | null | undefined, typeChoice: ImportTypeChoice) => {
+    const importFile = (file: File, kind: 'docx' | 'txt', customPrompt: CustomPrompt | null, typeChoice: ImportTypeChoice) => {
         importingFile.value = kind;
 
         router.post(transcriptRoutes.importFile.url(projectId), {
             file,
-            custom_prompt: customPrompt || null,
+            custom_prompt: customPrompt?.text ?? null,
+            custom_prompt_mode: customPrompt?.mode ?? null,
             type: 'type' in typeChoice ? typeChoice.type : null,
             new_type_label: 'newTypeLabel' in typeChoice ? typeChoice.newTypeLabel : null,
         }, {

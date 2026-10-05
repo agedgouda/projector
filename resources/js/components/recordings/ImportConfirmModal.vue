@@ -9,7 +9,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { CUSTOM_PROMPT_MODES, type CustomPrompt, type CustomPromptMode } from '@/lib/constants';
 import { ref, watch } from 'vue';
 
 // Shared by every import source (Google Doc, uploaded file, picked meeting recording) whenever
@@ -24,22 +26,29 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'close'): void;
-    (e: 'confirm', additionalInfo: string | null): void;
+    (e: 'confirm', additionalInfo: CustomPrompt | null): void;
 }>();
 
 // Ephemeral — cleared whenever the dialog closes so a leftover note from a previous import
 // never silently applies to the next one.
 const additionalInfo = ref('');
+// Add is the default: a short note ("the client is Acme") should guide the standard Meeting
+// Notes, not become the entire instruction. Replace is for creating something new instead.
+const mode = ref<CustomPromptMode>('add');
 
 watch(
     () => props.open,
     (isOpen) => {
-        if (!isOpen) additionalInfo.value = '';
+        if (!isOpen) {
+            additionalInfo.value = '';
+            mode.value = 'add';
+        }
     },
 );
 
 const save = () => {
-    emit('confirm', additionalInfo.value.trim() || null);
+    const text = additionalInfo.value.trim();
+    emit('confirm', text ? { text, mode: mode.value } : null);
 };
 </script>
 
@@ -61,9 +70,22 @@ const save = () => {
                 </Label>
                 <Textarea
                     v-model="additionalInfo"
-                    placeholder="Anything the system should know before generating Meeting Notes from this..."
+                    :placeholder="
+                        mode === 'add'
+                            ? 'e.g. The client is Acme — list an owner for every action item.'
+                            : 'e.g. Write a one-page client recap of the decisions made, with no internal notes.'
+                    "
                     class="min-h-24 text-sm"
                 />
+                <RadioGroup v-if="additionalInfo.trim()" v-model="mode" class="gap-2 pt-1">
+                    <div v-for="option in CUSTOM_PROMPT_MODES" :key="option.value" class="flex items-start gap-2">
+                        <RadioGroupItem :id="`import-prompt-mode-${option.value}`" :value="option.value" class="mt-0.5" />
+                        <Label :for="`import-prompt-mode-${option.value}`" class="flex flex-col items-start gap-0.5">
+                            <span class="text-[13px] font-medium text-slate-600 dark:text-slate-300">{{ option.label }}</span>
+                            <span class="text-xs font-normal text-muted-foreground">{{ option.description }}</span>
+                        </Label>
+                    </div>
+                </RadioGroup>
             </div>
 
             <DialogFooter class="gap-2 sm:gap-4">

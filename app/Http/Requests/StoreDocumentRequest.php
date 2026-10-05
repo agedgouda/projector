@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\CustomPromptMode;
 use App\Rules\ValidKanbanColumn;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -76,6 +77,7 @@ class StoreDocumentRequest extends FormRequest
             ],
             'metadata' => ['nullable', 'array'],
             'custom_prompt' => ['nullable', 'string'],
+            'custom_prompt_mode' => ['nullable', Rule::enum(CustomPromptMode::class)],
             // Events mark a single occurrence on the calendar, so — unlike every other
             // document type — only one tag makes sense; mirrors updateAttributes()'s rule.
             'category_ids' => array_filter([

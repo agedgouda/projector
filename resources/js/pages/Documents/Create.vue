@@ -49,6 +49,7 @@ const form = useForm<DocumentForm & { project_id: string; category_ids: string[]
         criteria: [] as string[],
     },
     custom_prompt: null,
+    custom_prompt_mode: 'add',
     category_ids: [],
 });
 

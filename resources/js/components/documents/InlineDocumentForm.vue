@@ -20,6 +20,7 @@ import { watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Popover,
     PopoverContent,
@@ -33,7 +34,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { kanbanDotClasses } from '@/lib/constants';
+import { CUSTOM_PROMPT_MODES, kanbanDotClasses } from '@/lib/constants';
 
 const props = defineProps<{
     mode: 'create' | 'edit';
@@ -351,17 +352,45 @@ const updateCriterion = (index: number, value: string) =>
                 >AI Processing Instructions</Label
             >
             <p class="text-[10px] font-medium text-slate-400">
-                Overrides the default AI processing for this document. Leave
-                blank to use standard processing.
+                Optional. Leave blank to use standard processing.
             </p>
             <Textarea
                 :model-value="form.custom_prompt ?? ''"
                 @update:model-value="
                     (v) => updateField('custom_prompt', v || null)
                 "
-                placeholder="e.g. Clean this up into full meeting notes, eliminating anything personal..."
+                :placeholder="
+                    form.custom_prompt_mode === 'replace'
+                        ? 'e.g. Clean this up into full meeting notes, eliminating anything personal...'
+                        : 'e.g. The client is Acme — list an owner for every action item.'
+                "
                 class="min-h-24 border-slate-200 bg-white text-[13px] dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
             />
+            <RadioGroup
+                v-if="form.custom_prompt"
+                :model-value="form.custom_prompt_mode"
+                @update:model-value="(v) => updateField('custom_prompt_mode', v)"
+                class="gap-2 pt-1"
+            >
+                <div
+                    v-for="option in CUSTOM_PROMPT_MODES"
+                    :key="option.value"
+                    class="flex items-start gap-2"
+                >
+                    <RadioGroupItem
+                        :id="`document-prompt-mode-${option.value}`"
+                        :value="option.value"
+                        class="mt-0.5"
+                    />
+                    <Label
+                        :for="`document-prompt-mode-${option.value}`"
+                        class="flex flex-col items-start gap-0.5"
+                    >
+                        <span class="text-[13px] font-medium text-slate-600 dark:text-slate-300">{{ option.label }}</span>
+                        <span class="text-[10px] font-medium text-slate-400">{{ option.description }}</span>
+                    </Label>
+                </div>
+            </RadioGroup>
             <p
                 v-if="form.errors.custom_prompt"
                 class="text-[10px] font-bold text-red-500 uppercase"

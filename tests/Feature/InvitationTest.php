@@ -734,3 +734,151 @@ it('clears pending assignment when an invitation is accepted even if expired via
     expect($document->assignee_id)->toBe($user->id)
         ->and($document->pending_assignee_invitation_id)->toBeNull();
 });
+
+// --- Keeping invitations and their assigned tasks alive ---
+
+it('gives an invitation a fresh 7 days when it is resent', function () {
+    Mail::fake();
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'stale@example.com',
+        'token' => str_repeat('r', 64),
+        'expires_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($this->orgAdmin)
+        ->post(route('organizations.invitations.resend', [$this->org, $invitation]))
+        ->assertRedirect();
+
+    expect($invitation->fresh()->expires_at->greaterThan(now()->addDays(6)))->toBeTrue();
+    Mail::assertSent(OrganizationInvitationMail::class);
+
+    $this->get(route('invite', $invitation->token))
+        ->assertRedirect(route('organization.register', ['organization' => $this->org->id, 'invitation' => $invitation->token]));
+});
+
+it('keeps the same invitation and its assigned tasks when someone is invited again', function () {
+    Mail::fake();
+
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'again@example.com',
+        'role' => 'team-member',
+        'token' => str_repeat('s', 64),
+        'expires_at' => now()->subDay(),
+    ]);
+
+    [, $document] = makeDocument($this->org);
+    $document->update(['pending_assignee_invitation_id' => $invitation->id]);
+
+    $this->actingAs($this->orgAdmin)
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'Again', 'last_name' => 'Person', 'email' => 'again@example.com', 'role' => 'project-lead'])
+        ->assertRedirect();
+
+    $invitation->refresh();
+    expect(OrganizationInvitation::where('email', 'again@example.com')->count())->toBe(1)
+        ->and($invitation->token)->toBe(str_repeat('s', 64))
+        ->and($invitation->role)->toBe('project-lead')
+        ->and($invitation->expires_at->greaterThan(now()->addDays(6)))->toBeTrue()
+        ->and($document->fresh()->pending_assignee_invitation_id)->toBe($invitation->id);
+});
+
+it('hands pending tasks to an existing account when inviting that email attaches them directly', function () {
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'registered-later@example.com',
+        'token' => str_repeat('t', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    [, $document] = makeDocument($this->org);
+    $document->update(['pending_assignee_invitation_id' => $invitation->id]);
+
+    $registeredUser = User::factory()->create(['email' => 'registered-later@example.com']);
+
+    $this->actingAs($this->orgAdmin)
+        ->post(route('organizations.invite', $this->org), ['first_name' => 'Later', 'last_name' => 'Person', 'email' => 'registered-later@example.com', 'role' => 'team-member'])
+        ->assertRedirect();
+
+    $document->refresh();
+    expect($document->assignee_id)->toBe($registeredUser->id)
+        ->and($document->pending_assignee_invitation_id)->toBeNull()
+        ->and(OrganizationInvitation::where('email', 'registered-later@example.com')->exists())->toBeFalse();
+});
+
+it('hands pending tasks to an existing account when an invitation is edited to that email', function () {
+    $invitation = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'typo@example.com',
+        'token' => str_repeat('u', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    [, $document] = makeDocument($this->org);
+    $document->update(['pending_assignee_invitation_id' => $invitation->id]);
+
+    $registeredUser = User::factory()->create(['email' => 'correct@example.com']);
+
+    $this->actingAs($this->orgAdmin)
+        ->put(route('organizations.invitations.update', [$this->org, $invitation]), ['first_name' => 'Fixed', 'last_name' => 'Typo', 'email' => 'correct@example.com', 'role' => 'team-member'])
+        ->assertRedirect();
+
+    $document->refresh();
+    expect($document->assignee_id)->toBe($registeredUser->id)
+        ->and($document->pending_assignee_invitation_id)->toBeNull();
+});
+
+it('moves tasks from a duplicate invitation onto the edited one', function () {
+    Mail::fake();
+
+    $edited = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'old@example.com',
+        'token' => str_repeat('v', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+    $duplicate = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'shared@example.com',
+        'token' => str_repeat('w', 64),
+        'expires_at' => now()->addDays(7),
+    ]);
+
+    [, $document] = makeDocument($this->org);
+    $document->update(['pending_assignee_invitation_id' => $duplicate->id]);
+
+    $this->actingAs($this->orgAdmin)
+        ->put(route('organizations.invitations.update', [$this->org, $edited]), ['first_name' => 'Merged', 'last_name' => 'Person', 'email' => 'shared@example.com', 'role' => 'team-member'])
+        ->assertRedirect();
+
+    expect(OrganizationInvitation::find($duplicate->id))->toBeNull()
+        ->and($document->fresh()->pending_assignee_invitation_id)->toBe($edited->id);
+});
+
+it('lists an expired invitation that still has tasks assigned, but not one without', function () {
+    $withTasks = OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'held-open@example.com',
+        'token' => str_repeat('x', 64),
+        'expires_at' => now()->subDays(3),
+    ]);
+    OrganizationInvitation::create([
+        'organization_id' => $this->org->id,
+        'email' => 'lapsed@example.com',
+        'token' => str_repeat('y', 64),
+        'expires_at' => now()->subDays(3),
+    ]);
+
+    [, $document] = makeDocument($this->org);
+    $document->update(['pending_assignee_invitation_id' => $withTasks->id]);
+
+    $response = $this->actingAs($this->orgAdmin)
+        ->withSession(['active_org_id' => $this->org->id])
+        ->get(route('organizations.index', ['org' => $this->org->id]));
+
+    $emails = collect($response->original->getData()['page']['props']['invitations'])->pluck('email');
+
+    expect($emails->all())->toContain('held-open@example.com')
+        ->and($emails->all())->not()->toContain('lapsed@example.com');
+});

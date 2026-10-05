@@ -6,6 +6,7 @@ import ImportConfirmModal from '@/components/recordings/ImportConfirmModal.vue';
 import RecordingsList from '@/components/recordings/RecordingsList.vue';
 import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
 import { type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
+import { type CustomPrompt } from '@/lib/constants';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 
 const props = withDefaults(defineProps<{
@@ -68,7 +69,7 @@ const closeImportConfirm = () => {
     isImportConfirmOpen.value = false;
 };
 
-const confirmImport = (additionalInfo: string | null) => {
+const confirmImport = (additionalInfo: CustomPrompt | null) => {
     if (!pendingImportRecording.value) return;
     importRecording(pendingImportRecording.value, additionalInfo, props.typeChoice);
     isImportConfirmOpen.value = false;

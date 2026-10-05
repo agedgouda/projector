@@ -21,16 +21,24 @@ class OrganizationRegistrationController extends Controller
     {
         $invitation = $this->findValidInvitation($organization, $request->query('invitation'));
 
-        if ($invitation && Auth::check() && strtolower(Auth::user()->email) === strtolower($invitation->email)) {
+        if (! $invitation) {
+            return redirect()->route('login')->withErrors(['email' => 'This invitation link is invalid or has expired.']);
+        }
+
+        if (Auth::check() && strtolower(Auth::user()->email) === strtolower($invitation->email)) {
             return $this->addUserToOrgAndRedirect($request, $organization, Auth::user(), $invitation);
+        }
+
+        if (User::where('email', $invitation->email)->exists()) {
+            return redirect()->route('organization.login', ['organization' => $organization->id, 'invitation' => $invitation->token]);
         }
 
         return Inertia::render('auth/OrganizationRegister', [
             'organization' => $organization->only('id', 'name'),
-            'invitedEmail' => $invitation?->email,
-            'invitedFirstName' => $invitation?->first_name,
-            'invitedLastName' => $invitation?->last_name,
-            'invitationToken' => $invitation?->token,
+            'invitedEmail' => $invitation->email,
+            'invitedFirstName' => $invitation->first_name,
+            'invitedLastName' => $invitation->last_name,
+            'invitationToken' => $invitation->token,
         ]);
     }
 
@@ -41,23 +49,25 @@ class OrganizationRegistrationController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string', Password::default(), 'confirmed'],
-            'invitation_token' => ['nullable', 'string'],
+            'invitation_token' => ['required', 'string'],
         ]);
 
-        $this->validateInvitationToken($organization, $validated['invitation_token'] ?? null, $validated['email']);
+        $invitation = $this->validateInvitationToken($organization, $validated['invitation_token'], $validated['email']);
 
-        $user = User::where('email', $validated['email'])->first();
-
-        if (! $user) {
-            $user = User::create([
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-            ]);
+        // Never sign in to an existing account from here — this form has no way to check that
+        // account's own password, so the person has to sign in through the login form instead.
+        if (User::where('email', $validated['email'])->exists()) {
+            return redirect()
+                ->route('organization.login', ['organization' => $organization->id, 'invitation' => $invitation->token])
+                ->withErrors(['email' => 'An account with this email address already exists. Sign in to accept the invitation.']);
         }
 
-        $invitation = OrganizationInvitation::where('token', $validated['invitation_token'] ?? null)->first();
+        $user = User::create([
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+        ]);
 
         Auth::login($user);
 
@@ -66,20 +76,18 @@ class OrganizationRegistrationController extends Controller
         return $this->addUserToOrgAndRedirect($request, $organization, $user, $invitation);
     }
 
-    private function addUserToOrgAndRedirect(Request $request, Organization $organization, User $user, ?OrganizationInvitation $invitation): RedirectResponse
+    private function addUserToOrgAndRedirect(Request $request, Organization $organization, User $user, OrganizationInvitation $invitation): RedirectResponse
     {
         $wasAdded = ! $organization->users()->where('user_id', $user->id)->exists();
 
         if ($wasAdded) {
-            $organization->users()->attach($user->id, ['role' => $invitation?->role ?? 'team-member']);
+            $organization->users()->attach($user->id, ['role' => $invitation->role ?? 'team-member']);
         }
 
-        if ($invitation) {
-            Document::where('pending_assignee_invitation_id', $invitation->id)
-                ->update(['assignee_id' => $user->id, 'pending_assignee_invitation_id' => null]);
+        Document::where('pending_assignee_invitation_id', $invitation->id)
+            ->update(['assignee_id' => $user->id, 'pending_assignee_invitation_id' => null]);
 
-            $invitation->delete();
-        }
+        $invitation->delete();
 
         $message = $wasAdded
             ? 'You have successfully been added to '.$organization->name.'.'
@@ -103,12 +111,8 @@ class OrganizationRegistrationController extends Controller
             ->first();
     }
 
-    private function validateInvitationToken(Organization $organization, ?string $token, string $email): void
+    private function validateInvitationToken(Organization $organization, string $token, string $email): OrganizationInvitation
     {
-        if (! $token) {
-            return;
-        }
-
         $invitation = $this->findValidInvitation($organization, $token);
 
         if (! $invitation || strtolower($invitation->email) !== strtolower($email)) {
@@ -116,5 +120,7 @@ class OrganizationRegistrationController extends Controller
                 'email' => 'This invitation is not valid for this email address.',
             ]);
         }
+
+        return $invitation;
     }
 }

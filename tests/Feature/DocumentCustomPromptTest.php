@@ -1,6 +1,7 @@
 <?php
 
 use App\Contracts\LlmDriver;
+use App\Enums\CustomPromptMode;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\AiTemplate;
 use App\Models\Client;
@@ -195,4 +196,144 @@ it('lets an explicit override step win over a document\'s stored custom_prompt',
     ]);
 
     expect($result['output_type'])->toBe('action_items');
+});
+
+// --- Add vs Replace (App\Enums\CustomPromptMode) ---
+
+function useStandardMeetingNotesTemplate(): AiTemplate
+{
+    $template = AiTemplate::create([
+        'name' => 'Transcript to Meeting Notes',
+        'type' => 'workflow',
+        'system_prompt' => 'Standard meeting notes instructions.',
+        'user_prompt' => '{{input}}',
+    ]);
+
+    config(['workflow.intake_to_action_items_ai_template_id' => $template->id]);
+
+    return $template;
+}
+
+it('runs the standard Meeting Notes template with an Add-mode custom prompt as extra guidance', function () {
+    useStandardMeetingNotesTemplate();
+    $document = createDocumentWithCustomPrompt($this->project, 'The client is Acme.');
+    $document->update(['custom_prompt_mode' => CustomPromptMode::Add]);
+
+    $llm = $this->mock(LlmDriver::class);
+    $llm->shouldReceive('completeFreeform')->never();
+    $llm->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => str_contains($systemPrompt, 'Standard meeting notes instructions.')
+            && str_contains($systemPrompt, 'The client is Acme.'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Meeting Notes', 'action_items' => 'Follow up', 'criteria' => []]],
+        ]);
+
+    $result = app(ProjectAiService::class)->process($document);
+
+    expect($result['output_type'])->toBe('action_items');
+});
+
+it('applies both an Add-mode custom prompt and one-off reprocess instructions on top of the standard template', function () {
+    useStandardMeetingNotesTemplate();
+    $document = createDocumentWithCustomPrompt($this->project, 'The client is Acme.');
+    $document->update(['custom_prompt_mode' => CustomPromptMode::Add]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => str_contains($systemPrompt, 'Standard meeting notes instructions.')
+            && str_contains($systemPrompt, 'The client is Acme.')
+            && str_contains($systemPrompt, 'only extract the Action Items section'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Meeting Notes', 'action_items' => 'Follow up', 'criteria' => []]],
+        ]);
+
+    app(ProjectAiService::class)->process($document, null, 'For this run, only extract the Action Items section.');
+});
+
+it('still fully replaces the standard template for a Replace-mode custom prompt', function () {
+    useStandardMeetingNotesTemplate();
+    $document = createDocumentWithCustomPrompt($this->project, 'Write a client recap.');
+    $document->update(['custom_prompt_mode' => CustomPromptMode::Replace]);
+
+    $llm = $this->mock(LlmDriver::class);
+    $llm->shouldReceive('call')->never();
+    $llm->shouldReceive('completeFreeform')
+        ->once()
+        ->withArgs(fn (string $systemPrompt, string $userMessage) => str_contains($userMessage, 'Write a client recap.')
+            && ! str_contains($userMessage, 'Standard meeting notes instructions.'))
+        ->andReturn(['status' => 'success', 'content' => "Client Recap\n\nBody."]);
+
+    $result = app(ProjectAiService::class)->process($document);
+
+    expect($result['mock_response']['title'])->toBe('Client Recap');
+});
+
+it('does not carry an Add-mode custom prompt into an explicitly picked override step', function () {
+    $document = createDocumentWithCustomPrompt($this->project, 'The client is Acme.');
+    $document->update(['custom_prompt_mode' => CustomPromptMode::Add]);
+
+    $template = AiTemplate::create([
+        'name' => 'Notes to Action items',
+        'type' => 'workflow',
+        'system_prompt' => 'Extract action items.',
+        'user_prompt' => '{{input}}',
+    ]);
+
+    $this->mock(LlmDriver::class)
+        ->shouldReceive('call')
+        ->once()
+        ->withArgs(fn (string $systemPrompt) => str_contains($systemPrompt, 'Extract action items')
+            && ! str_contains($systemPrompt, 'The client is Acme.'))
+        ->andReturn([
+            'status' => 'success',
+            'content' => [['title' => 'Item', 'action_items' => 'Follow up', 'criteria' => []]],
+        ]);
+
+    app(ProjectAiService::class)->process($document, [
+        'to_key' => 'action_items',
+        'ai_template_id' => $template->id,
+    ]);
+});
+
+it('persists custom_prompt_mode when creating and updating a document', function () {
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), [
+            'name' => 'Guided Notes',
+            'type' => 'task',
+            'content' => 'Raw transcript',
+            'priority' => 'low',
+            'task_status' => 'todo',
+            'custom_prompt' => 'The client is Acme.',
+            'custom_prompt_mode' => 'add',
+        ])
+        ->assertRedirect();
+
+    $document = Document::where('name', 'Guided Notes')->firstOrFail();
+    expect($document->custom_prompt_mode)->toBe(CustomPromptMode::Add);
+
+    $this->actingAs($this->admin)
+        ->put(route('projects.documents.update', [$this->project, $document]), [
+            'custom_prompt_mode' => 'replace',
+        ])
+        ->assertRedirect();
+
+    expect($document->fresh()->custom_prompt_mode)->toBe(CustomPromptMode::Replace);
+});
+
+it('rejects an unknown custom_prompt_mode', function () {
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.store', $this->project), [
+            'name' => 'Bad Mode',
+            'type' => 'task',
+            'content' => 'Raw transcript',
+            'priority' => 'low',
+            'task_status' => 'todo',
+            'custom_prompt' => 'Anything.',
+            'custom_prompt_mode' => 'append',
+        ])
+        ->assertSessionHasErrors('custom_prompt_mode');
 });

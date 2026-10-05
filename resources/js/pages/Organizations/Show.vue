@@ -122,9 +122,15 @@ const validTabs: OrganizationTab[] = [
 // server redirect back here — without this, it always lands back on the default "Team" tab,
 // forcing a click back down to Configuration to see the result. The redirecting controllers
 // pass ?tab=configuration for exactly this reason.
+// Configuration and AI Usage are only for those who can change the organization — the server
+// doesn't send their data to anyone else either (see OrganizationController::show()).
+const canConfigure = computed(() => props.currentOrg.can?.update ?? false);
+const adminOnlyTabs: OrganizationTab[] = ['configuration', 'usage'];
 const requestedTab = new URLSearchParams(window.location.search).get('tab');
 const activeTab = ref<OrganizationTab>(
-    validTabs.includes(requestedTab as OrganizationTab)
+    validTabs.includes(requestedTab as OrganizationTab) &&
+        (canConfigure.value ||
+            !adminOnlyTabs.includes(requestedTab as OrganizationTab))
         ? (requestedTab as OrganizationTab)
         : 'team',
 );
@@ -428,6 +434,7 @@ const submitInvite = (orgId: string) => {
                         Clients
                     </button>
                     <button
+                        v-if="canConfigure"
                         type="button"
                         @click="activeTab = 'configuration'"
                         class="-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-[10px] font-black tracking-widest uppercase transition-colors"
@@ -447,6 +454,7 @@ const submitInvite = (orgId: string) => {
                         </span>
                     </button>
                     <button
+                        v-if="canConfigure"
                         type="button"
                         @click="activeTab = 'usage'"
                         class="-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-[10px] font-black tracking-widest uppercase transition-colors"
@@ -562,7 +570,7 @@ const submitInvite = (orgId: string) => {
 
                 <!-- Configuration Tab -->
                 <div
-                    v-if="activeTab === 'configuration'"
+                    v-if="canConfigure && activeTab === 'configuration'"
                     class="space-y-6 pt-6"
                 >
                     <ConfigurationOverviewCard
@@ -584,7 +592,7 @@ const submitInvite = (orgId: string) => {
                 </div>
 
                 <!-- AI Usage Tab -->
-                <div v-if="activeTab === 'usage'" class="space-y-6 pt-6">
+                <div v-if="canConfigure && activeTab === 'usage'" class="space-y-6 pt-6">
                     <!-- Empty state -->
                     <div
                         v-if="clientUsageRows.length === 0"

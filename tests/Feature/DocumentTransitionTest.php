@@ -535,3 +535,109 @@ it('excludes the universal intake -> action_items template from the ai template 
     expect($templateIds)->not->toContain($universalTemplate->id);
     expect($templateIds)->toContain($this->template->id);
 });
+
+// --- Organization scoping of transformations ---
+
+it('offers global and this organization\'s transformations, but never another organization\'s', function () {
+    $ownTemplate = AiTemplate::create([
+        'name' => 'Our Own Transformation',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => '{{input}}',
+        'organization_id' => $this->org->id,
+    ]);
+    $otherOrg = Organization::create(['name' => 'Another Customer']);
+    $otherTemplate = AiTemplate::create([
+        'name' => 'Their Private Transformation',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => '{{input}}',
+        'organization_id' => $otherOrg->id,
+    ]);
+
+    $templateIds = collect($this->actingAs($this->admin)
+        ->get(route('projects.documents.transitionOptions', [$this->project, $this->document]))
+        ->assertSuccessful()
+        ->json('aiTemplates'))->pluck('id');
+
+    expect($templateIds)->toContain($this->template->id)
+        ->toContain($ownTemplate->id)
+        ->not()->toContain($otherTemplate->id);
+});
+
+it('rejects running another organization\'s transformation', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $otherOrg = Organization::create(['name' => 'Another Customer']);
+    $otherTemplate = AiTemplate::create([
+        'name' => 'Their Private Transformation',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => '{{input}}',
+        'organization_id' => $otherOrg->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'ai_template_id' => $otherTemplate->id,
+        ])
+        ->assertSessionHasErrors('ai_template_id');
+
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('runs this organization\'s own transformation', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $ownTemplate = AiTemplate::create([
+        'name' => 'Our Own Transformation',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => '{{input}}',
+        'organization_id' => $this->org->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'ai_template_id' => $ownTemplate->id,
+        ])
+        ->assertSuccessful();
+
+    Queue::assertPushed(ProcessDocumentAI::class, fn ($job) => $job->overrideStep['ai_template_id'] === $ownTemplate->id);
+});
+
+it('rejects running a non-transformation template, such as an import or Slack prompt', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $importTemplate = AiTemplate::create([
+        'name' => 'Spreadsheet Import',
+        'type' => 'spreadsheet_import',
+        'system_prompt' => 'x',
+        'user_prompt' => '{{input}}',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'ai_template_id' => $importTemplate->id,
+        ])
+        ->assertSessionHasErrors('ai_template_id');
+
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('rejects locking a document to another organization\'s workflow', function () {
+    Queue::fake([ProcessDocumentAI::class]);
+
+    $otherOrg = Organization::create(['name' => 'Another Customer']);
+    $otherProjectType = ProjectType::factory()->create(['organization_id' => $otherOrg->id]);
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.documents.transition', [$this->project, $this->document]), [
+            'to_key' => 'task',
+            'ai_template_id' => $this->template->id,
+            'project_type_id' => $otherProjectType->id,
+        ])
+        ->assertSessionHasErrors('project_type_id');
+
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});

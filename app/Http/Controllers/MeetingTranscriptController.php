@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CustomPromptMode;
 use App\Jobs\ImportMeetingTranscript;
 use App\Models\Document;
 use App\Models\Project;
@@ -13,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 class MeetingTranscriptController extends Controller
@@ -137,6 +139,7 @@ class MeetingTranscriptController extends Controller
             'title' => 'required|string|max:255',
             'started_at' => 'required|string',
             'custom_prompt' => 'nullable|string',
+            'custom_prompt_mode' => ['nullable', Rule::enum(CustomPromptMode::class)],
             'type' => 'nullable|string',
             'new_type_label' => 'nullable|string|max:100',
         ]);
@@ -163,6 +166,7 @@ class MeetingTranscriptController extends Controller
                 $validated['recording_id'],
                 null,
                 $validated['custom_prompt'] ?? null,
+                CustomPromptMode::tryFrom($validated['custom_prompt_mode'] ?? ''),
                 $metadata,
             );
         }

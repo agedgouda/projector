@@ -331,6 +331,9 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         due_at: item.due_at,
         start_at: item.start_at,
         custom_prompt: item.custom_prompt ?? null,
+        // A stored prompt with no mode predates the choice and has always replaced the
+        // standard processing, so it's shown that way; with no prompt yet, Add is the default.
+        custom_prompt_mode: item.custom_prompt_mode ?? (item.custom_prompt ? 'replace' : 'add'),
     });
 
     const syncSidebarFields = (newItem: ExtendedDocument) => {

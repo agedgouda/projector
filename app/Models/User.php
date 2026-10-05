@@ -192,4 +192,21 @@ class User extends Authenticatable
         return $query->whereDoesntHave('roles', fn ($q) => $q->where('name', 'super-admin'))
             ->whereDoesntHave('organizations', fn ($q) => $q->where('organizations.id', $organization->id));
     }
+
+    /**
+     * Users who belong to at least one organization where $admin is an org-admin — the only
+     * people an org-admin may pull into another organization via "Add User", so one tenant's
+     * member list is never exposed to another tenant's admin.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeInOrganizationsAdministeredBy($query, User $admin)
+    {
+        $administeredOrganizationIds = $admin->organizations()
+            ->wherePivot('role', 'org-admin')
+            ->pluck('organizations.id');
+
+        return $query->whereHas('organizations', fn ($q) => $q->whereIn('organizations.id', $administeredOrganizationIds));
+    }
 }

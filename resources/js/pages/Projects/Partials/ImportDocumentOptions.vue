@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGooglePicker } from '@/composables/transcripts/useGooglePicker';
 import { useDocumentImportActions, type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
+import { type CustomPrompt } from '@/lib/constants';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { documentTypeLabel, visibleDocumentTypeKeys } from '@/lib/documentTypes';
 import transcriptRoutes from '@/routes/projects/transcripts/index';
@@ -106,11 +107,11 @@ const typeChoiceIncomplete = computed(() => isAddingNewType.value && newTypeLabe
 // place); every other type imports immediately, identically across all three sources. A picked
 // recording follows this exact same rule too — see AvailableRecordings.vue's own copy of this
 // same gate, since a recording row's click can't route through this component's state directly.
-const pendingImport = ref<{ title: string; run: (prompt: string | null) => void } | null>(null);
+const pendingImport = ref<{ title: string; run: (prompt: CustomPrompt | null) => void } | null>(null);
 const isImportConfirmOpen = ref(false);
 const importConfirmLoading = computed(() => importingGoogleDoc.value || importingFile.value !== null);
 
-const handleItemPicked = (title: string, run: (prompt: string | null) => void) => {
+const handleItemPicked = (title: string, run: (prompt: CustomPrompt | null) => void) => {
     if (skipProcessing.value) {
         run(null);
         return;
@@ -123,7 +124,7 @@ const closeImportConfirm = () => {
     isImportConfirmOpen.value = false;
 };
 
-const confirmImport = (additionalInfo: string | null) => {
+const confirmImport = (additionalInfo: CustomPrompt | null) => {
     pendingImport.value?.run(additionalInfo);
     isImportConfirmOpen.value = false;
 };

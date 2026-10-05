@@ -20,6 +20,7 @@ import {
 } from '@/composables/useFavoriteProject';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import projectRoutes from '@/routes/projects/index';
+import { usePermissions } from '@/composables/usePermissions';
 import { router } from '@inertiajs/vue3';
 import {
     AlertTriangle,
@@ -53,6 +54,13 @@ const toggleFavorite = () => {
         onFinish: () => (isTogglingFavorite.value = false),
     });
 };
+
+// --- PERMISSIONS ---
+// Mirrors ProjectPolicy: only org-admins may update or delete a project, while project-leads
+// may still manage its tags (manageCategories), which they do through a tags-only edit form.
+const { hasRole } = usePermissions();
+const canManageProject = computed(() => hasRole('super-admin') || hasRole('org-admin'));
+const canManageTags = computed(() => canManageProject.value || hasRole('project-lead'));
 
 // --- EDIT STATE ---
 const isEditModalOpen = ref(false);
@@ -186,7 +194,7 @@ const goToProject = () => {
         </div>
 
         <TooltipProvider>
-            <div class="flex w-10 justify-end">
+            <div v-if="canManageTags" class="flex w-10 justify-end">
                 <Tooltip :delay-duration="200">
                     <TooltipTrigger as-child>
                         <button
@@ -197,11 +205,13 @@ const goToProject = () => {
                             <Pencil class="h-3.5 w-3.5" />
                         </button>
                     </TooltipTrigger>
-                    <TooltipContent>Edit Project</TooltipContent>
+                    <TooltipContent>{{
+                        canManageProject ? 'Edit Project' : 'Edit Tags'
+                    }}</TooltipContent>
                 </Tooltip>
             </div>
 
-            <div class="flex w-10 justify-end">
+            <div v-if="canManageProject" class="flex w-10 justify-end">
                 <Tooltip :delay-duration="200">
                     <TooltipTrigger as-child>
                         <button
@@ -220,9 +230,16 @@ const goToProject = () => {
         <Dialog v-model:open="isEditModalOpen">
             <DialogContent class="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Edit Project</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle>{{
+                        canManageProject ? 'Edit Project' : 'Edit Tags'
+                    }}</DialogTitle>
+                    <DialogDescription v-if="canManageProject">
                         Update the name and description for
+                        <strong>{{ project.name }}</strong
+                        >.
+                    </DialogDescription>
+                    <DialogDescription v-else>
+                        Manage the tags for
                         <strong>{{ project.name }}</strong
                         >.
                     </DialogDescription>
@@ -230,6 +247,7 @@ const goToProject = () => {
 
                 <ProjectEntryForm
                     :edit-data="project"
+                    :tags-only="!canManageProject"
                     @success="handleEditSuccess"
                     @cancel="isEditModalOpen = false"
                 />

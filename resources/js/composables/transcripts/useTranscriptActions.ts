@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner';
 import transcriptRoutes from '@/routes/projects/transcripts/index';
 import { type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
+import { type CustomPrompt } from '@/lib/constants';
 
 export function useTranscriptActions(projectId: string, callbacks?: {
     onImportQueued?: () => void;
@@ -18,7 +19,7 @@ export function useTranscriptActions(projectId: string, callbacks?: {
     // unconditionally imported as the intake type just because it's a recording. Defaults to
     // the intake type for the two contexts that don't offer a picker at all (the standalone
     // Transcripts tab, Show.vue's old Recordings tab).
-    const importRecording = (recording: Recording, customPrompt?: string | null, typeChoice: ImportTypeChoice = { type: INTAKE_KEY }) => {
+    const importRecording = (recording: Recording, customPrompt: CustomPrompt | null = null, typeChoice: ImportTypeChoice = { type: INTAKE_KEY }) => {
         importing.value = recording.id;
         callbacks?.onImportQueued?.();
 
@@ -26,7 +27,8 @@ export function useTranscriptActions(projectId: string, callbacks?: {
             recording_id: recording.id,
             title: recording.title,
             started_at: recording.started_at,
-            custom_prompt: customPrompt || null,
+            custom_prompt: customPrompt?.text ?? null,
+            custom_prompt_mode: customPrompt?.mode ?? null,
             type: 'type' in typeChoice ? typeChoice.type : null,
             new_type_label: 'newTypeLabel' in typeChoice ? typeChoice.newTypeLabel : null,
         }, {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -34,5 +35,23 @@ class AiTemplate extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    /**
+     * Templates an organization may use: the global ones (no organization) plus its own —
+     * never another organization's.
+     *
+     * @param  Builder<AiTemplate>  $query
+     * @return Builder<AiTemplate>
+     */
+    public function scopeAvailableToOrganization(Builder $query, ?string $organizationId): Builder
+    {
+        return $query->where(function (Builder $query) use ($organizationId) {
+            $query->whereNull('organization_id');
+
+            if ($organizationId !== null) {
+                $query->orWhere('organization_id', $organizationId);
+            }
+        });
     }
 }

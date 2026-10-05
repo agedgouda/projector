@@ -4,10 +4,10 @@ use App\Models\Faq;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-it('seeds one Dropbox FAQ entry per setup and usage topic, in order, with keywords', function () {
+it('seeds one Dropbox FAQ entry per usage topic, in order, with keywords', function () {
     $faqs = Faq::where('category', 'Dropbox')->orderBy('order')->get();
 
-    expect($faqs)->toHaveCount(9);
+    expect($faqs)->toHaveCount(6);
 
     foreach ($faqs as $faq) {
         expect($faq->question)->not->toBeEmpty()
@@ -26,5 +26,17 @@ it('is visible on the FAQ page', function () {
     $response->assertOk();
     $faqs = collect($response->viewData('page')['props']['faqs']);
 
-    expect($faqs->where('category', 'Dropbox'))->toHaveCount(9);
+    expect($faqs->where('category', 'Dropbox'))->toHaveCount(6);
+});
+
+it('has no app setup or server configuration content in the Slack or Dropbox entries', function () {
+    $faqs = Faq::whereIn('category', ['Slack', 'Dropbox'])->get();
+
+    foreach ($faqs as $faq) {
+        expect($faq->answer)
+            ->not()->toContain('.env')
+            ->not()->toContain('developers/apps')
+            ->not()->toContain('Herd')
+            ->not()->toContain('CLIENT_SECRET');
+    }
 });

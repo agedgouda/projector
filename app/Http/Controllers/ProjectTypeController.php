@@ -192,7 +192,14 @@ class ProjectTypeController extends Controller
             'workflow' => 'nullable|array',
             'workflow.*.from_key' => 'required|string',
             'workflow.*.to_key' => 'required|string',
-            'workflow.*.ai_template_id' => 'nullable|exists:ai_templates,id',
+            // A global or same-organization transformation only — a global project type can
+            // only use global ones, so no organization's workflow ever runs another's template.
+            'workflow.*.ai_template_id' => [
+                'nullable',
+                Rule::exists('ai_templates', 'id')->where(
+                    fn ($query) => $query->whereNull('organization_id')->when($orgId, fn ($query) => $query->orWhere('organization_id', $orgId))
+                ),
+            ],
 
             // Lifecycle Steps
             'lifecycle_steps' => 'nullable|array',

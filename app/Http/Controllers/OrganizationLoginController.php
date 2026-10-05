@@ -20,7 +20,11 @@ class OrganizationLoginController extends Controller
     {
         $invitation = $this->findValidInvitation($organization, $request->query('invitation'));
 
-        if ($invitation && Auth::check() && strtolower(Auth::user()->email) === strtolower($invitation->email)) {
+        if (! $invitation) {
+            return redirect()->route('login')->withErrors(['email' => 'This invitation link is invalid or has expired.']);
+        }
+
+        if (Auth::check() && strtolower(Auth::user()->email) === strtolower($invitation->email)) {
             return $this->addUserToOrgAndRedirect($organization, Auth::user(), $invitation);
         }
 
@@ -28,8 +32,8 @@ class OrganizationLoginController extends Controller
             'organization' => $organization->only('id', 'name'),
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
-            'invitedEmail' => $invitation?->email,
-            'invitationToken' => $invitation?->token,
+            'invitedEmail' => $invitation->email,
+            'invitationToken' => $invitation->token,
         ]);
     }
 
@@ -38,10 +42,10 @@ class OrganizationLoginController extends Controller
         $validated = $request->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
-            'invitation_token' => ['nullable', 'string'],
+            'invitation_token' => ['required', 'string'],
         ]);
 
-        $this->validateInvitationToken($organization, $validated['invitation_token'] ?? null, $validated['email']);
+        $invitation = $this->validateInvitationToken($organization, $validated['invitation_token'], $validated['email']);
 
         if (! Auth::attempt(['email' => $validated['email'], 'password' => $validated['password']], $request->boolean('remember'))) {
             throw ValidationException::withMessages([
@@ -51,27 +55,23 @@ class OrganizationLoginController extends Controller
 
         $user = Auth::user();
 
-        $invitation = OrganizationInvitation::where('token', $validated['invitation_token'] ?? null)->first();
-
         $request->session()->regenerate();
 
         return $this->addUserToOrgAndRedirect($organization, $user, $invitation);
     }
 
-    private function addUserToOrgAndRedirect(Organization $organization, User $user, ?OrganizationInvitation $invitation): RedirectResponse
+    private function addUserToOrgAndRedirect(Organization $organization, User $user, OrganizationInvitation $invitation): RedirectResponse
     {
         $wasAdded = ! $organization->users()->where('user_id', $user->id)->exists();
 
         if ($wasAdded) {
-            $organization->users()->attach($user->id, ['role' => $invitation?->role ?? 'team-member']);
+            $organization->users()->attach($user->id, ['role' => $invitation->role ?? 'team-member']);
         }
 
-        if ($invitation) {
-            Document::where('pending_assignee_invitation_id', $invitation->id)
-                ->update(['assignee_id' => $user->id, 'pending_assignee_invitation_id' => null]);
+        Document::where('pending_assignee_invitation_id', $invitation->id)
+            ->update(['assignee_id' => $user->id, 'pending_assignee_invitation_id' => null]);
 
-            $invitation->delete();
-        }
+        $invitation->delete();
 
         $message = $wasAdded
             ? 'You have successfully been added to '.$organization->name.'.'
@@ -95,12 +95,8 @@ class OrganizationLoginController extends Controller
             ->first();
     }
 
-    private function validateInvitationToken(Organization $organization, ?string $token, string $email): void
+    private function validateInvitationToken(Organization $organization, string $token, string $email): OrganizationInvitation
     {
-        if (! $token) {
-            return;
-        }
-
         $invitation = $this->findValidInvitation($organization, $token);
 
         if (! $invitation || strtolower($invitation->email) !== strtolower($email)) {
@@ -108,5 +104,7 @@ class OrganizationLoginController extends Controller
                 'email' => 'This invitation is not valid for this email address.',
             ]);
         }
+
+        return $invitation;
     }
 }

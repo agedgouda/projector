@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CustomPromptMode;
 use App\Jobs\ImportMeetingTranscript;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,7 @@ class IntakeImportService
         ?string $recordingId,
         ?string $content,
         ?string $customPrompt,
+        ?CustomPromptMode $customPromptMode,
         array $metadata,
     ): RedirectResponse {
         // Create a placeholder document immediately so the UI can track progress. Use
@@ -41,6 +43,7 @@ class IntakeImportService
             'processed_at' => now(),
             'metadata' => $metadata,
             'custom_prompt' => $customPrompt,
+            'custom_prompt_mode' => filled($customPrompt) ? $customPromptMode : null,
         ]);
 
         ImportMeetingTranscript::dispatch($document, $recordingId, $content);

@@ -51,7 +51,11 @@ it('requires user_id', function () {
         ->assertSessionHasErrors('user_id');
 });
 
-it('allows an org-admin to add users to their organization', function () {
+it('allows an org-admin to add users from another organization they administer', function () {
+    $otherOrg = Organization::create(['name' => 'Sister Org']);
+    $otherOrg->users()->attach($this->orgAdmin->id, ['role' => 'org-admin']);
+    $otherOrg->users()->attach($this->target->id, ['role' => 'team-member']);
+
     setPermissionsTeamId($this->org->id);
 
     $this->actingAs($this->orgAdmin)
@@ -59,6 +63,71 @@ it('allows an org-admin to add users to their organization', function () {
         ->assertRedirect();
 
     expect($this->org->users()->where('user_id', $this->target->id)->exists())->toBeTrue();
+});
+
+it('forbids an org-admin from adding a user who belongs to no organization they administer', function (string $targetRoleInOtherOrg, string $adminRoleInOtherOrg) {
+    $otherOrg = Organization::create(['name' => 'Someone Else\'s Org']);
+    $otherOrg->users()->attach($this->target->id, ['role' => $targetRoleInOtherOrg]);
+
+    if ($adminRoleInOtherOrg !== 'none') {
+        $otherOrg->users()->attach($this->orgAdmin->id, ['role' => $adminRoleInOtherOrg]);
+    }
+
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($this->orgAdmin)
+        ->post(route('organizations.users.store', $this->org), ['user_id' => $this->target->id])
+        ->assertSessionHasErrors('user_id');
+
+    expect($this->org->users()->where('user_id', $this->target->id)->exists())->toBeFalse();
+})->with([
+    'admin not in the other org' => ['org-admin', 'none'],
+    'admin only a team member of the other org' => ['team-member', 'team-member'],
+]);
+
+it('forbids an org-admin from adding a user with no organization at all', function () {
+    setPermissionsTeamId($this->org->id);
+
+    $this->actingAs($this->orgAdmin)
+        ->post(route('organizations.users.store', $this->org), ['user_id' => $this->target->id])
+        ->assertSessionHasErrors('user_id');
+
+    expect($this->org->users()->where('user_id', $this->target->id)->exists())->toBeFalse();
+});
+
+it('only lists users from organizations the org-admin administers as addable', function () {
+    $sisterOrg = Organization::create(['name' => 'Sister Org']);
+    $sisterOrg->users()->attach($this->orgAdmin->id, ['role' => 'org-admin']);
+    $sisterMember = User::factory()->create();
+    $sisterOrg->users()->attach($sisterMember->id, ['role' => 'team-member']);
+
+    $strangerOrg = Organization::create(['name' => 'Stranger Org']);
+    $stranger = User::factory()->create();
+    $strangerOrg->users()->attach($stranger->id, ['role' => 'org-admin']);
+
+    $response = $this->actingAs($this->orgAdmin)->get(route('organizations.index', ['org' => $this->org->id]));
+
+    $response->assertOk();
+    $addableIds = collect($response->viewData('page')['props']['users'])->pluck('id');
+
+    expect($addableIds->all())->toContain($sisterMember->id)
+        ->and($addableIds->all())->not()->toContain($stranger->id)
+        ->and($addableIds->all())->not()->toContain($this->target->id);
+});
+
+it('lists every non-member as addable for a super-admin', function () {
+    $this->org->users()->attach($this->superAdmin->id, ['role' => 'org-admin']);
+    $strangerOrg = Organization::create(['name' => 'Stranger Org']);
+    $stranger = User::factory()->create();
+    $strangerOrg->users()->attach($stranger->id, ['role' => 'org-admin']);
+
+    $response = $this->actingAs($this->superAdmin)->get(route('organizations.index', ['org' => $this->org->id]));
+
+    $response->assertOk();
+    $addableIds = collect($response->viewData('page')['props']['users'])->pluck('id');
+
+    expect($addableIds->all())->toContain($stranger->id)
+        ->and($addableIds->all())->toContain($this->target->id);
 });
 
 it('forbids a regular user from adding users to an organization', function () {

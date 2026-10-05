@@ -203,6 +203,7 @@ declare global {
         children_exists?: boolean;
         content_updated_at?: string | null;
         custom_prompt?: string | null;
+        custom_prompt_mode?: 'add' | 'replace' | null;
         last_ai_template_id?: number | null;
 
         // Relationships
@@ -275,6 +276,7 @@ declare global {
         external_due_at: string | null;
         metadata: DocumentMetadata;
         custom_prompt: string | null;
+        custom_prompt_mode: 'add' | 'replace';
     }
 
     export interface Task {

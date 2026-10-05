@@ -45,6 +45,9 @@ interface Props {
     // the old create-with-parent URL) still becomes a sub-project on save, just without any
     // on-screen indication of it while this is disabled.
     parentProject?: { id: string; name: string; client_id: string } | null;
+    // Project Leads may manage a project's tags but not edit the project itself, so they get
+    // this form with only the Tags section — tag changes save immediately on their own.
+    tagsOnly?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -284,6 +287,10 @@ const doSubmit = () => {
 };
 
 const submit = async () => {
+    if (props.tagsOnly) {
+        return;
+    }
+
     const descriptionChanged = form.description !== originalDescription;
     const needsEvaluation =
         form.description &&
@@ -330,7 +337,7 @@ const submit = async () => {
 <template>
     <form @submit.prevent="submit" class="space-y-6">
         <LogoUpload
-            v-if="isEditing && editData"
+            v-if="isEditing && editData && !tagsOnly"
             :current-logo-url="editData.logo_url ?? null"
             :upload-url="projectLogoRoutes.store.url(String(editData.id))"
             :delete-url="projectLogoRoutes.destroy.url(String(editData.id))"
@@ -407,7 +414,7 @@ const submit = async () => {
             </div>
 
 
-            <div class="grid gap-2">
+            <div v-if="!tagsOnly" class="grid gap-2">
                 <Label
                     for="name"
                     class="px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
@@ -603,7 +610,7 @@ const submit = async () => {
                 />
             </div>
 
-            <div class="grid gap-2">
+            <div v-if="!tagsOnly" class="grid gap-2">
                 <Label
                     for="description"
                     class="px-1 text-[10px] font-black tracking-widest text-gray-600 uppercase"
@@ -666,7 +673,7 @@ const submit = async () => {
                 </div>
             </div>
 
-            <div v-if="isEditing" class="flex items-center gap-2 pt-2">
+            <div v-if="isEditing && !tagsOnly" class="flex items-center gap-2 pt-2">
                 <input
                     id="project-inactive"
                     v-model="form.inactive"
@@ -693,6 +700,16 @@ const submit = async () => {
             class="flex items-center justify-end gap-3 border-t border-gray-100 pt-6 dark:border-gray-800"
         >
             <Button
+                v-if="tagsOnly"
+                type="button"
+                @click="emit('cancel')"
+                class="h-12 w-28 rounded-xl bg-projector-primary-600 text-[10px] font-black tracking-widest text-white uppercase shadow-lg hover:bg-projector-primary-700"
+            >
+                Done
+            </Button>
+
+            <Button
+                v-if="!tagsOnly"
                 type="button"
                 @click="emit('cancel')"
                 class="h-12 w-28 rounded-xl border border-projector-primary-600 bg-white text-[10px] font-black tracking-widest text-projector-primary-600 uppercase hover:bg-projector-primary-50 dark:border-projector-primary-400 dark:bg-transparent dark:text-projector-primary-400 dark:hover:bg-projector-primary-950/30"
@@ -700,7 +717,7 @@ const submit = async () => {
                 Cancel
             </Button>
 
-            <template v-if="descriptionQuality === 'vague'">
+            <template v-if="!tagsOnly && descriptionQuality === 'vague'">
                 <Button
                     type="button"
                     variant="outline"
@@ -720,7 +737,7 @@ const submit = async () => {
             </template>
 
             <Button
-                v-else
+                v-else-if="!tagsOnly"
                 type="submit"
                 :disabled="form.processing || evaluating"
                 class="h-12 w-28 rounded-xl bg-projector-primary-600 text-[10px] font-black tracking-widest text-white uppercase shadow-lg hover:bg-projector-primary-700"

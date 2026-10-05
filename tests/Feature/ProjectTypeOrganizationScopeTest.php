@@ -152,3 +152,50 @@ it('same name is allowed across different orgs', function () {
 
     expect(ProjectType::where('name', 'Type B')->where('organization_id', $this->orgA->id)->exists())->toBeTrue();
 });
+
+it('rejects a workflow step that uses another organization\'s transformation', function () {
+    setPermissionsTeamId($this->orgA->id);
+    $orgBTemplate = \App\Models\AiTemplate::create([
+        'name' => 'Org B Private',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => '{{input}}',
+        'organization_id' => $this->orgB->id,
+    ]);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('project-types.store'), [
+            'name' => 'Borrowed Workflow',
+            'icon' => 'Briefcase',
+            'document_schema' => [['label' => 'Notes', 'key' => 'intake', 'is_task' => false]],
+            'workflow' => [['from_key' => 'intake', 'to_key' => 'task', 'ai_template_id' => $orgBTemplate->id]],
+        ])
+        ->assertSessionHasErrors('workflow.0.ai_template_id');
+
+    expect(ProjectType::where('name', 'Borrowed Workflow')->exists())->toBeFalse();
+});
+
+it('allows a workflow step that uses a global or the organization\'s own transformation', function (?string $templateOrg) {
+    setPermissionsTeamId($this->orgA->id);
+    $template = \App\Models\AiTemplate::create([
+        'name' => 'Usable Template',
+        'type' => 'workflow',
+        'system_prompt' => 'x',
+        'user_prompt' => '{{input}}',
+        'organization_id' => $templateOrg === 'own' ? $this->orgA->id : null,
+    ]);
+
+    $this->actingAs($this->orgAAdmin)
+        ->post(route('project-types.store'), [
+            'name' => 'Allowed Workflow',
+            'icon' => 'Briefcase',
+            'document_schema' => [['label' => 'Notes', 'key' => 'intake', 'is_task' => false]],
+            'workflow' => [['from_key' => 'intake', 'to_key' => 'task', 'ai_template_id' => $template->id]],
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(ProjectType::where('name', 'Allowed Workflow')->exists())->toBeTrue();
+})->with([
+    'global' => [null],
+    'own organization' => ['own'],
+]);

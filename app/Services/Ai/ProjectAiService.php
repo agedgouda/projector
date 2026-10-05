@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Contracts\LlmDriver;
+use App\Enums\CustomPromptMode;
 use App\Models\AiTemplate;
 use App\Models\Category;
 use App\Models\Document;
@@ -55,10 +56,18 @@ class ProjectAiService
         $document->loadMissing('project.client');
         $project = $document->project;
 
+        // A custom prompt in Add mode never takes over the template lookup below — it rides along
+        // as extra guidance on whichever standard step this run resolves to instead. An explicit
+        // override step is a different, user-picked transition, so it doesn't apply there.
+        $addsToStandardInstructions = $document->custom_prompt_mode === CustomPromptMode::Add;
+        $additionalInstructions = ! $overrideStep && $addsToStandardInstructions && filled($document->custom_prompt)
+            ? $this->htmlToPlainText((string) $document->custom_prompt)
+            : null;
+
         if ($overrideStep) {
             $step = $overrideStep + ['from_key' => $document->type];
             $lockedProjectTypeId = $overrideStep['project_type_id'] ?? null;
-        } elseif (! empty($document->custom_prompt) && $project instanceof Project) {
+        } elseif (! empty($document->custom_prompt) && ! $addsToStandardInstructions && $project instanceof Project) {
             return $this->processCustomPrompt($project, $document, $oneOffInstructions, $onOutputTypeResolved);
         } elseif ($document->type === config('workflow.intake_key')) {
             $actionItemsKey = config('workflow.action_items_key');
@@ -128,8 +137,8 @@ class ProjectAiService
         }
 
         $result = $singleOutput
-            ? $this->callLlmSingleDocument($project, $strategy, $document->content, $document, $oneOffInstructions)
-            : $this->callLlm($project, $strategy, $document->content, $document, $outputKey, $oneOffInstructions);
+            ? $this->callLlmSingleDocument($project, $strategy, $document->content, $document, $oneOffInstructions, $additionalInstructions)
+            : $this->callLlm($project, $strategy, $document->content, $document, $outputKey, $oneOffInstructions, $additionalInstructions);
 
         if (($result['status'] ?? '') === 'success') {
             $result['output_type'] = $strategy->getOutputDocumentType();
@@ -142,7 +151,8 @@ class ProjectAiService
     }
 
     /**
-     * A document's own stored `custom_prompt` fully replaces the default template lookup for the
+     * A document's own stored `custom_prompt` in Replace mode (or with no mode stored — see
+     * App\Enums\CustomPromptMode) fully replaces the default template lookup for the
      * automatic Notes -> Action Items step: same output type, same child-document creation
      * mechanism (handled by the normal single_output branch in ProcessDocumentAI — nothing
      * document-persistence-related is special-cased here), same untouched source document — only
@@ -279,7 +289,7 @@ class ProjectAiService
         return $replacements;
     }
 
-    protected function callLlmSingleDocument(Project $project, $strategy, string $context, ?Document $currentDoc = null, ?string $oneOffInstructions = null): array
+    protected function callLlmSingleDocument(Project $project, $strategy, string $context, ?Document $currentDoc = null, ?string $oneOffInstructions = null, ?string $additionalInstructions = null): array
     {
         $userTemplate = $strategy->getUserPromptTemplate();
         $replacements = $this->buildReplacements($project, $currentDoc) + ['{{input}}' => $context];
@@ -295,6 +305,10 @@ class ProjectAiService
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
         $systemPrompt = $this->htmlToPlainText($rawSystemPrompt);
+
+        if (! empty($additionalInstructions)) {
+            $systemPrompt .= "\n\nAlso follow these additional instructions for this document: ".$additionalInstructions;
+        }
 
         if (! empty($oneOffInstructions)) {
             $systemPrompt .= "\n\nFor this run only, also follow this instruction: ".$oneOffInstructions;
@@ -340,7 +354,7 @@ class ProjectAiService
         ];
     }
 
-    protected function callLlm(Project $project, $strategy, string $context, ?Document $currentDoc = null, string $outputKey = 'content', ?string $oneOffInstructions = null)
+    protected function callLlm(Project $project, $strategy, string $context, ?Document $currentDoc = null, string $outputKey = 'content', ?string $oneOffInstructions = null, ?string $additionalInstructions = null)
     {
         $userTemplate = $strategy->getUserPromptTemplate();
         $replacements = $this->buildReplacements($project, $currentDoc, $outputKey) + ['{{input}}' => $context];
@@ -388,6 +402,10 @@ class ProjectAiService
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
         $systemPrompt = $this->htmlToPlainText($rawSystemPrompt);
+
+        if (! empty($additionalInstructions)) {
+            $systemPrompt .= "\n\nAlso follow these additional instructions for this document: ".$additionalInstructions;
+        }
 
         if (! empty($oneOffInstructions)) {
             $systemPrompt .= "\n\nFor this run only, also follow this instruction: ".$oneOffInstructions;

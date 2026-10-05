@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CustomPromptMode;
 use App\Models\Project;
 use App\Services\DocumentFileExtractorService;
 use App\Services\DocumentTypeResolver;
@@ -10,6 +11,7 @@ use App\Services\IntakeImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 class DocumentImportController extends Controller
@@ -46,6 +48,7 @@ class DocumentImportController extends Controller
             'file_id' => 'required|string',
             'title' => 'required|string|max:255',
             'custom_prompt' => 'nullable|string',
+            'custom_prompt_mode' => ['nullable', Rule::enum(CustomPromptMode::class)],
             'type' => 'nullable|string',
             'new_type_label' => 'nullable|string|max:100',
         ]);
@@ -60,7 +63,7 @@ class DocumentImportController extends Controller
 
         $html = $service->fetchDocAsHtml($accessToken, $validated['file_id']);
 
-        return $this->createImportedDocument($project, $validated['title'], $html, $validated['custom_prompt'] ?? null, $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
+        return $this->createImportedDocument($project, $validated['title'], $html, $validated['custom_prompt'] ?? null, CustomPromptMode::tryFrom($validated['custom_prompt_mode'] ?? ''), $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
             'import_source' => 'google_doc',
             'google_file_id' => $validated['file_id'],
         ], $importer, $typeResolver);
@@ -76,6 +79,7 @@ class DocumentImportController extends Controller
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:docx,txt', 'max:10240'],
             'custom_prompt' => 'nullable|string',
+            'custom_prompt_mode' => ['nullable', Rule::enum(CustomPromptMode::class)],
             'type' => 'nullable|string',
             'new_type_label' => 'nullable|string|max:100',
         ]);
@@ -97,7 +101,7 @@ class DocumentImportController extends Controller
         // Transcription-type import still hands that already-extracted HTML off to
         // ImportMeetingTranscript (via createImportedDocument() below) purely to keep every
         // import source on the one shared pipeline, not because there's anything left to fetch.
-        return $this->createImportedDocument($project, $title, $html, $validated['custom_prompt'] ?? null, $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
+        return $this->createImportedDocument($project, $title, $html, $validated['custom_prompt'] ?? null, CustomPromptMode::tryFrom($validated['custom_prompt_mode'] ?? ''), $validated['type'] ?? null, $validated['new_type_label'] ?? null, [
             'import_source' => 'file_upload',
             'original_filename' => $file->getClientOriginalName(),
         ], $importer, $typeResolver);
@@ -119,12 +123,12 @@ class DocumentImportController extends Controller
      *
      * @param  array<string, string>  $metadata
      */
-    private function createImportedDocument(Project $project, string $title, string $html, ?string $customPrompt, ?string $type, ?string $newTypeLabel, array $metadata, IntakeImportService $importer, DocumentTypeResolver $typeResolver): RedirectResponse
+    private function createImportedDocument(Project $project, string $title, string $html, ?string $customPrompt, ?CustomPromptMode $customPromptMode, ?string $type, ?string $newTypeLabel, array $metadata, IntakeImportService $importer, DocumentTypeResolver $typeResolver): RedirectResponse
     {
         $resolved = $typeResolver->resolve($project, $type, $newTypeLabel);
 
         if ($resolved['type'] === config('workflow.intake_key')) {
-            return $importer->import($project, $title, null, $html, $customPrompt, $metadata);
+            return $importer->import($project, $title, null, $html, $customPrompt, $customPromptMode, $metadata);
         }
 
         $document = $project->documents()->create([
@@ -132,6 +136,7 @@ class DocumentImportController extends Controller
             'name' => $title,
             'content' => $html,
             'custom_prompt' => null,
+            'custom_prompt_mode' => null,
             'processed_at' => now(),
             'metadata' => $metadata,
         ]);

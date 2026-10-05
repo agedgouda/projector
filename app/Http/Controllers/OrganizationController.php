@@ -70,8 +70,14 @@ class OrganizationController extends Controller
         $pivotRole = $currentOrg->users()->where('users.id', $user->id)->first()?->pivot?->role;
         $canManageUsers = $user->hasRole('super-admin') || $pivotRole === 'org-admin';
 
+        $addableUsersQuery = User::addableToOrganization($currentOrg);
+
+        if (! $this->isSuperAdmin($user)) {
+            $addableUsersQuery->inOrganizationsAdministeredBy($user);
+        }
+
         $addableUsers = $canManageUsers
-            ? User::addableToOrganization($currentOrg)->get()->map(fn (User $u) => [
+            ? $addableUsersQuery->get()->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -91,8 +97,10 @@ class OrganizationController extends Controller
             ],
         ]);
 
+        // Same validity rule as InvitationController::accept() — an expired invitation with
+        // tasks assigned to it still works, so it stays listed where it can be managed.
         $invitations = OrganizationInvitation::where('organization_id', $currentOrg->id)
-            ->where('expires_at', '>', now())
+            ->where(fn ($query) => $query->where('expires_at', '>', now())->orWhereHas('documentAssignments'))
             ->orderBy('created_at', 'desc')
             ->get(['id', 'email', 'first_name', 'last_name', 'role', 'token', 'expires_at']);
 
@@ -109,7 +117,11 @@ class OrganizationController extends Controller
                 ]))->all(),
             ]));
 
-        $usageByProject = AiUsageLog::query()
+        // The Configuration and AI Usage tabs are only for those who can change the organization
+        // (org-admins, super-admins) — everyone else gets none of their data, not just a hidden tab.
+        $canConfigure = $this->isSuperAdmin($user) || $user->can('update', $currentOrg);
+
+        $usageByProject = ! $canConfigure ? collect() : AiUsageLog::query()
             ->where('organization_id', $currentOrg->id)
             ->where('type', 'llm')
             ->selectRaw('project_id, client_id, COUNT(*) as documents_processed, SUM(cost_usd) as cost_usd')
@@ -121,7 +133,7 @@ class OrganizationController extends Controller
             'cost_usd' => (float) $usageByProject->sum('cost_usd'),
         ];
 
-        $usageByClient = $usageByProject->groupBy('client_id')->map(fn ($rows) => [ // @phpstan-ignore return.type
+        $usageByClient = $usageByProject->groupBy('client_id')->map(fn ($rows) => [
             'documents_processed' => (int) $rows->sum('documents_processed'),
             'cost_usd' => (float) $rows->sum('cost_usd'),
             'projects' => $rows->map(fn ($row) => [
@@ -133,10 +145,10 @@ class OrganizationController extends Controller
 
         cookie()->queue(cookie()->forever('last_org_id', (string) $currentOrg->id));
 
-        $slackWorkspace = $currentOrg->slackWorkspace;
+        $slackWorkspace = $canConfigure ? $currentOrg->slackWorkspace : null;
         [$slackBindings, $slackAvailableChannels] = $this->slackChannelData($slackWorkspace, $user, $currentOrg);
 
-        $dropboxWorkspace = $currentOrg->dropboxWorkspace;
+        $dropboxWorkspace = $canConfigure ? $currentOrg->dropboxWorkspace : null;
         [$dropboxBindings, $dropboxAvailableFolders] = $this->dropboxFolderData($dropboxWorkspace, $currentOrg);
 
         return Inertia::render('Organizations/Show', [
@@ -145,11 +157,11 @@ class OrganizationController extends Controller
                 'pdf_header_url' => $currentOrg->pdf_header_url,
                 'pdf_footer_url' => $currentOrg->pdf_footer_url,
                 'users' => $members,
-                'llm_config_form' => $currentOrg->llmConfigForForm(),
-                'vector_config_form' => $currentOrg->vectorConfigForForm(),
-                'meeting_config_form' => $currentOrg->meetingConfigForForm(),
+                'llm_config_form' => $canConfigure ? $currentOrg->llmConfigForForm() : null,
+                'vector_config_form' => $canConfigure ? $currentOrg->vectorConfigForForm() : null,
+                'meeting_config_form' => $canConfigure ? $currentOrg->meetingConfigForForm() : null,
                 'can' => [
-                    'update' => $user->can('update', $currentOrg),
+                    'update' => $canConfigure,
                     'manage_users' => $user->can('manageUsers', $currentOrg),
                     'delete' => $user->can('delete', $currentOrg),
                 ],
@@ -363,10 +375,17 @@ class OrganizationController extends Controller
 
         $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
-        $user = User::findOrFail($request->user_id);
+        $user = User::findOrFail($request->integer('user_id'));
 
         if ($organization->users()->where('user_id', $user->id)->exists()) {
             return back()->withErrors(['user_id' => 'User is already a member of this organization.']);
+        }
+
+        $actingUser = $request->user();
+        abort_unless($actingUser instanceof User, 403);
+
+        if (! $this->isSuperAdmin($actingUser) && ! User::whereKey($user->id)->inOrganizationsAdministeredBy($actingUser)->exists()) {
+            return back()->withErrors(['user_id' => 'You can only add people who belong to another organization you administer. Use "Invite User" instead.']);
         }
 
         if ($block = \App\Services\MembershipGuard::check($organization, 'users')) {
@@ -433,5 +452,24 @@ class OrganizationController extends Controller
         $organization->update(['membership_tier' => $request->membership_tier]);
 
         return back()->with('success', 'Tier updated.');
+    }
+
+    /**
+     * Checked against the global (null) team context, since the super-admin role is assigned
+     * with team_id = null — same approach as HandleInertiaRequests::share(). The caller's
+     * team context is restored afterward.
+     */
+    private function isSuperAdmin(User $user): bool
+    {
+        $teamId = getPermissionsTeamId();
+
+        setPermissionsTeamId(null);
+        $user->unsetRelation('roles');
+        $isSuperAdmin = $user->hasRole('super-admin');
+
+        setPermissionsTeamId($teamId);
+        $user->unsetRelation('roles');
+
+        return $isSuperAdmin;
     }
 }

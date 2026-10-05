@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CustomPromptMode;
 use App\Jobs\ProcessDocumentAI;
 use App\Models\Client;
 use App\Models\Document;
@@ -133,6 +134,51 @@ it('respects a custom_prompt on file-based imports', function () {
 
     $document = $this->project->documents()->where('type', config('workflow.intake_key'))->first();
     expect($document->custom_prompt)->toBe('Extract only decisions.');
+});
+
+it('stores the chosen custom_prompt_mode with a file-based import', function (string $mode, CustomPromptMode $expected) {
+    Queue::fake();
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => UploadedFile::fake()->createWithContent('notes.txt', 'Some text.'),
+            'custom_prompt' => 'The client is Acme.',
+            'custom_prompt_mode' => $mode,
+            'type' => config('workflow.intake_key'),
+        ])
+        ->assertRedirect();
+
+    $document = $this->project->documents()->where('type', config('workflow.intake_key'))->whereNull('parent_id')->firstOrFail();
+    expect($document->custom_prompt_mode)->toBe($expected);
+})->with([
+    'add' => ['add', CustomPromptMode::Add],
+    'replace' => ['replace', CustomPromptMode::Replace],
+]);
+
+it('stores no custom_prompt_mode when a file-based import has no custom_prompt', function () {
+    Queue::fake();
+
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => UploadedFile::fake()->createWithContent('notes.txt', 'Some text.'),
+            'custom_prompt_mode' => 'replace',
+            'type' => config('workflow.intake_key'),
+        ])
+        ->assertRedirect();
+
+    $document = $this->project->documents()->where('type', config('workflow.intake_key'))->whereNull('parent_id')->firstOrFail();
+    expect($document->custom_prompt_mode)->toBeNull();
+});
+
+it('rejects an unknown custom_prompt_mode on a file-based import', function () {
+    $this->actingAs($this->admin)
+        ->post(route('projects.transcripts.import-file', $this->project), [
+            'file' => UploadedFile::fake()->createWithContent('notes.txt', 'Some text.'),
+            'custom_prompt' => 'Anything.',
+            'custom_prompt_mode' => 'append',
+            'type' => config('workflow.intake_key'),
+        ])
+        ->assertSessionHasErrors('custom_prompt_mode');
 });
 
 it('redirects to a pre-created blank Meeting Notes document, same as a picked recording, when imported as Transcription', function () {

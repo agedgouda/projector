@@ -28,3 +28,17 @@ it('is visible on the FAQ page', function () {
 
     expect($faqs->where('category', 'Slack'))->toHaveCount(9);
 });
+
+it('documents the /report command under Reports', function () {
+    $faq = Faq::where('category', 'Reports')->where('question', 'How do I get a task report or event calendar from Slack?')->firstOrFail();
+
+    expect($faq->answer)->toContain('/report');
+});
+
+it('describes the current Connect button on the Configuration tab', function () {
+    $answers = Faq::whereIn('category', ['Slack', 'Dropbox'])->pluck('answer')->implode("\n");
+
+    expect($answers)
+        ->not()->toContain('Connect Slack Workspace')
+        ->not()->toContain('click "Connect Dropbox"');
+});
