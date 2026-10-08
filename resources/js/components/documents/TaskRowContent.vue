@@ -31,6 +31,9 @@ const props = defineProps<{
     // its responsive hide-below-md behavior and its own left/right margins, which only make
     // sense in the tree's narrower layout; DocumentContent.vue doesn't need either.
     fieldsClass?: string;
+    // Plain task lists (TaskChainList.vue) hold imported and hand-made tasks too, which never
+    // get an AI processed_at — only a live status means work is actually running there.
+    onlyLiveProcessing?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -38,7 +41,9 @@ const emit = defineEmits<{
 }>();
 
 const isProcessing = computed(
-    () => !!(props.doc as any).currentStatus || props.doc.processed_at === null,
+    () =>
+        !!(props.doc as any).currentStatus ||
+        (!props.onlyLiveProcessing && props.doc.processed_at === null),
 );
 
 const handleUpdate = (field: string, value: any) =>

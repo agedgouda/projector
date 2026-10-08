@@ -7,10 +7,13 @@ use App\Models\Document;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
+use App\Rules\StartDateFollowsPredecessor;
 use App\Rules\StartDateNotAfterDueDate;
 use App\Rules\ValidKanbanColumn;
+use App\Rules\ValidPredecessor;
 use App\Services\Google\GoogleExportService;
 use App\Services\Logging\RecordSaveLogger;
+use App\Services\Tasks\TaskChainScheduler;
 use App\Services\VectorService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -326,6 +329,47 @@ class DocumentController extends Controller
     }
 
     /**
+     * A task's links (what it waits on, what follows it) and the tasks it could be linked to —
+     * same project, never itself, and never in a way that would loop: it can't wait on anything
+     * downstream of it, and nothing upstream of it can be made to follow it.
+     */
+    public function links(Project $project, Document $document, TaskChainScheduler $scheduler): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        if (! $project->usesTaskStartDatesFor($document->type)) {
+            abort(404);
+        }
+
+        $catalog = $project->documentTypeCatalog();
+        $tasks = $project->documents()
+            ->get(['id', 'name', 'type', 'predecessor_id'])
+            ->filter(fn (Document $task) => $catalog->get($task->type)?->is_task === true)
+            ->sortBy(fn (Document $task) => mb_strtolower($task->name ?? ''))
+            ->values();
+
+        $documentId = $scheduler->idOf($document);
+        $notAsPredecessor = [$documentId, ...$scheduler->descendantIds($tasks, $documentId)];
+        $notAsFollower = [$documentId, ...$scheduler->ancestorIds($tasks, $documentId)];
+
+        $summary = fn (Document $task): array => ['id' => $scheduler->idOf($task), 'name' => $task->name];
+
+        return response()->json([
+            'predecessor' => ($predecessor = $tasks->firstWhere('id', $document->predecessor_id)) ? $summary($predecessor) : null,
+            'followers' => $tasks->where('predecessor_id', $documentId)->map($summary)->values(),
+            'predecessor_options' => $tasks->reject(fn (Document $task) => in_array($scheduler->idOf($task), $notAsPredecessor, true))->map($summary)->values(),
+            'follower_options' => $tasks
+                ->reject(fn (Document $task) => in_array($scheduler->idOf($task), $notAsFollower, true) || $task->predecessor_id === $documentId)
+                ->map($summary)
+                ->values(),
+        ]);
+    }
+
+    /**
      * Saves any subset of a document's editable fields in one request and answers with the saved
      * record, so the caller shows exactly what is stored. Status, priority, dates, assignee and tags
      * are open to any org member; the name and content also need full project-edit access.
@@ -343,6 +387,7 @@ class DocumentController extends Controller
         }
 
         $dateOrder = new StartDateNotAfterDueDate($project, $document->type, $document);
+        $followsPredecessor = new StartDateFollowsPredecessor($project, $document->type, $document);
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
@@ -350,8 +395,9 @@ class DocumentController extends Controller
             'task_status' => ['nullable', 'string', new ValidKanbanColumn($project->id)],
             'priority' => ['nullable', 'string'],
             'due_at' => ['nullable', 'date', $dateOrder],
-            'external_due_at' => ['nullable', 'date', $dateOrder],
-            'start_at' => ['nullable', 'date', $dateOrder],
+            'external_due_at' => ['nullable', 'date'],
+            'start_at' => ['nullable', 'date', $dateOrder, $followsPredecessor],
+            'predecessor_id' => ['nullable', 'uuid', new ValidPredecessor($project, $document->type, $document)],
             // Events mark a single occurrence on the calendar, so — unlike every other
             // document type — only one tag makes sense.
             'category_ids' => array_filter([
@@ -384,9 +430,18 @@ class DocumentController extends Controller
         $typeLabel = $project->documentTypeCatalog()->get($document->type)?->label ?? 'Document';
 
         if ($request->expectsJson()) {
+            $scheduler = app(TaskChainScheduler::class);
+
             return response()->json([
                 'message' => "{$typeLabel} updated.",
                 'document' => $project->kanbanDocument($document),
+                // Tasks re-dated because they wait on this one (directly or further down the
+                // chain) — so every open board/list/report can update them too.
+                'cascaded' => Document::query()
+                    ->whereKey(array_values(array_diff($scheduler->touchedIds(), [$scheduler->idOf($document)])))
+                    ->get()
+                    ->map(fn (Document $cascaded) => $project->kanbanDocument($cascaded))
+                    ->values(),
             ]);
         }
 

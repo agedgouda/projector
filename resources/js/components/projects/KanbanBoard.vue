@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import {
     Select,
     SelectContent,
@@ -48,7 +49,15 @@ defineProps<{
     // suppresses the shared toolbar's tag section so pills don't show twice. Projects/Show
     // passes nothing here, keeping its existing single flat toolbar row.
     tagsShownPerRow?: boolean;
+    // Shows the Board/List switch (Projects/Show, for orgs that track task start dates). In List
+    // mode the caller's #list slot replaces the rows; the search, priority and tag filters still
+    // apply, but sorting doesn't (the list is ordered by chain).
+    showViewToggle?: boolean;
 }>();
+
+const viewMode = defineModel<'board' | 'list'>('viewMode', {
+    default: 'board',
+});
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' });
 const selectedPriorities = defineModel<Priority[]>('selectedPriorities', {
@@ -82,6 +91,40 @@ const toggleTagFilter = (value: string) => {
 
 <template>
     <div class="space-y-6">
+        <div v-if="showViewToggle" class="flex items-center gap-2.5">
+            <button
+                type="button"
+                :class="[
+                    'text-[10px] font-black tracking-widest uppercase transition-colors',
+                    viewMode === 'board'
+                        ? 'text-gray-900 dark:text-white'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300',
+                ]"
+                @click="viewMode = 'board'"
+            >
+                Board
+            </button>
+            <Switch
+                :model-value="viewMode === 'list'"
+                aria-label="Show tasks as a list"
+                @update:model-value="
+                    (isList: boolean) => (viewMode = isList ? 'list' : 'board')
+                "
+            />
+            <button
+                type="button"
+                :class="[
+                    'text-[10px] font-black tracking-widest uppercase transition-colors',
+                    viewMode === 'list'
+                        ? 'text-gray-900 dark:text-white'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300',
+                ]"
+                @click="viewMode = 'list'"
+            >
+                List
+            </button>
+        </div>
+
         <div class="flex flex-wrap items-center gap-3">
             <div class="group relative w-full md:w-80 lg:w-96">
                 <Search :class="FLAT_SEARCH_ICON" />
@@ -172,7 +215,7 @@ const toggleTagFilter = (value: string) => {
                 </button>
             </div>
 
-            <Select v-model="sortBy">
+            <Select v-if="viewMode === 'board'" v-model="sortBy">
                 <SelectTrigger
                     class="h-8 w-full text-[10px] font-black tracking-widest uppercase md:w-[150px]"
                 >
@@ -190,7 +233,9 @@ const toggleTagFilter = (value: string) => {
             </Select>
         </div>
 
-        <div v-if="hasRows" class="block w-full min-w-0">
+        <slot v-if="showViewToggle && viewMode === 'list'" name="list" />
+
+        <div v-else-if="hasRows" class="block w-full min-w-0">
             <div class="block w-full space-y-8">
                 <KanbanRow
                     v-for="row in workflowRows"

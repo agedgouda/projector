@@ -34,7 +34,7 @@ class ReportController extends Controller
         $query = $this->reports()->buildTasksQuery($filters, $project);
 
         $tasks = $query?->get([
-            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'start_at', 'status_changed_at',
+            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'start_at', 'predecessor_id', 'status_changed_at',
             'priority', 'task_status', 'assignee_id', 'pending_assignee_invitation_id',
             'content', 'type', 'custom_prompt', 'locked_project_type_id',
             'last_ai_template_id', 'processed_at', 'updated_at',
@@ -141,7 +141,8 @@ class ReportController extends Controller
         [$tasks, $includeDetails, $projectNames, $mode] = $this->tasksForExport($request, $project);
         $hasSubprojects = count($projectNames) > 1;
 
-        $project->loadMissing('kanbanColumns');
+        $project->loadMissing('kanbanColumns', 'client.organization');
+        $usesTaskStartDates = (bool) $project->client?->organization?->uses_task_start_dates;
 
         $phpWord = new PhpWord;
         $section = $phpWord->addSection(['orientation' => 'landscape']);
@@ -160,10 +161,14 @@ class ReportController extends Controller
         if ($hasSubprojects) {
             $table->addCell(1800, $headerStyle)->addText('Project', $headerFontStyle);
         }
+        // Same columns as the other exports (TaskReportBuilder::headersAndRows()).
+        $table->addCell(3500, $headerStyle)->addText('Name', $headerFontStyle);
         $table->addCell(2000, $headerStyle)->addText('Status', $headerFontStyle);
-        $table->addCell(1600, $headerStyle)->addText($mode === 'done' ? 'Done Date' : 'Due Date', $headerFontStyle);
-        $table->addCell(3500, $headerStyle)->addText('Task Name', $headerFontStyle);
         $table->addCell(2000, $headerStyle)->addText('Assignee', $headerFontStyle);
+        if ($usesTaskStartDates) {
+            $table->addCell(1600, $headerStyle)->addText('Start Date', $headerFontStyle);
+        }
+        $table->addCell(1600, $headerStyle)->addText($mode === 'done' ? 'Done Date' : 'Due Date', $headerFontStyle);
         $table->addCell(1400, $headerStyle)->addText('Priority', $headerFontStyle);
         $table->addCell(2200, $headerStyle)->addText('Tags', $headerFontStyle);
         if ($includeDetails) {
@@ -175,10 +180,15 @@ class ReportController extends Controller
             if ($hasSubprojects) {
                 $table->addCell(1800)->addText($projectNames[$task->project_id] ?? '—', $cellFontStyle);
             }
+            // Chain order nesting as a real paragraph indent (twips; 240 ≈ 1/6 inch per level).
+            $depth = $usesTaskStartDates ? $this->reports()->chainDepth($task) : 0;
+            $table->addCell(3500)->addText($task->name ?? '', $cellFontStyle, $depth > 0 ? ['indentation' => ['left' => 240 * $depth]] : []);
             $table->addCell(2000)->addText($this->statusLabel($task, $project->kanbanColumns), $cellFontStyle);
-            $table->addCell(1600)->addText($this->formatDate($this->dueOrDoneDateValue($task, $mode)), $cellFontStyle);
-            $table->addCell(3500)->addText($task->name ?? '', $cellFontStyle);
             $table->addCell(2000)->addText($this->assigneeLabel($task), $cellFontStyle);
+            if ($usesTaskStartDates) {
+                $table->addCell(1600)->addText($this->formatDate($task->start_at), $cellFontStyle);
+            }
+            $table->addCell(1600)->addText($this->formatDate($this->dueOrDoneDateValue($task, $mode)), $cellFontStyle);
             $table->addCell(1400)->addText($task->priority ? ucfirst($task->priority) : '—', $cellFontStyle);
             $table->addCell(2200)->addText($this->tagsLabel($task), $cellFontStyle);
             if ($includeDetails) {
@@ -305,7 +315,7 @@ class ReportController extends Controller
     {
         $validated = $request->validate($this->filterRules() + [
             'include_details' => ['nullable', 'boolean'],
-            'sort_by' => ['nullable', 'string', 'in:status,start_at,due_at,status_changed_at,external_due_at,name,assignee,priority,project_name,tags'],
+            'sort_by' => ['nullable', 'string', 'in:chain,status,start_at,due_at,status_changed_at,external_due_at,name,assignee,priority,project_name,tags'],
             'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
         ]);
 
@@ -331,6 +341,7 @@ class ReportController extends Controller
             'due_at' => $task->due_at,
             'external_due_at' => $task->external_due_at,
             'start_at' => $task->start_at,
+            'predecessor_id' => $task->predecessor_id,
             'status_changed_at' => $task->status_changed_at,
             'priority' => $task->priority,
             'task_status' => $task->task_status,

@@ -145,25 +145,70 @@ describe('when the org tracks task start dates', function () {
         expect($task->fresh()->start_at)->toBeNull();
     });
 
-    it('checks the start date against the external due date when the org uses one', function () {
-        $this->org->update(['uses_external_due_dates' => true]);
-        $task = ($this->makeDocument)(['due_at' => '2026-08-01', 'external_due_at' => '2026-08-20']);
+    it('checks the start date against the internal due date, even when the org uses external due dates', function (bool $usesExternal) {
+        $this->org->update(['uses_external_due_dates' => $usesExternal]);
+        $task = ($this->makeDocument)(['due_at' => '2026-08-20', 'external_due_at' => '2026-08-05']);
 
-        ($this->patchDates)($task, ['start_at' => '2026-08-10'])->assertOk();
+        // A first start date (nothing to shift yet) is checked against the internal due date
+        // only — the earlier external due date doesn't count.
         ($this->patchDates)($task, ['start_at' => '2026-08-25'])->assertUnprocessable();
+        ($this->patchDates)($task, ['start_at' => '2026-08-10'])->assertOk();
+    })->with(['external due dates on' => true, 'external due dates off' => false]);
+
+    it('lets the external due date be set before the start date', function () {
+        $this->org->update(['uses_external_due_dates' => true]);
+        $task = ($this->makeDocument)(['start_at' => '2026-08-10', 'due_at' => '2026-08-20']);
+
+        ($this->patchDates)($task, ['external_due_at' => '2026-08-05'])->assertOk();
     });
 
-    it('falls back to the internal due date when the external one is empty', function () {
+    it('moves the end date by as many days as the start date moved', function (string $newStart, string $expectedDue) {
+        $task = ($this->makeDocument)(['start_at' => '2026-08-10', 'due_at' => '2026-08-20']);
+
+        ($this->patchDates)($task, ['start_at' => $newStart])->assertOk();
+
+        expect($task->fresh()->start_at)->toStartWith($newStart)
+            ->and($task->fresh()->due_at)->toStartWith($expectedDue);
+    })->with([
+        'later' => ['2026-08-13', '2026-08-23'],
+        'earlier' => ['2026-08-05', '2026-08-15'],
+        'past the old end date' => ['2026-08-25', '2026-09-04'],
+    ]);
+
+    it('moves the external due date along with it', function () {
         $this->org->update(['uses_external_due_dates' => true]);
+        $task = ($this->makeDocument)(['start_at' => '2026-08-10', 'due_at' => '2026-08-20', 'external_due_at' => '2026-08-25']);
+
+        ($this->patchDates)($task, ['start_at' => '2026-08-12'])->assertOk();
+
+        expect($task->fresh()->due_at)->toStartWith('2026-08-22')
+            ->and($task->fresh()->external_due_at)->toStartWith('2026-08-27');
+    });
+
+    it('keeps both dates as entered when the same save changes both', function () {
+        $task = ($this->makeDocument)(['start_at' => '2026-08-10', 'due_at' => '2026-08-20']);
+
+        ($this->patchDates)($task, ['start_at' => '2026-08-12', 'due_at' => '2026-08-30'])->assertOk();
+
+        expect($task->fresh()->due_at)->toStartWith('2026-08-30');
+    });
+
+    it('leaves the end date alone when a start date is set for the first time', function () {
         $task = ($this->makeDocument)(['due_at' => '2026-08-20']);
 
-        ($this->patchDates)($task, ['start_at' => '2026-08-25'])->assertUnprocessable();
+        ($this->patchDates)($task, ['start_at' => '2026-08-12'])->assertOk();
+
+        expect($task->fresh()->due_at)->toStartWith('2026-08-20');
     });
 
-    it('ignores the external due date when the org does not use one', function () {
-        $task = ($this->makeDocument)(['due_at' => '2026-08-01', 'external_due_at' => '2026-08-20']);
+    it('carries the moved end date on to the tasks that wait on it', function () {
+        $task = ($this->makeDocument)(['start_at' => '2026-08-10', 'due_at' => '2026-08-20']);
+        $follower = ($this->makeDocument)(['name' => 'Follower', 'predecessor_id' => $task->id, 'due_at' => '2026-08-25']);
 
-        ($this->patchDates)($task, ['start_at' => '2026-08-10'])->assertUnprocessable();
+        ($this->patchDates)($task, ['start_at' => '2026-08-12'])->assertOk();
+
+        expect($follower->fresh()->start_at)->toStartWith('2026-08-22')
+            ->and($follower->fresh()->due_at)->toStartWith('2026-08-27');
     });
 
     it('does not apply the rule to events', function () {
@@ -231,9 +276,9 @@ describe('when the org tracks task start dates', function () {
 
         $rows = startDateExcelRows($xlsx);
 
-        expect($rows[0])->toContain('Start Date')
-            ->and(array_column(array_slice($rows, 1), 3))->toBe(['Earlier', 'Later', 'No Start'])
-            ->and($rows[1][1])->toBe('08/01/2026');
+        expect($rows[0])->toBe(['Name', 'Status', 'Assignee', 'Start Date', 'Due Date', 'Priority', 'Tags'])
+            ->and(array_column(array_slice($rows, 1), 0))->toBe(['Earlier', 'Later', 'No Start'])
+            ->and($rows[1][3])->toBe('08/01/2026');
     });
 
     it('adds a Start Date column to the task report PDF', function () {

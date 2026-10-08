@@ -24,8 +24,9 @@ import {
     getPriorityStyles,
     kanbanCardBg,
 } from '@/lib/kanban-theme';
+import { formatDateMdy } from '@/lib/utils';
 import { usePage } from '@inertiajs/vue3';
-import { Plus } from 'lucide-vue-next';
+import { Calendar as CalendarIcon, Plus } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 const props = defineProps<{
@@ -63,6 +64,23 @@ const page = usePage();
 const usesTaskStartDates = computed(
     () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
 );
+
+const startValue = computed(() =>
+    props.doc.start_at ? props.doc.start_at.slice(0, 10) : '',
+);
+const dueValue = computed(() =>
+    props.doc.due_at ? props.doc.due_at.slice(0, 10) : '',
+);
+
+// Compact card date for narrow columns: M/D, plus a 2-digit year only when it isn't this year.
+const shortDate = (value: string): string => {
+    if (!value) return '';
+    const [year, month, day] = value.split('-');
+    const monthDay = `${Number(month)}/${Number(day)}`;
+    return Number(year) === new Date().getFullYear()
+        ? monthDay
+        : `${monthDay}/${year.slice(2)}`;
+};
 
 // Card background is always the neutral gray tint, regardless of column color; only
 // the border is tinted red once a task is overdue/due today (and not done).
@@ -120,7 +138,7 @@ const handleUpdate = (field: string, value: any) => {
         :class="[
             KANBAN_UI.card,
             kanbanCardBg.slate,
-            'group p-5 hover:border-projector-primary-200',
+            'group @container p-5 hover:border-projector-primary-200',
         ]"
         :style="dueDateBorder ? { borderColor: dueDateBorder } : undefined"
         tabindex="0"
@@ -257,22 +275,65 @@ const handleUpdate = (field: string, value: any) => {
             </div>
 
             <div class="flex items-center gap-1.5" @click.stop @keydown.stop>
+                <!-- With start dates on, the range is sized to the card (it's an @container):
+                     full MM/DD/YYYY dates when the card is wide enough, short M/D (year only when
+                     it isn't this year) when it isn't — so the range never overflows a narrow
+                     column. Without start dates the lone due date fits as before. -->
                 <template v-if="usesTaskStartDates">
-                    <DateField
-                        :model-value="
-                            doc.start_at ? doc.start_at.slice(0, 10) : ''
+                    <span
+                        :title="
+                            doc.predecessor_id
+                                ? 'Starts when the task it waits on ends'
+                                : undefined
                         "
-                        :show-icon="false"
-                        placeholder="Start"
-                        trigger-class="-mx-1.5 -my-0.5 rounded px-1.5 py-0.5 text-[13px] font-bold text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10"
-                        @update:model-value="
-                            (val) => handleUpdate('start_at', val)
-                        "
-                    />
+                    >
+                        <DateField
+                            :model-value="startValue"
+                            :disabled="!!doc.predecessor_id"
+                            @update:model-value="
+                                (val) => handleUpdate('start_at', val)
+                            "
+                        >
+                            <button
+                                type="button"
+                                :disabled="!!doc.predecessor_id"
+                                class="-mx-1.5 -my-0.5 inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[13px] font-bold whitespace-nowrap text-gray-700 uppercase transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-white/10"
+                            >
+                                <span class="hidden @[15.5rem]:inline">{{
+                                    formatDateMdy(startValue) || 'Start'
+                                }}</span>
+                                <span class="@[15.5rem]:hidden">{{
+                                    shortDate(startValue) || 'Start'
+                                }}</span>
+                            </button>
+                        </DateField>
+                    </span>
                     <span class="text-[13px] text-gray-400">–</span>
+                    <DateField
+                        :model-value="dueValue"
+                        @update:model-value="
+                            (val) => handleUpdate('due_at', val)
+                        "
+                    >
+                        <button
+                            type="button"
+                            class="-mx-1.5 -my-0.5 inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[13px] font-bold whitespace-nowrap text-gray-700 uppercase transition-colors hover:bg-gray-100 disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-white/10"
+                        >
+                            <CalendarIcon
+                                class="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400"
+                            />
+                            <span class="hidden @[15.5rem]:inline">{{
+                                formatDateMdy(dueValue) || '--'
+                            }}</span>
+                            <span class="@[15.5rem]:hidden">{{
+                                shortDate(dueValue) || '--'
+                            }}</span>
+                        </button>
+                    </DateField>
                 </template>
                 <DateField
-                    :model-value="doc.due_at ? doc.due_at.slice(0, 10) : ''"
+                    v-else
+                    :model-value="dueValue"
                     icon-class="h-4 w-4 text-gray-500 dark:text-gray-400"
                     trigger-class="-mx-1.5 -my-0.5 rounded px-1.5 py-0.5 text-[13px] font-bold text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10"
                     @update:model-value="(val) => handleUpdate('due_at', val)"

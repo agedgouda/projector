@@ -1,5 +1,10 @@
-import { computed, ref, watch } from 'vue';
+import {
+    DOCUMENTS_SAVED_EVENT,
+    type DocumentsSavedDetail,
+} from '@/lib/saveDocument';
+import { useEventListener } from '@vueuse/core';
 import axios from 'axios';
+import { computed, ref, watch } from 'vue';
 import type { KanbanProps } from './useKanbanBoard';
 
 export function useKanbanState(props: KanbanProps) {
@@ -148,6 +153,19 @@ export function useKanbanState(props: KanbanProps) {
             ? documentsById.value[selectedDocumentId.value]
             : null,
     );
+
+    // A save made anywhere (another view's sheet, the list, the calendar) can re-date tasks
+    // further down a chain; patch the ones this board holds. Never adds a document — an id
+    // the board doesn't have isn't one of its cards.
+    useEventListener(window, DOCUMENTS_SAVED_EVENT, (event: Event) => {
+        const { documents } = (event as CustomEvent<DocumentsSavedDetail>)
+            .detail;
+        documents.forEach((doc) => {
+            if (doc?.id !== undefined && documentsById.value[doc.id]) {
+                applyLocalUpdate(doc.id, doc);
+            }
+        });
+    });
 
     const openDetail = (doc: ProjectDocument) => {
         selectedDocumentId.value = doc.id;

@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Enums\CustomPromptMode;
+use App\Rules\StartDateFollowsPredecessor;
 use App\Rules\StartDateNotAfterDueDate;
 use App\Rules\ValidKanbanColumn;
+use App\Rules\ValidPredecessor;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -63,7 +65,8 @@ class StoreDocumentRequest extends FormRequest
         $document = $this->route('document');
         $document = $document instanceof \App\Models\Document ? $document : null;
         $type = $this->input('type', $document?->type);
-        $dateOrder = new StartDateNotAfterDueDate($project, is_string($type) ? $type : null, $document);
+        $type = is_string($type) ? $type : null;
+        $dateOrder = new StartDateNotAfterDueDate($project, $type, $document);
 
         return [
             'name' => [($isUpdate ? 'sometimes' : 'required'), 'string', 'max:255'],
@@ -72,8 +75,9 @@ class StoreDocumentRequest extends FormRequest
             'priority' => [($isUpdate ? 'sometimes' : 'required'), 'string'],
             'task_status' => [($isUpdate ? 'sometimes' : 'required'), 'string', new ValidKanbanColumn($project?->id)],
             'due_at' => ['nullable', 'date', $dateOrder],
-            'external_due_at' => ['nullable', 'date', $dateOrder],
-            'start_at' => ['nullable', 'date', $dateOrder],
+            'external_due_at' => ['nullable', 'date'],
+            'start_at' => ['nullable', 'date', $dateOrder, new StartDateFollowsPredecessor($project, $type, $document)],
+            'predecessor_id' => ['nullable', 'uuid', new ValidPredecessor($project, $type, $document)],
             'assignee_id' => ['nullable', 'exists:users,id'],
             'pending_assignee_invitation_id' => [
                 'nullable',

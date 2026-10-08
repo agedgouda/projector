@@ -332,8 +332,8 @@ it('reflects Done mode in the Excel export header and date column', function () 
         tap(tempnam(sys_get_temp_dir(), 'xlsx'), fn ($path) => file_put_contents($path, $response->streamedContent()))
     )->getActiveSheet();
 
-    expect($sheet->getCell('B1')->getValue())->toBe('Done Date')
-        ->and($sheet->getCell('B2')->getValue())->toBe('02/15/2026');
+    expect($sheet->getCell('D1')->getValue())->toBe('Done Date')
+        ->and($sheet->getCell('D2')->getValue())->toBe('02/15/2026');
 
     Carbon::setTestNow();
 });
@@ -550,7 +550,7 @@ it('exports the excel sorted the same way as requested, matching the on-screen t
         ->get(route('projects.reports.tasks.exportExcel', $this->project).'?sort_by=name&sort_dir=asc');
     $response->assertOk();
 
-    $names = readExcelColumn($response->streamedContent(), 'C', 3);
+    $names = readExcelColumn($response->streamedContent(), 'A', 3);
 
     expect($names)->toBe(['Alpha', 'Bravo', 'Charlie']);
 });
@@ -565,12 +565,12 @@ it('exports the excel sorted by priority', function () {
     $ascending = $this->actingAs($this->orgAdmin)
         ->get(route('projects.reports.tasks.exportExcel', $this->project).'?sort_by=priority&sort_dir=asc');
     $ascending->assertOk();
-    expect(readExcelColumn($ascending->streamedContent(), 'C', 3))->toBe(['Low Task', 'Medium Task', 'High Task']);
+    expect(readExcelColumn($ascending->streamedContent(), 'A', 3))->toBe(['Low Task', 'Medium Task', 'High Task']);
 
     $descending = $this->actingAs($this->orgAdmin)
         ->get(route('projects.reports.tasks.exportExcel', $this->project).'?sort_by=priority&sort_dir=desc');
     $descending->assertOk();
-    expect(readExcelColumn($descending->streamedContent(), 'C', 3))->toBe(['High Task', 'Medium Task', 'Low Task']);
+    expect(readExcelColumn($descending->streamedContent(), 'A', 3))->toBe(['High Task', 'Medium Task', 'Low Task']);
 });
 
 it('exports the excel sorted by due date with unset due dates always last, regardless of direction', function () {
@@ -583,12 +583,12 @@ it('exports the excel sorted by due date with unset due dates always last, regar
     $ascending = $this->actingAs($this->orgAdmin)
         ->get(route('projects.reports.tasks.exportExcel', $this->project).'?sort_by=due_at&sort_dir=asc');
     $ascending->assertOk();
-    expect(readExcelColumn($ascending->streamedContent(), 'C', 3))->toBe(['Earlier Task', 'Later Task', 'No Due Date Task']);
+    expect(readExcelColumn($ascending->streamedContent(), 'A', 3))->toBe(['Earlier Task', 'Later Task', 'No Due Date Task']);
 
     $descending = $this->actingAs($this->orgAdmin)
         ->get(route('projects.reports.tasks.exportExcel', $this->project).'?sort_by=due_at&sort_dir=desc');
     $descending->assertOk();
-    expect(readExcelColumn($descending->streamedContent(), 'C', 3))->toBe(['Later Task', 'Earlier Task', 'No Due Date Task']);
+    expect(readExcelColumn($descending->streamedContent(), 'A', 3))->toBe(['Later Task', 'Earlier Task', 'No Due Date Task']);
 });
 
 it('exports the pdf with both due-date columns and the details column when the org uses external due dates', function () {
@@ -747,7 +747,7 @@ it('does not include a Project column in exports when the project has no sub-pro
     // Column A is Status (not Project) when there's nothing to disambiguate.
     $content = $response->streamedContent();
     expect(readExcelColumn($content, 'A', 1))->not->toBe(['Sub Project']);
-    expect(readExcelColumn($content, 'C', 1))->toBe(['Solo Task']);
+    expect(readExcelColumn($content, 'A', 1))->toBe(['Solo Task']);
 });
 
 it('adds a leading Project column to exports once the project has a sub-project', function () {
@@ -762,7 +762,7 @@ it('adds a leading Project column to exports once the project has a sub-project'
 
     $content = $response->streamedContent();
     expect(readExcelColumn($content, 'A', 1))->toBe(['Sub Project'])
-        ->and(readExcelColumn($content, 'D', 1))->toBe(['Sub Task']);
+        ->and(readExcelColumn($content, 'B', 1))->toBe(['Sub Task']);
 });
 
 it('sorts the export by project_name', function () {

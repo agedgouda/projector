@@ -9,8 +9,14 @@ import {
 import { invitationName, type AssigneeOption } from '@/lib/assignees';
 import { kanbanDotClasses } from '@/lib/constants';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { followersByPredecessor, orderAsChains } from '@/lib/taskChains';
 import { formatDateOnly } from '@/lib/utils';
-import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-vue-next';
+import {
+    ChevronDown,
+    ChevronsUpDown,
+    ChevronUp,
+    CornerDownRight,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 export interface TaskReportRow {
@@ -21,6 +27,7 @@ export interface TaskReportRow {
     due_at: string | null;
     external_due_at: string | null;
     start_at: string | null;
+    predecessor_id?: string | null;
     status_changed_at: string | null;
     priority: string | null;
     task_status: string | null;
@@ -57,6 +64,9 @@ export type SortKey =
     | 'assignee'
     | 'project_name';
 export type SortDir = 'asc' | 'desc';
+// What the exports are asked to replicate: a column sort, or chain order (the default while the
+// org tracks task start dates — see TaskReportBuilder::orderAsChains()).
+export type ExportSortKey = SortKey | 'chain';
 
 const props = defineProps<{
     tasks: TaskReportRow[];
@@ -77,7 +87,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    (e: 'sort-change', key: SortKey, dir: SortDir): void;
+    (e: 'sort-change', key: ExportSortKey, dir: SortDir): void;
     // Field-level edits (status/due dates/assignee) — one attribute at a time, mirroring
     // TaskRowFields.vue/AssigneeAvatar.vue's own 'update' event.
     (
@@ -164,6 +174,10 @@ const assigneeSelectValue = (task: TaskReportRow): string => {
 };
 
 const sortKey = ref<SortKey>('due_at');
+// The column whose sort arrow shows — none while the table is in chain order.
+const activeSortKey = computed<SortKey | null>(() =>
+    chainOrder.value && props.usesTaskStartDates ? null : sortKey.value,
+);
 const sortDir = ref<SortDir>('asc');
 
 // The primary due-date column's own header/sort-toggle follows whichever field it's actually
@@ -177,6 +191,13 @@ const dueSortKey = computed<SortKey>(() =>
 // can't just re-sort whatever's already on screen the way this table does — they need
 // to know the current sort to ask the backend to replicate it.
 const toggleSort = (key: SortKey) => {
+    if (chainOrder.value) {
+        chainOrder.value = false;
+        sortKey.value = key;
+        sortDir.value = 'asc';
+        emit('sort-change', sortKey.value, sortDir.value);
+        return;
+    }
     if (sortKey.value === key) {
         sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
     } else {
@@ -233,6 +254,63 @@ const sortedTasks = computed(() => {
             compare(sortValue(a, sortKey.value), sortValue(b, sortKey.value)),
     );
 });
+
+// --- Task connections (orgs that track task start dates) ---
+// Chain order (each task nested under the one it waits on — see lib/taskChains.ts) is the
+// default; sorting by any column flattens the table, with the link markers below still showing
+// who waits on whom, and "Chain order" in the Task Name header switches back.
+const chainOrder = ref(!!props.usesTaskStartDates);
+const showConnections = computed(() => !!props.usesTaskStartDates);
+
+const returnToChainOrder = () => {
+    chainOrder.value = true;
+    sortKey.value = 'due_at';
+    sortDir.value = 'asc';
+    emit('sort-change', 'chain', 'asc');
+};
+
+const displayRows = computed(() =>
+    showConnections.value && chainOrder.value
+        ? orderAsChains(props.tasks)
+        : sortedTasks.value.map((item) => ({
+              item,
+              depth: 0,
+              hasFollowers: false,
+          })),
+);
+
+const tasksById = computed(
+    () => new Map(props.tasks.map((task) => [String(task.id), task])),
+);
+const followersOf = computed(() => followersByPredecessor(props.tasks));
+
+// Counts only tasks in this report — the filters may leave some out.
+const followerCount = (task: TaskReportRow) =>
+    followersOf.value.get(String(task.id))?.length ?? 0;
+
+const waitsOnTitle = (task: TaskReportRow) => {
+    const predecessor = task.predecessor_id
+        ? tasksById.value.get(task.predecessor_id)
+        : undefined;
+    return predecessor
+        ? `Waits on "${predecessor.name}"`
+        : 'Waits on a task not in this report';
+};
+
+// Hovering a row tints the task it waits on and the tasks that wait on it.
+const hoveredId = ref<string | null>(null);
+const relatedIds = computed(() => {
+    const related = new Set<string>();
+    const hovered = hoveredId.value
+        ? tasksById.value.get(hoveredId.value)
+        : undefined;
+    if (!hovered || !showConnections.value) return related;
+    if (hovered.predecessor_id) related.add(hovered.predecessor_id);
+    for (const follower of followersOf.value.get(String(hovered.id)) ?? []) {
+        related.add(String(follower.id));
+    }
+    return related;
+});
 </script>
 
 <template>
@@ -251,11 +329,13 @@ const sortedTasks = computed(() => {
             >
                 Project
                 <ChevronUp
-                    v-if="sortKey === 'project_name' && sortDir === 'asc'"
+                    v-if="activeSortKey === 'project_name' && sortDir === 'asc'"
                     class="h-3 w-3"
                 />
                 <ChevronDown
-                    v-else-if="sortKey === 'project_name' && sortDir === 'desc'"
+                    v-else-if="
+                        activeSortKey === 'project_name' && sortDir === 'desc'
+                    "
                     class="h-3 w-3"
                 />
                 <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
@@ -268,32 +348,45 @@ const sortedTasks = computed(() => {
             >
                 Status
                 <ChevronUp
-                    v-if="sortKey === 'status' && sortDir === 'asc'"
+                    v-if="activeSortKey === 'status' && sortDir === 'asc'"
                     class="h-3 w-3"
                 />
                 <ChevronDown
-                    v-else-if="sortKey === 'status' && sortDir === 'desc'"
+                    v-else-if="activeSortKey === 'status' && sortDir === 'desc'"
                     class="h-3 w-3"
                 />
                 <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
             </button>
 
-            <button
-                type="button"
-                class="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300"
-                @click="toggleSort('name')"
-            >
-                Task Name
-                <ChevronUp
-                    v-if="sortKey === 'name' && sortDir === 'asc'"
-                    class="h-3 w-3"
-                />
-                <ChevronDown
-                    v-else-if="sortKey === 'name' && sortDir === 'desc'"
-                    class="h-3 w-3"
-                />
-                <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
-            </button>
+            <div class="flex items-center gap-3">
+                <button
+                    type="button"
+                    class="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300"
+                    @click="toggleSort('name')"
+                >
+                    Task Name
+                    <ChevronUp
+                        v-if="activeSortKey === 'name' && sortDir === 'asc'"
+                        class="h-3 w-3"
+                    />
+                    <ChevronDown
+                        v-else-if="
+                            activeSortKey === 'name' && sortDir === 'desc'
+                        "
+                        class="h-3 w-3"
+                    />
+                    <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+                </button>
+                <button
+                    v-if="showConnections && !chainOrder"
+                    type="button"
+                    class="tracking-[0.1em] text-projector-primary-600 normal-case hover:text-projector-primary-700 dark:text-projector-primary-400"
+                    title="List each task under the one it waits on"
+                    @click="returnToChainOrder"
+                >
+                    Chain order
+                </button>
+            </div>
 
             <button
                 type="button"
@@ -302,11 +395,13 @@ const sortedTasks = computed(() => {
             >
                 Assignee
                 <ChevronUp
-                    v-if="sortKey === 'assignee' && sortDir === 'asc'"
+                    v-if="activeSortKey === 'assignee' && sortDir === 'asc'"
                     class="h-3 w-3"
                 />
                 <ChevronDown
-                    v-else-if="sortKey === 'assignee' && sortDir === 'desc'"
+                    v-else-if="
+                        activeSortKey === 'assignee' && sortDir === 'desc'
+                    "
                     class="h-3 w-3"
                 />
                 <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
@@ -315,83 +410,92 @@ const sortedTasks = computed(() => {
             <button
                 v-if="usesTaskStartDates"
                 type="button"
-                class="flex flex-col items-center text-center leading-tight hover:text-slate-600 dark:hover:text-slate-300"
+                class="flex items-center justify-center gap-1 leading-tight hover:text-slate-600 dark:hover:text-slate-300"
                 @click="toggleSort('start_at')"
             >
-                <span>Start</span>
-                <span class="flex items-center gap-1">
-                    Date
-                    <ChevronUp
-                        v-if="sortKey === 'start_at' && sortDir === 'asc'"
-                        class="h-3 w-3"
-                    />
-                    <ChevronDown
-                        v-else-if="sortKey === 'start_at' && sortDir === 'desc'"
-                        class="h-3 w-3"
-                    />
-                    <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+                <span class="flex flex-col items-center text-center">
+                    <span>Start</span>
+                    <span>Date</span>
                 </span>
+                <ChevronUp
+                    v-if="activeSortKey === 'start_at' && sortDir === 'asc'"
+                    class="h-3 w-3 shrink-0"
+                />
+                <ChevronDown
+                    v-else-if="
+                        activeSortKey === 'start_at' && sortDir === 'desc'
+                    "
+                    class="h-3 w-3 shrink-0"
+                />
+                <ChevronsUpDown v-else class="h-3 w-3 shrink-0 opacity-40" />
             </button>
 
             <button
                 type="button"
-                class="flex flex-col items-center text-center leading-tight hover:text-slate-600 dark:hover:text-slate-300"
+                class="flex items-center justify-center gap-1 leading-tight hover:text-slate-600 dark:hover:text-slate-300"
                 @click="toggleSort(dueSortKey)"
             >
-                <span v-if="mode === 'done'">Done</span>
-                <span v-else-if="usesExternalDueDates">Internal</span>
-                <span v-else>Due Date</span>
-                <span class="flex items-center gap-1">
-                    <template v-if="mode !== 'done' && usesExternalDueDates"
-                        >Due</template
-                    >
-                    <ChevronUp
-                        v-if="sortKey === dueSortKey && sortDir === 'asc'"
-                        class="h-3 w-3"
-                    />
-                    <ChevronDown
-                        v-else-if="sortKey === dueSortKey && sortDir === 'desc'"
-                        class="h-3 w-3"
-                    />
-                    <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+                <span class="flex flex-col items-center text-center">
+                    <span v-if="mode === 'done'">Done</span>
+                    <template v-else-if="usesExternalDueDates">
+                        <span>Internal</span>
+                        <span>Due</span>
+                    </template>
+                    <span v-else>Due Date</span>
                 </span>
+                <ChevronUp
+                    v-if="activeSortKey === dueSortKey && sortDir === 'asc'"
+                    class="h-3 w-3 shrink-0"
+                />
+                <ChevronDown
+                    v-else-if="
+                        activeSortKey === dueSortKey && sortDir === 'desc'
+                    "
+                    class="h-3 w-3 shrink-0"
+                />
+                <ChevronsUpDown v-else class="h-3 w-3 shrink-0 opacity-40" />
             </button>
 
             <button
                 v-if="usesExternalDueDates"
                 type="button"
-                class="flex flex-col items-center text-center leading-tight hover:text-slate-600 dark:hover:text-slate-300"
+                class="flex items-center justify-center gap-1 leading-tight hover:text-slate-600 dark:hover:text-slate-300"
                 @click="toggleSort('external_due_at')"
             >
-                <span>External</span>
-                <span class="flex items-center gap-1">
-                    Due
-                    <ChevronUp
-                        v-if="
-                            sortKey === 'external_due_at' && sortDir === 'asc'
-                        "
-                        class="h-3 w-3"
-                    />
-                    <ChevronDown
-                        v-else-if="
-                            sortKey === 'external_due_at' && sortDir === 'desc'
-                        "
-                        class="h-3 w-3"
-                    />
-                    <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+                <span class="flex flex-col items-center text-center">
+                    <span>External</span>
+                    <span>Due</span>
                 </span>
+                <ChevronUp
+                    v-if="
+                        activeSortKey === 'external_due_at' && sortDir === 'asc'
+                    "
+                    class="h-3 w-3 shrink-0"
+                />
+                <ChevronDown
+                    v-else-if="
+                        activeSortKey === 'external_due_at' &&
+                        sortDir === 'desc'
+                    "
+                    class="h-3 w-3 shrink-0"
+                />
+                <ChevronsUpDown v-else class="h-3 w-3 shrink-0 opacity-40" />
             </button>
         </div>
 
         <div
-            v-for="task in sortedTasks"
+            v-for="{ item: task, depth } in displayRows"
             :key="task.id"
             :class="[
                 'grid cursor-pointer grid-cols-2 items-center gap-2 rounded-md px-4 py-3 text-[13px] transition-colors md:gap-3',
                 gridColsClass,
                 FLAT_ROW_HOVER,
+                relatedIds.has(String(task.id)) &&
+                    'bg-projector-primary-100/80 ring-1 ring-projector-primary-300 ring-inset dark:bg-projector-primary-900/40 dark:ring-projector-primary-700',
             ]"
             @click="openDetail(task)"
+            @mouseenter="hoveredId = String(task.id)"
+            @mouseleave="hoveredId = null"
         >
             <span
                 v-if="hasSubprojects"
@@ -443,9 +547,24 @@ const sortedTasks = computed(() => {
             </Select>
 
             <span
-                class="col-span-2 break-words whitespace-normal text-slate-900 md:col-span-1 dark:text-slate-100"
-                >{{ task.name }}</span
+                class="col-span-2 flex items-start gap-1.5 break-words whitespace-normal text-slate-900 md:col-span-1 dark:text-slate-100"
+                :style="depth ? { paddingLeft: `${depth * 16}px` } : undefined"
             >
+                <span
+                    v-if="showConnections && task.predecessor_id"
+                    class="mt-0.5 shrink-0"
+                    :title="waitsOnTitle(task)"
+                >
+                    <CornerDownRight class="h-3.5 w-3.5 text-slate-400" />
+                </span>
+                <span class="min-w-0">{{ task.name }}</span>
+                <span
+                    v-if="showConnections && followerCount(task)"
+                    class="mt-px shrink-0 rounded bg-slate-100 px-1.5 py-px text-[10px] font-bold text-slate-500 dark:bg-white/10 dark:text-slate-400"
+                    :title="`${followerCount(task)} ${followerCount(task) === 1 ? 'task waits' : 'tasks wait'} on this`"
+                    >→ {{ followerCount(task) }}</span
+                >
+            </span>
 
             <Select
                 :model-value="assigneeSelectValue(task)"
@@ -475,11 +594,21 @@ const sortedTasks = computed(() => {
                 </SelectContent>
             </Select>
 
-            <div v-if="usesTaskStartDates" class="contents" @click.stop>
+            <div
+                v-if="usesTaskStartDates"
+                class="contents"
+                :title="
+                    task.predecessor_id
+                        ? 'Starts when the task it waits on ends'
+                        : undefined
+                "
+                @click.stop
+            >
                 <DateField
                     :model-value="dueDateInputValue(task.start_at)"
+                    :disabled="!!task.predecessor_id"
                     :show-icon="false"
-                    trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
+                    trigger-class="w-full min-w-0 justify-center text-[13px] text-slate-500 dark:text-slate-400"
                     @update:model-value="
                         (val) => emit('update-field', task, 'start_at', val)
                     "
@@ -491,14 +620,14 @@ const sortedTasks = computed(() => {
                     v-if="mode !== 'done'"
                     :model-value="dueDateInputValue(task.due_at)"
                     :show-icon="false"
-                    trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
+                    trigger-class="w-full min-w-0 justify-center text-[13px] text-slate-500 dark:text-slate-400"
                     @update:model-value="
                         (val) => emit('update-field', task, 'due_at', val)
                     "
                 />
                 <span
                     v-else
-                    class="flex w-full min-w-0 items-center text-[13px] text-slate-500 dark:text-slate-400"
+                    class="flex w-full min-w-0 items-center justify-center text-[13px] text-slate-500 dark:text-slate-400"
                     >{{ formatDateOnly(task.status_changed_at) || '—' }}</span
                 >
             </div>
@@ -507,7 +636,7 @@ const sortedTasks = computed(() => {
                 <DateField
                     :model-value="dueDateInputValue(task.external_due_at)"
                     :show-icon="false"
-                    trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
+                    trigger-class="w-full min-w-0 justify-center text-[13px] text-slate-500 dark:text-slate-400"
                     @update:model-value="
                         (val) =>
                             emit('update-field', task, 'external_due_at', val)

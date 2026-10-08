@@ -178,16 +178,13 @@
                 @if ($hasSubprojects)
                     <th>Project</th>
                 @endif
+                <th>Name</th>
                 <th>Status</th>
+                <th>Assignee</th>
                 @if ($usesTaskStartDates)
                     <th>Start Date</th>
                 @endif
-                <th>{{ $isDoneMode ? 'Done Date' : ($usesExternalDueDates ? 'Internal Due' : 'Due Date') }}</th>
-                @if ($usesExternalDueDates)
-                    <th>External Due</th>
-                @endif
-                <th>Task Name</th>
-                <th>Assignee</th>
+                <th>{{ $isDoneMode ? 'Done Date' : 'Due Date' }}</th>
                 <th>Priority</th>
                 <th>Tags</th>
                 @if ($includeDetails)
@@ -202,21 +199,20 @@
                     $assigneeName = $task->assignee?->name
                         ?? ($task->pendingAssignee ? trim(($task->pendingAssignee->first_name ?? '').' '.($task->pendingAssignee->last_name ?? '')) ?: $task->pendingAssignee->email : 'Unassigned');
                     $dueOrDoneValue = $isDoneMode ? $task->status_changed_at : $task->due_at;
+                    // Chain order nesting: indented one step per level.
+                    $chainDepth = $usesTaskStartDates && is_int($task->chain_depth) ? $task->chain_depth : 0;
                 @endphp
                 <tr>
                     @if ($hasSubprojects)
                         <td>{{ $projectNames[$task->project_id] ?? '—' }}</td>
                     @endif
+                    <td style="padding-left: {{ 8 + $chainDepth * 14 }}px">{{ $task->name }}</td>
                     <td>{{ $column?->label ?? $task->task_status ?? '—' }}</td>
+                    <td>{{ $assigneeName }}</td>
                     @if ($usesTaskStartDates)
                         <td>{{ $task->start_at ? \Illuminate\Support\Carbon::parse($task->start_at)->format('m/d/Y') : '—' }}</td>
                     @endif
                     <td>{{ $dueOrDoneValue ? \Illuminate\Support\Carbon::parse($dueOrDoneValue)->format('m/d/Y') : '—' }}</td>
-                    @if ($usesExternalDueDates)
-                        <td>{{ $task->external_due_at ? \Illuminate\Support\Carbon::parse($task->external_due_at)->format('m/d/Y') : '—' }}</td>
-                    @endif
-                    <td>{{ $task->name }}</td>
-                    <td>{{ $assigneeName }}</td>
                     <td>{{ $task->priority ? ucfirst($task->priority) : '—' }}</td>
                     <td>{{ $task->categories->isNotEmpty() ? $task->categories->pluck('name')->implode(', ') : '—' }}</td>
                     @if ($includeDetails)
@@ -225,7 +221,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ 6 + ($hasSubprojects ? 1 : 0) + ($usesExternalDueDates ? 1 : 0) + ($usesTaskStartDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
+                    <td colspan="{{ 6 + ($hasSubprojects ? 1 : 0) + ($usesTaskStartDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
                 </tr>
             @endforelse
         </tbody>

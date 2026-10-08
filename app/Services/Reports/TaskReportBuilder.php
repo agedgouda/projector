@@ -203,7 +203,7 @@ class TaskReportBuilder
         $query = $this->buildTasksQuery($validated, $project);
 
         $columns = [
-            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'start_at', 'status_changed_at',
+            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'start_at', 'predecessor_id', 'status_changed_at',
             'priority', 'task_status', 'assignee_id', 'pending_assignee_invitation_id',
         ];
         if ($includeDetails) {
@@ -219,13 +219,91 @@ class TaskReportBuilder
         $project->loadMissing('kanbanColumns');
         $sortBy = is_string($validated['sort_by'] ?? null) ? $validated['sort_by'] : ($mode === 'done' ? 'status_changed_at' : 'due_at');
         $sortDir = is_string($validated['sort_dir'] ?? null) ? $validated['sort_dir'] : 'asc';
-        $tasks = $this->sortTasksForExport($tasks, $project, $sortBy, $sortDir, $projectNames);
+        $tasks = $sortBy === 'chain' && $this->usesTaskStartDates($project)
+            ? $this->orderAsChains($tasks)
+            : $this->sortTasksForExport($tasks, $project, $sortBy, $sortDir, $projectNames);
 
         return [$tasks, $includeDetails, $projectNames, $mode];
     }
 
     /**
-     * The column set/formatting shared by the Excel, CSV, and Google exports.
+     * The export in chain order, as the report shows it by default (TaskReportTable.vue / lib/
+     * taskChains.ts): each task right after the one it waits on, earliest first. A task whose
+     * predecessor isn't in the export starts its own chain. Each task gets a transient
+     * `chain_depth` (never saved) that the exports indent its name by.
+     *
+     * @param  Collection<int, Document>  $tasks
+     * @return Collection<int, Document>
+     */
+    private function orderAsChains(Collection $tasks): Collection
+    {
+        $startKey = fn (Document $task): string => substr((string) ($task->start_at ?? $task->due_at ?? ''), 0, 10) ?: '9999-99-99';
+        $byDate = fn (Document $a, Document $b): int => [$startKey($a), mb_strtolower($a->name ?? '')] <=> [$startKey($b), mb_strtolower($b->name ?? '')];
+
+        $ids = $tasks->mapWithKeys(fn (Document $task) => [$this->taskId($task) => true]);
+        $followers = $tasks->filter(fn (Document $task) => $task->predecessor_id !== null)->groupBy('predecessor_id');
+        $roots = $tasks->filter(fn (Document $task) => $task->predecessor_id === null || ! $ids->has($task->predecessor_id))->sort($byDate);
+
+        $ordered = [];
+        $seen = [];
+        $walk = function (Document $task, int $depth) use (&$walk, &$ordered, &$seen, $followers, $byDate): void {
+            $id = $this->taskId($task);
+            if (isset($seen[$id])) {
+                return;
+            }
+            $seen[$id] = true;
+            $task->setAttribute('chain_depth', $depth);
+            $ordered[] = $task;
+            foreach ($followers->get($id, collect())->sort($byDate) as $follower) {
+                $walk($follower, $depth + 1);
+            }
+        };
+        foreach ($roots as $root) {
+            $walk($root, 0);
+        }
+
+        return collect($ordered);
+    }
+
+    /**
+     * A task's name as exported: in chain order, indented one step per level (non-breaking
+     * spaces, which CSV/Google imports don't trim). Excel replaces this with real cell
+     * indentation — see excelContents().
+     */
+    public function exportTaskName(Document $task, bool $usesTaskStartDates): string
+    {
+        $name = $task->name ?? '';
+        $depth = $this->chainDepth($task);
+
+        return $usesTaskStartDates && $depth > 0 ? str_repeat("\u{00A0}", 4 * $depth).$name : $name;
+    }
+
+    public function chainDepth(Document $task): int
+    {
+        $depth = $task->getAttribute('chain_depth');
+
+        return is_int($depth) ? $depth : 0;
+    }
+
+    private function usesTaskStartDates(Project $project): bool
+    {
+        $project->loadMissing('client.organization');
+
+        return (bool) $project->client?->organization?->uses_task_start_dates;
+    }
+
+    private function taskId(Document $task): string
+    {
+        $key = $task->getKey();
+
+        return is_string($key) ? $key : '';
+    }
+
+    /**
+     * The column set/formatting shared by the Excel, CSV, and Google exports: Name, Status,
+     * Assignee, Start Date (orgs that track start dates), Due Date (Done Date in done mode),
+     * Priority, Tags — led by Project when the report spans sub-projects, and followed by
+     * Details when asked for.
      *
      * @param  Collection<int, Document>  $tasks
      * @param  array<string, string>  $projectNames
@@ -235,15 +313,15 @@ class TaskReportBuilder
     {
         $hasSubprojects = count($projectNames) > 1;
 
-        $project->loadMissing('kanbanColumns', 'client.organization');
-        $usesTaskStartDates = (bool) $project->client?->organization?->uses_task_start_dates;
+        $project->loadMissing('kanbanColumns');
+        $usesTaskStartDates = $this->usesTaskStartDates($project);
 
-        $dueColumnLabel = $mode === 'done' ? 'Done Date' : 'Due Date';
-        $headers = $hasSubprojects ? ['Project', 'Status'] : ['Status'];
+        $headers = $hasSubprojects ? ['Project'] : [];
+        array_push($headers, 'Name', 'Status', 'Assignee');
         if ($usesTaskStartDates) {
             $headers[] = 'Start Date';
         }
-        array_push($headers, $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags');
+        array_push($headers, $mode === 'done' ? 'Done Date' : 'Due Date', 'Priority', 'Tags');
         if ($includeDetails) {
             $headers[] = 'Details';
         }
@@ -253,13 +331,13 @@ class TaskReportBuilder
             if ($hasSubprojects) {
                 $row[] = $projectNames[$task->project_id] ?? '—';
             }
+            $row[] = $this->exportTaskName($task, $usesTaskStartDates);
             $row[] = $this->statusLabel($task, $project->kanbanColumns);
+            $row[] = $this->assigneeLabel($task);
             if ($usesTaskStartDates) {
                 $row[] = $this->formatDate($task->start_at);
             }
             $row[] = $this->formatDate($this->dueOrDoneDateValue($task, $mode));
-            $row[] = $task->name ?? '';
-            $row[] = $this->assigneeLabel($task);
             $row[] = $task->priority ? ucfirst($task->priority) : '—';
             $row[] = $this->tagsLabel($task);
             if ($includeDetails) {
@@ -294,6 +372,17 @@ class TaskReportBuilder
         foreach ($rows as $rowIndex => $row) {
             foreach ($row as $columnIndex => $value) {
                 $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnIndex + 1).($rowIndex + 2), $value);
+            }
+        }
+
+        // Chain nesting as real cell indentation rather than leading spaces.
+        $nameColumn = Coordinate::stringFromColumnIndex(count($projectNames) > 1 ? 2 : 1);
+        foreach ($tasks->values() as $rowIndex => $task) {
+            $depth = $this->chainDepth($task);
+            if ($depth > 0) {
+                $cell = $nameColumn.($rowIndex + 2);
+                $sheet->setCellValue($cell, $task->name ?? '');
+                $sheet->getStyle($cell)->getAlignment()->setIndent($depth * 2);
             }
         }
 
@@ -345,7 +434,6 @@ class TaskReportBuilder
             'columns' => $project->kanbanColumns,
             'includeDetails' => $includeDetails,
             'isDoneMode' => $mode === 'done',
-            'usesExternalDueDates' => (bool) $organization?->uses_external_due_dates,
             'usesTaskStartDates' => (bool) $organization?->uses_task_start_dates,
             'hasSubprojects' => count($projectNames) > 1,
             'projectNames' => $projectNames,

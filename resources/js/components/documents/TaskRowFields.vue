@@ -73,9 +73,10 @@ const handleUpdate = (field: string, value: any) => {
                 <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ formatDateMdy(startValue) || '--' }}</span>
                 <Calendar class="h-3 w-3 shrink-0 text-slate-400" />
             </div>
-            <div v-else class="flex w-28 items-center">
+            <div v-else class="flex w-28 items-center" :title="doc.predecessor_id ? 'Starts when the task it waits on ends' : undefined">
                 <DateField
                     :model-value="startValue"
+                    :disabled="!!doc.predecessor_id"
                     align="end"
                     icon-class="h-3 w-3 text-slate-400"
                     trigger-class="w-full min-w-0 text-[9px] font-bold uppercase tracking-wider text-slate-900 hover:text-projector-primary-600 dark:text-slate-100"

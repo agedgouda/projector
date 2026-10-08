@@ -13,10 +13,12 @@ use App\Observers\DocumentObserver;
 use App\Observers\OrgDocumentObserver;
 use App\Observers\ProjectObserver;
 use App\Observers\ProjectTypeObserver;
+use App\Observers\TaskChainObserver;
 use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
 use App\Services\Ai\Drivers\OpenAiLlmDriver;
 use App\Services\Ai\ProjectAiService;
+use App\Services\Tasks\TaskChainScheduler;
 use App\Services\Transcription\Drivers\AssemblyAiTranscriptionDriver;
 use App\Services\Vectors\GeminiDriver;
 use App\Services\Vectors\OllamaDriver;
@@ -36,6 +38,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Per request/job (Octane keeps the container alive between requests), so the tasks a
+        // cascade re-dated can be reported back by the request that caused it.
+        $this->app->scoped(TaskChainScheduler::class);
+
         // 1. Vector Driver Resolution (Embedding/Search)
         $this->app->scoped(VectorDriver::class, function (Application $app) {
             $name = config('services.vector_driver', 'openai');
@@ -112,6 +118,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Register Model Observers
         Document::observe(DocumentObserver::class);
+        Document::observe(TaskChainObserver::class);
         OrgDocument::observe(OrgDocumentObserver::class);
         ProjectType::observe(ProjectTypeObserver::class);
         Project::observe(ProjectObserver::class);

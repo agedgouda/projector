@@ -78,6 +78,30 @@ const errorMessage = (error: unknown): string => {
 };
 
 /**
+ * Fired on window after every successful save, carrying the saved record plus every task the
+ * server re-dated because it waits on the saved one (see TaskChainScheduler) — so any open
+ * board, list, report or calendar can update its copies, not just the screen that saved.
+ */
+export const DOCUMENTS_SAVED_EVENT = 'projector:documents-saved';
+
+export type DocumentsSavedDetail = {
+    documents: Record<string, any>[];
+    // True when the save re-dated other tasks down a chain.
+    cascaded: boolean;
+};
+
+const announceSavedDocuments = (documents: Record<string, any>[]) => {
+    window.dispatchEvent(
+        new CustomEvent<DocumentsSavedDetail>(DOCUMENTS_SAVED_EVENT, {
+            detail: {
+                documents: documents.filter(Boolean),
+                cascaded: documents.length > 1,
+            },
+        }),
+    );
+};
+
+/**
  * Saves changes to one document — any of its fields, all through the same request — and puts
  * the record the server answers with on screen, so what's shown is what's stored. Until that
  * answer arrives, the values just chosen are shown as they are (the card doesn't wait to move).
@@ -151,6 +175,11 @@ export async function saveDocument(
             if (queue.pending === 1) {
                 options.apply(response.data.document);
             }
+
+            announceSavedDocuments([
+                response.data.document,
+                ...(response.data.cascaded ?? []),
+            ]);
 
             const message = options.successMessage ?? response.data.message;
 

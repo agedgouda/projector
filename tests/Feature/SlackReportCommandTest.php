@@ -184,7 +184,7 @@ function uploadedTaskNames(): array
     // A report spanning sub-projects has an extra leading Project column, so find the name column
     // by its header rather than assuming a letter.
     $column = 'A';
-    while ($sheet->getCell($column.'1')->getValue() !== 'Task Name') {
+    while ($sheet->getCell($column.'1')->getValue() !== 'Name') {
         $column++;
     }
 
@@ -324,9 +324,9 @@ it('uploads the full Excel report without calling the AI when there is no text',
     $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmp)->getActiveSheet();
     unlink($tmp);
 
-    expect($sheet->getCell('C1')->getValue())->toBe('Task Name')
-        ->and($sheet->getCell('C2')->getValue())->toBe('Ship the thing')
-        ->and($sheet->getCell('B2')->getValue())->toBe('10/01/2026');
+    expect($sheet->getCell('A1')->getValue())->toBe('Name')
+        ->and($sheet->getCell('A2')->getValue())->toBe('Ship the thing')
+        ->and($sheet->getCell('D2')->getValue())->toBe('10/01/2026');
 
     Http::assertSent(fn ($request) => $request->url() === 'https://slack.com/api/files.completeUploadExternal'
         && $request['channel_id'] === 'C123'
@@ -359,7 +359,7 @@ it('uploads a CSV when the AI reads a CSV request', function () {
 
     $csv = uploadedReportBytes();
 
-    expect($csv)->toStartWith("Status,\"Due Date\",\"Task Name\",Assignee,Priority,Tags\n")
+    expect($csv)->toStartWith("Name,Status,Assignee,\"Due Date\",Priority,Tags\n")
         ->and($csv)->toContain('10/01/2026')
         ->and($csv)->toContain('Ship the thing');
 });

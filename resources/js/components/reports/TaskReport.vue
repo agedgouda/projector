@@ -12,8 +12,8 @@ import {
 } from '@/actions/App/Http/Controllers/ReportController';
 import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import TaskReportTable, {
+    type ExportSortKey,
     type SortDir,
-    type SortKey,
     type TaskReportRow,
 } from '@/components/reports/TaskReportTable.vue';
 import TaskSearchForm, {
@@ -27,8 +27,13 @@ import {
 } from '@/composables/useDocumentActions';
 import { useWorkflow } from '@/composables/useWorkflow';
 import { mergeAssigneeOptions } from '@/lib/assignees';
-import { saveDocument } from '@/lib/saveDocument';
+import {
+    DOCUMENTS_SAVED_EVENT,
+    saveDocument,
+    type DocumentsSavedDetail,
+} from '@/lib/saveDocument';
 import { usePage } from '@inertiajs/vue3';
+import { useEventListener } from '@vueuse/core';
 import axios from 'axios';
 import {
     FileSpreadsheet,
@@ -74,6 +79,23 @@ const assigneeOptions = computed(() =>
 );
 
 const results = ref<TaskReportRow[]>([]);
+
+// Keeps rows in step with saves made elsewhere — notably tasks re-dated down a chain when the
+// task they wait on moves (see saveDocument's DOCUMENTS_SAVED_EVENT).
+useEventListener(window, DOCUMENTS_SAVED_EVENT, (event: Event) => {
+    const { documents } = (event as CustomEvent<DocumentsSavedDetail>).detail;
+    documents.forEach((doc) => {
+        const row = results.value.find((r) => String(r.id) === String(doc?.id));
+        if (row) {
+            Object.assign(row, {
+                start_at: doc.start_at,
+                due_at: doc.due_at,
+                external_due_at: doc.external_due_at,
+                predecessor_id: doc.predecessor_id,
+            });
+        }
+    });
+});
 const loading = ref(false);
 const hasSearched = ref(false);
 const error = ref<string | null>(null);
@@ -90,13 +112,14 @@ const reportMode = computed<'due' | 'done'>(() =>
     activeParams.value.mode === 'done' ? 'done' : 'due',
 );
 
-// Mirrors TaskReportTable's own default (due_at/asc) so an export triggered before the
-// user ever clicks a column header still matches what's on screen.
-const currentSort = ref<{ key: SortKey; dir: SortDir }>({
-    key: 'due_at',
+// Mirrors TaskReportTable's own default — chain order while the org tracks task start dates,
+// due_at/asc otherwise — so an export triggered before the user ever clicks a column header
+// still matches what's on screen.
+const currentSort = ref<{ key: ExportSortKey; dir: SortDir }>({
+    key: usesTaskStartDates.value ? 'chain' : 'due_at',
     dir: 'asc',
 });
-const onSortChange = (key: SortKey, dir: SortDir) => {
+const onSortChange = (key: ExportSortKey, dir: SortDir) => {
     currentSort.value = { key, dir };
 };
 

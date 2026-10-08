@@ -79,6 +79,7 @@ class Document extends Model implements HasMedia
         'due_at',
         'external_due_at',
         'start_at',
+        'predecessor_id',
         'locked_project_type_id',
         'custom_prompt',
         'custom_prompt_mode',
@@ -153,6 +154,26 @@ class Document extends Model implements HasMedia
     public function children(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Document::class, 'parent_id');
+    }
+
+    /**
+     * The task this one waits on — it starts the day that task ends (see TaskChainScheduler).
+     *
+     * @return BelongsTo<Document, $this>
+     */
+    public function predecessor(): BelongsTo
+    {
+        return $this->belongsTo(Document::class, 'predecessor_id');
+    }
+
+    /**
+     * The tasks that start the day this one ends.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Document, $this>
+     */
+    public function followers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Document::class, 'predecessor_id');
     }
 
     /**

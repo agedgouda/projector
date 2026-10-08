@@ -28,6 +28,7 @@ import {
     kanbanDotClasses,
     priorityDotClasses,
 } from '@/lib/constants';
+import { saveDocument } from '@/lib/saveDocument';
 import { formatTimestampMdy } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { router, usePage } from '@inertiajs/vue3';
@@ -42,6 +43,7 @@ import {
     Paperclip,
     Plus,
     Trash2,
+    X,
 } from 'lucide-vue-next';
 import { computed, nextTick, reactive, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
@@ -164,6 +166,76 @@ const usesTaskStartDates = computed(
 const isEvent = computed(
     () => props.mode !== 'create' && props.document?.type === 'event',
 );
+
+// A task that waits on another starts the day that one ends, so its start date is set by the
+// chain, not by hand (the server rejects direct edits too — see StartDateFollowsPredecessor).
+const isStartLocked = computed(
+    () =>
+        props.mode !== 'create' &&
+        !isEvent.value &&
+        usesTaskStartDates.value &&
+        !!props.document?.predecessor_id,
+);
+
+// --- Task links (what this task waits on / what follows it) ---
+// Only for tasks in orgs that track start dates. Options come from the server so they're
+// always the project's full task list minus anything that would create a loop.
+type TaskSummary = { id: string; name: string };
+type TaskLinks = {
+    predecessor: TaskSummary | null;
+    followers: TaskSummary[];
+    predecessor_options: TaskSummary[];
+    follower_options: TaskSummary[];
+};
+const showLinks = computed(
+    () =>
+        props.mode !== 'create' &&
+        !isEvent.value &&
+        usesTaskStartDates.value &&
+        !!props.document,
+);
+const links = ref<TaskLinks | null>(null);
+const loadLinks = async () => {
+    if (!showLinks.value || !props.document) {
+        links.value = null;
+        return;
+    }
+    try {
+        const { data } = await axios.get<TaskLinks>(
+            projectDocumentsRoutes.links.url({
+                project: String(props.document.project_id),
+                document: String(props.document.id),
+            }),
+        );
+        links.value = data;
+    } catch {
+        links.value = null;
+    }
+};
+watch(
+    () => [props.open, props.document?.id, props.document?.predecessor_id],
+    () => {
+        if (props.open) void loadLinks();
+    },
+    { immediate: true },
+);
+const setPredecessor = async (taskId: string | null) => {
+    await props.save?.({ predecessor_id: taskId });
+    await loadLinks();
+};
+// A follower is a different document, so it's saved directly rather than through `save`
+// (which only saves the one shown); every open board/list picks it up from saveDocument's
+// DOCUMENTS_SAVED_EVENT.
+const setFollower = async (taskId: string, predecessorId: string | null) => {
+    if (!props.document) return;
+    await saveDocument(
+        String(props.document.project_id),
+        taskId,
+        { predecessor_id: predecessorId },
+        { apply: () => {} },
+    );
+    await loadLinks();
+};
 
 // Assignee + Due Date, plus whichever optional date fields the org tracks. Four fields wrap
 // into two rows of two rather than squeezing four columns into the sheet. Events show just
@@ -690,6 +762,11 @@ const handleUpdate = (field: string, value: any) => {
                                 <div
                                     v-if="usesTaskStartDates || isEvent"
                                     class="flex min-h-8 items-center justify-between border-b border-gray-200/50 pb-2"
+                                    :title="
+                                        isStartLocked
+                                            ? 'Starts when the task it waits on ends'
+                                            : undefined
+                                    "
                                 >
                                     <span
                                         class="text-[11px] font-medium text-gray-500"
@@ -706,6 +783,7 @@ const handleUpdate = (field: string, value: any) => {
                                                 : ''
                                         "
                                         align="end"
+                                        :disabled="isStartLocked"
                                         icon-class="h-3.5 w-3.5 text-gray-400"
                                         trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
                                         @update:model-value="
@@ -921,6 +999,137 @@ const handleUpdate = (field: string, value: any) => {
                                 </div>
                             </div>
                         </div>
+
+                        <template v-if="showLinks && links">
+                            <div class="mt-10 grid grid-cols-2 gap-x-12">
+                                <div>
+                                    <h4
+                                        class="mb-4 text-[11px] font-black tracking-widest text-gray-400 uppercase"
+                                    >
+                                        Waits On
+                                    </h4>
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <button
+                                            v-if="links.predecessor"
+                                            type="button"
+                                            :title="`Stop waiting on '${links.predecessor.name}'`"
+                                            class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                                            @click="setPredecessor(null)"
+                                        >
+                                            {{ links.predecessor.name }}
+                                            <X class="h-3 w-3 text-gray-400" />
+                                        </button>
+                                        <Popover
+                                            v-else-if="
+                                                links.predecessor_options.length
+                                            "
+                                        >
+                                            <PopoverTrigger as-child>
+                                                <button
+                                                    type="button"
+                                                    title="Choose the task this one waits on"
+                                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
+                                                >
+                                                    <Plus class="h-3.5 w-3.5" />
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent
+                                                class="max-h-64 w-64 overflow-y-auto p-1"
+                                                align="start"
+                                            >
+                                                <button
+                                                    v-for="option in links.predecessor_options"
+                                                    :key="option.id"
+                                                    type="button"
+                                                    class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                                                    @click="
+                                                        setPredecessor(
+                                                            option.id,
+                                                        )
+                                                    "
+                                                >
+                                                    {{ option.name }}
+                                                </button>
+                                            </PopoverContent>
+                                        </Popover>
+                                        <span
+                                            v-else
+                                            class="text-xs text-gray-400"
+                                            >—</span
+                                        >
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4
+                                        class="mb-4 text-[11px] font-black tracking-widest text-gray-400 uppercase"
+                                    >
+                                        Followed By
+                                    </h4>
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <button
+                                            v-for="follower in links.followers"
+                                            :key="follower.id"
+                                            type="button"
+                                            :title="`Unlink '${follower.name}'`"
+                                            class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700 hover:border-gray-300 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-gray-200"
+                                            @click="
+                                                setFollower(follower.id, null)
+                                            "
+                                        >
+                                            {{ follower.name }}
+                                            <X class="h-3 w-3 text-gray-400" />
+                                        </button>
+                                        <span
+                                            v-if="
+                                                !links.followers.length &&
+                                                !links.follower_options.length
+                                            "
+                                            class="text-xs text-gray-400"
+                                            >—</span
+                                        >
+                                        <Popover
+                                            v-if="links.follower_options.length"
+                                        >
+                                            <PopoverTrigger as-child>
+                                                <button
+                                                    type="button"
+                                                    title="Add a task that starts when this one ends"
+                                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-projector-primary-300 hover:text-projector-primary-600"
+                                                >
+                                                    <Plus class="h-3.5 w-3.5" />
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent
+                                                class="max-h-64 w-64 overflow-y-auto p-1"
+                                                align="start"
+                                            >
+                                                <button
+                                                    v-for="option in links.follower_options"
+                                                    :key="option.id"
+                                                    type="button"
+                                                    class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold text-gray-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/10"
+                                                    @click="
+                                                        setFollower(
+                                                            option.id,
+                                                            String(
+                                                                document!.id,
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{ option.name }}
+                                                </button>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
 
                         <template v-if="documentProject">
                             <h4

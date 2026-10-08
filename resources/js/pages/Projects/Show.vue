@@ -12,9 +12,9 @@ import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.v
 import BrowserAudioCapture from '@/pages/Projects/Partials/BrowserAudioCapture.vue';
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
-import { Deferred, router } from '@inertiajs/vue3';
+import { Deferred, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-import { onKeyStroke } from '@vueuse/core';
+import { onKeyStroke, useDebounceFn, useEventListener } from '@vueuse/core';
 import { PlusIcon, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
@@ -38,7 +38,11 @@ import {
     useWorkflow,
 } from '@/composables/useWorkflow';
 import { isAsyncImportedDocument } from '@/lib/documentTypes';
-import { saveDocument } from '@/lib/saveDocument';
+import {
+    DOCUMENTS_SAVED_EVENT,
+    saveDocument,
+    type DocumentsSavedDetail,
+} from '@/lib/saveDocument';
 import { setPersistentCookie } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import projectRoutes from '@/routes/projects/index';
@@ -48,6 +52,7 @@ import DocumentDetailSheet from '@/components/projects/DocumentDetailSheet.vue';
 import KanbanBoard from '@/components/projects/KanbanBoard.vue';
 import ProjectCalendar from '@/components/projects/ProjectCalendar.vue';
 import ProjectSwitcher from '@/components/projects/ProjectSwitcher.vue';
+import TaskChainList from '@/components/projects/TaskChainList.vue';
 import TaskReport from '@/components/reports/TaskReport.vue';
 import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 
@@ -428,6 +433,35 @@ const updateTab = (tab: string) => {
     );
 };
 
+// --- TASKS TAB: BOARD / LIST ---
+// List mode (task chains) only exists for orgs that track task start dates — everyone else
+// just gets the board, with no switch shown. The chosen mode is remembered per browser.
+const page = usePage();
+const usesTaskStartDates = computed(
+    () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
+);
+const TASK_VIEW_STORAGE_KEY = 'projector:task-view';
+const readTaskView = (): 'board' | 'list' => {
+    try {
+        return localStorage.getItem(TASK_VIEW_STORAGE_KEY) === 'list'
+            ? 'list'
+            : 'board';
+    } catch {
+        return 'board';
+    }
+};
+const taskViewMode = ref<'board' | 'list'>(readTaskView());
+watch(taskViewMode, (mode) => {
+    try {
+        localStorage.setItem(TASK_VIEW_STORAGE_KEY, mode);
+    } catch {
+        // Private mode / blocked storage — the choice just isn't remembered.
+    }
+});
+const projectTasks = computed(
+    () => localKanbanData.value[props.currentProject?.id ?? ''] ?? [],
+);
+
 // --- CALENDAR ITEM SHEET ---
 // Calendar items are a flattened summary that also covers events and sub-project documents,
 // none of which the board's own sheet state (useKanbanBoard) holds — so a clicked item's full
@@ -485,6 +519,17 @@ watch(isCalendarSheetOpen, (open) => {
     if (!open && calendarItemsChanged.value) {
         calendarItemsChanged.value = false;
         router.reload({ only: ['calendarItems'] });
+    }
+});
+
+// A save that re-dated tasks down a chain changes the calendar's bars too.
+const reloadCalendarItems = useDebounceFn(
+    () => router.reload({ only: ['calendarItems'] }),
+    300,
+);
+useEventListener(window, DOCUMENTS_SAVED_EVENT, (event: Event) => {
+    if ((event as CustomEvent<DocumentsSavedDetail>).detail.cascaded) {
+        void reloadCalendarItems();
     }
 });
 
@@ -836,7 +881,31 @@ watch(
                         (docId, categories) => updateTags(docId, categories)
                     "
                     :can-manage-columns="canManageProject"
-                />
+                    :show-view-toggle="usesTaskStartDates"
+                    v-model:view-mode="taskViewMode"
+                >
+                    <template #list>
+                        <TaskChainList
+                            :tasks="projectTasks"
+                            :matches-filters="matchesFilters"
+                            :columns="currentProject.kanban_columns ?? []"
+                            :assignee-options="
+                                assigneeOptionsByProjectId.get(
+                                    currentProject.id,
+                                ) ?? []
+                            "
+                            @open="openDetail"
+                            @update="
+                                (docId, field, value, message) =>
+                                    updateAttribute(
+                                        docId,
+                                        { [field]: value },
+                                        message ?? 'Changes saved',
+                                    )
+                            "
+                        />
+                    </template>
+                </KanbanBoard>
             </div>
 
             <div v-show="activeTab === 'calendar'">

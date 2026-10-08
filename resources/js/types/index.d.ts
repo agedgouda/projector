@@ -198,6 +198,7 @@ declare global {
         due_at: string | null;
         external_due_at: string | null;
         start_at: string | null;
+        predecessor_id?: string | null;
         locked_project_type_id?: string | null;
         locked_next_workflow_step_exists?: boolean;
         children_exists?: boolean;
@@ -243,6 +244,7 @@ declare global {
         due_at: string | null;
         external_due_at: string | null;
         start_at: string | null;
+        predecessor_id?: string | null;
         task_status: TaskStatus;
         // Events are capped to a single tag (see DocumentController::updateAttributes()); tasks can carry any number.
         categories: CategoryDef[];
@@ -273,6 +275,7 @@ declare global {
         task_status: TaskStatus;
         due_at: string | null;
         start_at: string | null;
+        predecessor_id?: string | null;
         external_due_at: string | null;
         metadata: DocumentMetadata;
         custom_prompt: string | null;

@@ -306,7 +306,9 @@ onMounted(() => {
                                 >
                                 <DateField
                                     :model-value="startAtProxy"
-                                    :disabled="project.inactive"
+                                    :disabled="
+                                        project.inactive || !!item.predecessor_id
+                                    "
                                     placeholder="MM/DD/YYYY"
                                     align="end"
                                     @update:model-value="
@@ -316,7 +318,15 @@ onMounted(() => {
                                     <template #default="{ display }">
                                         <button
                                             type="button"
-                                            :disabled="project.inactive"
+                                            :title="
+                                                item.predecessor_id
+                                                    ? 'Starts when the task it waits on ends'
+                                                    : undefined
+                                            "
+                                            :disabled="
+                                                project.inactive ||
+                                                !!item.predecessor_id
+                                            "
                                             class="flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 disabled:cursor-default disabled:opacity-50 dark:hover:bg-white/10"
                                         >
                                             <span
