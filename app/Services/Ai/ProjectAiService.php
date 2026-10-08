@@ -10,6 +10,7 @@ use App\Models\Document;
 use App\Models\Project;
 use App\Models\WorkflowStep;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
+use App\Services\Tasks\TaskLinker;
 use App\Services\VectorService;
 use Illuminate\Support\Facades\Log;
 
@@ -398,6 +399,17 @@ class ProjectAiService
                 .' — matched by comparing each image\'s surrounding source text to this item\'s own content (you cannot see the image itself, only text). Include a number in an item whenever that item\'s content clearly covers the same thing as the text the image appeared next to. Use [] or omit the key if none clearly match. Never use a number that isn\'t in that list.';
         }
 
+        // Task output in orgs that track task start dates: read from context which task each one
+        // waits on (linked after generation — see ProcessDocumentAI and TaskLinker).
+        $includePredecessor = $project->usesTaskStartDatesFor($outputKey);
+        if ($includePredecessor) {
+            $existingTasks = app(TaskLinker::class)->existingTaskNames($project);
+            $existing = $existingTasks === []
+                ? 'none'
+                : implode(', ', array_map(fn (string $name): string => '"'.$name.'"', $existingTasks));
+            $schemaInstruction .= " Also include \"predecessor\": if the source indicates an item can only start once another task is finished (e.g. \"after X\", \"once X is approved\", \"then\", \"following X\"), set it to that other task's title — exactly as you titled it in this response, or exactly as one of the project's existing tasks: {$existing}. An item waits on at most one other task. Otherwise set it to null; never guess.";
+        }
+
         $userMessage = $baseMessage.$schemaInstruction;
 
         $rawSystemPrompt = str_replace(array_keys($replacements), array_values($replacements), $strategy->getTaskExtractionPrompt());
@@ -423,6 +435,10 @@ class ProjectAiService
 
         if (! empty($images)) {
             $systemPrompt .= "\n\nException to any instruction above about which JSON keys are allowed: for this request only, also follow the image_ids instructions given below.";
+        }
+
+        if ($includePredecessor) {
+            $systemPrompt .= "\n\nException to any instruction above about which JSON keys are allowed: for this request only, also follow the predecessor instructions given below.";
         }
 
         $result = $this->llmDriver->call(

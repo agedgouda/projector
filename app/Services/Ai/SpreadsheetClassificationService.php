@@ -93,7 +93,9 @@ class SpreadsheetClassificationService
      */
     private function getResponseSchema(): array
     {
-        $mappingFields = ['name', 'priority', 'task_status', 'due_at', 'assignee', 'start_date', 'description', 'tag'];
+        // predecessor: the column naming the task each row waits on (a task list's "Predecessor"
+        // column), linked by name after import — see TaskLinker.
+        $mappingFields = ['name', 'priority', 'task_status', 'due_at', 'assignee', 'start_date', 'description', 'tag', 'predecessor'];
 
         return [
             'type' => 'object',

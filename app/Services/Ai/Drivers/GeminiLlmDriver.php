@@ -22,6 +22,9 @@ class GeminiLlmDriver extends AbstractLlmDriver
         // Same reasoning as $includeAssignee: the prompt only asks for "tag_names" when the
         // project has tags to choose from.
         $includeTags = str_contains($userPrompt, '"tag_names"');
+        // Same reasoning: the prompt only asks for "predecessor" for task output in orgs that
+        // track task start dates.
+        $includePredecessor = str_contains($userPrompt, '"predecessor"');
         $apiKey = config('services.gemini.key');
         // Using Gemini 2.0 or 1.5 Flash for speed and schema support
         $model = config('services.gemini.model', 'gemini-2.0-flash');
@@ -38,7 +41,7 @@ class GeminiLlmDriver extends AbstractLlmDriver
                 'generationConfig' => [
                     'temperature' => 0,
                     'responseMimeType' => 'application/json',
-                    'responseSchema' => $useCustomSchema ? $responseSchema : $this->getOutputSchema('content', $includeAssignee, $includeImageIds, $includeTags),
+                    'responseSchema' => $useCustomSchema ? $responseSchema : $this->getOutputSchema('content', $includeAssignee, $includeImageIds, $includeTags, $includePredecessor),
                 ],
             ]);
 

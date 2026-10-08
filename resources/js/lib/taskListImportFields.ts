@@ -17,7 +17,8 @@ export type ImportFieldKey =
     | 'assignee'
     | 'start_date'
     | 'description'
-    | 'tag';
+    | 'tag'
+    | 'predecessor';
 
 export interface ImportFieldDef {
     key: ImportFieldKey;
@@ -48,6 +49,23 @@ export const EVENT_FIELDS: ImportFieldDef[] = [
     { key: 'tag', label: 'Tag' },
 ];
 
+// Orgs that track task start dates also map a task's Start Date and its Predecessor — the name
+// of the task it waits on (in the same file or already in the project), linked after import.
+export const SCHEDULED_TASK_FIELDS: ImportFieldDef[] = [
+    { key: 'name', label: 'Task Name', required: true },
+    { key: 'priority', label: 'Priority' },
+    { key: 'task_status', label: 'Status' },
+    { key: 'start_date', label: 'Start Date' },
+    { key: 'due_at', label: 'Due Date' },
+    { key: 'predecessor', label: 'Predecessor' },
+    { key: 'assignee', label: 'Assignee' },
+    { key: 'tag', label: 'Tag' },
+];
+
 export const fieldsForListType = (
     listType: 'task' | 'event',
-): ImportFieldDef[] => (listType === 'task' ? TASK_FIELDS : EVENT_FIELDS);
+    usesTaskStartDates = false,
+): ImportFieldDef[] => {
+    if (listType === 'event') return EVENT_FIELDS;
+    return usesTaskStartDates ? SCHEDULED_TASK_FIELDS : TASK_FIELDS;
+};

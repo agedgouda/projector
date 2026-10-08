@@ -9,6 +9,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { fieldsForListType, IGNORE } from '@/lib/taskListImportFields';
+import { usePage } from '@inertiajs/vue3';
 import { X } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -30,7 +31,14 @@ const emit = defineEmits<{
     (e: 'remove'): void;
 }>();
 
-const FIELDS = computed(() => fieldsForListType(props.listType));
+// Start Date and Predecessor only for orgs that track task start dates.
+const usesTaskStartDates = computed(
+    () =>
+        (usePage().props as any).orgMembership?.uses_task_start_dates ?? false,
+);
+const FIELDS = computed(() =>
+    fieldsForListType(props.listType, usesTaskStartDates.value),
+);
 
 const setField = (key: string, value: string) => {
     emit('update:mapping', { ...props.mapping, [key]: value });

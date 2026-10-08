@@ -42,6 +42,7 @@ class StoreTaskListImportRequest extends FormRequest
             'mapping.due_at' => ['nullable', 'string'],
             'mapping.assignee' => ['nullable', 'string'],
             'mapping.start_date' => ['nullable', 'string'],
+            'mapping.predecessor' => ['nullable', 'string'],
             'mapping.description' => ['nullable', 'string'],
             'mapping.tag' => ['nullable', 'string'],
         ];

@@ -18,7 +18,7 @@ it('seeds each new category, in order, with keywords', function (string $categor
 
     expect($faqs->pluck('order')->all())->toBe($faqs->pluck('order')->sort()->values()->all());
 })->with([
-    'tasks & events' => ['Tasks & Events', 9],
+    'tasks & events' => ['Tasks & Events', 13],
     'documents' => ['Documents', 5],
     'transformations' => ['Transformations', 5],
     'status meetings' => ['Status Meetings', 3],

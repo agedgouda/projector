@@ -36,6 +36,9 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
             // Same reasoning as $includeAssignee: the prompt only asks for "tag_names" when
             // the project has tags to choose from.
             $includeTags = str_contains($userPrompt, '"tag_names"');
+            // Same reasoning: the prompt only asks for "predecessor" for task output in orgs
+            // that track task start dates (see ProjectAiService::callLlm()).
+            $includePredecessor = str_contains($userPrompt, '"predecessor"');
 
             $properties = [
                 'title' => [
@@ -90,6 +93,14 @@ class OpenAiLlmDriver implements LlmDriver, VectorDriver
                     'description' => 'Zero or more exact tag names from the candidate list given in the prompt that clearly apply to this item — or an empty array if none do.',
                 ];
                 $required[] = 'tag_names';
+            }
+
+            if ($includePredecessor) {
+                $properties['predecessor'] = [
+                    'type' => ['string', 'null'],
+                    'description' => 'The exact title of the task this item can only start after (another item in this response, or an existing task named in the prompt), or null.',
+                ];
+                $required[] = 'predecessor';
             }
 
             $jsonSchema = [

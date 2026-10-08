@@ -6,6 +6,7 @@ use App\Events\TaskListImportProgress;
 use App\Models\Document;
 use App\Models\Project;
 use App\Services\TaskListImportService;
+use App\Services\Tasks\TaskLinker;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -81,6 +82,8 @@ class ImportTaskList implements ShouldQueue
         $familyRoot = $project->familyRoot();
         $categories = $project->familyCategories();
         $existingByKey = $this->existingDocumentsByKey($project, 'task', 'due_at');
+        // Start Date and Predecessor only apply where the org tracks task start dates.
+        $usesTaskStartDates = $project->usesTaskStartDatesFor('task');
 
         $normalizedRows = [];
         $skipped = [];
@@ -88,6 +91,8 @@ class ImportTaskList implements ShouldQueue
         $createdCount = 0;
         $updatedCount = 0;
         $total = count($this->rows);
+        $importedTasks = collect();
+        $predecessorRequests = [];
 
         foreach ($this->rows as $index => $row) {
             $cell = fn (string $field): string => $importService->cellFor($row, $this->headers, $this->mapping, $field);
@@ -103,6 +108,8 @@ class ImportTaskList implements ShouldQueue
             $priority = $importService->normalizePriority($cell('priority'));
             $taskStatus = $importService->normalizeStatus($cell('task_status'), $kanbanColumns, $defaultStatus);
             $dueAt = $importService->parseDate($cell('due_at'));
+            $startAt = $usesTaskStartDates ? $importService->parseDate($cell('start_date')) : null;
+            $predecessorName = $usesTaskStartDates ? trim($cell('predecessor')) : '';
             $assigneeText = $cell('assignee');
             $assignee = $importService->resolveAssignee($assigneeText ?: null, $organization->users, $organization->invitations);
             $rawTag = trim($cell('tag'));
@@ -116,6 +123,8 @@ class ImportTaskList implements ShouldQueue
                 'priority' => $priority,
                 'task_status' => $taskStatus,
                 'due_at' => $dueAt,
+                'start_date' => $startAt,
+                'predecessor' => $predecessorName !== '' ? $predecessorName : null,
                 'assignee' => $assigneeText ?: null,
                 'tag' => $tag?->name,
             ];
@@ -137,6 +146,7 @@ class ImportTaskList implements ShouldQueue
                     'status' => $taskStatus,
                     'task_status' => $taskStatus,
                     'due_at' => $dueAt,
+                    ...($usesTaskStartDates ? ['start_at' => $startAt] : []),
                     'assignee_id' => $assignee['assignee_id'],
                     'pending_assignee_invitation_id' => $assignee['pending_assignee_invitation_id'],
                     'metadata' => ['imported_from' => $this->importDocument->id],
@@ -149,6 +159,11 @@ class ImportTaskList implements ShouldQueue
                     $task->categories()->sync([$tag->id]);
                 }
 
+                $importedTasks->push($task);
+                if ($predecessorName !== '') {
+                    $predecessorRequests[] = ['task' => $task, 'predecessor' => $predecessorName, 'row' => $index + 2];
+                }
+
                 $isUpdate ? $updatedCount++ : $createdCount++;
             } catch (Throwable $e) {
                 $skipped[] = ['row' => $index + 2, 'reason' => $e->getMessage()];
@@ -157,7 +172,11 @@ class ImportTaskList implements ShouldQueue
             $this->maybeBroadcastProgress($index + 1, $total);
         }
 
-        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, $updatedCount, '?tab=tasks', 'tasks');
+        // Linked only once every row exists, so a row can name a task that appears later in the
+        // sheet.
+        $unlinked = app(TaskLinker::class)->linkByName($project, $predecessorRequests, $importedTasks);
+
+        $this->finish($project, $normalizedRows, $skipped, $untaggedRows, $createdCount, $updatedCount, '?tab=tasks', 'tasks', unlinked: $unlinked);
     }
 
     private function importEvents(Project $project, TaskListImportService $importService): void
@@ -331,8 +350,9 @@ class ImportTaskList implements ShouldQueue
      * @param  list<array<string, mixed>>  $normalizedRows
      * @param  list<array{row: int, reason: string}>  $skipped
      * @param  list<array{row: int, tag: string}>  $untaggedRows
+     * @param  list<array{row: int|null, task: string, predecessor: string, reason: string}>  $unlinked
      */
-    private function finish(Project $project, array $normalizedRows, array $skipped, array $untaggedRows, int $createdCount, int $updatedCount, string $redirectQuery, string $noun, int $droppedCount = 0): void
+    private function finish(Project $project, array $normalizedRows, array $skipped, array $untaggedRows, int $createdCount, int $updatedCount, string $redirectQuery, string $noun, int $droppedCount = 0, array $unlinked = []): void
     {
         $this->importDocument->update([
             'content' => json_encode($normalizedRows, JSON_PRETTY_PRINT),
@@ -343,6 +363,7 @@ class ImportTaskList implements ShouldQueue
                 'dropped_count' => $droppedCount,
                 'skipped' => $skipped,
                 'untagged' => $untaggedRows,
+                'unlinked' => $unlinked,
                 'status' => $skipped === [] ? 'completed' : 'completed_with_errors',
             ],
             // task_list_import/event_list_import documents are never a "task" per
@@ -367,12 +388,21 @@ class ImportTaskList implements ShouldQueue
         // TaskListImportService::findOrCreateTag()) — surfaced here as a toast (not just
         // buried in the import record's metadata) since it silently drops data the sheet
         // actually specified, unlike a row that was simply left blank.
-        $warning = null;
+        $warnings = [];
         if ($untaggedRows !== []) {
             $untaggedCount = count($untaggedRows);
             $untaggedNoun = $untaggedCount === 1 ? rtrim($noun, 's') : $noun;
-            $warning = "{$untaggedCount} {$untaggedNoun} didn't get a tag — the project has used up all available tag colors. Free up a color (or add the tag manually) and try again.";
+            $warnings[] = "{$untaggedCount} {$untaggedNoun} didn't get a tag — the project has used up all available tag colors. Free up a color (or add the tag manually) and try again.";
         }
+        // Same reasoning: a Predecessor the sheet named but that couldn't be linked (no task by
+        // that name, or it would loop) is data the user expects to see applied.
+        if ($unlinked !== []) {
+            $unlinkedCount = count($unlinked);
+            $warnings[] = $unlinkedCount === 1
+                ? "1 task couldn't be linked to its Predecessor — see the import record for details."
+                : "{$unlinkedCount} tasks couldn't be linked to their Predecessor — see the import record for details.";
+        }
+        $warning = $warnings === [] ? null : implode(' ', $warnings);
 
         $redirectUrl = route('projects.show', $project).$redirectQuery;
         $total = count($this->rows);

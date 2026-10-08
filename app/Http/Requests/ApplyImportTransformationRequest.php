@@ -54,6 +54,7 @@ class ApplyImportTransformationRequest extends FormRequest
             'passes.*.mapping.due_at' => ['nullable', 'string'],
             'passes.*.mapping.assignee' => ['nullable', 'string'],
             'passes.*.mapping.start_date' => ['nullable', 'string'],
+            'passes.*.mapping.predecessor' => ['nullable', 'string'],
             'passes.*.mapping.description' => ['nullable', 'string'],
             'passes.*.mapping.tag' => ['nullable', 'string'],
         ];

@@ -17,8 +17,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { EVENT_FIELDS, IGNORE, TASK_FIELDS } from '@/lib/taskListImportFields';
+import { fieldsForListType, IGNORE } from '@/lib/taskListImportFields';
 import taskListRoutes from '@/routes/projects/task-lists';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { computed, ref, watch } from 'vue';
 
@@ -43,8 +44,13 @@ const emit = defineEmits<{
 // Which list type this import is: entirely decided by which button opened it (Import Tasks vs
 // Import Events in Projects/Show.vue), not by anything the user chooses in this modal.
 const listType = computed(() => props.defaultListType);
+// Start Date and Predecessor only for orgs that track task start dates.
+const usesTaskStartDates = computed(
+    () =>
+        (usePage().props as any).orgMembership?.uses_task_start_dates ?? false,
+);
 const FIELDS = computed(() =>
-    listType.value === 'task' ? TASK_FIELDS : EVENT_FIELDS,
+    fieldsForListType(listType.value, usesTaskStartDates.value),
 );
 
 const mapping = ref<Record<string, string>>({});

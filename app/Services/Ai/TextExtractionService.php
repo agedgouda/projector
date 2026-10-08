@@ -83,12 +83,16 @@ class TextExtractionService
      * actual records it found — unlike the spreadsheet path, there's no separate "resolve a
      * mapping against existing rows" step, since the AI produces the field values directly.
      *
+     * @param  list<string>|null  $existingTaskNames  given for a task list in an org that tracks task
+     *                                                start dates: the AI also reads each task's
+     *                                                predecessor from context.
      * @return array{records: array<int, array{
      *     name: string, priority: string|null, task_status: string|null, due_at: string|null,
-     *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null
+     *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null,
+     *     predecessor: string|null
      * }>}
      */
-    public function extract(string $text, string $listType, string $extractionRule, ?string $organizationId = null): array
+    public function extract(string $text, string $listType, string $extractionRule, ?string $organizationId = null, ?array $existingTaskNames = null): array
     {
         $template = AiTemplate::where('type', 'text_extraction')->firstOrFail();
         if ($template->system_prompt === null || $template->user_prompt === null) {
@@ -100,6 +104,15 @@ class TextExtractionService
             [$listType, $extractionRule, $text],
             $template->user_prompt
         );
+
+        // Tasks in orgs that track start dates (the caller passes the project's task names):
+        // read each task's predecessor from context.
+        if ($listType === 'task' && $existingTaskNames !== null) {
+            $existing = $existingTaskNames === []
+                ? 'none'
+                : implode(', ', array_map(fn (string $name): string => '"'.$name.'"', $existingTaskNames));
+            $userPrompt .= "\n\nPredecessor: for each task, if the text indicates it can only start once another task is finished (e.g. \"after X\", \"once X is done\", \"then\", \"following X\"), set \"predecessor\" to that other task's name — exactly as you named it in this response, or exactly as one of the project's existing tasks: {$existing}. A task waits on at most one other task. Otherwise set it to null; never guess.";
+        }
 
         $result = $this->llmDriver->call($template->system_prompt, $userPrompt, $this->getExtractionSchema());
 
@@ -121,7 +134,8 @@ class TextExtractionService
 
         /** @var array{records: array<int, array{
          *     name: string, priority: string|null, task_status: string|null, due_at: string|null,
-         *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null
+         *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null,
+         *     predecessor: string|null
          * }>} */
         return $result['content'] ?? ['records' => []];
     }
@@ -186,8 +200,9 @@ class TextExtractionService
                             'start_date' => ['type' => ['string', 'null'], 'description' => 'YYYY-MM-DD or null.'],
                             'description' => ['type' => ['string', 'null']],
                             'tag' => ['type' => ['string', 'null']],
+                            'predecessor' => ['type' => ['string', 'null'], 'description' => 'The name of the task this one waits on, when the prompt asks for it; otherwise null.'],
                         ],
-                        'required' => ['name', 'priority', 'task_status', 'due_at', 'assignee', 'start_date', 'description', 'tag'],
+                        'required' => ['name', 'priority', 'task_status', 'due_at', 'assignee', 'start_date', 'description', 'tag', 'predecessor'],
                         'additionalProperties' => false,
                     ],
                 ],

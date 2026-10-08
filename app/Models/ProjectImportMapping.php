@@ -36,7 +36,7 @@ class ProjectImportMapping extends Model
      *
      * @var list<string>
      */
-    private const FIELDS = ['name', 'priority', 'task_status', 'due_at', 'assignee', 'start_date', 'description', 'tag'];
+    private const FIELDS = ['name', 'priority', 'task_status', 'due_at', 'assignee', 'start_date', 'description', 'tag', 'predecessor'];
 
     protected $fillable = [
         'project_id',

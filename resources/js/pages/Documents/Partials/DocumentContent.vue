@@ -132,6 +132,9 @@ const importedRows = computed<ImportedRow[]>(() => {
     }
 });
 
+const importHasField = (key: string) =>
+    importedRows.value.some((row) => (row as Record<string, unknown>)[key]);
+
 const importColumns = computed<{ key: string; label: string }[]>(() =>
     props.item.type === 'event_list_import'
         ? [
@@ -145,11 +148,24 @@ const importColumns = computed<{ key: string; label: string }[]>(() =>
               { key: 'name', label: 'Name' },
               { key: 'priority', label: 'Priority' },
               { key: 'task_status', label: 'Status' },
+              // Only recorded by imports in orgs that track task start dates — shown when
+              // this import actually has them.
+              ...(importHasField('start_date')
+                  ? [{ key: 'start_date', label: 'Start Date' }]
+                  : []),
               { key: 'due_at', label: 'Due Date' },
+              ...(importHasField('predecessor')
+                  ? [{ key: 'predecessor', label: 'Predecessor' }]
+                  : []),
               { key: 'assignee', label: 'Assignee' },
               { key: 'tag', label: 'Tag' },
           ],
 );
+
+// Predecessors a task import named but couldn't link (no task by that name, or it would loop).
+const importUnlinkedRows = computed<
+    { row: number | null; task: string; predecessor: string; reason: string }[]
+>(() => props.item.metadata?.unlinked ?? []);
 
 const formatImportCell = (value: string | null | undefined): string => {
     if (!value) return '—';
@@ -400,6 +416,32 @@ const usesTaskStartDates = computed(
                         >
                             Row {{ untagged.row }}: "{{ untagged.tag }}" — the
                             project ran out of available tag colors.
+                        </li>
+                    </ul>
+                </div>
+
+                <div
+                    v-if="importUnlinkedRows.length"
+                    class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30"
+                >
+                    <p
+                        class="mb-2 text-[11px] font-black tracking-widest text-amber-700 uppercase dark:text-amber-400"
+                    >
+                        {{ importUnlinkedRows.length }} predecessor{{
+                            importUnlinkedRows.length === 1 ? '' : 's'
+                        }}
+                        not linked
+                    </p>
+                    <ul
+                        class="space-y-1 text-[13px] text-amber-800 dark:text-amber-300"
+                    >
+                        <li
+                            v-for="(unlinked, index) in importUnlinkedRows"
+                            :key="index"
+                        >
+                            <template v-if="unlinked.row"
+                                >Row {{ unlinked.row }}: </template
+                            >"{{ unlinked.task }}" — {{ unlinked.reason }}
                         </li>
                     </ul>
                 </div>

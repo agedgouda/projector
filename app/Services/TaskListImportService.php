@@ -33,6 +33,7 @@ class TaskListImportService
         'start_date' => ['start date', 'start', 'begin date', 'begins', 'from date'],
         'description' => ['description', 'notes', 'details', 'about'],
         'tag' => ['tag', 'tags', 'category', 'categories'],
+        'predecessor' => ['predecessor', 'predecessors', 'waits on', 'depends on', 'dependency', 'dependencies', 'blocked by', 'after'],
     ];
 
     /**

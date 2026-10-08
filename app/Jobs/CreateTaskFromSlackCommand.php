@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\Ai\TextExtractionService;
 use App\Services\TaskListImportService;
+use App\Services\Tasks\TaskLinker;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -87,6 +88,10 @@ class CreateTaskFromSlackCommand implements ShouldQueue
         $organizationId = $organization?->id;
 
         $categories = $this->project->familyCategories();
+        // Orgs that track task start dates also get a start date and the task this one waits on
+        // ("after the design review…") read from the command text.
+        $usesTaskStartDates = $this->project->usesTaskStartDatesFor('task');
+        $linker = app(TaskLinker::class);
 
         try {
             $rule = $this->extractionRule();
@@ -95,7 +100,13 @@ class CreateTaskFromSlackCommand implements ShouldQueue
             }
             $rule .= $this->tagsSection($categories);
 
-            $result = $extractionService->extract($this->text, 'task', $rule, $organizationId);
+            $result = $extractionService->extract(
+                $this->text,
+                'task',
+                $rule,
+                $organizationId,
+                $usesTaskStartDates ? $linker->existingTaskNames($this->project) : null,
+            );
             $record = $result['records'][0] ?? null;
         } catch (Throwable $e) {
             Log::warning('Slack /task extraction failed, falling back to raw text', ['message' => $e->getMessage()]);
@@ -131,6 +142,7 @@ class CreateTaskFromSlackCommand implements ShouldQueue
             'status' => $taskStatus,
             'task_status' => $taskStatus,
             'due_at' => $dueAt,
+            'start_at' => $usesTaskStartDates ? $importService->parseDate($record['start_date'] ?? '') : null,
             'assignee_id' => $assignee['assignee_id'],
             'pending_assignee_invitation_id' => $assignee['pending_assignee_invitation_id'],
             'creator_id' => $this->user->id,
@@ -140,6 +152,11 @@ class CreateTaskFromSlackCommand implements ShouldQueue
 
         if ($tag !== null) {
             $document->categories()->sync([$tag->id]);
+        }
+
+        $predecessorName = $usesTaskStartDates ? trim($record['predecessor'] ?? '') : '';
+        if ($predecessorName !== '') {
+            $linker->linkByName($this->project, [['task' => $document, 'predecessor' => $predecessorName]], collect([$document]));
         }
 
         $taskUrl = route('projects.documents.show', [$this->project, $document]);

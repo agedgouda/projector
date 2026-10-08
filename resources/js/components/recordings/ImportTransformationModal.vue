@@ -23,6 +23,7 @@ import { fieldsForListType, IGNORE } from '@/lib/taskListImportFields';
 import savedImportTransformationRoutes from '@/routes/import-transformations';
 import importTransformationRoutes from '@/routes/projects/import-transformations';
 import transformationLibraryRoutes from '@/routes/transformation-library';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Loader2 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
@@ -312,20 +313,27 @@ const canImport = computed(() => {
     });
 });
 
+// Start Date and Predecessor only for orgs that track task start dates.
+const usesTaskStartDates = computed(
+    () =>
+        (usePage().props as any).orgMembership?.uses_task_start_dates ?? false,
+);
+
 const buildPassesPayload = () =>
     passes.value.map((pass) =>
         props.sourceMode === 'spreadsheet'
             ? {
                   list_type: pass.list_type,
                   mapping: Object.fromEntries(
-                      fieldsForListType(pass.list_type as 'task' | 'event').map(
-                          (field) => [
-                              field.key,
-                              pass.mapping[field.key] === IGNORE
-                                  ? null
-                                  : (pass.mapping[field.key] ?? null),
-                          ],
-                      ),
+                      fieldsForListType(
+                          pass.list_type as 'task' | 'event',
+                          usesTaskStartDates.value,
+                      ).map((field) => [
+                          field.key,
+                          pass.mapping[field.key] === IGNORE
+                              ? null
+                              : (pass.mapping[field.key] ?? null),
+                      ]),
                   ),
               }
             : {

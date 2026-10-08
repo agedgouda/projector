@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\Project;
 use App\Services\Ai\TextExtractionService;
 use App\Services\TaskListImportService;
+use App\Services\Tasks\TaskLinker;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -51,7 +52,12 @@ class ExtractTextRecords implements ShouldQueue
 
         $organizationId = $project->client?->organization_id;
 
-        $result = $extractionService->extract($this->sourceText, $this->listType, $this->extractionRule, $organizationId);
+        // Tasks in orgs that track start dates also get their predecessor read from context.
+        $existingTaskNames = $this->listType === 'task' && $project->usesTaskStartDatesFor('task')
+            ? app(TaskLinker::class)->existingTaskNames($project)
+            : null;
+
+        $result = $extractionService->extract($this->sourceText, $this->listType, $this->extractionRule, $organizationId, $existingTaskNames);
 
         $this->listType === 'event'
             ? $this->createEvents($project, $importService, $result['records'])
@@ -61,7 +67,8 @@ class ExtractTextRecords implements ShouldQueue
     /**
      * @param  array<int, array{
      *     name: string, priority: string|null, task_status: string|null, due_at: string|null,
-     *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null
+     *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null,
+     *     predecessor: string|null
      * }>  $records
      */
     private function createTasks(Project $project, TaskListImportService $importService, array $records): void
@@ -85,6 +92,9 @@ class ExtractTextRecords implements ShouldQueue
         $skipped = [];
         $untaggedRecords = [];
         $createdCount = 0;
+        $usesTaskStartDates = $project->usesTaskStartDatesFor('task');
+        $importedTasks = collect();
+        $predecessorRequests = [];
 
         foreach ($records as $index => $record) {
             $name = trim($record['name']);
@@ -97,6 +107,8 @@ class ExtractTextRecords implements ShouldQueue
             $priority = $importService->normalizePriority($record['priority'] ?? '');
             $taskStatus = $importService->normalizeStatus($record['task_status'] ?? '', $kanbanColumns, $defaultStatus);
             $dueAt = $importService->parseDate($record['due_at'] ?? '');
+            $startAt = $usesTaskStartDates ? $importService->parseDate($record['start_date'] ?? '') : null;
+            $predecessorName = $usesTaskStartDates ? trim($record['predecessor'] ?? '') : '';
             $assigneeText = trim($record['assignee'] ?? '');
             $assignee = $importService->resolveAssignee($assigneeText ?: null, $organization->users, $organization->invitations);
             $rawTag = trim($record['tag'] ?? '');
@@ -110,6 +122,8 @@ class ExtractTextRecords implements ShouldQueue
                 'priority' => $priority,
                 'task_status' => $taskStatus,
                 'due_at' => $dueAt,
+                'start_date' => $startAt,
+                'predecessor' => $predecessorName !== '' ? $predecessorName : null,
                 'assignee' => $assigneeText ?: null,
                 'tag' => $tag?->name,
             ];
@@ -126,6 +140,7 @@ class ExtractTextRecords implements ShouldQueue
                     'status' => $taskStatus,
                     'task_status' => $taskStatus,
                     'due_at' => $dueAt,
+                    'start_at' => $startAt,
                     'assignee_id' => $assignee['assignee_id'],
                     'pending_assignee_invitation_id' => $assignee['pending_assignee_invitation_id'],
                     'metadata' => ['imported_from' => $this->importDocument->id],
@@ -138,19 +153,28 @@ class ExtractTextRecords implements ShouldQueue
                     $task->categories()->sync([$tag->id]);
                 }
 
+                $importedTasks->push($task);
+                if ($predecessorName !== '') {
+                    $predecessorRequests[] = ['task' => $task, 'predecessor' => $predecessorName, 'row' => $index + 1];
+                }
+
                 $createdCount++;
             } catch (Throwable $e) {
                 $skipped[] = ['row' => $index + 1, 'reason' => $e->getMessage()];
             }
         }
 
-        $this->finish($normalizedRecords, $skipped, $untaggedRecords, $createdCount, '?tab=tasks', 'tasks');
+        // Linked once every record exists, so a task can wait on one listed after it.
+        $unlinked = app(TaskLinker::class)->linkByName($project, $predecessorRequests, $importedTasks);
+
+        $this->finish($normalizedRecords, $skipped, $untaggedRecords, $createdCount, '?tab=tasks', 'tasks', $unlinked);
     }
 
     /**
      * @param  array<int, array{
      *     name: string, priority: string|null, task_status: string|null, due_at: string|null,
-     *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null
+     *     assignee: string|null, start_date: string|null, description: string|null, tag: string|null,
+     *     predecessor: string|null
      * }>  $records
      */
     private function createEvents(Project $project, TaskListImportService $importService, array $records): void
@@ -227,8 +251,9 @@ class ExtractTextRecords implements ShouldQueue
      * @param  list<array<string, mixed>>  $normalizedRecords
      * @param  list<array{row: int, reason: string}>  $skipped
      * @param  list<array{row: int, tag: string}>  $untaggedRecords
+     * @param  list<array{row: int|null, task: string, predecessor: string, reason: string}>  $unlinked
      */
-    private function finish(array $normalizedRecords, array $skipped, array $untaggedRecords, int $createdCount, string $redirectQuery, string $noun): void
+    private function finish(array $normalizedRecords, array $skipped, array $untaggedRecords, int $createdCount, string $redirectQuery, string $noun, array $unlinked = []): void
     {
         $this->importDocument->update([
             'content' => json_encode($normalizedRecords, JSON_PRETTY_PRINT),
@@ -237,6 +262,7 @@ class ExtractTextRecords implements ShouldQueue
                 'created_count' => $createdCount,
                 'skipped' => $skipped,
                 'untagged' => $untaggedRecords,
+                'unlinked' => $unlinked,
                 'status' => $skipped === [] ? 'completed' : 'completed_with_errors',
             ],
         ]);
@@ -245,12 +271,19 @@ class ExtractTextRecords implements ShouldQueue
             ? "Imported {$createdCount} {$noun}."
             : "Imported {$createdCount} {$noun}, skipped ".count($skipped).' record(s) — see the import record for details.';
 
-        $warning = null;
+        $warnings = [];
         if ($untaggedRecords !== []) {
             $untaggedCount = count($untaggedRecords);
             $untaggedNoun = $untaggedCount === 1 ? rtrim($noun, 's') : $noun;
-            $warning = "{$untaggedCount} {$untaggedNoun} didn't get a tag — the project has used up all available tag colors. Free up a color (or add the tag manually) and try again.";
+            $warnings[] = "{$untaggedCount} {$untaggedNoun} didn't get a tag — the project has used up all available tag colors. Free up a color (or add the tag manually) and try again.";
         }
+        if ($unlinked !== []) {
+            $unlinkedCount = count($unlinked);
+            $warnings[] = $unlinkedCount === 1
+                ? "1 task couldn't be linked to its Predecessor — see the import record for details."
+                : "{$unlinkedCount} tasks couldn't be linked to their Predecessor — see the import record for details.";
+        }
+        $warning = $warnings === [] ? null : implode(' ', $warnings);
 
         $redirectUrl = route('projects.show', $this->importDocument->project).$redirectQuery;
 

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\DocumentProcessingUpdate;
 use App\Models\Document;
 use App\Services\Ai\ProjectAiService;
+use App\Services\Tasks\TaskLinker;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -175,6 +176,9 @@ class ProcessDocumentAI implements ShouldQueue
                     ->where('parent_id', $this->document->id)
                     ->delete();
 
+                $generatedTasks = collect();
+                $predecessorRequests = [];
+
                 foreach ($result['mock_response'] ?? [] as $data) {
                     $content = $data[$outputType] ?? null;
 
@@ -221,6 +225,11 @@ class ProcessDocumentAI implements ShouldQueue
                     ]);
                     $newDocumentCount++;
 
+                    $generatedTasks->push($newDocument);
+                    if (is_string($data['predecessor'] ?? null) && trim($data['predecessor']) !== '') {
+                        $predecessorRequests[] = ['task' => $newDocument, 'predecessor' => $data['predecessor']];
+                    }
+
                     // Events mark a single occurrence on the calendar, so only one tag makes
                     // sense — same rule DocumentController::updateAttributes() enforces for
                     // manual edits — everything else can carry any number the AI picked.
@@ -231,6 +240,14 @@ class ProcessDocumentAI implements ShouldQueue
                     if (! empty($categoryIds)) {
                         $newDocument->categories()->sync($categoryIds);
                     }
+                }
+
+                // Each generated task's predecessor (read by the AI from context), linked once
+                // every item exists so an item can wait on one generated after it. TaskLinker
+                // does nothing for non-task output or orgs that don't track task start dates.
+                $project = $this->document->project;
+                if ($project !== null && $project->usesTaskStartDatesFor($outputType)) {
+                    app(TaskLinker::class)->linkByName($project, $predecessorRequests, $generatedTasks);
                 }
             }
 
