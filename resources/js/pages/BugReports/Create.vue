@@ -7,7 +7,7 @@ import { type BreadcrumbItem } from '@/types';
 import bugReportsRoutes from '@/routes/bug-reports/index';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Report a Bug', href: '' },
+    { title: 'Get In Touch', href: '' },
 ];
 
 const form = useForm({
@@ -28,7 +28,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-    <Head title="Report a Bug" />
+    <Head title="Get In Touch" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="w-full px-6 py-6">
@@ -36,7 +36,7 @@ const handleSubmit = () => {
                 <div class="col-span-12 lg:col-span-8 space-y-6">
                     <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 space-y-6 shadow-sm">
                         <div class="space-y-1">
-                            <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white">Report a Bug</h1>
+                            <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white">Get In Touch</h1>
                             <p class="text-sm text-slate-500">Found something that isn't working? Let us know and we'll look into it.</p>
                         </div>
 
@@ -77,9 +77,9 @@ const handleSubmit = () => {
                                 <Button
                                     type="submit"
                                     :disabled="form.processing"
-                                    class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold px-6 rounded-xl"
+                                    class="h-11 rounded-xl bg-projector-primary-600 px-6 font-bold whitespace-nowrap text-white hover:bg-projector-primary-700"
                                 >
-                                    {{ form.processing ? 'Submitting...' : 'Submit Bug Report' }}
+                                    {{ form.processing ? 'Submitting...' : 'Submit' }}
                                 </Button>
                             </div>
                         </form>
