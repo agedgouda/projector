@@ -384,6 +384,8 @@ Route::middleware(['auth'])->group(function () {
                 ->name('documents.transition');
             Route::get('/documents/{document}/transition-options', [DocumentController::class, 'transitionOptions'])
                 ->name('documents.transitionOptions');
+            Route::get('/documents/{document}/record', [DocumentController::class, 'record'])
+                ->name('documents.record');
             Route::patch('/documents/{document}/attributes', [DocumentController::class, 'updateAttributes'])
                 ->name('documents.updateAttributes');
             Route::patch('/documents/{document}/move', [DocumentController::class, 'move'])

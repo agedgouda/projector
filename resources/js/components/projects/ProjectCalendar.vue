@@ -14,8 +14,7 @@ import {
 import { kanbanCardBg } from '@/lib/kanban-theme';
 import { formatDateOnly } from '@/lib/utils';
 import projectCalendarRoutes from '@/routes/projects/calendar';
-import projectDocumentsRoutes from '@/routes/projects/documents/index';
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import {
     ArrowUpRight,
     CalendarDays,
@@ -36,6 +35,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'import-events'): void;
+    (e: 'open-item', item: CalendarItem): void;
 }>();
 
 const page = usePage();
@@ -411,14 +411,13 @@ const barClasses = (bar: EventBar): string => {
     return 'bg-projector-primary-50 dark:bg-projector-primary-950/30';
 };
 
-// Carries the current URL (including its ?tab=calendar) as `from`, so the document's
-// "back" button returns here instead of falling back to whatever tab was last cached.
+// Opens the item in the slide-in detail sheet (the parent owns it — see Projects/Show.vue's
+// openCalendarItem) rather than navigating away, so checking several items doesn't mean
+// leaving the calendar and finding the month again each time. The hover card closes first so
+// it doesn't sit on top of the sheet.
 const openItem = (item: CalendarItem) => {
-    const url = projectDocumentsRoutes.show(
-        { project: item.project_id, document: item.id },
-        { query: { from: window.location.href } },
-    ).url;
-    router.visit(url);
+    activeBarKey.value = null;
+    emit('open-item', item);
 };
 
 // An item with no start_at (including every task in an org that doesn't track task start dates)

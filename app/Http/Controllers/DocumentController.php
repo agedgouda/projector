@@ -309,6 +309,23 @@ class DocumentController extends Controller
     }
 
     /**
+     * One document as the board shows it (see Project::kanbanDocument()), for opening it in the
+     * slide-in detail sheet from somewhere that only has a summary of it — e.g. the calendar,
+     * whose items are flattened and include events and sub-project documents the board doesn't.
+     * Same access rule as show().
+     */
+    public function record(Project $project, Document $document): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        if ($document->project_id !== $project->id) {
+            abort(404);
+        }
+
+        return response()->json($project->kanbanDocument($document));
+    }
+
+    /**
      * Saves any subset of a document's editable fields in one request and answers with the saved
      * record, so the caller shows exactly what is stored. Status, priority, dates, assignee and tags
      * are open to any org member; the name and content also need full project-edit access.

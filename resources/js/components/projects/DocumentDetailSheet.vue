@@ -158,9 +158,18 @@ const usesExternalDueDates = computed(
 const usesTaskStartDates = computed(
     () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
 );
+// Events (opened from the calendar) aren't tasks: no assignee, status or priority, a Start and
+// End Date in place of the task dates, and a single tag (DocumentController::updateAttributes()
+// caps events at one).
+const isEvent = computed(
+    () => props.mode !== 'create' && props.document?.type === 'event',
+);
+
 // Assignee + Due Date, plus whichever optional date fields the org tracks. Four fields wrap
-// into two rows of two rather than squeezing four columns into the sheet.
+// into two rows of two rather than squeezing four columns into the sheet. Events show just
+// Start and End Date.
 const dateGridColumns = computed(() => {
+    if (isEvent.value) return 'grid-cols-2';
     const count =
         2 +
         (usesExternalDueDates.value ? 1 : 0) +
@@ -229,11 +238,14 @@ const addTag = (category: CategoryDef) => {
         draft.category_ids = [...draft.category_ids, category.id];
         return;
     }
+    // An event holds one tag, so picking another replaces it rather than adding a second.
     void props.save?.({
-        category_ids: [
-            ...(props.document!.categories ?? []).map((c) => c.id),
-            category.id,
-        ],
+        category_ids: isEvent.value
+            ? [category.id]
+            : [
+                  ...(props.document!.categories ?? []).map((c) => c.id),
+                  category.id,
+              ],
     });
 };
 const removeTag = (category: CategoryDef) => {
@@ -632,6 +644,7 @@ const handleUpdate = (field: string, value: any) => {
                                 ]"
                             >
                                 <div
+                                    v-if="!isEvent"
                                     class="flex h-8 items-center justify-between border-b border-gray-200/50 pb-2"
                                 >
                                     <span
@@ -675,7 +688,7 @@ const handleUpdate = (field: string, value: any) => {
                                 </div>
 
                                 <div
-                                    v-if="usesTaskStartDates"
+                                    v-if="usesTaskStartDates || isEvent"
                                     class="flex min-h-8 items-center justify-between border-b border-gray-200/50 pb-2"
                                 >
                                     <span
@@ -708,7 +721,11 @@ const handleUpdate = (field: string, value: any) => {
                                     <span
                                         class="text-[11px] font-medium text-gray-500"
                                     >
-                                        <template v-if="usesExternalDueDates"
+                                        <template v-if="isEvent"
+                                            >End Date</template
+                                        >
+                                        <template
+                                            v-else-if="usesExternalDueDates"
                                             >Internal<br />Due Date</template
                                         >
                                         <template v-else>Due Date</template>
@@ -733,7 +750,7 @@ const handleUpdate = (field: string, value: any) => {
                                 </div>
 
                                 <div
-                                    v-if="usesExternalDueDates"
+                                    v-if="usesExternalDueDates && !isEvent"
                                     class="flex min-h-8 items-center justify-between border-b border-gray-200/50 pb-2"
                                 >
                                     <span
@@ -764,7 +781,10 @@ const handleUpdate = (field: string, value: any) => {
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-x-12 gap-y-6">
+                            <div
+                                v-if="!isEvent"
+                                class="grid grid-cols-2 gap-x-12 gap-y-6"
+                            >
                                 <div
                                     class="flex h-8 items-center justify-between border-b border-gray-200/50 pb-2"
                                 >

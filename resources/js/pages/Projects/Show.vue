@@ -13,6 +13,7 @@ import BrowserAudioCapture from '@/pages/Projects/Partials/BrowserAudioCapture.v
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
 import { Deferred, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { onKeyStroke } from '@vueuse/core';
 import { PlusIcon, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
@@ -37,6 +38,7 @@ import {
     useWorkflow,
 } from '@/composables/useWorkflow';
 import { isAsyncImportedDocument } from '@/lib/documentTypes';
+import { saveDocument } from '@/lib/saveDocument';
 import { setPersistentCookie } from '@/lib/utils';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import projectRoutes from '@/routes/projects/index';
@@ -426,6 +428,76 @@ const updateTab = (tab: string) => {
     );
 };
 
+// --- CALENDAR ITEM SHEET ---
+// Calendar items are a flattened summary that also covers events and sub-project documents,
+// none of which the board's own sheet state (useKanbanBoard) holds — so a clicked item's full
+// record is fetched and shown in its own sheet instance here, the same way TaskReport.vue
+// drives one for its rows.
+const calendarDocument = ref<ProjectDocument | null>(null);
+const isCalendarSheetOpen = ref(false);
+const calendarItemsChanged = ref(false);
+
+const openCalendarItem = async (item: CalendarItem) => {
+    try {
+        const { data } = await axios.get<ProjectDocument>(
+            projectDocumentsRoutes.record.url({
+                project: item.project_id,
+                document: String(item.id),
+            }),
+        );
+        calendarDocument.value = data;
+        isCalendarSheetOpen.value = true;
+    } catch {
+        toast.error('Could not open this item.');
+    }
+};
+
+const isOnBoard = (documentId: string | number) =>
+    Object.values(localKanbanData.value)
+        .flat()
+        .some((doc) => String(doc.id) === String(documentId));
+
+const saveCalendarDocument = async (fields: Record<string, unknown>) => {
+    const doc = calendarDocument.value!;
+    const saved = await saveDocument(String(doc.project_id), doc.id, fields, {
+        current: doc,
+        apply: (values) => {
+            if (calendarDocument.value?.id === doc.id) {
+                Object.assign(calendarDocument.value, values);
+            }
+            // Keeps the Tasks tab in step when the item is one of its cards — never adds an
+            // event (or a sub-project task) to the board, which applyLocalUpdate would do for
+            // an id it doesn't already hold.
+            if (isOnBoard(doc.id)) {
+                applyLocalUpdate(doc.id, values);
+            }
+        },
+    });
+    if (saved) {
+        calendarItemsChanged.value = true;
+    }
+    return saved;
+};
+
+// Dates, name and tags all show on the calendar, so it's refreshed once the sheet closes
+// rather than after every keystroke-level save.
+watch(isCalendarSheetOpen, (open) => {
+    if (!open && calendarItemsChanged.value) {
+        calendarItemsChanged.value = false;
+        router.reload({ only: ['calendarItems'] });
+    }
+});
+
+const refreshCalendarDocumentComments = async (documentId: string | number) => {
+    const doc = calendarDocument.value;
+    if (!doc || String(doc.id) !== String(documentId)) return;
+
+    const response = await axios.get('/comments', {
+        params: { type: 'document', id: documentId },
+    });
+    doc.comments = response.data.comments;
+};
+
 const importTaskListOptionsRef = useTemplateRef('importTaskListOptionsRef');
 
 // The Campaign Calendar's "Import Events" button lands here — opens the native file picker
@@ -693,7 +765,7 @@ watch(
                             : tab === 'recordings'
                               ? 'Transcripts'
                               : tab === 'calendar'
-                                ? 'Campaign Calendar'
+                                ? 'Calendar'
                                 : tab === 'reports'
                                   ? 'Reports'
                                   : 'Tasks'
@@ -797,6 +869,7 @@ watch(
                     :items="calendarItems"
                     :can-manage-imports="canManageTranscripts"
                     @import-events="openEventImport"
+                    @open-item="openCalendarItem"
                 />
             </div>
 
@@ -965,6 +1038,18 @@ watch(
             :ai-processed-parent-ids="aiProcessedParentIds"
             v-model:open="isCreateSheetOpen"
             @created="handleTaskCreated"
+        />
+
+        <DocumentDetailSheet
+            v-if="calendarDocument"
+            v-model:open="isCalendarSheetOpen"
+            :document="calendarDocument"
+            :reprocessable-types="reprocessableTypes"
+            :ai-processed-parent-ids="aiProcessedParentIds"
+            :save="saveCalendarDocument"
+            @handle-reprocess="handleReprocess"
+            @handle-transition="handleTransition"
+            @comments-changed="refreshCalendarDocumentComments"
         />
 
         <ReprocessPromptModal
