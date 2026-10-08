@@ -179,6 +179,9 @@
                     <th>Project</th>
                 @endif
                 <th>Status</th>
+                @if ($usesTaskStartDates)
+                    <th>Start Date</th>
+                @endif
                 <th>{{ $isDoneMode ? 'Done Date' : ($usesExternalDueDates ? 'Internal Due' : 'Due Date') }}</th>
                 @if ($usesExternalDueDates)
                     <th>External Due</th>
@@ -205,6 +208,9 @@
                         <td>{{ $projectNames[$task->project_id] ?? '—' }}</td>
                     @endif
                     <td>{{ $column?->label ?? $task->task_status ?? '—' }}</td>
+                    @if ($usesTaskStartDates)
+                        <td>{{ $task->start_at ? \Illuminate\Support\Carbon::parse($task->start_at)->format('m/d/Y') : '—' }}</td>
+                    @endif
                     <td>{{ $dueOrDoneValue ? \Illuminate\Support\Carbon::parse($dueOrDoneValue)->format('m/d/Y') : '—' }}</td>
                     @if ($usesExternalDueDates)
                         <td>{{ $task->external_due_at ? \Illuminate\Support\Carbon::parse($task->external_due_at)->format('m/d/Y') : '—' }}</td>
@@ -219,7 +225,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ 6 + ($hasSubprojects ? 1 : 0) + ($usesExternalDueDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
+                    <td colspan="{{ 6 + ($hasSubprojects ? 1 : 0) + ($usesExternalDueDates ? 1 : 0) + ($usesTaskStartDates ? 1 : 0) + ($includeDetails ? 1 : 0) }}">No tasks match those filters.</td>
                 </tr>
             @endforelse
         </tbody>

@@ -60,7 +60,7 @@ class Organization extends Model implements HasMedia
         'membership_tier', 'planned_user_count',
         'llm_driver', 'llm_config', 'vector_driver', 'vector_config',
         'meeting_provider', 'meeting_config',
-        'uses_external_due_dates',
+        'uses_external_due_dates', 'uses_task_start_dates',
     ];
 
     protected function casts(): array
@@ -70,6 +70,7 @@ class Organization extends Model implements HasMedia
             'vector_config' => 'encrypted:array',
             'meeting_config' => 'encrypted:array',
             'uses_external_due_dates' => 'boolean',
+            'uses_task_start_dates' => 'boolean',
         ];
     }
 

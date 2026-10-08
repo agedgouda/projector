@@ -58,6 +58,7 @@ class OrganizationRequest extends FormRequest
             ],
             'website' => 'nullable|url|max:255',
             'uses_external_due_dates' => 'boolean',
+            'uses_task_start_dates' => 'boolean',
 
             // Driver Validation
             'llm_driver' => 'nullable|string',

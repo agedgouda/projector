@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
+use App\Rules\StartDateNotAfterDueDate;
 use App\Rules\ValidKanbanColumn;
 use App\Services\Google\GoogleExportService;
 use App\Services\Logging\RecordSaveLogger;
@@ -324,14 +325,16 @@ class DocumentController extends Controller
             Gate::authorize('update', $document);
         }
 
+        $dateOrder = new StartDateNotAfterDueDate($project, $document->type, $document);
+
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'content' => ['sometimes', 'string'],
             'task_status' => ['nullable', 'string', new ValidKanbanColumn($project->id)],
             'priority' => ['nullable', 'string'],
-            'due_at' => ['nullable', 'date'],
-            'external_due_at' => ['nullable', 'date'],
-            'start_at' => ['nullable', 'date'],
+            'due_at' => ['nullable', 'date', $dateOrder],
+            'external_due_at' => ['nullable', 'date', $dateOrder],
+            'start_at' => ['nullable', 'date', $dateOrder],
             // Events mark a single occurrence on the calendar, so — unlike every other
             // document type — only one tag makes sense.
             'category_ids' => array_filter([

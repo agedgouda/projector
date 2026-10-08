@@ -155,6 +155,18 @@ const currentColumn = computed(() =>
 const usesExternalDueDates = computed(
     () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
 );
+const usesTaskStartDates = computed(
+    () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
+);
+// Assignee + Due Date, plus whichever optional date fields the org tracks. Four fields wrap
+// into two rows of two rather than squeezing four columns into the sheet.
+const dateGridColumns = computed(() => {
+    const count =
+        2 +
+        (usesExternalDueDates.value ? 1 : 0) +
+        (usesTaskStartDates.value ? 1 : 0);
+    return count === 3 ? 'grid-cols-3' : 'grid-cols-2';
+});
 
 // Same merge as every other assignee picker in the app (DocumentSidebar.vue, TaskReportTable.vue)
 // — matches on a real user id or an `inv:`-prefixed pending-invitation id.
@@ -456,6 +468,14 @@ const createTask = async () => {
                     ? messages[0]
                     : messages;
             });
+            // Only name and content have inline error slots; anything else (e.g. a start
+            // date after the due date) would otherwise fail silently.
+            const otherField = Object.keys(serverErrors).find(
+                (field) => field !== 'name' && field !== 'content',
+            );
+            if (otherField && errors[otherField]) {
+                toast.error(errors[otherField]);
+            }
         } else {
             toast.error('Could not create the task.');
         }
@@ -608,9 +628,7 @@ const handleUpdate = (field: string, value: any) => {
                             <div
                                 :class="[
                                     'grid gap-x-12 gap-y-6',
-                                    usesExternalDueDates
-                                        ? 'grid-cols-3'
-                                        : 'grid-cols-2',
+                                    dateGridColumns,
                                 ]"
                             >
                                 <div
@@ -654,6 +672,34 @@ const handleUpdate = (field: string, value: any) => {
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </div>
+
+                                <div
+                                    v-if="usesTaskStartDates"
+                                    class="flex min-h-8 items-center justify-between border-b border-gray-200/50 pb-2"
+                                >
+                                    <span
+                                        class="text-[11px] font-medium text-gray-500"
+                                        >Start Date</span
+                                    >
+                                    <DateField
+                                        :model-value="
+                                            fieldValue('start_at')
+                                                ? (
+                                                      fieldValue(
+                                                          'start_at',
+                                                      ) as string
+                                                  ).slice(0, 10)
+                                                : ''
+                                        "
+                                        align="end"
+                                        icon-class="h-3.5 w-3.5 text-gray-400"
+                                        trigger-class="text-[10px] font-black tracking-wider text-gray-700 uppercase"
+                                        @update:model-value="
+                                            (val) =>
+                                                handleUpdate('start_at', val)
+                                        "
+                                    />
                                 </div>
 
                                 <div

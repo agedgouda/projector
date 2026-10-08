@@ -24,6 +24,7 @@ import {
     getPriorityStyles,
     kanbanCardBg,
 } from '@/lib/kanban-theme';
+import { usePage } from '@inertiajs/vue3';
 import { Plus } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -57,6 +58,11 @@ const pendingAssigneeName = (inv: OrganizationInvitation) =>
 const pendingAssigneeInitials = (inv: OrganizationInvitation) =>
     (inv.first_name?.[0] || '') + (inv.last_name?.[0] || '') ||
     inv.email[0].toUpperCase();
+
+const page = usePage();
+const usesTaskStartDates = computed(
+    () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
+);
 
 // Card background is always the neutral gray tint, regardless of column color; only
 // the border is tinted red once a task is overdue/due today (and not done).
@@ -101,7 +107,7 @@ const handleUpdate = (field: string, value: any) => {
         finalValue = value === 'unassigned' ? null : value;
     }
 
-    if (field === 'due_at') {
+    if (field === 'due_at' || field === 'start_at') {
         finalValue = value === '' ? null : value;
     }
 
@@ -250,7 +256,21 @@ const handleUpdate = (field: string, value: any) => {
                 </div>
             </div>
 
-            <div @click.stop @keydown.stop>
+            <div class="flex items-center gap-1.5" @click.stop @keydown.stop>
+                <template v-if="usesTaskStartDates">
+                    <DateField
+                        :model-value="
+                            doc.start_at ? doc.start_at.slice(0, 10) : ''
+                        "
+                        :show-icon="false"
+                        placeholder="Start"
+                        trigger-class="-mx-1.5 -my-0.5 rounded px-1.5 py-0.5 text-[13px] font-bold text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10"
+                        @update:model-value="
+                            (val) => handleUpdate('start_at', val)
+                        "
+                    />
+                    <span class="text-[13px] text-gray-400">–</span>
+                </template>
                 <DateField
                     :model-value="doc.due_at ? doc.due_at.slice(0, 10) : ''"
                     icon-class="h-4 w-4 text-gray-500 dark:text-gray-400"

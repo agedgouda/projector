@@ -20,6 +20,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProjectController extends Controller
 {
+    /** @var list<string> */
+    private const PROJECT_TABS = ['tasks', 'reports', 'calendar', 'hierarchy', 'recordings'];
+
     public function create(Request $request)
     {
         Gate::authorize('create', Project::class);
@@ -107,7 +110,7 @@ class ProjectController extends Controller
         // (Assuming your User model uses the UserCollection)
         $clients = $user->newCollection([$user])->availableClients();
 
-        $tab = $request->query('tab') ?? $request->cookie('last_active_tab') ?? 'tasks';
+        $tab = $this->resolveActiveTab($request);
 
         $organization = $project->client->organization;
 
@@ -458,5 +461,21 @@ class ProjectController extends Controller
         } catch (\Throwable) {
             return response()->json(['quality' => 'good', 'suggestions' => []]);
         }
+    }
+
+    /**
+     * The requested tab (query string, then the remembered cookie), but only when it names a real
+     * tab — an unknown value would render no panel at all, and would otherwise be remembered in
+     * the cookie and blank every later project visit too.
+     */
+    private function resolveActiveTab(Request $request): string
+    {
+        foreach ([$request->query('tab'), $request->cookie('last_active_tab')] as $candidate) {
+            if (is_string($candidate) && in_array($candidate, self::PROJECT_TABS, true)) {
+                return $candidate;
+            }
+        }
+
+        return 'tasks';
     }
 }

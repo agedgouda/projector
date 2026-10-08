@@ -173,6 +173,21 @@ const dueDatesForm = useForm({
         props.organization.uses_external_due_dates ?? false,
 });
 
+const startDatesForm = useForm({
+    uses_task_start_dates: props.organization.uses_task_start_dates ?? false,
+});
+
+const saveStartDates = () => {
+    startDatesForm.patch(organizationRoutes.update.url(props.organization.id), {
+        preserveScroll: true,
+        onError: () => {
+            startDatesForm.uses_task_start_dates =
+                !startDatesForm.uses_task_start_dates;
+            toast.error('Could not update setting');
+        },
+    });
+};
+
 const saveDueDates = () => {
     dueDatesForm.patch(organizationRoutes.update.url(props.organization.id), {
         preserveScroll: true,
@@ -522,6 +537,22 @@ const meetingNeedsSetup = computed(() => {
                     class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
                     Track separate internal and external due dates on tasks
+                </Label>
+            </div>
+            <div class="mt-3 flex items-center gap-3">
+                <input
+                    id="uses_task_start_dates"
+                    type="checkbox"
+                    v-model="startDatesForm.uses_task_start_dates"
+                    :disabled="startDatesForm.processing"
+                    class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
+                    @change="saveStartDates"
+                />
+                <Label
+                    for="uses_task_start_dates"
+                    class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                    Track start dates on tasks
                 </Label>
             </div>
         </div>

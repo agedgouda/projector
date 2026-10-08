@@ -166,6 +166,9 @@ const startAtProxy = computed<string>({
 const usesExternalDueDates = computed(
     () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
 );
+const usesTaskStartDates = computed(
+    () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
+);
 
 // Lets an @-mention in the Discussion section resolve to a pending invitee (not just a
 // registered user with a password) — same wiring as the content editor (DocumentContent.vue).
@@ -352,6 +355,7 @@ watch(
                     :project="project"
                     :document-type-catalog="documentTypeCatalog"
                     :uses-external-due-dates="usesExternalDueDates"
+                    :uses-task-start-dates="usesTaskStartDates"
                     :is-reprocessable="isReprocessable"
                     :process-button-label="processButtonLabel"
                     :is-processing-live="isProcessingLive"

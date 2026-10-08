@@ -281,10 +281,11 @@ const gridDays = computed<GridDay[]>(() => {
 });
 
 // Every visible item's [start, end] date-key range, one entry per item regardless of how
-// many days it spans or how many weeks it crosses. Tasks have no start_at (the calendar only
-// shows the single day they're due), so they always collapse to a single day, same as an Event
-// with a missing start_at; a start_at after the effective due date (bad data) is clamped the
-// same way rather than rendering a bar that runs backwards.
+// many days it spans or how many weeks it crosses. Tasks and Events alike span start_at through
+// the effective due date (a task only carries a start_at when its org tracks task start dates —
+// see Project::calendarItems()); an item with no start_at collapses to a single day, and a
+// start_at after the effective due date (bad data) is clamped the same way rather than rendering
+// a bar that runs backwards.
 const eventRanges = computed<EventRange[]>(() => {
     const ranges: EventRange[] = [];
 
@@ -420,11 +421,11 @@ const openItem = (item: CalendarItem) => {
     router.visit(url);
 };
 
-// Tasks have no start_at, so they always fall into the single-"Date" case below, using their
-// effective due date (see effectiveDueAt). Events default start to end for a single-date source
-// row (the "Notes to Events" transformation and the list importer both do this), so they also
-// commonly collapse to one plain "Date" row — only a genuine multi-day Event gets distinct
-// Start/End rows.
+// An item with no start_at (including every task in an org that doesn't track task start dates)
+// falls into the single-"Date" case below, using its effective due date (see effectiveDueAt).
+// Events default start to end for a single-date source row (the "Notes to Events" transformation
+// and the list importer both do this), so they also commonly collapse to one plain "Date" row —
+// only a genuine multi-day item gets distinct Start/End rows.
 const dateFields = (item: CalendarItem): { label: string; value: string }[] => {
     const start = item.start_at;
     const due = effectiveDueAt(item);

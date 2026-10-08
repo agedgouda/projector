@@ -28,6 +28,7 @@ const props = withDefaults(defineProps<{
     selectedSheetId: string | number | null;
     assigneeOptions: AssigneeOption[];
     usesExternalDueDates?: boolean;
+    usesTaskStartDates?: boolean;
     isReadOnly?: boolean;
     columns: KanbanColumnDef[];
     unreadDocumentIds?: Set<string>;
@@ -146,6 +147,7 @@ const handleRowClick = () => {
                 :columns="columns"
                 :assignee-options="assigneeOptions"
                 :uses-external-due-dates="usesExternalDueDates"
+                :uses-task-start-dates="usesTaskStartDates"
                 :read-only="isReadOnly"
                 :bold="level === 0"
                 fields-class="hidden md:flex ml-2 mr-[10px]"
@@ -250,6 +252,7 @@ const handleRowClick = () => {
                 :selected-sheet-id="selectedSheetId"
                 :assignee-options="assigneeOptions"
                 :uses-external-due-dates="usesExternalDueDates"
+                :uses-task-start-dates="usesTaskStartDates"
                 :is-read-only="isReadOnly"
                 :columns="columns"
                 :unread-document-ids="unreadDocumentIds"

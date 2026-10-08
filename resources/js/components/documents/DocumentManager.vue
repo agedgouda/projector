@@ -71,6 +71,7 @@ const assigneeOptions = computed(() =>
 
 const page = usePage();
 const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
+const usesTaskStartDates = computed(() => (page.props as any).orgMembership?.uses_task_start_dates ?? false);
 
 // --- 3. ENCAPSULATED AI & REAL-TIME ---
 const { aiStatusMessage } = useAiProcessing(
@@ -180,6 +181,7 @@ onMounted(() => {
                 :is-task-type="isTaskType"
                 :assignee-options="assigneeOptions"
                 :uses-external-due-dates="usesExternalDueDates"
+                :uses-task-start-dates="usesTaskStartDates"
                 :is-read-only="project.inactive"
                 :columns="project.kanban_columns ?? []"
                 :unread-document-ids="unreadDocumentIds"

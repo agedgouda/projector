@@ -34,7 +34,7 @@ class ReportController extends Controller
         $query = $this->reports()->buildTasksQuery($filters, $project);
 
         $tasks = $query?->get([
-            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'status_changed_at',
+            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'start_at', 'status_changed_at',
             'priority', 'task_status', 'assignee_id', 'pending_assignee_invitation_id',
             'content', 'type', 'custom_prompt', 'locked_project_type_id',
             'last_ai_template_id', 'processed_at', 'updated_at',
@@ -305,7 +305,7 @@ class ReportController extends Controller
     {
         $validated = $request->validate($this->filterRules() + [
             'include_details' => ['nullable', 'boolean'],
-            'sort_by' => ['nullable', 'string', 'in:status,due_at,status_changed_at,external_due_at,name,assignee,priority,project_name,tags'],
+            'sort_by' => ['nullable', 'string', 'in:status,start_at,due_at,status_changed_at,external_due_at,name,assignee,priority,project_name,tags'],
             'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
         ]);
 
@@ -330,6 +330,7 @@ class ReportController extends Controller
             'name' => $task->name,
             'due_at' => $task->due_at,
             'external_due_at' => $task->external_due_at,
+            'start_at' => $task->start_at,
             'status_changed_at' => $task->status_changed_at,
             'priority' => $task->priority,
             'task_status' => $task->task_status,

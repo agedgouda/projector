@@ -49,6 +49,7 @@ const props = defineProps<{
     dueAtProxy: string;
     startAtProxy: string;
     usesExternalDueDates?: boolean;
+    usesTaskStartDates?: boolean;
     isReprocessable?: boolean;
     processButtonLabel?: string;
     isProcessingLive?: boolean;
@@ -293,6 +294,42 @@ onMounted(() => {
                                         >
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div
+                                v-if="usesTaskStartDates"
+                                class="flex min-h-[24px] items-center justify-between"
+                            >
+                                <span
+                                    class="text-[13px] text-slate-900 dark:text-slate-400"
+                                    >Start Date</span
+                                >
+                                <DateField
+                                    :model-value="startAtProxy"
+                                    :disabled="project.inactive"
+                                    placeholder="MM/DD/YYYY"
+                                    align="end"
+                                    @update:model-value="
+                                        (val) => $emit('update:startAtProxy', val)
+                                    "
+                                >
+                                    <template #default="{ display }">
+                                        <button
+                                            type="button"
+                                            :disabled="project.inactive"
+                                            class="flex items-center gap-1.5 rounded transition-colors hover:bg-slate-100 disabled:cursor-default disabled:opacity-50 dark:hover:bg-white/10"
+                                        >
+                                            <span
+                                                class="w-[112px] text-right text-[13px] font-black tracking-[0.12em] text-slate-900 uppercase dark:text-slate-200"
+                                            >
+                                                {{ display }}
+                                            </span>
+                                            <CalendarIcon
+                                                class="h-4 w-4 shrink-0 text-slate-400"
+                                            />
+                                        </button>
+                                    </template>
+                                </DateField>
                             </div>
 
                             <div

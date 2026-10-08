@@ -335,6 +335,18 @@ class Project extends Model implements HasMedia
     }
 
     /**
+     * Whether documents of this type show and validate a start date — task types only, and only
+     * when the organization has opted into tracking task start dates.
+     */
+    public function usesTaskStartDatesFor(string $type): bool
+    {
+        $organization = $this->client?->organization;
+
+        return (bool) $organization?->uses_task_start_dates
+            && $this->isTaskType($this->documentTypeCatalog(), $type);
+    }
+
+    /**
      * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
      */
     private function isTaskType(\Illuminate\Support\Collection $catalog, string $type): bool
@@ -437,6 +449,7 @@ class Project extends Model implements HasMedia
     public function calendarItems(): \Illuminate\Support\Collection
     {
         $catalog = $this->documentTypeCatalog();
+        $usesTaskStartDates = (bool) $this->client?->organization?->uses_task_start_dates;
 
         /**
          * @var array<int, array{
@@ -474,7 +487,9 @@ class Project extends Model implements HasMedia
                     'is_subproject' => $source['is_subproject'],
                     'due_at' => $doc->due_at,
                     'external_due_at' => $doc->external_due_at,
-                    'start_at' => $doc->start_at,
+                    // A task's start date only spans the calendar when the org tracks task
+                    // start dates; otherwise a stored (hidden) one would draw an unexplained bar.
+                    'start_at' => $isTask && ! $usesTaskStartDates ? null : $doc->start_at,
                     'task_status' => $doc->task_status,
                     // Events are capped to a single tag (see
                     // DocumentController::updateAttributes()); tasks can carry any number.

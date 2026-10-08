@@ -62,6 +62,9 @@ const page = usePage();
 const usesExternalDueDates = computed(
     () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
 );
+const usesTaskStartDates = computed(
+    () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
+);
 
 // This computed property now perfectly matches the simplified Header prop
 const draftItem = computed(() => ({
@@ -253,6 +256,7 @@ const updateFormValue = (field: string, val: any) => {
                     :project="project"
                     :document-type-catalog="documentTypeCatalog"
                     :uses-external-due-dates="usesExternalDueDates"
+                    :uses-task-start-dates="usesTaskStartDates"
                     :dueAtProxy="form.due_at ?? ''"
                     @update:dueAtProxy="(val) => (form.due_at = val)"
                     :startAtProxy="form.start_at ?? ''"

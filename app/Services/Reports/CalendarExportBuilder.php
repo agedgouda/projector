@@ -130,8 +130,8 @@ class CalendarExportBuilder
 
     /**
      * Build each item's [start, end] date range for the PDF's day-grid bars — mirrors the
-     * on-screen calendar's eventRanges computed (ProjectCalendar.vue): a task has no start_at
-     * (only ever the single day it's due), same as an event with no start_at set; a start_at
+     * on-screen calendar's eventRanges computed (ProjectCalendar.vue): an item with no start_at
+     * (including any task when its org doesn't track task start dates) is a single day; a start_at
      * after the effective due date (bad data) is clamped to the due date rather than producing
      * a bar that runs backwards. Computed once across every resolved export item regardless of
      * month, so a single subproject/tag color assignment is shared consistently across every

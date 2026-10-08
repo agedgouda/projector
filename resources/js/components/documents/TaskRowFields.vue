@@ -14,6 +14,7 @@ const props = defineProps<{
     doc: ProjectDocument;
     columns: KanbanColumnDef[];
     usesExternalDueDates?: boolean;
+    usesTaskStartDates?: boolean;
     readOnly?: boolean;
 }>();
 
@@ -32,9 +33,11 @@ const dueValue = computed(() => {
     return raw ? raw.slice(0, 10) : '';
 });
 
+const startValue = computed(() => (props.doc.start_at ? props.doc.start_at.slice(0, 10) : ''));
+
 const handleUpdate = (field: string, value: any) => {
     let finalValue = value;
-    if ((field === 'due_at' || field === 'external_due_at') && value === '') finalValue = null;
+    if ((field === 'due_at' || field === 'external_due_at' || field === 'start_at') && value === '') finalValue = null;
     emit('update', field, finalValue);
 };
 </script>
@@ -62,6 +65,24 @@ const handleUpdate = (field: string, value: any) => {
                 </SelectContent>
             </Select>
         </div>
+
+        <!-- Start date — only for orgs that track task start dates; same fixed width as Due
+             so the two date columns line up row to row. -->
+        <template v-if="usesTaskStartDates">
+            <div v-if="readOnly" class="flex w-28 items-center justify-end gap-1">
+                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ formatDateMdy(startValue) || '--' }}</span>
+                <Calendar class="h-3 w-3 shrink-0 text-slate-400" />
+            </div>
+            <div v-else class="flex w-28 items-center">
+                <DateField
+                    :model-value="startValue"
+                    align="end"
+                    icon-class="h-3 w-3 text-slate-400"
+                    trigger-class="w-full min-w-0 text-[9px] font-bold uppercase tracking-wider text-slate-900 hover:text-projector-primary-600 dark:text-slate-100"
+                    @update:model-value="(val) => handleUpdate('start_at', val)"
+                />
+            </div>
+        </template>
 
         <!-- Due date — fixed width, right-justified read-only, a dash when empty. -->
         <div v-if="readOnly" class="flex w-28 items-center justify-end gap-1">

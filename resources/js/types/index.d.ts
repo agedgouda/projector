@@ -359,6 +359,7 @@ declare global {
         llm_config?: string;
         meeting_provider?: string;
         uses_external_due_dates?: boolean;
+        uses_task_start_dates?: boolean;
         meeting_config_form?: {
             account_id: string;
             tenant_id: string;

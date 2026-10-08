@@ -77,16 +77,21 @@ watch(
     },
 );
 
+// Also runs on blur, and the popover focuses this input as it opens — so merely opening and
+// dismissing the picker lands here. Only emit when the date actually differs from the current
+// value, or every glance at a date would save (and toast) an unchanged record.
+const currentIso = () => props.modelValue?.slice(0, 10) ?? '';
+
 const commitText = () => {
     const raw = textValue.value.trim();
     if (raw === '') {
-        emit('update:modelValue', '');
+        if (currentIso() !== '') emit('update:modelValue', '');
         return;
     }
     try {
         const iso = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : mdyToIso(raw);
         parseDate(iso); // Throws on a calendar date that doesn't exist (e.g. Feb 30).
-        emit('update:modelValue', iso);
+        if (iso !== currentIso()) emit('update:modelValue', iso);
     } catch {
         // Revert rather than emit garbage.
         textValue.value = formatDateMdy(props.modelValue);

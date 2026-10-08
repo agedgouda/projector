@@ -118,6 +118,7 @@ class HandleInertiaRequests extends Middleware
                     'tier' => $org->membership_tier,
                     'tier_label' => $org->tierLabel(),
                     'uses_external_due_dates' => $org->uses_external_due_dates,
+                    'uses_task_start_dates' => $org->uses_task_start_dates,
                     'limits' => $limits,
                     'usage' => [
                         'users' => $userCount,

@@ -203,7 +203,7 @@ class TaskReportBuilder
         $query = $this->buildTasksQuery($validated, $project);
 
         $columns = [
-            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'status_changed_at',
+            'id', 'project_id', 'name', 'due_at', 'external_due_at', 'start_at', 'status_changed_at',
             'priority', 'task_status', 'assignee_id', 'pending_assignee_invitation_id',
         ];
         if ($includeDetails) {
@@ -235,22 +235,28 @@ class TaskReportBuilder
     {
         $hasSubprojects = count($projectNames) > 1;
 
-        $project->loadMissing('kanbanColumns');
+        $project->loadMissing('kanbanColumns', 'client.organization');
+        $usesTaskStartDates = (bool) $project->client?->organization?->uses_task_start_dates;
 
         $dueColumnLabel = $mode === 'done' ? 'Done Date' : 'Due Date';
-        $headers = $hasSubprojects
-            ? ['Project', 'Status', $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags']
-            : ['Status', $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags'];
+        $headers = $hasSubprojects ? ['Project', 'Status'] : ['Status'];
+        if ($usesTaskStartDates) {
+            $headers[] = 'Start Date';
+        }
+        array_push($headers, $dueColumnLabel, 'Task Name', 'Assignee', 'Priority', 'Tags');
         if ($includeDetails) {
             $headers[] = 'Details';
         }
 
-        $rows = $tasks->map(function (Document $task) use ($project, $includeDetails, $hasSubprojects, $projectNames, $mode) {
+        $rows = $tasks->map(function (Document $task) use ($project, $includeDetails, $hasSubprojects, $projectNames, $mode, $usesTaskStartDates) {
             $row = [];
             if ($hasSubprojects) {
                 $row[] = $projectNames[$task->project_id] ?? '—';
             }
             $row[] = $this->statusLabel($task, $project->kanbanColumns);
+            if ($usesTaskStartDates) {
+                $row[] = $this->formatDate($task->start_at);
+            }
             $row[] = $this->formatDate($this->dueOrDoneDateValue($task, $mode));
             $row[] = $task->name ?? '';
             $row[] = $this->assigneeLabel($task);
@@ -340,6 +346,7 @@ class TaskReportBuilder
             'includeDetails' => $includeDetails,
             'isDoneMode' => $mode === 'done',
             'usesExternalDueDates' => (bool) $organization?->uses_external_due_dates,
+            'usesTaskStartDates' => (bool) $organization?->uses_task_start_dates,
             'hasSubprojects' => count($projectNames) > 1,
             'projectNames' => $projectNames,
             'logoPath' => $project->getFirstMedia('logo')?->getPath(),
@@ -387,6 +394,7 @@ class TaskReportBuilder
             return match ($sortBy) {
                 'status' => $project->kanbanColumns->firstWhere('key', $task->task_status)?->order,
                 'external_due_at' => $task->external_due_at,
+                'start_at' => $task->start_at,
                 'status_changed_at' => $task->status_changed_at,
                 'name' => mb_strtolower($task->name ?? ''),
                 'assignee' => mb_strtolower($this->assigneeLabel($task)),

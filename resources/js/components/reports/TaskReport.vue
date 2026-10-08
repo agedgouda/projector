@@ -50,6 +50,9 @@ const page = usePage();
 const usesExternalDueDates = computed(
     () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
 );
+const usesTaskStartDates = computed(
+    () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
+);
 
 // Reports always span this project plus its direct sub-projects (mirroring the calendar's
 // own behavior — see Project::calendarItems()), so the Project column/filter only need to
@@ -542,6 +545,7 @@ defineExpose({
                 :tasks="results"
                 :columns="project.kanban_columns"
                 :uses-external-due-dates="usesExternalDueDates"
+                :uses-task-start-dates="usesTaskStartDates"
                 :mode="reportMode"
                 :has-subprojects="hasSubprojects"
                 :assignee-options="assigneeOptions"

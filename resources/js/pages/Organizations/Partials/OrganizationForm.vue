@@ -66,6 +66,7 @@ const form = useForm({
         host:  props.organization?.vector_config_form?.host  || '',
     },
     uses_external_due_dates: props.organization?.uses_external_due_dates ?? false,
+    uses_task_start_dates: props.organization?.uses_task_start_dates ?? false,
     meeting_provider: props.organization?.meeting_provider || '',
     meeting_config: {
         account_id:            props.organization?.meeting_config_form?.account_id            || '',
@@ -221,6 +222,18 @@ const submit = () => {
             />
             <Label for="uses_external_due_dates" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
                 Track separate internal and external due dates on tasks
+            </Label>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <input
+                id="uses_task_start_dates"
+                type="checkbox"
+                v-model="form.uses_task_start_dates"
+                class="w-4 h-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
+            />
+            <Label for="uses_task_start_dates" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                Track start dates on tasks
             </Label>
         </div>
 

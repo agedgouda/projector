@@ -20,6 +20,7 @@ export interface TaskReportRow {
     name: string;
     due_at: string | null;
     external_due_at: string | null;
+    start_at: string | null;
     status_changed_at: string | null;
     priority: string | null;
     task_status: string | null;
@@ -48,6 +49,7 @@ export interface TaskReportRow {
 
 export type SortKey =
     | 'status'
+    | 'start_at'
     | 'due_at'
     | 'status_changed_at'
     | 'external_due_at'
@@ -60,6 +62,7 @@ const props = defineProps<{
     tasks: TaskReportRow[];
     columns?: KanbanColumnDef[];
     usesExternalDueDates?: boolean;
+    usesTaskStartDates?: boolean;
     // Which date the primary due-date column is showing/filtering — 'due' (default) shows
     // due_at, editable inline same as always; 'done' shows the read-only status_changed_at
     // instead (see ReportController::buildTasksQuery()'s own mode handling).
@@ -100,11 +103,25 @@ const statusFor = (statusKey: string | null) =>
 // figure TaskRowFields.vue's own date field is sized to, for the same reason). Project
 // (when shown) always leads, since it's the grouping-level field.
 //
-// All four combinations are spelled out as complete literal strings (not built via string
+// A Start column (orgs tracking task start dates) sits just before the due date(s).
+//
+// All eight combinations are spelled out as complete literal strings (not built via string
 // concatenation) since Tailwind's build-time scanner only picks up class names that appear
 // verbatim in source — a runtime-assembled arbitrary-value class like grid-cols-[...] would
 // silently fail to generate any CSS.
 const gridColsClass = computed(() => {
+    if (props.usesTaskStartDates) {
+        if (props.hasSubprojects && props.usesExternalDueDates) {
+            return 'md:grid-cols-[140px_110px_1fr_180px_112px_112px_112px]';
+        }
+        if (props.hasSubprojects) {
+            return 'md:grid-cols-[140px_110px_1fr_180px_112px_112px]';
+        }
+        if (props.usesExternalDueDates) {
+            return 'md:grid-cols-[110px_1fr_180px_112px_112px_112px]';
+        }
+        return 'md:grid-cols-[110px_1fr_180px_112px_112px]';
+    }
     if (props.hasSubprojects && props.usesExternalDueDates) {
         return 'md:grid-cols-[140px_110px_1fr_180px_112px_112px]';
     }
@@ -190,6 +207,8 @@ const sortValue = (
     switch (key) {
         case 'status':
             return statusFor(task.task_status)?.order ?? null;
+        case 'start_at':
+            return task.start_at;
         case 'due_at':
             return task.due_at;
         case 'status_changed_at':
@@ -291,6 +310,27 @@ const sortedTasks = computed(() => {
                     class="h-3 w-3"
                 />
                 <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+            </button>
+
+            <button
+                v-if="usesTaskStartDates"
+                type="button"
+                class="flex flex-col items-center text-center leading-tight hover:text-slate-600 dark:hover:text-slate-300"
+                @click="toggleSort('start_at')"
+            >
+                <span>Start</span>
+                <span class="flex items-center gap-1">
+                    Date
+                    <ChevronUp
+                        v-if="sortKey === 'start_at' && sortDir === 'asc'"
+                        class="h-3 w-3"
+                    />
+                    <ChevronDown
+                        v-else-if="sortKey === 'start_at' && sortDir === 'desc'"
+                        class="h-3 w-3"
+                    />
+                    <ChevronsUpDown v-else class="h-3 w-3 opacity-40" />
+                </span>
             </button>
 
             <button
@@ -434,6 +474,17 @@ const sortedTasks = computed(() => {
                     </SelectItem>
                 </SelectContent>
             </Select>
+
+            <div v-if="usesTaskStartDates" class="contents" @click.stop>
+                <DateField
+                    :model-value="dueDateInputValue(task.start_at)"
+                    :show-icon="false"
+                    trigger-class="w-full min-w-0 text-[13px] text-slate-500 dark:text-slate-400"
+                    @update:model-value="
+                        (val) => emit('update-field', task, 'start_at', val)
+                    "
+                />
+            </div>
 
             <div class="contents" @click.stop>
                 <DateField

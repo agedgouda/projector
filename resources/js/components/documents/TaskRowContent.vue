@@ -22,6 +22,7 @@ const props = defineProps<{
     columns: KanbanColumnDef[];
     assigneeOptions: AssigneeOption[];
     usesExternalDueDates?: boolean;
+    usesTaskStartDates?: boolean;
     readOnly?: boolean;
     // Root-level tree rows render bold; everywhere else (nested tree rows, the flat
     // "Generated Tasks" list) is medium-weight.
@@ -102,6 +103,7 @@ const handleUpdate = (field: string, value: any) =>
             :doc="doc"
             :columns="columns"
             :uses-external-due-dates="usesExternalDueDates"
+            :uses-task-start-dates="usesTaskStartDates"
             :read-only="readOnly"
             @click.stop
             @update="(field, val) => handleUpdate(field, val)"
