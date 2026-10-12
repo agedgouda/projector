@@ -393,3 +393,13 @@
 }
 
 
+
+/* A short cross-fade for controls that swap in place (e.g. the Transformation sheet's view/edit switch). */
+.fade-swap-enter-active,
+.fade-swap-leave-active {
+    transition: opacity 150ms ease;
+}
+.fade-swap-enter-from,
+.fade-swap-leave-to {
+    opacity: 0;
+}

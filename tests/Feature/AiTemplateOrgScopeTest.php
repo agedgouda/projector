@@ -133,7 +133,7 @@ it('org-admin can create a template for their org', function () {
     expect($created->organization_id)->toBe($this->orgA->id);
 });
 
-it('redirects to the detail page after creating a template', function () {
+it('redirects to the library with the new template open after creating it', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $response = $this->actingAs($this->orgAAdmin)
@@ -144,17 +144,85 @@ it('redirects to the detail page after creating a template', function () {
         ]);
 
     $created = AiTemplate::where('name', 'Redirect Target Template')->firstOrFail();
-    $response->assertRedirect(route('transformation-library.show', $created));
+    $response->assertRedirect(route('transformation-library.index', ['view' => $created->id]));
 });
 
-it('renders the create form with a null aiTemplate prop', function () {
+it('redirects to the library with the template open after updating it', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->put(route('transformation-library.update', $this->orgATemplate), [
+            'name' => 'Renamed',
+            'system_prompt' => 'sys',
+            'user_prompt' => 'usr',
+        ])
+        ->assertRedirect(route('transformation-library.index', ['view' => $this->orgATemplate->id]));
+});
+
+it('redirects to the library with the copy open for editing after duplicating', function () {
     setPermissionsTeamId($this->orgA->id);
 
     $response = $this->actingAs($this->orgAAdmin)
-        ->get(route('transformation-library.create'));
+        ->post(route('transformation-library.duplicate', $this->globalTemplate));
 
-    $response->assertOk();
-    expect($response->original->getData()['page']['props']['aiTemplate'])->toBeNull();
+    $copy = AiTemplate::where('name', 'Global Template (Copy)')->firstOrFail();
+
+    $response->assertRedirect(route('transformation-library.index', ['edit' => $copy->id]));
+});
+
+it('sends the old view, edit and create pages to the library with that sheet open', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.show', $this->globalTemplate))
+        ->assertRedirect(route('transformation-library.index', ['view' => $this->globalTemplate->id]));
+
+    $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.edit', $this->orgATemplate))
+        ->assertRedirect(route('transformation-library.index', ['edit' => $this->orgATemplate->id]));
+
+    $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.create'))
+        ->assertRedirect(route('transformation-library.index', ['new' => 1]));
+});
+
+it('still refuses the edit page for a template the user cannot edit', function () {
+    setPermissionsTeamId($this->orgA->id);
+
+    $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.edit', $this->globalTemplate))
+        ->assertNotFound();
+});
+
+it('tells the library which sheet to open', function (array $query, ?array $expected) {
+    setPermissionsTeamId($this->orgA->id);
+
+    $openSheet = $this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.index', $query))
+        ->viewData('page')['props']['openSheet'];
+
+    expect($openSheet)->toBe($expected);
+})->with([
+    'nothing' => [[], null],
+    'view' => [['view' => 7], ['mode' => 'view', 'id' => 7]],
+    'edit' => [['edit' => 7], ['mode' => 'edit', 'id' => 7]],
+    'create' => [['new' => 1], ['mode' => 'create', 'id' => null]],
+    'junk' => [['view' => 'abc'], null],
+]);
+
+it('sends the template prompts and generation brief to the library for its sheets', function () {
+    setPermissionsTeamId($this->orgA->id);
+    $this->orgATemplate->update(['generation_brief' => 'Make tasks']);
+
+    $templates = collect($this->actingAs($this->orgAAdmin)
+        ->get(route('transformation-library.index'))
+        ->viewData('page')['props']['templates'])->keyBy('name');
+
+    expect($templates['Org A Template'])->toMatchArray([
+        'system_prompt' => 'sys',
+        'user_prompt' => 'usr',
+        'generation_brief' => 'Make tasks',
+    ]);
 });
 
 it('saves a description when creating a template', function () {

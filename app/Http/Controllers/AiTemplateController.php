@@ -8,10 +8,10 @@ use App\Models\AiTemplate;
 use App\Models\Organization;
 use App\Services\Ai\AiUsageLogger;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
 
 class AiTemplateController extends Controller
@@ -65,6 +65,7 @@ class AiTemplateController extends Controller
                 'id' => $t->id,
                 'name' => $t->name,
                 'description' => $t->description,
+                'generation_brief' => $t->generation_brief,
                 'type' => $t->type,
                 'organization_id' => $t->organization_id,
                 'system_prompt' => $t->system_prompt,
@@ -80,46 +81,50 @@ class AiTemplateController extends Controller
 
         return inertia('AiTemplates/Index', [
             'templates' => $templates,
+            'openSheet' => $this->requestedSheet(request()),
         ]);
     }
 
-    public function show(AiTemplate $aiTemplate)
+    /**
+     * Which sheet the library opens with — `?view={id}`, `?edit={id}` or `?new=1`. Viewing,
+     * editing and creating all happen in sheets over the library, so the old show/edit/create
+     * pages, and saving, all land back here with the right one open.
+     *
+     * @return array{mode: 'view'|'edit'|'create', id: int|null}|null
+     */
+    private function requestedSheet(Request $request): ?array
     {
-        $user = auth()->user();
+        if ($request->boolean('new')) {
+            return ['mode' => 'create', 'id' => null];
+        }
 
-        return Inertia::render('AiTemplates/Show', [
-            'aiTemplate' => [
-                'id' => $aiTemplate->id,
-                'name' => $aiTemplate->name,
-                'description' => $aiTemplate->description,
-                'generation_brief' => $aiTemplate->generation_brief,
-                'type' => $aiTemplate->type,
-                'system_prompt' => $aiTemplate->system_prompt,
-                'user_prompt' => $aiTemplate->user_prompt,
-                'single_output' => $aiTemplate->single_output,
-                'output_key' => $aiTemplate->output_key,
-                'import_config' => $aiTemplate->import_config,
-            ],
-            'canEdit' => $user->can('update', $aiTemplate),
-        ]);
+        foreach (['edit', 'view'] as $mode) {
+            $id = $request->integer($mode);
+            if ($id > 0) {
+                return ['mode' => $mode, 'id' => $id];
+            }
+        }
+
+        return null;
     }
 
-    public function create()
+    public function show(AiTemplate $aiTemplate): RedirectResponse
+    {
+        return redirect()->route('transformation-library.index', ['view' => $aiTemplate->id]);
+    }
+
+    public function create(): RedirectResponse
     {
         Gate::authorize('create', AiTemplate::class);
 
-        return inertia('AiTemplates/Manage', [
-            'aiTemplate' => null,
-        ]);
+        return redirect()->route('transformation-library.index', ['new' => 1]);
     }
 
-    public function edit(AiTemplate $aiTemplate)
+    public function edit(AiTemplate $aiTemplate): RedirectResponse
     {
         Gate::authorize('update', $aiTemplate);
 
-        return Inertia::render('AiTemplates/Manage', [
-            'aiTemplate' => $aiTemplate,
-        ]);
+        return redirect()->route('transformation-library.index', ['edit' => $aiTemplate->id]);
     }
 
     public function store(Request $request)
@@ -135,7 +140,7 @@ class AiTemplateController extends Controller
 
         $template = AiTemplate::create($validated);
 
-        return redirect()->route('transformation-library.show', $template)
+        return redirect()->route('transformation-library.index', ['view' => $template->id])
             ->with('success', 'AI Template created.');
     }
 
@@ -147,7 +152,7 @@ class AiTemplateController extends Controller
 
         $aiTemplate->update($validated);
 
-        return redirect()->route('transformation-library.show', $aiTemplate)
+        return redirect()->route('transformation-library.index', ['view' => $aiTemplate->id])
             ->with('success', 'AI Template updated.');
     }
 
@@ -344,7 +349,7 @@ class AiTemplateController extends Controller
         $copy->organization_id = $user->hasRole('super-admin') ? null : getPermissionsTeamId();
         $copy->save();
 
-        return redirect()->route('transformation-library.edit', $copy->id)
+        return redirect()->route('transformation-library.index', ['edit' => $copy->id])
             ->with('success', 'AI Template copied.');
     }
 }

@@ -15,8 +15,9 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Copy, Edit2, PlusIcon, Search, Trash2 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import TransformationSheet from './Partials/TransformationSheet.vue';
 
 interface AiTemplateWithPerms extends AiTemplate {
     organization_id: string | null;
@@ -25,8 +26,11 @@ interface AiTemplateWithPerms extends AiTemplate {
     is_enabled: boolean;
 }
 
+type SheetState = { mode: 'view' | 'edit' | 'create'; id: number | null };
+
 const props = defineProps<{
     templates: AiTemplateWithPerms[];
+    openSheet: SheetState | null;
 }>();
 
 const page = usePage<AppPageProps>();
@@ -68,13 +72,55 @@ const setEnabled = async (item: AiTemplateWithPerms, enabled: boolean) => {
     }
 };
 
-const handleCreate = () => {
-    router.visit(aiTemplateRoutes.create().url);
+// Viewing, editing and creating all happen in sheets over the library. The open sheet is
+// mirrored in the URL (?view=, ?edit=, ?new=1) so a reload or shared link reopens it; the
+// server sends it back as openSheet after a save or duplicate (see
+// AiTemplateController::requestedSheet()).
+const sheet = ref<SheetState | null>(props.openSheet);
+
+watch(
+    () => props.openSheet,
+    (requested) => {
+        sheet.value = requested;
+    },
+);
+
+const sheetTemplate = computed(
+    () => props.templates.find((t) => t.id === sheet.value?.id) ?? null,
+);
+
+const sheetQuery = (
+    state: SheetState | null,
+): Record<string, string | number> => {
+    if (state?.mode === 'create') return { new: 1 };
+    if (state?.id) return { [state.mode]: state.id };
+    return {};
 };
 
-const handleShow = (id: string | number) => {
-    router.visit(aiTemplateRoutes.show({ aiTemplate: id }).url);
+const setSheet = (state: SheetState | null) => {
+    sheet.value = state;
+    router.replace({
+        url: aiTemplateRoutes.index.url({ query: sheetQuery(state) }),
+        props: (current) => ({ ...current, openSheet: state }),
+        preserveScroll: true,
+        preserveState: true,
+    });
 };
+
+const handleCreate = () => setSheet({ mode: 'create', id: null });
+
+const handleShow = (id: number) => setSheet({ mode: 'view', id });
+
+const handleEdit = (id: number) => setSheet({ mode: 'edit', id });
+
+// Cancelling an edit goes back to the transformation it was editing; cancelling a new one
+// closes the sheet.
+const closeEditSheet = () =>
+    setSheet(
+        sheet.value?.mode === 'edit' && sheet.value.id
+            ? { mode: 'view', id: sheet.value.id }
+            : null,
+    );
 
 const handleCopy = (id: string | number) => {
     router.post(duplicateRoute.url(id));
@@ -281,7 +327,11 @@ const typeLabel = (type: string): string => {
                                         ? 'Edit template'
                                         : 'View Transformation'
                                 "
-                                @click.stop="handleShow(item.id)"
+                                @click.stop="
+                                    item.can_edit
+                                        ? handleEdit(item.id)
+                                        : handleShow(item.id)
+                                "
                             >
                                 <Edit2 v-if="item.can_edit" class="h-4 w-4" />
                                 <Search v-else class="h-4 w-4" />
@@ -322,6 +372,20 @@ const typeLabel = (type: string): string => {
             :loading="deleteForm.processing"
             @confirm="handleDelete"
             @close="closeModal"
+        />
+
+        <TransformationSheet
+            v-if="sheet?.mode === 'create' ? canCreate : !!sheetTemplate"
+            :mode="
+                sheet?.mode === 'edit' && !sheetTemplate?.can_edit
+                    ? 'view'
+                    : (sheet?.mode ?? 'view')
+            "
+            :template="sheet?.mode === 'create' ? null : sheetTemplate"
+            :can-edit="!!sheetTemplate?.can_edit"
+            @close="setSheet(null)"
+            @edit="sheetTemplate && handleEdit(sheetTemplate.id)"
+            @cancel-edit="closeEditSheet"
         />
     </AppLayout>
 </template>
