@@ -545,6 +545,14 @@ export interface BreadcrumbItem {
 }
 export type BreadcrumbItemType = BreadcrumbItem;
 
+// A transformation a protocol step can use (see ProjectTypeController::stepTemplateOptions()).
+export interface StepTemplateOption {
+    id: number;
+    name: string;
+    organization_id: string | null;
+    disabled_organization_ids: string[];
+}
+
 export interface NavItem {
     title: string;
     href: NonNullable<InertiaLinkProps['href']>;

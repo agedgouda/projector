@@ -2,10 +2,8 @@
 import IconTile from '@/components/IconTile.vue';
 import ResourceList from '@/components/ResourceList.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import {
-    FLAT_SEARCH_ICON,
-    FLAT_SEARCH_INPUT,
-} from '@/lib/flat-ui';
+import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
+import type { StepTemplateOption } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowRight,
@@ -41,7 +39,7 @@ import { type BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     projectTypes: any[];
-    aiTemplates: { id: string; name: string }[];
+    aiTemplates: StepTemplateOption[];
     organizations: { id: string; name: string }[];
 }>();
 
@@ -201,7 +199,9 @@ const duplicateType = (typeId: string, orgId?: string) => {
                             <div
                                 :class="[
                                     'space-y-4 rounded-md p-3 transition-colors',
-                                    index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
+                                    index % 2 === 1
+                                        ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                                        : '',
                                 ]"
                             >
                                 <div class="flex items-center gap-3 px-1">
@@ -363,7 +363,9 @@ const duplicateType = (typeId: string, orgId?: string) => {
                             <div
                                 :class="[
                                     'space-y-4 rounded-md p-3 transition-colors',
-                                    index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
+                                    index % 2 === 1
+                                        ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                                        : '',
                                 ]"
                             >
                                 <div class="flex items-center gap-3 px-1">

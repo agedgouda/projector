@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Contracts\LlmDriver;
+use App\Http\Requests\UpdateAiTemplateAvailabilityRequest;
 use App\Models\AiTemplate;
 use App\Models\Organization;
 use App\Services\Ai\AiUsageLogger;
@@ -46,7 +47,20 @@ class AiTemplateController extends Controller
                 ]);
         }
 
-        $templates = $query->get()->map(function (AiTemplate $t) use ($user) {
+        $orgId = $this->currentOrganizationId(request());
+        $canToggle = $orgId !== null && Gate::allows('toggle', new AiTemplate);
+        $disabledIds = $orgId === null ? [] : AiTemplate::query()
+            ->whereHas('disabledForOrganizations', fn ($query) => $query->whereKey($orgId))
+            ->pluck('id')
+            ->all();
+
+        // A turned-off transformation can't be picked anywhere, so it's left out for anyone who
+        // can't turn it back on.
+        if (! $canToggle) {
+            $query->whereNotIn('id', $disabledIds);
+        }
+
+        $templates = $query->get()->map(function (AiTemplate $t) use ($user, $orgId, $canToggle, $disabledIds) {
             return [
                 'id' => $t->id,
                 'name' => $t->name,
@@ -59,6 +73,8 @@ class AiTemplateController extends Controller
                 'output_key' => $t->output_key,
                 'import_config' => $t->import_config,
                 'can_edit' => $user->can('update', $t),
+                'can_toggle' => $canToggle && $t->isToggleableFor($orgId),
+                'is_enabled' => ! in_array($t->id, $disabledIds, true),
             ];
         });
 
@@ -278,6 +294,43 @@ class AiTemplateController extends Controller
         $aiTemplate->delete();
 
         return back()->with('success', 'AI Template deleted.');
+    }
+
+    /**
+     * Turns a transformation on or off for the viewer's current organization. A turned-off one
+     * drops out of that organization's manual pickers (the Transform button and Import Data's
+     * saved transformations); protocol steps and Reprocess still run it.
+     */
+    public function updateAvailability(UpdateAiTemplateAvailabilityRequest $request, AiTemplate $aiTemplate): JsonResponse
+    {
+        $orgId = $this->currentOrganizationId($request);
+        $organization = $orgId !== null ? Organization::find($orgId) : null;
+
+        if ($organization === null || ! $aiTemplate->isToggleableFor($organization->id)) {
+            abort(403, 'This transformation can\'t be turned off.');
+        }
+
+        if ($request->boolean('enabled')) {
+            $organization->disabledAiTemplates()->detach($aiTemplate->id);
+        } else {
+            $organization->disabledAiTemplates()->syncWithoutDetaching([$aiTemplate->id]);
+        }
+
+        return response()->json(['enabled' => $request->boolean('enabled')]);
+    }
+
+    /**
+     * The organization the viewer is working in. The org-role middleware clears the org context
+     * for a super-admin, so theirs falls back to the org picked in the header (the same session/
+     * cookie HandleInertiaRequests reads).
+     */
+    private function currentOrganizationId(Request $request): ?string
+    {
+        $orgId = getPermissionsTeamId()
+            ?? $request->session()->get('active_org_id')
+            ?? $request->cookie('last_org_id');
+
+        return is_string($orgId) && $orgId !== '' ? $orgId : null;
     }
 
     public function duplicate(AiTemplate $aiTemplate)

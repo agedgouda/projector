@@ -220,8 +220,8 @@ class ImportTransformationController extends Controller
 
     /**
      * Lists saved import transformations (spreadsheet or text) visible to the current
-     * organization (its own, plus any global ones) — the "use a saved transformation" picker's
-     * data source.
+     * organization (its own, plus any global ones), minus any it has turned off — the "use a
+     * saved transformation" picker's data source.
      */
     public function index(): JsonResponse
     {
@@ -233,6 +233,7 @@ class ImportTransformationController extends Controller
             ->where(function ($query) use ($orgId) {
                 $query->whereNull('organization_id')->orWhere('organization_id', $orgId);
             })
+            ->enabledForOrganization(is_string($orgId) ? $orgId : null)
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'type', 'import_config']);
 

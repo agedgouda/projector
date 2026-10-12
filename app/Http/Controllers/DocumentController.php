@@ -775,6 +775,14 @@ class DocumentController extends Controller
             abort(422, 'Invalid ai_template_id.');
         }
 
+        // A direct pick (path b) must be one the organization hasn't turned off; a protocol's own
+        // step (path a) still runs it, like any other protocol step.
+        if (empty($validated['project_type_id']) && \App\Models\AiTemplate::findOrFail($aiTemplateId)->isDisabledFor($orgId)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'ai_template_id' => 'Your organization has turned this transformation off.',
+            ]);
+        }
+
         $toKey = $validated['to_key'] ?? null;
         if (! is_string($toKey) || $toKey === '') {
             // Direct pick, no protocol involved: the template's own output_key is
@@ -808,7 +816,8 @@ class DocumentController extends Controller
      * Options for the either/or processing picker:
      *  - protocolOptions: protocols visible to this org that define their own next step from this
      *    document's current type (path a — run that protocol's own recipe);
-     *  - aiTemplates: every workflow-capable AI template (path b — run any template directly).
+     *  - aiTemplates: every workflow-capable AI template the organization hasn't turned off (path
+     *    b — run any template directly).
      */
     public function transitionOptions(Project $project, Document $document)
     {
@@ -845,6 +854,7 @@ class DocumentController extends Controller
         // document (see ProjectAiService::process()) and is never a manual choice.
         $aiTemplates = \App\Models\AiTemplate::where('type', 'workflow')
             ->availableToOrganization($orgId)
+            ->enabledForOrganization($orgId)
             ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'))
             ->orderBy('name')
             ->get(['id', 'name']);

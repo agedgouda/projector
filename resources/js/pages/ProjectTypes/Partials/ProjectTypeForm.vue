@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useProjectTypeForm } from '@/composables/useProjectTypeForm';
+import type { StepTemplateOption } from '@/types';
 import { usePage } from '@inertiajs/vue3';
 import { ArrowRight, Plus, X } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -11,7 +12,7 @@ const props = defineProps<{
     editData: any | null;
     template?: any;
     iconLibrary: { name: string; component: any }[];
-    aiTemplates: { id: string; name: string }[];
+    aiTemplates: StepTemplateOption[];
     organizations: { id: string; name: string }[];
 }>();
 
@@ -25,6 +26,45 @@ const isSuperAdmin = computed(
 // Use the new composable
 const { form, submit, addSchemaItem, addWorkflowStep, suggestKey } =
     useProjectTypeForm(props.editData, () => emit('success'), props.template);
+
+// The organization this protocol belongs to — a super-admin picks it on the form; anyone else
+// only ever sets up their own (current) organization's.
+const protocolOrgId = computed<string | null>(() =>
+    isSuperAdmin.value
+        ? form.organization_id || null
+        : (page.props.auth.active_org_id ?? null),
+);
+
+const isOffForProtocolOrg = (template: StepTemplateOption) =>
+    protocolOrgId.value !== null &&
+    template.disabled_organization_ids.includes(protocolOrgId.value);
+
+// Global transformations plus the protocol's own organization's. One its organization turned
+// off is left out of new picks but kept, marked "(off)", on a step that already uses it — that
+// step still runs it.
+const stepTemplateOptions = computed(() => {
+    const inUse = new Set(
+        form.workflow.map((step) => String(step.ai_template_id)),
+    );
+
+    return props.aiTemplates
+        .filter(
+            (template) =>
+                template.organization_id === null ||
+                template.organization_id === protocolOrgId.value,
+        )
+        .filter(
+            (template) =>
+                !isOffForProtocolOrg(template) ||
+                inUse.has(String(template.id)),
+        )
+        .map((template) => ({
+            id: template.id,
+            label: isOffForProtocolOrg(template)
+                ? `${template.name} (off)`
+                : template.name,
+        }));
+});
 </script>
 
 <template>
@@ -268,11 +308,11 @@ const { form, submit, addSchemaItem, addWorkflowStep, suggestKey } =
                     >
                         <option :value="null">Manual Processing</option>
                         <option
-                            v-for="temp in aiTemplates"
+                            v-for="temp in stepTemplateOptions"
                             :key="temp.id"
                             :value="temp.id"
                         >
-                            {{ temp.name }}
+                            {{ temp.label }}
                         </option>
                     </select>
                 </div>

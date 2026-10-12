@@ -8,7 +8,8 @@ use Illuminate\Validation\Validator;
 
 /**
  * Shared by ApplyImportTransformationRequest (spreadsheet) and ApplyTextImportTransformationRequest
- * (text) — a saved transformation's own organization must match the project's, once resolved.
+ * (text) — a saved transformation's own organization must match the project's, once resolved,
+ * and that organization mustn't have turned it off.
  * Needs the route's Project, so it can't be a plain `exists` rule in rules().
  */
 trait ValidatesImportTransformationOwnership
@@ -31,6 +32,10 @@ trait ValidatesImportTransformationOwnership
 
             if ($template->organization_id !== null && $template->organization_id !== $organizationId) {
                 $validator->errors()->add('ai_template_id', 'That saved transformation does not belong to this project\'s organization.');
+            }
+
+            if ($template->isDisabledFor($organizationId)) {
+                $validator->errors()->add('ai_template_id', 'Your organization has turned this saved transformation off.');
             }
         });
     }

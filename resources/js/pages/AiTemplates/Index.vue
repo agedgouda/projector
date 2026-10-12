@@ -1,21 +1,19 @@
 <script setup lang="ts">
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
-import FlatRow from '@/components/FlatRow.vue';
-import ResourceHeader from '@/components/ResourceHeader.vue';
-import ResourceList from '@/components/ResourceList.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import AppLayout from '@/layouts/AppLayout.vue';
-import {
-    FLAT_ACTION_BUTTON_VISIBLE,
-    FLAT_SEARCH_ICON,
-    FLAT_SEARCH_INPUT,
-} from '@/lib/flat-ui';
+import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import aiTemplateRoutes from '@/routes/transformation-library';
-import { duplicate as duplicateRoute } from '@/routes/transformation-library/index';
+import {
+    availability as availabilityRoute,
+    duplicate as duplicateRoute,
+} from '@/routes/transformation-library/index';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import { Copy, Edit2, PlusIcon, Search, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
@@ -23,6 +21,8 @@ import { toast } from 'vue-sonner';
 interface AiTemplateWithPerms extends AiTemplate {
     organization_id: string | null;
     can_edit: boolean;
+    can_toggle: boolean;
+    is_enabled: boolean;
 }
 
 const props = defineProps<{
@@ -43,6 +43,30 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const searchQuery = ref('');
+
+// Optimistic on/off state, by template id — flipped as soon as the switch moves and put back if
+// the save fails.
+const enabledById = ref<Record<number, boolean>>(
+    Object.fromEntries(props.templates.map((t) => [t.id, t.is_enabled])),
+);
+
+const isEnabled = (item: AiTemplateWithPerms) =>
+    enabledById.value[item.id] ?? item.is_enabled;
+
+const setEnabled = async (item: AiTemplateWithPerms, enabled: boolean) => {
+    enabledById.value[item.id] = enabled;
+    try {
+        await axios.put(availabilityRoute.url(item.id), { enabled });
+        toast.success(
+            enabled
+                ? `${item.name} turned on for your organization`
+                : `${item.name} turned off for your organization`,
+        );
+    } catch {
+        enabledById.value[item.id] = !enabled;
+        toast.error(`Couldn't turn ${item.name} ${enabled ? 'on' : 'off'}.`);
+    }
+};
 
 const handleCreate = () => {
     router.visit(aiTemplateRoutes.create().url);
@@ -77,23 +101,36 @@ const handleDelete = () => {
 };
 
 // --- Filter Logic ---
+// One grid of cards, grouped by type (Workflow, Org Extraction, System) then by name; search
+// matches the name or the description.
 const filtered = computed(() => {
-    if (!searchQuery.value.trim()) return props.templates;
-    const query = searchQuery.value.toLowerCase();
-    return props.templates.filter((t) => t.name.toLowerCase().includes(query));
+    const query = searchQuery.value.toLowerCase().trim();
+    return [...props.templates]
+        .filter(
+            (t) =>
+                !query ||
+                t.name.toLowerCase().includes(query) ||
+                (t.description ?? '').toLowerCase().includes(query),
+        )
+        .sort(
+            (a, b) =>
+                typeRank(a.type) - typeRank(b.type) ||
+                a.name.localeCompare(b.name),
+        );
 });
 
-const orgTemplates = computed(() =>
-    filtered.value.filter((t) => t.organization_id),
-);
-const globalTemplates = computed(() =>
-    filtered.value.filter((t) => !t.organization_id),
+// Workflow cards first, with every other type starting on its own row below them.
+const sections = computed(() =>
+    [
+        filtered.value.filter((t) => t.type === 'workflow'),
+        filtered.value.filter((t) => t.type !== 'workflow'),
+    ].filter((section) => section.length > 0),
 );
 
 // Looked up internally by their respective services (TextExtractionService,
 // SpreadsheetClassificationService, CreateTaskFromSlackCommand), never picked by hand — the
-// backend only ever sends these to a super-admin (see AiTemplateController::index()), so this
-// group only ever renders for that viewer.
+// backend only ever sends these to a super-admin (see AiTemplateController::index()), so the
+// "System" badge only ever shows for that viewer.
 const SYSTEM_TEMPLATE_TYPES = [
     'text_extraction',
     'text_extraction_classification',
@@ -103,43 +140,19 @@ const SYSTEM_TEMPLATE_TYPES = [
     'slack_report_request',
 ];
 
-const buildSection = (items: AiTemplateWithPerms[]) => {
-    const workflows = items.filter((t) => t.type === 'workflow');
-    const orgExtraction = items.filter((t) => t.type === 'org_extraction');
-    const systemTemplates = items.filter((t) => SYSTEM_TEMPLATE_TYPES.includes(t.type));
-    const result: any[] = [];
-
-    if (workflows.length) {
-        result.push({
-            isHeader: true,
-            name: 'Workflow Templates',
-            count: workflows.length,
-        });
-        // Striping restarts per group, matching OrgUserTable.vue's rule for its own
-        // (single, ungrouped) list.
-        workflows.forEach((t, i) => result.push({ ...t, isHeader: false, rowIndex: i }));
-    }
-    if (orgExtraction.length) {
-        result.push({
-            isHeader: true,
-            name: 'Org Document Extraction',
-            count: orgExtraction.length,
-        });
-        orgExtraction.forEach((t, i) => result.push({ ...t, isHeader: false, rowIndex: i }));
-    }
-    if (systemTemplates.length) {
-        result.push({
-            isHeader: true,
-            name: 'System Templates (Internal)',
-            count: systemTemplates.length,
-        });
-        systemTemplates.forEach((t, i) => result.push({ ...t, isHeader: false, rowIndex: i }));
-    }
-    return result;
+const typeRank = (type: string): number => {
+    if (type === 'workflow') return 0;
+    if (type === 'org_extraction') return 1;
+    if (SYSTEM_TEMPLATE_TYPES.includes(type)) return 2;
+    return 3;
 };
 
-const orgItems = computed(() => buildSection(orgTemplates.value));
-const globalItems = computed(() => buildSection(globalTemplates.value));
+const typeLabel = (type: string): string => {
+    if (type === 'workflow') return 'Workflow';
+    if (type === 'org_extraction') return 'Org Extraction';
+    if (SYSTEM_TEMPLATE_TYPES.includes(type)) return 'System';
+    return type;
+};
 </script>
 
 <template>
@@ -157,8 +170,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                         Transformation Library
                     </h1>
                     <p class="text-sm text-gray-500">
-                        Select a protocol to view details or execute
-                        transformations.
+                        Your Document Transformations
                     </p>
                 </div>
 
@@ -184,7 +196,7 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
             </div>
 
             <div
-                v-if="orgTemplates.length === 0 && globalTemplates.length === 0"
+                v-if="filtered.length === 0"
                 class="rounded-3xl border-2 border-dashed border-gray-100 py-20 text-center dark:border-gray-800/50"
             >
                 <p class="font-medium text-gray-400">
@@ -192,151 +204,113 @@ const globalItems = computed(() => buildSection(globalTemplates.value));
                 </p>
             </div>
 
-            <div class="space-y-10">
-                <!-- My Organization section -->
-                <div v-if="orgItems.length > 0">
-                    <div class="mb-4 flex items-center gap-3 border-b border-slate-200 pb-2 dark:border-slate-800">
-                        <h2
-                            class="text-[10px] font-black tracking-[0.2em] text-projector-primary-600 uppercase dark:text-projector-primary-400"
-                        >
-                            My Organization
-                        </h2>
-                        <span
-                            class="text-[9px] font-black text-gray-400 dark:text-gray-600"
-                            >{{ orgTemplates.length }}</span
-                        >
-                    </div>
-                    <ResourceList :items="orgItems">
-                        <template #default="{ item }">
-                            <ResourceHeader
-                                v-if="item.isHeader"
-                                :title="item.name"
-                                :count="item.count"
-                                :collapsed="false"
-                            />
-                            <FlatRow
-                                v-else
-                                height="md"
-                                clickable
-                                no-hover
-                                always-show-actions
-                                :row-index="item.rowIndex"
-                                @click="handleShow(item.id)"
+            <div v-else class="flex flex-col gap-5 md:gap-4">
+                <div
+                    v-for="(section, index) in sections"
+                    :key="index"
+                    class="grid gap-5 md:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4"
+                >
+                    <div
+                        v-for="item in section"
+                        :key="item.id"
+                        role="button"
+                        tabindex="0"
+                        class="group flex cursor-pointer flex-col rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-projector-primary-500 focus-visible:outline-none md:p-4 dark:border-white/10 dark:bg-white/5"
+                        @click="handleShow(item.id)"
+                        @keydown.enter="handleShow(item.id)"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <h3
+                                class="text-lg font-bold tracking-tight text-gray-900 md:text-base dark:text-white"
+                                :class="{ 'opacity-50': !isEnabled(item) }"
                             >
-                                <span
-                                    class="truncate text-[13px] font-bold text-slate-900 dark:text-slate-100"
-                                    >{{ item.name }}</span
-                                >
-
-                                <template #actions>
-                                    <button
-                                        type="button"
-                                        @click.stop="handleShow(item.id)"
-                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
-                                        title="Edit template"
-                                    >
-                                        <Edit2 class="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                        v-if="canCreate"
-                                        type="button"
-                                        @click.stop="handleCopy(item.id)"
-                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
-                                        title="Duplicate template"
-                                    >
-                                        <Copy class="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                        v-if="item.can_edit"
-                                        type="button"
-                                        @click.stop="
-                                            openModal({
-                                                id: item.id,
-                                                name: item.name,
-                                            })
-                                        "
-                                        class="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
-                                        title="Delete template"
-                                    >
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                    </button>
-                                </template>
-                            </FlatRow>
-                        </template>
-                    </ResourceList>
-                </div>
-
-                <!-- Global Templates section -->
-                <div v-if="globalItems.length > 0">
-                    <div class="mb-4 flex items-center gap-3 border-b border-slate-200 pb-2 dark:border-slate-800">
-                        <h2
-                            class="text-[10px] font-black tracking-[0.2em] text-projector-primary-600 uppercase dark:text-projector-primary-400"
-                        >
-                            Global Templates
-                        </h2>
-                        <span
-                            class="text-[9px] font-black text-gray-400 dark:text-gray-600"
-                            >{{ globalTemplates.length }}</span
-                        >
-                    </div>
-                    <ResourceList :items="globalItems">
-                        <template #default="{ item }">
-                            <ResourceHeader
-                                v-if="item.isHeader"
-                                :title="item.name"
-                                :count="item.count"
-                                :collapsed="false"
-                            />
-                            <FlatRow
-                                v-else
-                                height="md"
-                                clickable
-                                no-hover
-                                always-show-actions
-                                :row-index="item.rowIndex"
-                                @click="handleShow(item.id)"
+                                {{ item.name }}
+                            </h3>
+                            <label
+                                v-if="item.can_toggle"
+                                class="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400"
+                                :title="
+                                    isEnabled(item)
+                                        ? 'Shown to your organization — turn off to hide it'
+                                        : 'Hidden from your organization — turn on to show it'
+                                "
+                                @click.stop
+                                @keydown.enter.stop
                             >
-                                <span
-                                    class="truncate text-[13px] font-bold text-slate-900 dark:text-slate-100"
-                                    >{{ item.name }}</span
-                                >
+                                {{ isEnabled(item) ? 'On' : 'Off' }}
+                                <Switch
+                                    :model-value="isEnabled(item)"
+                                    :aria-label="`Show ${item.name} to your organization`"
+                                    @update:model-value="
+                                        (enabled: boolean) =>
+                                            setEnabled(item, enabled)
+                                    "
+                                />
+                            </label>
+                        </div>
+                        <p
+                            class="mt-1.5 line-clamp-2 min-h-10 text-sm leading-5 text-gray-600 dark:text-gray-400"
+                            :class="{ 'opacity-50': !isEnabled(item) }"
+                        >
+                            {{ item.description }}
+                        </p>
 
-                                <template #actions>
-                                    <button
-                                        type="button"
-                                        @click.stop="handleShow(item.id)"
-                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
-                                        title="Edit template"
-                                    >
-                                        <Edit2 class="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                        v-if="canCreate"
-                                        type="button"
-                                        @click.stop="handleCopy(item.id)"
-                                        :class="FLAT_ACTION_BUTTON_VISIBLE"
-                                        title="Duplicate template"
-                                    >
-                                        <Copy class="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                        v-if="item.can_edit"
-                                        type="button"
-                                        @click.stop="
-                                            openModal({
-                                                id: item.id,
-                                                name: item.name,
-                                            })
-                                        "
-                                        class="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
-                                        title="Delete template"
-                                    >
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                    </button>
-                                </template>
-                            </FlatRow>
-                        </template>
-                    </ResourceList>
+                        <div
+                            class="mt-auto flex items-center justify-end gap-1.5 pt-4 md:pt-2"
+                        >
+                            <span
+                                v-if="isSuperAdmin && item.organization_id"
+                                class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300"
+                                >Org</span
+                            >
+                            <span
+                                v-if="isSuperAdmin"
+                                class="rounded-full bg-projector-primary-100 px-2.5 py-0.5 text-xs font-medium text-projector-primary-700 dark:bg-projector-primary-900/40 dark:text-projector-primary-200"
+                                >{{ typeLabel(item.type) }}</span
+                            >
+                            <button
+                                type="button"
+                                class="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
+                                :title="
+                                    item.can_edit
+                                        ? 'Edit template'
+                                        : 'View Transformation'
+                                "
+                                :aria-label="
+                                    item.can_edit
+                                        ? 'Edit template'
+                                        : 'View Transformation'
+                                "
+                                @click.stop="handleShow(item.id)"
+                            >
+                                <Edit2 v-if="item.can_edit" class="h-4 w-4" />
+                                <Search v-else class="h-4 w-4" />
+                            </button>
+                            <button
+                                v-if="canCreate"
+                                type="button"
+                                class="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
+                                title="Duplicate template"
+                                @click.stop="handleCopy(item.id)"
+                            >
+                                <Copy class="h-4 w-4" />
+                            </button>
+                            <button
+                                v-if="item.can_edit"
+                                type="button"
+                                class="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/30"
+                                title="Delete template"
+                                @click.stop="
+                                    openModal({
+                                        id: String(item.id),
+                                        name: item.name,
+                                    })
+                                "
+                            >
+                                <Trash2 class="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

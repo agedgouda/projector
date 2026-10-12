@@ -229,6 +229,8 @@ Route::middleware(['auth'])->group(function () {
             ->parameters(['transformation-library' => 'aiTemplate']);
         Route::post('/transformation-library/{aiTemplate}/duplicate', [AiTemplateController::class, 'duplicate'])
             ->name('transformation-library.duplicate');
+        Route::put('/transformation-library/{aiTemplate}/availability', [AiTemplateController::class, 'updateAvailability'])
+            ->name('transformation-library.availability');
         Route::post('/transformation-library/generate-prompts', [AiTemplateController::class, 'generatePrompts'])
             ->middleware('throttle:20,1')
             ->name('transformation-library.generate-prompts');

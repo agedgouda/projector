@@ -20,7 +20,7 @@ it('seeds each new category, in order, with keywords', function (string $categor
 })->with([
     'tasks & events' => ['Tasks & Events', 13],
     'documents' => ['Documents', 5],
-    'transformations' => ['Transformations', 5],
+    'transformations' => ['Transformations', 6],
     'status meetings' => ['Status Meetings', 3],
     'dashboard & help' => ['Dashboard & Help', 2],
     'organization settings' => ['Organization Settings', 5],

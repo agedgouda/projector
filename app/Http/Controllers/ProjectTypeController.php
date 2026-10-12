@@ -31,7 +31,7 @@ class ProjectTypeController extends Controller
 
         return inertia('ProjectTypes/Index', [
             'projectTypes' => $query->get(),
-            'aiTemplates' => AiTemplate::select('id', 'name')->get(),
+            'aiTemplates' => $this->stepTemplateOptions(),
             'organizations' => $user->hasRole('super-admin')
                 ? Organization::orderBy('name')->get(['id', 'name'])
                 : [],
@@ -50,7 +50,7 @@ class ProjectTypeController extends Controller
 
         return inertia('ProjectTypes/Show', [
             'template' => $template,
-            'aiTemplates' => AiTemplate::select('id', 'name')->orderBy('name')->get(),
+            'aiTemplates' => $this->stepTemplateOptions(),
             'organizations' => $user->hasRole('super-admin')
                 ? Organization::orderBy('name')->get(['id', 'name'])
                 : [],
@@ -65,7 +65,7 @@ class ProjectTypeController extends Controller
 
         return inertia('ProjectTypes/Show', [
             'projectType' => $projectType->load('lifecycleSteps'),
-            'aiTemplates' => AiTemplate::select('id', 'name')->orderBy('name')->get(),
+            'aiTemplates' => $this->stepTemplateOptions(),
             'organizations' => $user->hasRole('super-admin')
                 ? Organization::orderBy('name')->get(['id', 'name'])
                 : [],
@@ -141,6 +141,38 @@ class ProjectTypeController extends Controller
         }
 
         return to_route('project-types.edit', $copy->id)->with('success', 'Protocol duplicated.');
+    }
+
+    /**
+     * The transformations a protocol step can use: global ones plus the viewer's own
+     * organization's — a super-admin, who can set up a protocol for any organization, gets every
+     * organization's, which the form narrows to the one the protocol belongs to. Each lists the
+     * organizations that turned it off, so the form can hide it from new picks there.
+     *
+     * @return list<array{id: int, name: string, organization_id: string|null, disabled_organization_ids: list<string>}>
+     */
+    private function stepTemplateOptions(): array
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        $isSuperAdmin = $user->hasRole('super-admin');
+        $orgId = getPermissionsTeamId();
+        $orgId = is_string($orgId) ? $orgId : null;
+
+        return array_values(AiTemplate::query()
+            ->when(! $isSuperAdmin, fn ($query) => $query->availableToOrganization($orgId))
+            ->with(['disabledForOrganizations' => fn ($query) => $query
+                ->when(! $isSuperAdmin, fn ($query) => $query->whereKey($orgId))
+                ->select('organizations.id')])
+            ->orderBy('name')
+            ->get(['id', 'name', 'organization_id'])
+            ->map(fn (AiTemplate $template) => [
+                'id' => $template->id,
+                'name' => $template->name,
+                'organization_id' => $template->organization_id,
+                'disabled_organization_ids' => array_values($template->disabledForOrganizations->map(fn (Organization $organization) => $organization->id)->all()),
+            ])
+            ->all());
     }
 
     /**

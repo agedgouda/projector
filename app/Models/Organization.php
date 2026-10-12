@@ -357,6 +357,17 @@ class Organization extends Model implements HasMedia
         return $this->belongsToMany(User::class)->withPivot('role')->withTimestamps();
     }
 
+    /**
+     * Transformations this organization has turned off in its Transformation Library (see
+     * AiTemplate::scopeEnabledForOrganization()).
+     *
+     * @return BelongsToMany<AiTemplate, $this>
+     */
+    public function disabledAiTemplates(): BelongsToMany
+    {
+        return $this->belongsToMany(AiTemplate::class, 'organization_disabled_ai_templates')->withTimestamps();
+    }
+
     public function clients(): HasMany
     {
         return $this->hasMany(Client::class);
