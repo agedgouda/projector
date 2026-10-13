@@ -33,6 +33,10 @@ class PruneUnapprovedRecordings extends Command
                     ->orWhere('metadata->audio_status', '!=', 'approved');
             })
             ->where('created_at', '<', now()->subDays($retentionDays))
+            // Audio that never became a transcript (transcription failed, or never ran) is the
+            // only copy of that meeting, so it's kept until it does.
+            ->whereNotNull('content')
+            ->where('content', '!=', '')
             ->whereHas('media', fn ($query) => $query->where('collection_name', 'recording'))
             ->get();
 

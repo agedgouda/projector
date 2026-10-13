@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import * as tus from 'tus-js-client';
 import { router } from '@inertiajs/vue3';
-import { AlertTriangle, Mic, Square } from 'lucide-vue-next';
+import { AlertTriangle, Download, Mic, RotateCcw, Square } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { BANNER_PRIORITY, useGlobalProcessingBanner } from '@/composables/useGlobalProcessingBanner';
 import tusRoutes from '@/routes/projects/browser-recordings/tus';
@@ -14,7 +14,7 @@ const props = defineProps<{
     canManage: boolean;
 }>();
 
-type Phase = 'idle' | 'requesting-permission' | 'recording' | 'uploading' | 'error';
+type Phase = 'idle' | 'requesting-permission' | 'recording' | 'uploading' | 'error' | 'save-failed';
 
 // getDisplayMedia audio capture is Chromium-only in practice (Safari doesn't reliably expose
 // an audio track, older browsers don't have the API at all) — checked once up front so the
@@ -34,6 +34,10 @@ let mediaRecorder: MediaRecorder | null = null;
 // finished tus upload URL once tus-js-client's own automatic retry/resume gets it there. Built
 // with input order preserved regardless of completion order (see stopCapture()'s Promise.all).
 let chunkUploads: Promise<string>[] = [];
+// The recorded audio itself, one Blob per interval, kept in memory until the recording is
+// saved — so a chunk whose upload failed can be sent again, and a recording the server can't
+// be reached for can still be downloaded instead of lost.
+let recordedBlobs: Blob[] = [];
 let recordedAt: string | null = null;
 // captureStream carries the video track getDisplayMedia forces on us (stopped immediately,
 // never recorded); audioStream is the video-free stream actually fed to MediaRecorder.
@@ -86,6 +90,9 @@ const formattedElapsed = computed(() => {
     const s = (elapsedSeconds.value % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
 });
+
+// Waits between automatic retries of Stop when the connection drops or the server errors.
+const FINISH_RETRY_DELAYS_MS = [1_000, 3_000, 8_000];
 
 const pickMimeType = (): string | undefined => {
     if (typeof MediaRecorder === 'undefined') return undefined;
@@ -176,13 +183,17 @@ const startCapture = async () => {
     audioTracks[0].onended = () => stopCapture();
 
     chunkUploads = [];
+    recordedBlobs = [];
     recordedAt = new Date().toISOString();
     const mimeType = pickMimeType();
     mediaRecorder = mimeType ? new MediaRecorder(audioStream, { mimeType }) : new MediaRecorder(audioStream);
 
     let chunkIndex = 0;
     mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunkUploads.push(uploadChunk(event.data, chunkIndex++));
+        if (event.data.size > 0) {
+            recordedBlobs.push(event.data);
+            chunkUploads.push(uploadChunk(event.data, chunkIndex++));
+        }
     };
 
     mediaRecorder.onstop = () => {
@@ -202,62 +213,110 @@ const stopCapture = () => {
     mediaRecorder?.stop();
 };
 
+const chunkIdFromUrl = (url: string): string => url.split('/').pop() ?? '';
+
+// Every chunk's upload id in recording order. A chunk whose upload gave up mid-recording gets
+// one more try from the copy still in memory; if that fails too, this throws and Try Again
+// picks up from there (chunks that already made it are never re-sent).
+const collectChunkIds = async (): Promise<string[]> => {
+    const results = await Promise.allSettled(chunkUploads);
+    const ids: string[] = [];
+
+    for (const [index, result] of results.entries()) {
+        if (result.status === 'rejected') {
+            chunkUploads[index] = uploadChunk(recordedBlobs[index], index);
+        }
+        ids.push(chunkIdFromUrl(await chunkUploads[index]));
+    }
+
+    return ids;
+};
+
+// Stop, sent as a JSON body: a long recording's chunk list is far too big for a request
+// header, which is what made recordings over about half an hour fail. Retried on a dropped
+// connection or a server error — safe, since the server hands back the same recording if an
+// earlier attempt actually got through.
+const sendFinish = async (ids: string[]): Promise<Response> => {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            const response = await fetch(tusRoutes.finish({ project: props.projectId }).url, {
+                method: 'POST',
+                headers: {
+                    ...csrfHeader(),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ upload_ids: ids }),
+            });
+
+            if (response.status < 500 || attempt >= FINISH_RETRY_DELAYS_MS.length) return response;
+        } catch (error) {
+            if (attempt >= FINISH_RETRY_DELAYS_MS.length) throw error;
+        }
+
+        await new Promise(resolve => window.setTimeout(resolve, FINISH_RETRY_DELAYS_MS[attempt]));
+    }
+};
+
+const SAVE_FAILED_MESSAGE = "We couldn't finish saving this recording, but your audio is safe. Try again, or download a copy to keep.";
+
 const finalize = async () => {
     phase.value = 'uploading';
+    errorMessage.value = '';
+
+    if (recordedBlobs.length === 0) {
+        unguardUnload();
+        phase.value = 'error';
+        errorMessage.value = 'No audio was captured. Please try again.';
+        return;
+    }
 
     try {
-        // Preserves recording order regardless of which chunk's upload happened to finish
-        // first — Promise.all resolves in input-array order, not completion order.
-        const partialUrls = await Promise.all(chunkUploads);
-        unguardUnload();
-
-        if (partialUrls.length === 0) {
-            phase.value = 'error';
-            errorMessage.value = 'No audio was captured. Please try again.';
-            return;
-        }
-
-        const response = await fetch(tusRoutes.create({ project: props.projectId }).url, {
-            method: 'POST',
-            headers: {
-                ...csrfHeader(),
-                'Tus-Resumable': '1.0.0',
-                'Upload-Concat': `final;${partialUrls.join(' ')}`,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        });
+        const response = await sendFinish(await collectChunkIds());
 
         // Fetch-native counterparts of sessionExpiry.ts's axios-based helpers, which expect an
-        // AxiosResponse/AxiosError shape this raw fetch call doesn't produce.
-        if (response.status === 401 || response.status === 419) {
-            goToLogin();
-            return;
-        }
+        // AxiosResponse/AxiosError shape this raw fetch call doesn't produce. The audio is still
+        // in memory and already on the server, so signing back in doesn't lose it.
         const contentType = response.headers.get('content-type');
-        if (typeof contentType === 'string' && !contentType.includes('application/json')) {
+        if (response.status === 401 || response.status === 419 || (response.ok && !contentType?.includes('application/json'))) {
+            unguardUnload();
             goToLogin();
             return;
         }
 
-        if (!response.ok) {
-            const body = await response.json().catch(() => null);
-            throw new Error(body?.message ?? 'Failed to finish uploading the recording.');
+        const body = await response.json().catch(() => null);
+
+        if (!response.ok || !body?.recording) {
+            phase.value = 'save-failed';
+            errorMessage.value = body?.message ? `${body.message} Your audio is safe. Try again, or download a copy to keep.` : SAVE_FAILED_MESSAGE;
+            return;
         }
 
-        const body = await response.json();
+        unguardUnload();
 
         // Same as every other transcript source (Google Doc, file, provider-imported
         // recording) — never leave the user on the raw transcript, go straight to the
-        // Meeting Notes document it's about to generate (see RecordingIntakeService::store()
-        // and summarize()). Falls back to the transcript itself only when no single-output
+        // Meeting Notes document it's about to generate (see RecordingIntakeService::
+        // startRecording()). Falls back to the transcript itself only when no single-output
         // template is configured, matching IntakeImportService::import()'s own fallback.
         const targetId = body.recording.notes_id ?? body.recording.id;
         router.visit(projectDocumentsRoutes.show({ project: props.projectId, document: targetId }).url);
-    } catch (error) {
-        unguardUnload();
-        phase.value = 'error';
-        errorMessage.value = error instanceof Error ? error.message : 'Failed to upload the recording. Please try again.';
+    } catch {
+        phase.value = 'save-failed';
+        errorMessage.value = SAVE_FAILED_MESSAGE;
     }
+};
+
+const downloadRecording = () => {
+    const type = recordedBlobs[0]?.type || 'audio/webm';
+    const extension = type.includes('mp4') ? 'm4a' : type.includes('wav') ? 'wav' : 'webm';
+    const url = URL.createObjectURL(new Blob(recordedBlobs, { type }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `recording-${(recordedAt ?? new Date().toISOString()).slice(0, 16).replace(/[:T]/g, '-')}.${extension}`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
 const reset = () => {
@@ -284,7 +343,8 @@ onBeforeUnmount(() => {
             Share this browser tab (or, on Windows, your whole screen) while a call is running, and it's transcribed
             automatically once you stop. On a Mac this only works for calls running in a browser tab — not a native
             desktop app like Zoom or Slack. Audio uploads continuously as you record, so a dropped connection or a
-            closed tab only risks the last few seconds, not the whole meeting.
+            closed tab only risks the last few seconds — if the tab closes before you stop, what was recorded is saved
+            as a "Recovered recording" within a couple of hours.
         </p>
 
         <p v-if="isUnsupported" class="mt-4 text-sm text-slate-500 dark:text-slate-400">
@@ -314,6 +374,26 @@ onBeforeUnmount(() => {
                 <div class="flex items-center gap-2">
                     <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
                     <span class="text-lg font-black tabular-nums text-slate-900 dark:text-white">{{ formattedElapsed }}</span>
+                </div>
+            </div>
+
+            <div v-else-if="phase === 'save-failed'" class="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/20">
+                <AlertTriangle class="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+                <div>
+                    <p class="text-sm text-amber-700 dark:text-amber-400">{{ errorMessage }}</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <Button
+                            class="h-9 rounded-xl bg-projector-primary-600 px-4 font-bold text-white hover:bg-projector-primary-700"
+                            @click="finalize"
+                        >
+                            <RotateCcw class="mr-2 h-4 w-4" />
+                            Try Again
+                        </Button>
+                        <Button variant="outline" class="h-9 rounded-xl px-4 font-bold" @click="downloadRecording">
+                            <Download class="mr-2 h-4 w-4" />
+                            Download Audio
+                        </Button>
+                    </div>
                 </div>
             </div>
 

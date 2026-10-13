@@ -38,17 +38,6 @@ class RecordingIntakeService
         return $this->finalize($project, $audio, $audio->getSize() !== false ? $audio->getSize() : 0, $name, $recordedAt, $source);
     }
 
-    /**
-     * Same intake as store() above, for a file that's already sitting on disk rather than
-     * arriving as a single HTTP upload — used by TusUploadController once a browser-captured
-     * recording's chunks have been concatenated into one file. $sizeBytes is passed in rather
-     * than re-stat'd here because the caller (the TusUpload rows) already knows it exactly.
-     */
-    public function storeFromPath(Project $project, string $path, int $sizeBytes, ?string $name = null, ?string $recordedAt = null, string $source = 'browser_capture'): Document
-    {
-        return $this->finalize($project, $path, $sizeBytes, $name, $recordedAt, $source);
-    }
-
     private function finalize(Project $project, UploadedFile|string $audio, int $sizeBytes, ?string $name, ?string $recordedAt, string $source): Document
     {
         // Everything below is one transaction so a media-attachment failure (oversized file,
@@ -56,17 +45,7 @@ class RecordingIntakeService
         // created instead of leaving a permanently empty, unrecoverable intake document behind
         // — that used to happen silently, with nothing surfaced to the user at all.
         $document = DB::transaction(function () use ($project, $audio, $sizeBytes, $name, $recordedAt, $source) {
-            $document = $project->documents()->create([
-                'type' => config('workflow.intake_key'),
-                'name' => $name ?? 'Recording — '.now()->format('m/d/Y g:ia'),
-                'content' => '',
-                'processed_at' => now(),
-                'metadata' => [
-                    'recording_source' => $source,
-                    'audio_status' => 'pending',
-                    'recorded_at' => $recordedAt,
-                ],
-            ]);
+            $document = $this->createIntakeDocument($project, $name, $recordedAt, $source);
 
             try {
                 // Spatie accepts either an UploadedFile or a plain path string here; for a
@@ -110,6 +89,49 @@ class RecordingIntakeService
         TranscribeRecording::dispatch($document);
 
         return $document;
+    }
+
+    /**
+     * The browser-capture half of finalize() below, split in two so a finished recording is
+     * saved as a document the moment the user clicks Stop — before its chunks are assembled
+     * into one audio file, which happens afterwards in AssembleBrowserRecording. Nothing about
+     * assembling the audio can then lose the recording itself.
+     */
+    public function startRecording(Project $project, ?string $name, ?string $recordedAt, string $source = 'browser_capture'): Document
+    {
+        return DB::transaction(function () use ($project, $name, $recordedAt, $source) {
+            $document = $this->createIntakeDocument($project, $name, $recordedAt, $source);
+            $this->finalizer->finalize($project, $document);
+
+            return $document;
+        });
+    }
+
+    /**
+     * Attaches an assembled recording to a document made by startRecording() and starts
+     * transcribing it. Media-library rejections are left to the caller, which still holds
+     * the original chunks and decides whether to retry.
+     */
+    public function attachAudio(Document $document, string $path): void
+    {
+        $document->addMedia($path)->toMediaCollection('recording');
+
+        TranscribeRecording::dispatch($document);
+    }
+
+    private function createIntakeDocument(Project $project, ?string $name, ?string $recordedAt, string $source): Document
+    {
+        return $project->documents()->create([
+            'type' => config('workflow.intake_key'),
+            'name' => $name ?? 'Recording — '.now()->format('m/d/Y g:ia'),
+            'content' => '',
+            'processed_at' => now(),
+            'metadata' => [
+                'recording_source' => $source,
+                'audio_status' => 'pending',
+                'recorded_at' => $recordedAt,
+            ],
+        ]);
     }
 
     /**

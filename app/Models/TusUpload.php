@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,12 +30,14 @@ class TusUpload extends Model
         'id',
         'project_id',
         'creator_id',
+        'document_id',
         'kind',
         'upload_length',
         'upload_offset',
         'storage_path',
         'metadata',
         'completed_at',
+        'claimed_at',
     ];
 
     /**
@@ -45,21 +48,66 @@ class TusUpload extends Model
         return [
             'metadata' => 'array',
             'completed_at' => 'datetime',
+            'claimed_at' => 'datetime',
         ];
     }
 
+    /**
+     * @return BelongsTo<Project, $this>
+     */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<Document, $this>
+     */
+    public function document(): BelongsTo
+    {
+        return $this->belongsTo(Document::class);
+    }
+
     public function isComplete(): bool
     {
         return $this->completed_at !== null;
+    }
+
+    /**
+     * Where this chunk falls in its recording, from the "chunk-{n}.webm" filename the browser
+     * gives each one (see BrowserAudioCapture.vue) — null for anything not named that way,
+     * which then just sorts by upload time instead.
+     */
+    public function chunkIndex(): ?int
+    {
+        $filename = $this->metadata['filename'] ?? null;
+
+        return is_string($filename) && preg_match('/^chunk-(\d+)\./', $filename, $matches) === 1
+            ? (int) $matches[1]
+            : null;
+    }
+
+    /**
+     * Chunks in recording order — chunk number first, upload time as the tiebreak.
+     *
+     * @param  Collection<int, TusUpload>  $uploads
+     * @return Collection<int, TusUpload>
+     */
+    public static function inRecordingOrder(Collection $uploads): Collection
+    {
+        return $uploads
+            ->sortBy([
+                fn (TusUpload $a, TusUpload $b): int => ($a->chunkIndex() ?? PHP_INT_MAX) <=> ($b->chunkIndex() ?? PHP_INT_MAX),
+                fn (TusUpload $a, TusUpload $b): int => ($a->created_at?->getTimestamp() ?? 0) <=> ($b->created_at?->getTimestamp() ?? 0),
+            ])
+            ->values();
     }
 }

@@ -493,6 +493,9 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/browser-recordings/tus', [TusUploadController::class, 'create'])
                 ->middleware('throttle:120,1')
                 ->name('browser-recordings.tus.create');
+            Route::post('/browser-recordings/tus/finish', [TusUploadController::class, 'finish'])
+                ->middleware('throttle:120,1')
+                ->name('browser-recordings.tus.finish');
             Route::options('/browser-recordings/tus', [TusUploadController::class, 'options'])
                 ->name('browser-recordings.tus.options');
             Route::match(['head'], '/browser-recordings/tus/{upload}', [TusUploadController::class, 'head'])

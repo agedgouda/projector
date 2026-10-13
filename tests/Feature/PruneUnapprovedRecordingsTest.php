@@ -99,3 +99,15 @@ it('ignores documents that are not mobile or browser recordings', function () {
 
     expect($notARecording->fresh()->getFirstMedia('recording'))->not->toBeNull();
 });
+
+it('keeps audio that never became a transcript, however old', function () {
+    $untranscribed = createRecordingWithAudio(
+        ['recording_source' => 'browser_capture', 'audio_status' => 'pending', 'transcription_error' => 'Transcription failed.'],
+        now()->subDays(40)
+    );
+    $untranscribed->update(['content' => '']);
+
+    $this->artisan('app:prune-unapproved-recordings')->assertSuccessful();
+
+    expect($untranscribed->fresh()->getFirstMedia('recording'))->not->toBeNull();
+});

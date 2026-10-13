@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FinishBrowserRecordingRequest;
+use App\Jobs\AssembleBrowserRecording;
 use App\Models\Document;
 use App\Models\Project;
 use App\Models\TusUpload;
@@ -10,6 +12,7 @@ use App\Services\RecordingIntakeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -26,11 +29,9 @@ use Illuminate\Support\Str;
  * Shape: a browser capture is many small "partial" uploads, one per MediaRecorder interval,
  * each with a known size the moment it's produced — no need for tus's "deferred length"
  * extension at all. Each is uploaded with tus-js-client, which gives real retry/resume for
- * free. The moment the user stops recording, one "final" creation request concatenates all the
- * partials (Upload-Concat: final;<url1> <url2> ...) — handled synchronously here, since
- * stitching together a handful of small files is cheap — and hands the result straight to
- * RecordingIntakeService::storeFromPath(), the same intake the mobile/API single-shot uploads
- * already use.
+ * free. When the user stops recording, finish() saves the recording as a document right away
+ * and AssembleBrowserRecording joins the chunks into one audio file in the background, feeding
+ * the same transcription the mobile/API single-shot uploads use.
  */
 class TusUploadController extends Controller
 {
@@ -157,82 +158,84 @@ class TusUploadController extends Controller
     }
 
     /**
-     * "final;<url1> <url2> ..." — concatenates the referenced (already-complete) partial
-     * uploads, in the given order, into one file and immediately runs it through the normal
-     * recording intake. Deliberately returns a JSON `recording` body (not the empty body /
-     * Location header a tus response normally carries) — nothing downstream ever needs to
-     * HEAD/PATCH this "final" resource again, and our own frontend is the only client of this
-     * particular request, so it reads the resulting document straight from this response
-     * instead of a second round trip.
+     * Stop: the browser sends the ids of every chunk it uploaded, in the request body — a long
+     * recording's list is far too big for a header (see createFinal()).
+     */
+    public function finish(FinishBrowserRecordingRequest $request, Project $project): JsonResponse
+    {
+        return $this->finishRecording($project, $request->uploadIds());
+    }
+
+    /**
+     * The original tus-style Stop ("Upload-Concat: final;<url1> <url2> ..."), kept only for a
+     * tab still running the previous version of the page. Past roughly 30 minutes of audio the
+     * header outgrows what the production web server accepts and the request is dropped, which
+     * is why the page now calls finish() instead.
      */
     private function createFinal(Project $project, string $concatHeader): JsonResponse
     {
         $urls = array_values(array_filter(explode(' ', trim(substr($concatHeader, strlen('final;'))))));
         abort_if($urls === [], 400, 'Upload-Concat: final must reference at least one partial upload.');
 
-        $ids = array_map(fn (string $url): string => basename((string) parse_url($url, PHP_URL_PATH)), $urls);
+        return $this->finishRecording(
+            $project,
+            array_map(fn (string $url): string => basename((string) parse_url($url, PHP_URL_PATH)), $urls),
+        );
+    }
 
-        $partialsById = TusUpload::whereIn('id', $ids)
+    /**
+     * Saves the recording as a document straight away and claims its chunks for it, then
+     * leaves assembling the audio to AssembleBrowserRecording — the chunks stay on disk until
+     * that succeeds, so nothing after this point can lose the recording. Asking again with
+     * chunks that are already claimed (a retried Stop whose first attempt actually got
+     * through) returns the same document instead of making a second one.
+     *
+     * @param  list<string>  $ids
+     */
+    private function finishRecording(Project $project, array $ids): JsonResponse
+    {
+        $chunks = TusUpload::whereIn('id', $ids)
             ->where('project_id', $project->id)
             ->where('kind', 'partial')
-            ->get()
-            ->keyBy('id');
+            ->get();
 
-        // Client-given order, not the DB's — order is what makes this a coherent recording
-        // rather than shuffled audio. Built as a plain array (not a Collection) so a found,
-        // complete partial is provably non-null below without an inline type override.
-        $orderedPartials = [];
-        foreach ($ids as $id) {
-            $partial = $partialsById->get($id);
-            abort_if(
-                $partial === null || ! $partial->isComplete(),
-                400,
-                'One or more referenced chunks were not found or are not finished uploading.'
+        $claimedDocument = $chunks->first(fn (TusUpload $chunk): bool => $chunk->document_id !== null)?->document;
+
+        if ($claimedDocument !== null) {
+            return $this->finishedResponse($claimedDocument);
+        }
+
+        $complete = TusUpload::inRecordingOrder($chunks->filter(fn (TusUpload $chunk): bool => $chunk->isComplete()));
+        abort_if($complete->isEmpty(), 400, 'None of this recording\'s chunks finished uploading.');
+
+        $metadata = $complete->first()->metadata ?? [];
+
+        $document = DB::transaction(function () use ($project, $complete, $metadata): Document {
+            $document = $this->recordings->startRecording(
+                $project,
+                is_string($metadata['name'] ?? null) ? $metadata['name'] : null,
+                is_string($metadata['recorded_at'] ?? null) ? $metadata['recorded_at'] : null,
             );
-            $orderedPartials[] = $partial;
-        }
 
-        $metadata = $orderedPartials[0]->metadata ?? [];
-        $finalPath = 'tus-uploads/'.(string) Str::orderedUuid().'.final';
-        $absoluteFinalPath = Storage::disk('local')->path($finalPath);
+            TusUpload::whereIn('id', $complete->pluck('id'))->update([
+                'document_id' => $document->id,
+                'claimed_at' => now(),
+            ]);
 
-        $out = fopen($absoluteFinalPath, 'wb');
-        abort_if($out === false, 500, 'Could not create the assembled recording file.');
+            return $document;
+        });
 
-        $totalBytes = 0;
-        foreach ($orderedPartials as $partial) {
-            $in = fopen(Storage::disk('local')->path($partial->storage_path), 'rb');
-            abort_if($in === false, 500, 'Could not read an uploaded chunk.');
+        AssembleBrowserRecording::dispatch($document);
 
-            stream_copy_to_stream($in, $out);
-            fclose($in);
-            $totalBytes += $partial->upload_length;
-        }
-        fclose($out);
+        return $this->finishedResponse($document);
+    }
 
-        $document = $this->recordings->storeFromPath(
-            $project,
-            $absoluteFinalPath,
-            $totalBytes,
-            is_string($metadata['name'] ?? null) ? $metadata['name'] : null,
-            is_string($metadata['recorded_at'] ?? null) ? $metadata['recorded_at'] : null,
-            'browser_capture',
-        );
-
-        // addMedia() (inside storeFromPath) already consumed and deleted the concatenated
-        // final file as part of attaching it to the Document — only the now-redundant partial
-        // chunks and their rows need cleaning up here.
-        foreach ($orderedPartials as $partial) {
-            Storage::disk('local')->delete($partial->storage_path);
-        }
-        TusUpload::whereIn('id', $ids)->delete();
-
+    private function finishedResponse(Document $document): JsonResponse
+    {
         // Same "Importing "{title}"…" toast every other import source shows on landing —
-        // storeFromPath() above already ran the child-creation decision via
-        // DocumentImportFinalizer, so only its message wording is needed here, not a second
-        // finalize() call. Flashed now (not returned in the JSON body) because the frontend's
-        // very next request is the router.visit() navigation to the target document, which is
-        // what actually reads this out of the session.
+        // flashed now (not returned in the JSON body) because the frontend's very next request
+        // is the router.visit() to the target document, which is what reads it out of the
+        // session.
         session()->flash('success', $this->finalizer->messageFor($document));
 
         return response()->json([
