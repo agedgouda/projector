@@ -182,8 +182,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/organizations/{organization}/users', [OrganizationController::class, 'addUser'])
         ->name('organizations.users.store');
 
-    Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');
-
     // Must be reachable regardless of role — by the time this runs, the session's current
     // user is the impersonated target (not the admin who started it), not necessarily a
     // super-admin.
@@ -513,6 +511,7 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
+Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 

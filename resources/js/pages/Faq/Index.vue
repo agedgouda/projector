@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import AppLayout from '@/layouts/AppLayout.vue';
+import PublicLayout from '@/layouts/PublicLayout.vue';
 import { FLAT_ACTION_BUTTON } from '@/lib/flat-ui';
 import bugReportsRoutes from '@/routes/bug-reports/index';
 import faqRoutes from '@/routes/faq/index';
@@ -54,6 +54,9 @@ const page = usePage<AppPageProps>();
 const isSuperAdmin = computed(
     () => page.props.auth.user?.roles?.includes('super-admin') ?? false,
 );
+
+// Logged out, PublicLayout has no sidebar and sets the width itself, so the in-app cap is dropped.
+const isAuthenticated = computed(() => !!page.props.auth.user);
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'FAQ', href: '/faq' }];
 
@@ -269,9 +272,12 @@ const submitAdd = () => {
 <template>
     <Head title="FAQ" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <PublicLayout :breadcrumbs="breadcrumbs" wide>
         <div
-            class="mr-[max(0px,calc((100%-72rem)/2))] w-auto space-y-12 px-6 pt-6 pb-16"
+            :class="[
+                'w-auto space-y-12 px-6 pt-6 pb-16',
+                { 'mr-[max(0px,calc((100%-72rem)/2))]': isAuthenticated },
+            ]"
         >
             <!-- Help-center layout: centered title and search, then categories beside their questions. -->
             <div class="relative space-y-6 pt-6 text-center">
@@ -443,7 +449,7 @@ const submitAdd = () => {
                         >
                             <component
                                 :is="group.icon"
-                                class="h-5 w-5 text-gray-500 dark:text-gray-400"
+                                class="h-5 w-5 text-projector-primary-600 dark:text-projector-primary-400"
                             />
                             {{ group.name }}
                         </h2>
@@ -458,11 +464,11 @@ const submitAdd = () => {
                                     group.sections.length > 1 ||
                                     group.name !== category
                                 "
-                                class="flex items-center gap-2 px-4 pt-2 text-[11px] font-black tracking-widest text-gray-400 uppercase dark:text-gray-500"
+                                class="flex items-center gap-2 px-4 pt-4 text-[13px] font-black tracking-wider text-projector-primary-600 uppercase dark:text-projector-primary-400"
                             >
                                 <component
                                     :is="iconFor(category)"
-                                    class="h-3.5 w-3.5"
+                                    class="h-4 w-4 text-projector-primary-600 dark:text-projector-primary-400"
                                 />
                                 {{ category }}
                             </h3>
@@ -634,5 +640,5 @@ const submitAdd = () => {
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </PublicLayout>
 </template>

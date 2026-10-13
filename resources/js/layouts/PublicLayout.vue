@@ -7,6 +7,8 @@ import { type BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     breadcrumbs?: BreadcrumbItem[];
+    /** For pages that bring their own side padding and need more room than an article (the FAQ). */
+    wide?: boolean;
 }>();
 
 const page = usePage<{ auth: { user: unknown } }>();
@@ -20,7 +22,7 @@ const isAuthenticated = computed(() => !!page.props.auth?.user);
 
     <div v-else class="min-h-screen bg-[#FDFDFC] dark:bg-slate-950">
         <header class="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <div class="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
+            <div :class="['mx-auto px-6 py-4 flex items-center justify-between', props.wide ? 'max-w-screen-2xl' : 'max-w-5xl']">
                 <Link href="/" class="flex items-center gap-2 text-slate-900 dark:text-white">
                     <AppLogoIcon class="h-7 w-7 text-projector-primary-600" />
                     <span class="font-black tracking-tighter text-sm uppercase">{{ $page.props.name }}</span>
@@ -33,7 +35,7 @@ const isAuthenticated = computed(() => !!page.props.auth?.user);
                 </Link>
             </div>
         </header>
-        <main class="mx-auto max-w-5xl px-6 py-8">
+        <main :class="['mx-auto', props.wide ? 'max-w-screen-2xl' : 'max-w-5xl px-6 py-8']">
             <slot />
         </main>
     </div>
