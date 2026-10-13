@@ -10,6 +10,9 @@ import { toast } from 'vue-sonner';
 import CommentSection from '@/components/comments/CommentSection.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
+import RecordingProblemPanel, {
+    type RecordingProblem,
+} from '@/components/recordings/RecordingProblemPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { mergeMentionableUsers } from '@/lib/assignees';
 import DocumentContent from './Partials/DocumentContent.vue';
@@ -41,6 +44,7 @@ const props = defineProps<{
     item: ExtendedDocument;
     documentTypeCatalog?: DocumentSchemaItem[];
     boardOptions?: BoardOption[];
+    recordingProblem?: RecordingProblem | null;
 }>();
 
 /* ---------------------------
@@ -310,6 +314,12 @@ watch(
             </template>
 
             <template #content>
+                <RecordingProblemPanel
+                    v-if="recordingProblem"
+                    :project-id="project.id"
+                    :problem="recordingProblem"
+                />
+
                 <DocumentContent
                     :item="item"
                     :project="project"

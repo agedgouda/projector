@@ -106,4 +106,19 @@ class DocumentPolicy
     {
         return ! $document->project->inactive && $this->canAccessProject($user, $document->project);
     }
+
+    /**
+     * Retrying a recording's transcription and downloading its audio — the same people who
+     * can capture and import recordings in the first place (org admins and project leads).
+     */
+    public function recoverRecording(User $user, Document $document): bool
+    {
+        $project = $document->project;
+        $organization = $project?->client?->organization;
+
+        return $project !== null
+            && ! $project->inactive
+            && $organization !== null
+            && $this->isOrgAdminOrProjectLead($user, $organization);
+    }
 }

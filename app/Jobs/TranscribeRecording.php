@@ -52,6 +52,13 @@ class TranscribeRecording implements ShouldQueue
         }
 
         $this->document->refresh();
+
+        // Another run (e.g. one started from the Try Again button while this one was still
+        // polling) already got the transcript — nothing left to do.
+        if (trim((string) $this->document->content) !== '') {
+            return;
+        }
+
         $metadata = $this->document->metadata ?? [];
         $transcriptId = $metadata['transcription_id'] ?? null;
 

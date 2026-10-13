@@ -7,7 +7,7 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 it('seeds the Transcripts & Meeting Notes FAQ entries, in order, with keywords', function () {
     $faqs = Faq::where('category', 'Transcripts & Meeting Notes')->orderBy('order')->get();
 
-    expect($faqs)->toHaveCount(5);
+    expect($faqs)->toHaveCount(6);
 
     foreach ($faqs as $faq) {
         expect($faq->question)->not()->toBeEmpty()
@@ -32,4 +32,15 @@ it('explains both the Add and Replace options for Additional Information', funct
     expect($faq->answer)
         ->toContain('Add to the standard instructions')
         ->toContain('Replace the standard instructions');
+});
+
+it('explains what to do when a recording doesn\'t get transcribed, as the last transcript question', function () {
+    $faqs = Faq::where('category', 'Transcripts & Meeting Notes')->orderBy('order')->get();
+
+    expect($faqs->last()->question)->toBe('What if a recording doesn\'t get transcribed?')
+        ->and($faqs->last()->answer)
+        ->toContain('Try Again')
+        ->toContain('Download Audio')
+        ->toContain('Recovered recording')
+        ->toContain('Org Admins and Project Leads');
 });

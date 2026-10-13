@@ -13,6 +13,7 @@ use App\Rules\ValidKanbanColumn;
 use App\Rules\ValidPredecessor;
 use App\Services\Google\GoogleExportService;
 use App\Services\Logging\RecordSaveLogger;
+use App\Services\RecordingRecoveryService;
 use App\Services\Tasks\TaskChainScheduler;
 use App\Services\VectorService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -100,7 +101,7 @@ class DocumentController extends Controller
     /**
      * Display the specified document.
      */
-    public function show(Project $project, Document $document)
+    public function show(Project $project, Document $document, RecordingRecoveryService $recovery)
     {
         Gate::authorize('view', $project);
 
@@ -118,7 +119,13 @@ class DocumentController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $recording = $recovery->recordingFor($document);
+
         return inertia('Documents/Show', [
+            // Only for the people who can act on it — everyone else just sees the page as usual.
+            'recordingProblem' => $recording !== null && Gate::allows('recoverRecording', $recording)
+                ? $recovery->problemFor($recording)
+                : null,
             'project' => $project->load(['client.organization.users', 'client.organization.invitations', 'kanbanColumns', 'categories', 'parent.categories'])->withResolvedFamilyCategories(),
             'documentTypeCatalog' => $project->documentTypeCatalog()->values(),
             'boardOptions' => $boardOptions,

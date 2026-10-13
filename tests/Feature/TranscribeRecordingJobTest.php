@@ -147,3 +147,16 @@ it('gives up immediately when there is no recording audio to transcribe', functi
 
     expect($document->fresh()->metadata['transcription_error'])->toBe('No recording audio found to transcribe.');
 });
+
+it('does nothing when another run already got the transcript', function () {
+    $document = createPlaceholderRecording();
+    $document->update(['content' => 'Already transcribed.']);
+
+    $driver = Mockery::mock(TranscriptionDriver::class);
+    $driver->shouldNotReceive('submit');
+    $driver->shouldNotReceive('poll');
+
+    (new TranscribeRecording($document))->handle($driver);
+
+    expect($document->fresh()->content)->toBe('Already transcribed.');
+});

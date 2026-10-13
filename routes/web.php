@@ -31,6 +31,7 @@ use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectLogoController;
 use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\RecordingCaptureController;
+use App\Http\Controllers\RecordingRecoveryController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
@@ -381,6 +382,11 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/documents/{document}/reprocess', [DocumentController::class, 'reprocess'])
                 ->middleware('throttle:10,1')
                 ->name('documents.reprocess');
+            Route::post('/documents/{document}/recording/retry', [RecordingRecoveryController::class, 'retry'])
+                ->middleware('throttle:10,1')
+                ->name('documents.recording.retry');
+            Route::get('/documents/{document}/recording/download', [RecordingRecoveryController::class, 'download'])
+                ->name('documents.recording.download');
             Route::post('/documents/{document}/transition', [DocumentController::class, 'transition'])
                 ->middleware('throttle:10,1')
                 ->name('documents.transition');

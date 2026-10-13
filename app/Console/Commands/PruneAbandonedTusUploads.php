@@ -39,7 +39,8 @@ class PruneAbandonedTusUploads extends Command
      *
      * @var string
      */
-    protected $signature = 'app:prune-abandoned-tus-uploads';
+    protected $signature = 'app:prune-abandoned-tus-uploads
+        {--now : Recover unstopped recordings straight away instead of waiting until they have been idle for two hours (only when nothing is being recorded)}';
 
     /**
      * The console command description.
@@ -78,7 +79,7 @@ class PruneAbandonedTusUploads extends Command
             ]));
 
         $recovered = 0;
-        $idleSince = now()->subHours(self::RECOVER_AFTER_IDLE_HOURS);
+        $idleSince = $this->option('now') ? now() : now()->subHours(self::RECOVER_AFTER_IDLE_HOURS);
 
         foreach ($groups as $group) {
             $lastActivity = $group->max(fn (TusUpload $chunk): int => $chunk->updated_at?->getTimestamp() ?? 0);

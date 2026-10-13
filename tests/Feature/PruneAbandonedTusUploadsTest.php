@@ -119,6 +119,20 @@ it('leaves a recording that is still running alone', function () {
     Queue::assertNothingPushed();
 });
 
+it('recovers a recently stopped-sending recording straight away with --now', function () {
+    $seed = createTusUpload(now()->subHours(3));
+    $project = $seed->project;
+    $user = $seed->creator;
+    $seed->delete();
+
+    createCompleteChunk(now()->subMinutes(5), 0, $project, $user);
+
+    $this->artisan('app:prune-abandoned-tus-uploads', ['--now' => true])->assertSuccessful();
+
+    expect(Document::where('metadata->recording_source', 'browser_capture')->count())->toBe(1);
+    Queue::assertPushed(AssembleBrowserRecording::class);
+});
+
 it('retries a saved recording whose audio never got attached', function () {
     $seed = createTusUpload(now()->subHours(3));
     $document = $seed->project->documents()->create(['type' => 'transcript', 'name' => 'Recording', 'content' => '']);

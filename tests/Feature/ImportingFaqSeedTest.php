@@ -46,3 +46,13 @@ it('lists Importing, then Transcripts & Meeting Notes, after Projects and before
 
     expect($categoryOrder)->toBe(['User Management', 'Your Account', 'Projects', 'Importing', 'Transcripts & Meeting Notes', 'Reports', 'Tasks & Events', 'Documents', 'Transformations', 'Status Meetings', 'Dashboard & Help', 'Organization Settings', 'Slack', 'Dropbox']);
 });
+
+it('tells people how to cancel a Needs Review import', function () {
+    $faq = Faq::where('question', 'What is the "Needs Review" list on the Import page?')->firstOrFail();
+
+    expect($faq->answer)
+        ->toContain('"Review & Import"')
+        ->toContain('"Cancel Import"')
+        ->not->toContain('dismiss it')
+        ->and($faq->keywords)->toContain('cancel import');
+});

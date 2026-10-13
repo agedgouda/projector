@@ -160,9 +160,12 @@ const handleImported = () => {
 // — now only ever sent once the confirm modal below is accepted.
 const pendingDismiss = ref<PendingImport | null>(null);
 const isDismissing = ref(false);
+// Kept after the modal closes so its title doesn't flash "undefined" while it fades out.
+const pendingDismissFilename = ref('');
 
 const confirmDismissPendingImport = (item: PendingImport) => {
     pendingDismiss.value = item;
+    pendingDismissFilename.value = item.original_filename;
 };
 
 const cancelDismissPendingImport = () => {
@@ -176,7 +179,7 @@ const executeDismissPendingImport = async () => {
     isDismissing.value = true;
     try {
         await removePendingImport(item.id, true);
-        toast.success(`Dismissed "${item.original_filename}".`);
+        toast.success(`Canceled importing "${item.original_filename}".`);
         pendingDismiss.value = null;
     } finally {
         isDismissing.value = false;
@@ -227,52 +230,51 @@ const executeDismissPendingImport = async () => {
                             'flex min-w-0 items-center gap-3 rounded-md border border-amber-200 bg-amber-50/50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-950/20',
                         ]"
                     >
-                        <button
-                            type="button"
-                            :disabled="reviewLoading === item.id"
-                            class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-50"
-                            @click="openPendingImport(item)"
-                        >
-                            <div class="min-w-0">
-                                <p
-                                    class="truncate text-sm font-bold text-slate-900 dark:text-slate-100"
+                        <div class="min-w-0 flex-1">
+                            <p
+                                class="truncate text-sm font-bold text-slate-900 dark:text-slate-100"
+                            >
+                                {{ item.original_filename }}
+                            </p>
+                            <p class="truncate text-xs text-gray-500">
+                                {{ item.project_name }} — via
+                                {{
+                                    item.source.charAt(0).toUpperCase() +
+                                    item.source.slice(1)
+                                }}
+                                <template v-if="item.uploaded_by">
+                                    — uploaded by
+                                    {{ item.uploaded_by }}</template
                                 >
-                                    {{ item.original_filename }}
-                                </p>
-                                <p class="truncate text-xs text-gray-500">
-                                    {{ item.project_name }} — via
-                                    {{
-                                        item.source.charAt(0).toUpperCase() +
-                                        item.source.slice(1)
-                                    }}
-                                    <template v-if="item.uploaded_by">
-                                        — uploaded by
-                                        {{ item.uploaded_by }}</template
-                                    >
-                                </p>
-                                <p
-                                    v-if="item.note"
-                                    class="truncate text-xs text-amber-700 dark:text-amber-500"
-                                >
-                                    {{ item.note }}
-                                </p>
-                                <p class="text-xs text-gray-400">
-                                    {{
-                                        reviewLoading === item.id
-                                            ? 'Loading…'
-                                            : 'Click to review and import'
-                                    }}
-                                </p>
-                            </div>
-                        </button>
-                        <button
-                            type="button"
-                            class="shrink-0 rounded p-1 text-gray-400 hover:bg-amber-100 hover:text-gray-600 dark:hover:bg-amber-900/40"
-                            title="Dismiss without importing"
-                            @click="confirmDismissPendingImport(item)"
-                        >
-                            <X class="h-3.5 w-3.5" />
-                        </button>
+                            </p>
+                            <p
+                                v-if="item.note"
+                                class="truncate text-xs text-amber-700 dark:text-amber-500"
+                            >
+                                {{ item.note }}
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 flex-wrap justify-end gap-2">
+                            <Button
+                                size="sm"
+                                :disabled="reviewLoading === item.id"
+                                @click="openPendingImport(item)"
+                            >
+                                {{
+                                    reviewLoading === item.id
+                                        ? 'Loading…'
+                                        : 'Review & Import'
+                                }}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                @click="confirmDismissPendingImport(item)"
+                            >
+                                <X class="h-3.5 w-3.5" />
+                                Cancel Import
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -406,10 +408,11 @@ const executeDismissPendingImport = async () => {
 
         <ConfirmDeleteModal
             :open="!!pendingDismiss"
-            :title="`Dismiss &quot;${pendingDismiss?.original_filename}&quot;?`"
+            :title="`Cancel importing &quot;${pendingDismissFilename}&quot;?`"
             description="This discards the file without importing it — it can't be undone, and whoever uploaded it will be notified."
             :loading="isDismissing"
-            confirm-label="Dismiss"
+            confirm-label="Cancel Import"
+            cancel-label="Keep File"
             @close="cancelDismissPendingImport"
             @confirm="executeDismissPendingImport"
         />
