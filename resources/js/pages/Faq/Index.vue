@@ -445,7 +445,7 @@ const submitAdd = () => {
                         class="space-y-6"
                     >
                         <h2
-                            class="flex items-center gap-3 text-xl font-semibold tracking-tight text-gray-900 dark:text-white"
+                            class="flex items-center gap-3 text-xl font-semibold tracking-tight text-projector-primary-600 dark:text-projector-primary-400"
                         >
                             <component
                                 :is="group.icon"
@@ -464,11 +464,11 @@ const submitAdd = () => {
                                     group.sections.length > 1 ||
                                     group.name !== category
                                 "
-                                class="flex items-center gap-2 px-4 pt-4 text-[13px] font-black tracking-wider text-projector-primary-600 uppercase dark:text-projector-primary-400"
+                                class="flex items-center gap-2 px-4 pt-4 text-[13px] font-black tracking-wider text-gray-600 uppercase dark:text-gray-300"
                             >
                                 <component
                                     :is="iconFor(category)"
-                                    class="h-4 w-4 text-projector-primary-600 dark:text-projector-primary-400"
+                                    class="h-4 w-4"
                                 />
                                 {{ category }}
                             </h3>
@@ -561,7 +561,7 @@ const submitAdd = () => {
                                         @click="toggle(faq.id)"
                                     >
                                         <span
-                                            class="text-[15px] font-medium text-gray-900 dark:text-gray-100"
+                                            class="text-[15px] font-semibold text-gray-950 dark:text-white"
                                             >{{ faq.question }}</span
                                         >
                                         <div
