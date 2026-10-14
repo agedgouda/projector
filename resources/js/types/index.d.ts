@@ -502,7 +502,6 @@ declare global {
     > = T & {
         auth: Auth;
         name: string;
-        quote: { message: string; author: string };
         sidebarOpen: boolean;
         currentOrganization?: Organization | null;
         requirementStatus: RequirementStatus[];

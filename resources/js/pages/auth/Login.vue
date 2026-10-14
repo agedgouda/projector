@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AuthBase from '@/layouts/AuthLayout.vue';
+import AuthBase from '@/layouts/auth/AuthBrandLayout.vue';
 import { register } from '@/routes';
 import { request } from '@/routes/password';
 import { Head } from '@inertiajs/vue3';
