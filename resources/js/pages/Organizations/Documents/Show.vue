@@ -10,7 +10,7 @@ import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
 import DOMPurify from 'dompurify';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';
 import statusMeetingsRoutes from '@/routes/status-meetings/index';
-import { type BreadcrumbItem, type Recording } from '@/types';
+import { type BreadcrumbItem } from '@/types';
 
 interface OrgDocument {
     id: string;

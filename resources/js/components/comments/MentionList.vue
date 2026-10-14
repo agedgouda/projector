@@ -4,7 +4,7 @@ import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED } from '@/lib/flat-ui';
 
 const props = defineProps<{
     items: { id: number | string; name: string; first_name: string; last_name: string }[];
-    command: (item: { id: number | string; name: string }) => void;
+    command: (item: { id: number | string; label: string }) => void;
 }>();
 
 const selectedIndex = ref(0);

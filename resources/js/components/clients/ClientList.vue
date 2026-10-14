@@ -18,7 +18,6 @@ import UpgradeModal from '@/components/UpgradeModal.vue';
 import FlatRow from '@/components/FlatRow.vue';
 import IconTile from '@/components/IconTile.vue';
 import { FLAT_ACTION_BUTTON_VISIBLE } from '@/lib/flat-ui';
-import type { AppPageProps } from '@/types';
 
 const props = defineProps<{
     clients: Client[];

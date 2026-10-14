@@ -41,6 +41,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 </h1>
             </div>
 
+            <!-- @vue-expect-error The page's meeting_config_form omits the write-only secret fields that OrganizationForm's type requires. -->
             <OrganizationForm
                 :organization="props.organization"
                 @cancel="router.visit(organizationRoutes.index.url())"

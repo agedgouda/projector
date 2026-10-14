@@ -68,6 +68,23 @@ beforeEach(function () {
     $this->actingAs($this->user)->withSession(['active_org_id' => $this->org->id]);
 });
 
+it('answers the OPTIONS preflight with the server\'s tus capabilities', function () {
+    $response = $this->call('OPTIONS', route('projects.browser-recordings.tus.preflight', $this->project));
+
+    $response->assertNoContent();
+    $response->assertHeader('Tus-Resumable', '1.0.0');
+    $response->assertHeader('Tus-Version', '1.0.0');
+    $response->assertHeader('Tus-Extension', 'creation,concatenation');
+});
+
+it('refuses the OPTIONS preflight to a user who cannot add documents to the project', function () {
+    $outsider = User::factory()->withoutTwoFactor()->create();
+
+    $response = $this->actingAs($outsider)->call('OPTIONS', route('projects.browser-recordings.tus.preflight', $this->project));
+
+    $response->assertNotFound();
+});
+
 it('creates a partial upload and reports its offset via HEAD', function () {
     $response = $this->post(route('projects.browser-recordings.tus.create', $this->project), [], [
         'Upload-Length' => '11',

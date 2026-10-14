@@ -21,7 +21,7 @@ import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import UserList from '@/components/users/UserList.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import organizationRoutes from '@/routes/organizations/index';
-import type { AppPageProps, BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertTriangle,

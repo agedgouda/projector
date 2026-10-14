@@ -150,8 +150,6 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         if (isProcessingLive.value && !ids.has(String(item.id))) {
             router.reload({
                 only: ['item'],
-                preserveScroll: true,
-                preserveState: true,
             });
         }
     });
@@ -318,6 +316,7 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         }
     };
 
+    // @ts-expect-error external_due_at is deliberately left out so a save never overwrites a client due date set elsewhere.
     const form = useForm<DocumentFields & { tab?: string }>({
         id: String(item.id),
         name: item.name,

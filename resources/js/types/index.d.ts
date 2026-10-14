@@ -40,6 +40,7 @@ declare global {
         contact_phone: string | null;
         email: string | null;
         industry: string | null;
+        inactive: boolean;
         logo_url?: string | null;
         users?: User[];
         organization: Organization;

@@ -8,7 +8,7 @@ interface Props {
 
 defineProps<Props>();
 
-const isOpen = usePage().props.sidebarOpen;
+const isOpen = usePage<AppPageProps>().props.sidebarOpen;
 </script>
 
 <template>

@@ -13,9 +13,8 @@ import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import UpgradeModal from '@/components/UpgradeModal.vue';
 import { toast } from 'vue-sonner';
 import { usePage } from '@inertiajs/vue3';
-import type { AppPageProps } from '@/types';
 
-const props = defineProps<{
+defineProps<{
     clients: Client[];
     initialName?: string;
     triggerLabel?: string;

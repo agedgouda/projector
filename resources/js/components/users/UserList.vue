@@ -8,7 +8,6 @@ import { addUser } from '@/actions/App/Http/Controllers/OrganizationController';
 import UserInfo from '@/components/UserInfo.vue';
 import UpgradeModal from '@/components/UpgradeModal.vue';
 import { FLAT_ROW_HOVER, FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
-import type { AppPageProps } from '@/types';
 
 const PER_PAGE = 8;
 const ROW_HEIGHT_REM = 2.25; // h-9

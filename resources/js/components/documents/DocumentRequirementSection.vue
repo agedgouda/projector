@@ -20,8 +20,8 @@ const emit = defineEmits<{
     (e: 'reprocessing', id: string): void;
 }>();
 
-const handleMiddleReprocess = (payload: string): void => {
-    emit('reprocessing', payload);
+const handleMiddleReprocess = (payload: string | number): void => {
+    emit('reprocessing', String(payload));
 };
 
 

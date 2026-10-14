@@ -259,6 +259,7 @@ watch(
                                         />
                                     </InputOTPGroup>
                                 </InputOTP>
+                                <!-- @vue-expect-error Fortify's named error bag arrives nested at runtime, but Inertia types errors as flat strings. -->
                                 <InputError
                                     :message="
                                         errors?.confirmTwoFactorAuthentication

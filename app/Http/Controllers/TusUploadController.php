@@ -42,7 +42,7 @@ class TusUploadController extends Controller
         private readonly DocumentImportFinalizer $finalizer,
     ) {}
 
-    public function options(Project $project): Response
+    public function preflight(Project $project): Response
     {
         Gate::authorize('create', [Document::class, $project]);
 
