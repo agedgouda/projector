@@ -69,12 +69,8 @@ const resetTurnstile = (): void => {
         <Head title="Register" />
 
         <template #aside>
-            <h1 class="text-4xl leading-tight font-bold tracking-tight text-foreground xl:text-[2.75rem]">
-                Built For You
-            </h1>
-
             <p class="text-sm leading-relaxed text-muted-foreground">
-                Let <strong class="font-bold text-projector-primary-500">Projector</strong> handle the busywork
+                Set Up Your <strong class="font-bold text-projector-primary-500">Projector</strong>
             </p>
 
             <ul class="flex flex-col gap-3 text-sm text-muted-foreground">

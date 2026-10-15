@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import AppLogo from '@/components/AppLogo.vue';
 import { home } from '@/routes';
 import { Link } from '@inertiajs/vue3';
 
@@ -10,19 +10,24 @@ defineProps<{
 </script>
 
 <template>
-    <div class="grid min-h-svh lg:grid-cols-[1fr_3fr]">
-        <div class="relative flex flex-col bg-[#f8f6f3] px-6 py-6 dark:bg-zinc-900 lg:px-10">
-            <Link :href="home()" class="flex items-center gap-2.5 self-start">
-                <AppLogoIcon class="size-8" />
-                <span class="text-base font-bold tracking-wide text-foreground uppercase">Projector</span>
-            </Link>
-
-            <div v-if="$slots.aside" class="mx-auto hidden w-full max-w-md flex-1 flex-col justify-center gap-6 py-12 lg:flex">
-                <slot name="aside" />
+    <!-- On wide screens the middle row holds both the card and the aside, so their tops line up
+         while the two equal outer rows keep the card vertically centred. -->
+    <div
+        class="grid min-h-svh grid-rows-[auto_1fr] bg-[#efedea] dark:bg-zinc-950 lg:grid-cols-[16rem_1fr] lg:grid-rows-[minmax(4rem,1fr)_auto_minmax(2.5rem,1fr)]"
+    >
+        <div class="bg-[#f8f6f3] dark:bg-zinc-900 lg:col-start-1 lg:row-span-3 lg:row-start-1">
+            <div class="p-2 pl-4">
+                <Link :href="home()" class="flex h-12 items-center gap-2 p-2 text-sm text-foreground">
+                    <AppLogo />
+                </Link>
             </div>
         </div>
 
-        <div class="flex items-center justify-center bg-[#efedea] px-4 py-10 dark:bg-zinc-950">
+        <div v-if="$slots.aside" class="hidden flex-col gap-6 self-start px-6 lg:col-start-1 lg:row-start-2 lg:flex">
+            <slot name="aside" />
+        </div>
+
+        <div class="flex items-center justify-center px-4 py-10 lg:col-start-2 lg:row-start-2 lg:py-0">
             <div class="w-full max-w-sm rounded-xl bg-white p-7 shadow-lg dark:bg-zinc-900">
                 <div v-if="title || description" class="mb-6 flex flex-col gap-1 text-center">
                     <h2 v-if="title" class="text-xl font-semibold text-foreground">{{ title }}</h2>
