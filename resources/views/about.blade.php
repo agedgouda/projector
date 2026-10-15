@@ -49,7 +49,8 @@
 
     <p>
         Full details on what data is collected and how it's used, including the Google integration,
-        are in the <a href="/privacy">Privacy Policy</a>.
+        are in the <a href="/privacy">Privacy Policy</a>. Use of the service is governed by the
+        <a href="/terms">Terms of Service</a>.
     </p>
 </body>
 </html>

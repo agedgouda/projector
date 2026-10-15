@@ -148,7 +148,7 @@ it('requires accepting the privacy policy to register through an invitation', fu
         'password' => 'password',
         'password_confirmation' => 'password',
         'invitation_token' => $this->invitation->token,
-    ])->assertSessionHasErrors(['privacy_policy' => 'You must accept the Privacy Policy to create an account.']);
+    ])->assertSessionHasErrors(['privacy_policy' => 'You must accept the Terms of Service and Privacy Policy to create an account.']);
 
     $this->assertGuest();
     expect(User::where('email', 'jane@example.com')->exists())->toBeFalse();
@@ -167,6 +167,8 @@ it('records when the privacy policy was accepted on invitation registration', fu
         'invitation_token' => $this->invitation->token,
     ]);
 
-    expect(User::where('email', 'jane@example.com')->sole()->privacy_policy_accepted_at?->toDateTimeString())
-        ->toBe(now()->toDateTimeString());
+    $user = User::where('email', 'jane@example.com')->sole();
+
+    expect($user->privacy_policy_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString())
+        ->and($user->terms_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString());
 });

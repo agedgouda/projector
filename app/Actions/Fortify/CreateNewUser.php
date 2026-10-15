@@ -61,7 +61,7 @@ class CreateNewUser implements CreatesNewUsers
             'cf-turnstile-response' => $turnstileRules,
             'privacy_policy' => ['accepted'],
         ], [
-            'privacy_policy.accepted' => 'You must accept the Privacy Policy to create an account.',
+            'privacy_policy.accepted' => 'You must accept the Terms of Service and Privacy Policy to create an account.',
         ])->validate();
 
         return User::create([
@@ -70,6 +70,7 @@ class CreateNewUser implements CreatesNewUsers
             'email' => $input['email'],
             'password' => $input['password'], // Password is automatically hashed by the User model or Fortify
             'privacy_policy_accepted_at' => now(),
+            'terms_accepted_at' => now(),
         ]);
     }
 

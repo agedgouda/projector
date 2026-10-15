@@ -34,7 +34,8 @@ test('registration records when the privacy policy was accepted', function () {
         'privacy_policy' => '1',
     ]);
 
-    expect(\App\Models\User::sole()->privacy_policy_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString());
+    expect(\App\Models\User::sole()->privacy_policy_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString())
+        ->and(\App\Models\User::sole()->terms_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString());
 });
 
 test('registration requires accepting the privacy policy', function (array $consent) {
@@ -45,7 +46,7 @@ test('registration requires accepting the privacy policy', function (array $cons
         'password' => 'password',
         'password_confirmation' => 'password',
         ...$consent,
-    ])->assertSessionHasErrors(['privacy_policy' => 'You must accept the Privacy Policy to create an account.']);
+    ])->assertSessionHasErrors(['privacy_policy' => 'You must accept the Terms of Service and Privacy Policy to create an account.']);
 
     $this->assertGuest();
     expect(\App\Models\User::count())->toBe(0);

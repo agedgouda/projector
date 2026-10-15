@@ -52,7 +52,7 @@ class OrganizationRegistrationController extends Controller
             'invitation_token' => ['required', 'string'],
             'privacy_policy' => ['accepted'],
         ], [
-            'privacy_policy.accepted' => 'You must accept the Privacy Policy to create an account.',
+            'privacy_policy.accepted' => 'You must accept the Terms of Service and Privacy Policy to create an account.',
         ]);
 
         $invitation = $this->validateInvitationToken($organization, $validated['invitation_token'], $validated['email']);
@@ -71,6 +71,7 @@ class OrganizationRegistrationController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'privacy_policy_accepted_at' => now(),
+            'terms_accepted_at' => now(),
         ]);
 
         Auth::login($user);

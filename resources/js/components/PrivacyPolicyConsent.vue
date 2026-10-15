@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import { Checkbox } from '@/components/ui/checkbox';
-import { privacy } from '@/routes';
+import { privacy, terms } from '@/routes';
 
 defineProps<{
     error?: string;
@@ -15,6 +15,8 @@ defineProps<{
             <Checkbox id="privacy_policy" name="privacy_policy" value="1" required :tabindex="tabindex" class="mt-0.5" />
             <span>
                 I agree to the
+                <a :href="terms.url()" target="_blank" rel="noopener" class="text-foreground underline underline-offset-4">Terms of Service</a>
+                and
                 <a :href="privacy.url()" target="_blank" rel="noopener" class="text-foreground underline underline-offset-4">Privacy Policy</a>
             </span>
         </label>

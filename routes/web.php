@@ -519,6 +519,7 @@ Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 // compliance crawler doesn't execute JavaScript, so an Inertia page (real content only inside
 // a JSON blob, hydrated client-side) reads as empty to it.
 Route::view('/privacy', 'privacy')->name('privacy');
+Route::view('/terms', 'terms')->name('terms');
 Route::view('/about', 'about')->name('about');
 
 /**

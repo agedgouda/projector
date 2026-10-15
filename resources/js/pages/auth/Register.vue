@@ -77,7 +77,7 @@ const resetTurnstile = (): void => {
             <ul class="flex flex-col gap-3 text-sm text-muted-foreground">
                 <li class="flex gap-2.5">
                     <Check class="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span><strong class="font-semibold text-foreground">Free 14-day trial</strong> — No credit card required.</span>
+                    <span><strong class="font-semibold text-foreground">Free 6-week trial</strong> — No credit card required.</span>
                 </li>
                 <li class="flex gap-2.5">
                     <Check class="mt-0.5 size-4 shrink-0 text-primary" />

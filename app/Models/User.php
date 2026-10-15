@@ -36,6 +36,7 @@ class User extends Authenticatable
         'password',
         'timezone',
         'privacy_policy_accepted_at',
+        'terms_accepted_at',
     ];
 
     /**
@@ -64,6 +65,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'privacy_policy_accepted_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
         ];
     }
 
