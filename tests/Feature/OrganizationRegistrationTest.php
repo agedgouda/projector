@@ -50,6 +50,7 @@ it('creates a new user and adds them to the organization', function () {
         'email' => 'jane@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $this->invitation->token,
     ])->assertRedirect();
 
@@ -69,6 +70,7 @@ it('does not create an account or join the organization without an invitation', 
         'email' => 'stranger@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
     ])->assertSessionHasErrors(['invitation_token']);
 
     $this->assertGuest();
@@ -89,6 +91,7 @@ it('never signs in to an existing account, even with a valid invitation for its 
         'email' => 'jane@example.com',
         'password' => 'attacker-password',
         'password_confirmation' => 'attacker-password',
+        'privacy_policy' => '1',
         'invitation_token' => $this->invitation->token,
     ])->assertRedirect(route('organization.login', ['organization' => $this->org->id, 'invitation' => $this->invitation->token]));
 
@@ -108,6 +111,7 @@ it('rejects an invitation token for a different email address', function () {
         'email' => 'someone-else@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $this->invitation->token,
     ])->assertSessionHasErrors(['email']);
 
@@ -131,6 +135,38 @@ it('validates password confirmation', function () {
         'email' => 'jane@example.com',
         'password' => 'password',
         'password_confirmation' => 'different',
+        'privacy_policy' => '1',
         'invitation_token' => $this->invitation->token,
     ])->assertSessionHasErrors(['password']);
+});
+
+it('requires accepting the privacy policy to register through an invitation', function () {
+    $this->post(route('organization.register.store', $this->org), [
+        'first_name' => 'Jane',
+        'last_name' => 'Doe',
+        'email' => 'jane@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'invitation_token' => $this->invitation->token,
+    ])->assertSessionHasErrors(['privacy_policy' => 'You must accept the Privacy Policy to create an account.']);
+
+    $this->assertGuest();
+    expect(User::where('email', 'jane@example.com')->exists())->toBeFalse();
+});
+
+it('records when the privacy policy was accepted on invitation registration', function () {
+    $this->freezeTime();
+
+    $this->post(route('organization.register.store', $this->org), [
+        'first_name' => 'Jane',
+        'last_name' => 'Doe',
+        'email' => 'jane@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'privacy_policy' => '1',
+        'invitation_token' => $this->invitation->token,
+    ]);
+
+    expect(User::where('email', 'jane@example.com')->sole()->privacy_policy_accepted_at?->toDateTimeString())
+        ->toBe(now()->toDateTimeString());
 });

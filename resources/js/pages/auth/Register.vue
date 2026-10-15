@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import PrivacyPolicyConsent from '@/components/PrivacyPolicyConsent.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -218,11 +219,13 @@ const resetTurnstile = (): void => {
                     <InputError :message="errors['cf-turnstile-response']" />
                 </div>
 
+                <PrivacyPolicyConsent :error="errors.privacy_policy" :tabindex="6" />
+
                 <div class="flex flex-col gap-2">
                     <Button
                         type="submit"
                         class="w-full cursor-pointer text-xs font-semibold tracking-wide uppercase"
-                        :tabindex="6"
+                        :tabindex="7"
                         :disabled="processing"
                         data-test="register-user-button"
                     >
@@ -240,7 +243,7 @@ const resetTurnstile = (): void => {
                 <TextLink
                     :href="login()"
                     class="underline underline-offset-4 cursor-pointer"
-                    :tabindex="7"
+                    :tabindex="8"
                     >Log in</TextLink
                 >
             </div>

@@ -68,7 +68,11 @@ return [
     ],
 
     'gemini' => [
-        'key' => env('GEMINI_API_KEY'),
+        // Deliberately not read from the environment: there is no shared Gemini key. Gemini is
+        // only available to an organization that supplies its own key (see OrganizationRequest),
+        // which Organization::applyDriverConfig() sets here at runtime. A shared key would be on
+        // Google's unpaid tier, whose terms let Google train on and human-review submitted content.
+        'key' => null,
         'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
         'embed_model' => env('GEMINI_EMBED_MODEL', 'text-embedding-004'),
     ],

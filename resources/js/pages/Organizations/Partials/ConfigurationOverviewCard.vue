@@ -234,8 +234,11 @@ const llmUsesApiKey = computed(() =>
     ['openai', 'gemini', 'claude'].includes(llmDriverForm.llm_driver),
 );
 const llmUsesHost = computed(() => llmDriverForm.llm_driver === 'ollama');
+// A stored key only carries over while the driver stays the same — the server won't reuse,
+// say, a saved OpenAI key for Gemini (see OrganizationRequest::needsOwnGeminiKey()).
 const llmKeyPlaceholder = computed(() =>
-    props.organization.llm_config_form?.has_key
+    props.organization.llm_config_form?.has_key &&
+    llmDriverForm.llm_driver === props.organization.llm_driver
         ? 'Leave blank to keep existing key'
         : 'Enter API key',
 );
@@ -299,7 +302,8 @@ const vectorUsesHost = computed(
     () => vectorDriverForm.vector_driver === 'ollama',
 );
 const vectorKeyPlaceholder = computed(() =>
-    props.organization.vector_config_form?.has_key
+    props.organization.vector_config_form?.has_key &&
+    vectorDriverForm.vector_driver === props.organization.vector_driver
         ? 'Leave blank to keep existing key'
         : 'Enter API key',
 );
@@ -1356,7 +1360,20 @@ const meetingNeedsSetup = computed(() => {
                         autocomplete="off"
                         :placeholder="llmKeyPlaceholder"
                         class="h-10 font-mono text-sm"
+                        :class="{ 'border-red-500': llmDriverForm.errors['llm_config.key'] }"
                     />
+                    <p
+                        v-if="llmDriverForm.llm_driver === 'gemini'"
+                        class="px-1 text-[10px] text-gray-400"
+                    >
+                        Gemini requires your organization's own API key. Projector does not provide one.
+                    </p>
+                    <p
+                        v-if="llmDriverForm.errors['llm_config.key']"
+                        class="px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase"
+                    >
+                        {{ llmDriverForm.errors['llm_config.key'] }}
+                    </p>
                 </div>
                 <div v-if="llmUsesHost" class="grid gap-2">
                     <Label
@@ -1528,7 +1545,20 @@ const meetingNeedsSetup = computed(() => {
                         autocomplete="off"
                         :placeholder="vectorKeyPlaceholder"
                         class="h-10 font-mono text-sm"
+                        :class="{ 'border-red-500': vectorDriverForm.errors['vector_config.key'] }"
                     />
+                    <p
+                        v-if="vectorDriverForm.vector_driver === 'gemini'"
+                        class="px-1 text-[10px] text-gray-400"
+                    >
+                        Gemini requires your organization's own API key. Projector does not provide one.
+                    </p>
+                    <p
+                        v-if="vectorDriverForm.errors['vector_config.key']"
+                        class="px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase"
+                    >
+                        {{ vectorDriverForm.errors['vector_config.key'] }}
+                    </p>
                 </div>
                 <div v-if="vectorUsesHost" class="grid gap-2">
                     <Label

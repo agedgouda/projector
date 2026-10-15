@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import PrivacyPolicyConsent from '@/components/PrivacyPolicyConsent.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,10 +144,12 @@ const showPasswordConfirmation = ref(false);
                     <InputError :message="errors.password_confirmation" />
                 </div>
 
+                <PrivacyPolicyConsent :error="errors.privacy_policy" :tabindex="6" />
+
                 <Button
                     type="submit"
                     class="mt-2 w-full cursor-pointer"
-                    :tabindex="6"
+                    :tabindex="7"
                     :disabled="processing"
                 >
                     <Spinner v-if="processing" />
@@ -159,7 +162,7 @@ const showPasswordConfirmation = ref(false);
                 <TextLink
                     :href="organizationLogin(organization, { query: { invitation: invitationToken } }).url"
                     class="underline underline-offset-4 cursor-pointer"
-                    :tabindex="7"
+                    :tabindex="8"
                     >Log in</TextLink
                 >
             </div>

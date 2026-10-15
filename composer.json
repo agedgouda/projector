@@ -21,6 +21,7 @@
         "laravel/socialite": "^5.29",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
+        "matomo/device-detector": "^6.5",
         "pgvector/pgvector": "^0.2.2",
         "phpoffice/phpspreadsheet": "^5.9",
         "phpoffice/phpword": "^1.4",

@@ -6,6 +6,7 @@ use App\Models\Organization;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class OrganizationRequest extends FormRequest
 {
@@ -71,11 +72,11 @@ class OrganizationRequest extends FormRequest
             // Nested Config Validation
             'llm_config.model' => 'nullable|required_with:llm_driver|string',
             'llm_config.host' => 'nullable|string',
-            'llm_config.key' => 'nullable|string',
+            'llm_config.key' => [Rule::requiredIf(fn (): bool => $this->needsOwnGeminiKey('llm', $organization)), 'nullable', 'string'],
 
             'vector_config.model' => 'nullable|required_with:vector_driver|string',
             'vector_config.host' => 'nullable|string',
-            'vector_config.key' => 'nullable|string',
+            'vector_config.key' => [Rule::requiredIf(fn (): bool => $this->needsOwnGeminiKey('vector', $organization)), 'nullable', 'string'],
 
             // Meeting Provider
             'meeting_provider' => 'nullable|string|in:zoom,teams,google_meet,slack',
@@ -89,5 +90,35 @@ class OrganizationRequest extends FormRequest
             'meeting_config.private_key' => 'nullable|string',
             'meeting_config.bot_token' => 'nullable|string',
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'llm_config.key.required' => 'Google Gemini requires your own API key.',
+            'vector_config.key.required' => 'Google Gemini requires your own API key.',
+        ];
+    }
+
+    /**
+     * Gemini has no shared platform key (see config/services.php), so choosing it requires the
+     * organization's own key — either submitted now or already stored from an earlier save.
+     *
+     * @param  'llm'|'vector'  $type
+     */
+    private function needsOwnGeminiKey(string $type, mixed $organization): bool
+    {
+        if ($this->input("{$type}_driver") !== 'gemini') {
+            return false;
+        }
+
+        $storedConfig = $organization instanceof Organization && $organization->{"{$type}_driver"} === 'gemini'
+            ? $organization->{"{$type}_config"}
+            : null;
+
+        return ! filled($storedConfig['key'] ?? null);
     }
 }

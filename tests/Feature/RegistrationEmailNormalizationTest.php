@@ -12,6 +12,7 @@ function attemptRegistrationWithEmail(string $email): \Illuminate\Testing\TestRe
         'email' => $email,
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'privacy_policy' => '1',
     ]);
 }
 

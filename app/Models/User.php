@@ -35,6 +35,7 @@ class User extends Authenticatable
         'email',
         'password',
         'timezone',
+        'privacy_policy_accepted_at',
     ];
 
     /**
@@ -62,6 +63,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'privacy_policy_accepted_at' => 'datetime',
         ];
     }
 

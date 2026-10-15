@@ -86,9 +86,11 @@ const usesApiKey = computed(() =>
 
 const usesHost = computed(() => form.llm_driver === 'ollama');
 
+// A stored key only carries over while the driver stays the same — the server won't reuse,
+// say, a saved OpenAI key for Gemini (see OrganizationRequest::needsOwnGeminiKey()).
 const keyPlaceholder = computed(() => {
     if (!form.llm_driver) return '';
-    return props.organization?.llm_config_form?.has_key
+    return props.organization?.llm_config_form?.has_key && form.llm_driver === props.organization?.llm_driver
         ? 'Leave blank to keep existing key'
         : 'Enter API key';
 });
@@ -120,7 +122,7 @@ const vectorShowsConfig = computed(() =>
 
 const vectorKeyPlaceholder = computed(() => {
     if (!form.vector_driver) return '';
-    return props.organization?.vector_config_form?.has_key
+    return props.organization?.vector_config_form?.has_key && form.vector_driver === props.organization?.vector_driver
         ? 'Leave blank to keep existing key'
         : 'Enter API key';
 });
@@ -274,7 +276,14 @@ const submit = () => {
                             autocomplete="off"
                             :placeholder="keyPlaceholder"
                             class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                            :class="{ 'border-red-500': form.errors['llm_config.key'] }"
                         />
+                        <p v-if="form.llm_driver === 'gemini'" class="text-[10px] text-gray-400 px-1">
+                            Gemini requires your organization's own API key. Projector does not provide one.
+                        </p>
+                        <div v-if="form.errors['llm_config.key']" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+                            {{ form.errors['llm_config.key'] }}
+                        </div>
                     </div>
 
                     <!-- Host field (Ollama) -->
@@ -351,7 +360,14 @@ const submit = () => {
                             autocomplete="off"
                             :placeholder="vectorKeyPlaceholder"
                             class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                            :class="{ 'border-red-500': form.errors['vector_config.key'] }"
                         />
+                        <p v-if="form.vector_driver === 'gemini'" class="text-[10px] text-gray-400 px-1">
+                            Gemini requires your organization's own API key. Projector does not provide one.
+                        </p>
+                        <div v-if="form.errors['vector_config.key']" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+                            {{ form.errors['vector_config.key'] }}
+                        </div>
                     </div>
 
                     <!-- Host field (Ollama) -->

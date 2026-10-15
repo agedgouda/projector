@@ -82,3 +82,7 @@ it('applies ollama host and model to config', function () {
         ->and(config('services.ollama.host'))->toBe('http://my-ollama:11434')
         ->and(config('services.ollama.model'))->toBe('llama3');
 });
+
+it('has no shared gemini key even when GEMINI_API_KEY is set in the environment', function () {
+    expect(config('services.gemini.key'))->toBeNull();
+});

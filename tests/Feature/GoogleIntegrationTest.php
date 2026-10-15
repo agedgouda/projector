@@ -239,7 +239,7 @@ it('creates a google sheet with the filtered tasks when connected', function () 
             && str_contains($body, 'test-project-task-report')
             && str_contains($body, 'application/vnd.google-apps.spreadsheet')
             && str_contains($body, 'text/csv')
-            && str_contains($body, 'Status,"Due Date","Task Name",Assignee,Priority')
+            && str_contains($body, 'Name,Status,Assignee,"Due Date",Priority,Tags')
             && str_contains($body, 'Exportable Task');
     });
 });

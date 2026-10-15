@@ -59,6 +59,9 @@ class CreateNewUser implements CreatesNewUsers
             // field it finds trips this and fails validation like any other bad input.
             'website' => ['prohibited'],
             'cf-turnstile-response' => $turnstileRules,
+            'privacy_policy' => ['accepted'],
+        ], [
+            'privacy_policy.accepted' => 'You must accept the Privacy Policy to create an account.',
         ])->validate();
 
         return User::create([
@@ -66,6 +69,7 @@ class CreateNewUser implements CreatesNewUsers
             'last_name' => $input['last_name'],
             'email' => $input['email'],
             'password' => $input['password'], // Password is automatically hashed by the User model or Fortify
+            'privacy_policy_accepted_at' => now(),
         ]);
     }
 

@@ -12,6 +12,10 @@ use Spatie\Permission\Models\Role;
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
+    // Fixtures are pinned to September 2026, and the export drops months before the current one
+    // (see CalendarExportBuilder::items()), so the clock is pinned there too.
+    $this->travelTo('2026-09-15 12:00:00');
+
     setPermissionsTeamId(null);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
 

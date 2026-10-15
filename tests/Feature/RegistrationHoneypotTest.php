@@ -11,6 +11,7 @@ it('registers a new user normally when the honeypot field is left empty', functi
         'email' => 'jane@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'privacy_policy' => '1',
     ])->assertRedirect();
 
     expect(User::where('email', 'jane@example.com')->exists())->toBeTrue();
@@ -23,6 +24,7 @@ it('rejects registration when the hidden honeypot field is filled in, like a bot
         'email' => 'bot@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'privacy_policy' => '1',
         'website' => 'http://spam.example.com',
     ])->assertSessionHasErrors('website');
 

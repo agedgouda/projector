@@ -393,6 +393,7 @@ it('registers a user via an invitation token', function () {
         'email' => 'invited@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $invitation->token,
     ])->assertRedirect();
 
@@ -413,6 +414,7 @@ it('rejects registration with an invitation token for the wrong email', function
         'email' => 'someone-else@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $invitation->token,
     ])->assertSessionHasErrors('email');
 });
@@ -469,6 +471,7 @@ it('rejects an expired invitation token', function () {
         'email' => 'invited@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $invitation->token,
     ])->assertSessionHasErrors('email');
 });
@@ -569,6 +572,7 @@ it('assigns the invited role when a new user registers via invitation', function
         'email' => 'invited@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $invitation->token,
     ])->assertRedirect();
 
@@ -611,6 +615,7 @@ it('falls back to team-member when invitation has no role', function () {
         'email' => 'fallback@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $invitation->token,
     ])->assertRedirect();
 
@@ -673,6 +678,7 @@ it('transfers pending document assignment to real user on registration', functio
         'email' => 'newassignee@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $invitation->token,
     ])->assertRedirect();
 
@@ -725,6 +731,7 @@ it('clears pending assignment when an invitation is accepted even if expired via
         'email' => 'expiredassigned@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'privacy_policy' => '1',
         'invitation_token' => $invitation->token,
     ])->assertRedirect();
 

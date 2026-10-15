@@ -17,6 +17,7 @@ it('registers a user when Cloudflare confirms the Turnstile token', function () 
         'email' => 'jane@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'privacy_policy' => '1',
         'cf-turnstile-response' => 'valid-token',
     ])->assertRedirect();
 
@@ -35,6 +36,7 @@ it('rejects registration when Cloudflare rejects the Turnstile token', function 
         'email' => 'bot@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'privacy_policy' => '1',
         'cf-turnstile-response' => 'bad-token',
     ])->assertSessionHasErrors('cf-turnstile-response');
 
@@ -50,6 +52,7 @@ it('rejects registration when the Turnstile token is missing entirely', function
         'email' => 'bot2@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'privacy_policy' => '1',
     ])->assertSessionHasErrors('cf-turnstile-response');
 
     expect(User::where('email', 'bot2@example.com')->exists())->toBeFalse();
