@@ -6,6 +6,7 @@ use App\Contracts\LlmDriver;
 use App\Contracts\TranscriptionDriver;
 use App\Contracts\VectorDriver;
 use App\Models\Document;
+use App\Models\Organization;
 use App\Models\OrgDocument;
 use App\Models\Project;
 use App\Models\ProjectType;
@@ -104,6 +105,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(JobProcessing::class, function (): void {
             $appUrl = config('app.url');
             URL::forceRootUrl(is_string($appUrl) ? $appUrl : 'http://localhost');
+
+            // The worker resets scoped instances between jobs but not config, so undo any
+            // organization's AI driver override left behind by the previous job.
+            Organization::restoreSystemAiDriverDefaults();
         });
 
         // Force HTTPS in production for secure API callbacks

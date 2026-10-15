@@ -17,10 +17,13 @@ class GenerateOrgDocumentEmbedding implements ShouldQueue
 
     public function __construct(public OrgDocument $orgDocument) {}
 
-    public function handle(VectorService $vectorService): void
+    public function handle(): void
     {
         $this->orgDocument->loadMissing('organization');
         $this->orgDocument->organization->applyDriverConfig();
+
+        // Resolved only now, after the org's driver config is applied (see applyDriverConfig()).
+        $vectorService = app(VectorService::class);
 
         try {
             $embedding = $vectorService->getEmbedding($this->orgDocument->content);

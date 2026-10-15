@@ -69,8 +69,12 @@ class CreateEventFromSlackCommand implements ShouldQueue
         public ?string $slackChannelId = null,
     ) {}
 
-    public function handle(TextExtractionService $extractionService, TaskListImportService $importService): void
+    public function handle(TaskListImportService $importService): void
     {
+        $this->project->loadMissing('client.organization');
+        $this->project->client?->organization?->applyDriverConfig();
+        $extractionService = app(TextExtractionService::class);
+
         $organizationId = $this->project->client?->organization_id;
         $categories = $this->project->familyCategories();
 

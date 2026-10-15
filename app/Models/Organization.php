@@ -27,6 +27,17 @@ class Organization extends Model implements HasMedia
 {
     use HasFactory, HasUuids, InteractsWithMedia;
 
+    /**
+     * Every config key applyDriverConfig() can override, restored to the system default first.
+     */
+    private const AI_DRIVER_CONFIG_KEYS = [
+        'services.llm_driver',
+        'services.vector_driver',
+        'services.openai',
+        'services.gemini',
+        'services.ollama',
+    ];
+
     const TIER_FREE = 'free';
 
     const TIER_PRO = 'pro';
@@ -140,11 +151,17 @@ class Organization extends Model implements HasMedia
     }
 
     /**
-     * Override the global AI driver config with this organization's stored settings.
-     * Call this before resolving LlmDriver or VectorDriver from the container.
+     * Override the global AI driver config with this organization's stored settings. Resolve
+     * LlmDriver/VectorDriver (or any service built on them) from the container after this, not
+     * through a job's handle() signature — those are built before handle() runs.
      */
     public function applyDriverConfig(): void
     {
+        // Queue workers (Horizon) reset scoped instances between jobs but never config, and some
+        // jobs/commands apply several organizations in turn — so start from the system defaults
+        // every time, or one organization's driver and key would carry over to the next.
+        config(self::systemAiDriverDefaults());
+
         if ($this->llm_driver) {
             $driver = $this->llm_driver;
             $config = $this->llm_config ?? [];
@@ -179,6 +196,40 @@ class Organization extends Model implements HasMedia
                     config(["services.{$this->vector_driver}.host" => $config['host']]);
                 }
             }
+        }
+    }
+
+    /**
+     * The AI driver config as it stood before any organization overrode it, captured on the
+     * first call in this app instance. Nothing else writes these keys, so that first snapshot
+     * is the system default (a fresh one per Octane request, since Octane sandboxes both the
+     * container and config per request).
+     *
+     * @return array<string, mixed>
+     */
+    private static function systemAiDriverDefaults(): array
+    {
+        $binding = 'organization.ai_driver_defaults';
+
+        if (! app()->bound($binding)) {
+            app()->instance($binding, collect(self::AI_DRIVER_CONFIG_KEYS)
+                ->mapWithKeys(fn (string $key): array => [$key => config($key)])
+                ->all());
+        }
+
+        /** @var array<string, mixed> */
+        return app($binding);
+    }
+
+    /**
+     * Put the AI driver config back to the system defaults, if any organization has overridden it
+     * in this app instance. Run before every queued job (see AppServiceProvider), so a job that
+     * never calls applyDriverConfig() still can't inherit the previous job's organization.
+     */
+    public static function restoreSystemAiDriverDefaults(): void
+    {
+        if (app()->bound('organization.ai_driver_defaults')) {
+            config(self::systemAiDriverDefaults());
         }
     }
 

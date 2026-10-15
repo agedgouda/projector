@@ -4,7 +4,6 @@ use App\Jobs\GenerateOrgDocumentEmbedding;
 use App\Jobs\ProcessOrgDocumentAI;
 use App\Models\Organization;
 use App\Models\OrgDocument;
-use App\Services\VectorService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -49,7 +48,7 @@ it('stores the default driver\'s 1536-dimension embedding on an org document', f
 
     $orgDocument = makeOrgDocument($this->org);
 
-    (new GenerateOrgDocumentEmbedding($orgDocument))->handle(app(VectorService::class));
+    (new GenerateOrgDocumentEmbedding($orgDocument))->handle();
 
     $stored = DB::selectOne('select vector_dims(embedding) as d from org_documents where id = ?', [$orgDocument->id]);
 

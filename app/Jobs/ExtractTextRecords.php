@@ -40,7 +40,7 @@ class ExtractTextRecords implements ShouldQueue
         public ?int $triggeredByUserId = null,
     ) {}
 
-    public function handle(TextExtractionService $extractionService, TaskListImportService $importService): void
+    public function handle(TaskListImportService $importService): void
     {
         $project = $this->importDocument->project;
         if (! $project instanceof Project) {
@@ -51,6 +51,10 @@ class ExtractTextRecords implements ShouldQueue
         }
 
         $organizationId = $project->client?->organization_id;
+
+        $project->loadMissing('client.organization');
+        $project->client?->organization?->applyDriverConfig();
+        $extractionService = app(TextExtractionService::class);
 
         // Tasks in orgs that track start dates also get their predecessor read from context.
         $existingTaskNames = $this->listType === 'task' && $project->usesTaskStartDatesFor('task')

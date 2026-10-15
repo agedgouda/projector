@@ -81,11 +81,14 @@ class CreateTaskFromSlackCommand implements ShouldQueue
         public ?string $slackChannelId = null,
     ) {}
 
-    public function handle(TextExtractionService $extractionService, TaskListImportService $importService): void
+    public function handle(TaskListImportService $importService): void
     {
         $this->project->loadMissing('client.organization.users', 'client.organization.invitations', 'kanbanColumns');
         $organization = $this->project->client?->organization;
         $organizationId = $organization?->id;
+
+        $organization?->applyDriverConfig();
+        $extractionService = app(TextExtractionService::class);
 
         $categories = $this->project->familyCategories();
         // Orgs that track task start dates also get a start date and the task this one waits on

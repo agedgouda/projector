@@ -46,8 +46,12 @@ class GenerateReportFromSlackCommand implements ShouldQueue
         public string $responseUrl,
     ) {}
 
-    public function handle(TaskReportBuilder $tasks, CalendarExportBuilder $calendars, SlackFileUploader $uploader, ReportRequestParser $parser): void
+    public function handle(TaskReportBuilder $tasks, CalendarExportBuilder $calendars, SlackFileUploader $uploader): void
     {
+        $this->project->loadMissing('client.organization');
+        $this->project->client?->organization?->applyDriverConfig();
+        $parser = app(ReportRequestParser::class);
+
         try {
             $request = $parser->parse($this->text, $this->project, $this->user);
         } catch (Throwable $e) {

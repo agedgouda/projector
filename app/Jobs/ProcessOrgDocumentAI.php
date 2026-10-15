@@ -23,10 +23,13 @@ class ProcessOrgDocumentAI implements ShouldQueue
 
     public function __construct(public readonly OrgDocument $orgDocument) {}
 
-    public function handle(OrgAiService $aiService): void
+    public function handle(): void
     {
         $organization = $this->orgDocument->organization;
         $organization->applyDriverConfig();
+
+        // Resolved only now, after the org's driver config is applied (see applyDriverConfig()).
+        $aiService = app(OrgAiService::class);
 
         $activeProjects = Project::whereHas('client', fn ($q) => $q->where('organization_id', $organization->id))
             ->where('inactive', false)
