@@ -48,6 +48,9 @@ it('describes the information collected and the providers it is shared with', fu
         ->assertSee('Projector does not use third-party')
         ->assertSee('The operator shares personal data only with service providers')
         ->assertSee('DigitalOcean (hosting and infrastructure)')
+        ->assertSee('Resend
+        (email delivery)', false)
+        ->assertDontSee('Mailgun')
         ->assertDontSee('does not intentionally collect personal information')
         ->assertDontSee('as follows: none are shared')
         ->assertDontSee('analytics, advertising,

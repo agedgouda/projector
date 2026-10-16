@@ -66,7 +66,7 @@
 
     <h2>5. Messages and email</h2>
     <p>
-        The service sends transactional service messages using Mailgun. Contact details are used for
+        The service sends transactional service messages using Resend. Contact details are used for
         delivery, service administration, and the purposes described when the details are collected.
     </p>
     <p>
@@ -209,7 +209,7 @@
     </p>
     <p>
         The operator shares personal data only with service providers that help operate the service on its
-        behalf: DigitalOcean (hosting and infrastructure); Cloudflare (network delivery and bot checks); Mailgun
+        behalf: DigitalOcean (hosting and infrastructure); Cloudflare (network delivery and bot checks); Resend
         (email delivery); Bunny Fonts (web fonts loaded by the browser); the AI providers described in section 7
         (OpenAI and AssemblyAI); and, when a user or organization connects them, Google (including Google Gemini),
         Slack, Dropbox, Zoom, and Microsoft Teams. The categories shared are those needed for each provider's role, as
