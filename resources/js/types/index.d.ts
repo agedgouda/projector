@@ -393,7 +393,22 @@ declare global {
         role: string;
         token: string;
         expires_at: string;
+        email_status?: InvitationEmailStatus | null;
+        email_status_at?: string | null;
+        email_status_detail?: string | null;
     }
+
+    /** Delivery status of an invitation's email, as reported by Resend (see EmailDeliveryStatus.php). */
+    export type InvitationEmailStatus =
+        | 'sent'
+        | 'delivery_delayed'
+        | 'delivered'
+        | 'opened'
+        | 'clicked'
+        | 'bounced'
+        | 'failed'
+        | 'suppressed'
+        | 'complained';
 
     // --- STATUS MEETINGS ---
     export interface StatusMeetingLinkedDocument {

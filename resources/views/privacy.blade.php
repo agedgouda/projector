@@ -28,12 +28,12 @@
         </svg>
         <h1>Privacy Policy</h1>
     </div>
-    <p class="updated">Effective date: October 15, 2026</p>
+    <p class="updated">Effective date: October 16, 2026</p>
 
     <h2>1. Introduction</h2>
     <p>
         This Privacy Policy explains how KI Inc processes personal information in connection with Projector.
-        It takes effect on October 15, 2026. It is based on the service practices described by its operator and
+        It takes effect on October 16, 2026. It is based on the service practices described by its operator and
         should be read together with notices shown when information is collected.
     </p>
 
@@ -57,6 +57,7 @@
         <li><strong>Content users add:</strong> projects, documents, tasks, comments, uploaded files, meeting recordings and transcripts, saved AI prompts, and bug reports.</li>
         <li><strong>Connected accounts:</strong> when a user or organization connects Google, Slack, Dropbox, Zoom, or Microsoft Teams, the access tokens needed to keep that connection, and for Slack the user's Slack user ID and username.</li>
         <li><strong>Technical information:</strong> while a user is signed in, their session records their IP address and browser information. IP addresses are also used to limit repeated sign-up and sign-in attempts, and are sent to Cloudflare Turnstile to check sign-ups for bots. Server logs record IP address and browser information for some requests for security and troubleshooting.</li>
+        <li><strong>Email delivery and engagement:</strong> for emails the service sends, whether each was delivered, delayed, bounced, or marked as spam, whether it was opened, and whether a link in it was clicked, with the time of each.</li>
         <li><strong>Visits from marketing links:</strong> when someone arrives at the sign-in or sign-up page from one of the operator's marketing links, the service records the link's campaign code, the page, the visitor's country, device type, and browser, the referring website's domain, and whether a sign-up followed. This record does not include an IP address and is not linked to an account.</li>
     </ul>
     <p>
@@ -70,8 +71,15 @@
         delivery, service administration, and the purposes described when the details are collected.
     </p>
     <p>
-        Transactional messages are sent only as needed to provide, secure, or administer the service. The
-        operator does not measure message opens or link interactions.
+        Transactional messages are sent only as needed to provide, secure, or administer the service. Emails
+        the service sends include open and click tracking: Resend reports when a message is delivered, opened,
+        or a link in it is clicked, as well as bounces and spam complaints. To do this, emails contain a small
+        tracking image, and their links pass through Resend before reaching their destination.
+    </p>
+    <p>
+        The operator uses this information only to show delivery status, such as the status of an invitation
+        shown to the organization members who manage invitations, and to keep email deliverable. It is not used
+        for marketing, advertising, or profiling.
     </p>
 
     <h2>6. Cookies and tracking technologies</h2>

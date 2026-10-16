@@ -36,10 +36,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'slack.signature' => \App\Http\Middleware\VerifySlackSignature::class,
             'teams.token' => \App\Http\Middleware\VerifyTeamsToken::class,
             'dropbox.signature' => \App\Http\Middleware\VerifyDropboxSignature::class,
+            'resend.signature' => \App\Http\Middleware\VerifyResendSignature::class,
         ]);
 
-        // Slack's/Dropbox's webhooks are verified via their own HMAC signature
-        // (VerifySlackSignature/VerifyDropboxSignature), and Teams' via a Bot Framework JWT
+        // Slack's/Dropbox's/Resend's webhooks are verified via their own HMAC signature
+        // (VerifySlackSignature/VerifyDropboxSignature/VerifyResendSignature), and Teams' via a Bot Framework JWT
         // (VerifyTeamsToken), instead of a CSRF token — their servers
         // can't carry one. client-logs/stale-asset is exempted for a different reason: it's
         // reported by a stale tab whose own CSRF token may itself be stale.
@@ -48,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'slack/commands',
             'slack/interactivity',
             'dropbox/events',
+            'resend/webhook',
             'teams/messages',
             'client-logs/stale-asset',
             'client-logs/record-save',

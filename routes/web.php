@@ -564,3 +564,4 @@ require __DIR__.'/settings.php';
 require __DIR__.'/slack.php';
 require __DIR__.'/teams.php';
 require __DIR__.'/dropbox.php';
+require __DIR__.'/resend.php';

@@ -102,7 +102,7 @@ class OrganizationController extends Controller
         $invitations = OrganizationInvitation::where('organization_id', $currentOrg->id)
             ->where(fn ($query) => $query->where('expires_at', '>', now())->orWhereHas('documentAssignments'))
             ->orderBy('created_at', 'desc')
-            ->get(['id', 'email', 'first_name', 'last_name', 'role', 'token', 'expires_at']);
+            ->get(['id', 'email', 'first_name', 'last_name', 'role', 'token', 'expires_at', 'email_status', 'email_status_at', 'email_status_detail']);
 
         $clients = $currentOrg->clients()->with(['projects.media', 'projects.parent.media', 'media'])->get()
             ->map(fn (Client $c) => array_merge($c->toArray(), [

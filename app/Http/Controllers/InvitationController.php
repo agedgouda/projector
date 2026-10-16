@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EmailDeliveryStatus;
 use App\Mail\OrganizationInvitationMail;
 use App\Models\Document;
 use App\Models\Organization;
@@ -13,6 +14,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Symfony\Component\Mime\Message;
 
 class InvitationController extends Controller
 {
@@ -75,9 +77,7 @@ class InvitationController extends Controller
 
         $this->handOffPendingTasks($pendingInvitations, ['pending_assignee_invitation_id' => $invitation->id]);
 
-        $link = route('invite', $invitation->token);
-
-        Mail::to($email)->send(new OrganizationInvitationMail($inviter, $organization, $link));
+        $this->sendInvitationEmail($invitation, $inviter, $organization);
 
         return back()->with('success', 'Invitation sent to '.$email);
     }
@@ -141,9 +141,7 @@ class InvitationController extends Controller
 
         $this->handOffPendingTasks($duplicateInvitations, ['pending_assignee_invitation_id' => $invitation->id]);
 
-        $link = route('invite', $invitation->token);
-
-        Mail::to($email)->send(new OrganizationInvitationMail($inviter, $organization, $link));
+        $this->sendInvitationEmail($invitation, $inviter, $organization);
 
         return back()->with('success', 'Invitation updated and resent to '.$email);
     }
@@ -158,12 +156,38 @@ class InvitationController extends Controller
 
         $invitation->update(['expires_at' => now()->addDays(7)]);
 
-        $inviter = $request->user();
-        $link = route('invite', $invitation->token);
-
-        Mail::to($invitation->email)->send(new OrganizationInvitationMail($inviter, $organization, $link));
+        $this->sendInvitationEmail($invitation, $request->user(), $organization);
 
         return back()->with('success', 'Invitation resent to '.$invitation->email);
+    }
+
+    /**
+     * Sends the invitation email and starts tracking its delivery: Resend's transport stamps
+     * the sent message with its email id, which its webhook events (see
+     * Resend\WebhookController) refer back to. Each send replaces the previous email's status,
+     * and a mailer other than Resend leaves no status to show.
+     */
+    private function sendInvitationEmail(OrganizationInvitation $invitation, ?User $inviter, Organization $organization): void
+    {
+        if ($inviter === null) {
+            abort(403);
+        }
+
+        $sentMessage = Mail::to($invitation->email)->send(
+            new OrganizationInvitationMail($inviter, $organization, route('invite', $invitation->token))
+        );
+
+        $originalMessage = $sentMessage?->getOriginalMessage();
+        $resendEmailId = $originalMessage instanceof Message
+            ? $originalMessage->getHeaders()->get('X-Resend-Email-ID')?->getBodyAsString()
+            : null;
+
+        $invitation->update([
+            'resend_email_id' => $resendEmailId,
+            'email_status' => $resendEmailId !== null ? EmailDeliveryStatus::Sent : null,
+            'email_status_at' => $resendEmailId !== null ? now() : null,
+            'email_status_detail' => null,
+        ]);
     }
 
     public function destroy(Organization $organization, OrganizationInvitation $invitation): RedirectResponse

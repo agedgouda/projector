@@ -29,6 +29,33 @@ const invitedUser = (invitation: OrganizationInvitation) => ({
     has_password: false,
 });
 
+const emailStatusBadges: Record<InvitationEmailStatus, { label: string; tone: 'neutral' | 'warning' | 'success' | 'danger' }> = {
+    sent: { label: 'Sent', tone: 'neutral' },
+    delivery_delayed: { label: 'Delayed', tone: 'warning' },
+    delivered: { label: 'Delivered', tone: 'success' },
+    opened: { label: 'Opened', tone: 'success' },
+    clicked: { label: 'Clicked', tone: 'success' },
+    bounced: { label: 'Bounced', tone: 'danger' },
+    failed: { label: 'Failed', tone: 'danger' },
+    suppressed: { label: 'Suppressed', tone: 'danger' },
+    complained: { label: 'Marked Spam', tone: 'danger' },
+};
+
+const badgeToneClasses = {
+    neutral: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300',
+    warning: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
+    success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
+    danger: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400',
+};
+
+const emailStatusTitle = (invitation: OrganizationInvitation) =>
+    [
+        invitation.email_status_detail,
+        invitation.email_status_at ? new Date(invitation.email_status_at).toLocaleString() : null,
+    ]
+        .filter(Boolean)
+        .join(' — ');
+
 const copyLink = (token: string) => {
     const url = `${window.location.origin}/invite/${token}`;
     if (navigator.clipboard) {
@@ -70,9 +97,10 @@ const executeDelete = () => {
 
 <template>
     <div>
-        <div class="grid grid-cols-[1fr_140px_110px_140px_90px_90px] h-9 px-2 items-center">
+        <div class="grid grid-cols-[1fr_140px_110px_110px_140px_90px_90px] h-9 px-2 items-center">
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited User</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Email</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Resend</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Invitation</div>
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Edit</div>
@@ -83,7 +111,7 @@ const executeDelete = () => {
             <div
                 v-for="invitation in invitations"
                 :key="invitation.id"
-                class="grid grid-cols-[1fr_140px_110px_140px_90px_90px] items-center h-12 px-2 rounded-md transition-colors"
+                class="grid grid-cols-[1fr_140px_110px_110px_140px_90px_90px] items-center h-12 px-2 rounded-md transition-colors"
             >
                 <div class="min-w-0">
                     <UserInfo
@@ -96,6 +124,18 @@ const executeDelete = () => {
                 </div>
                 <div class="min-w-0">
                     <span class="text-[11px] text-slate-400 capitalize">{{ invitation.role?.replace('-', ' ') ?? 'Team Member' }}</span>
+                </div>
+
+                <div class="flex justify-center">
+                    <span
+                        v-if="invitation.email_status && emailStatusBadges[invitation.email_status]"
+                        :class="badgeToneClasses[emailStatusBadges[invitation.email_status].tone]"
+                        :title="emailStatusTitle(invitation)"
+                        class="inline-flex items-center h-6 px-2 rounded text-[9px] font-black uppercase tracking-widest whitespace-nowrap"
+                    >
+                        {{ emailStatusBadges[invitation.email_status].label }}
+                    </span>
+                    <span v-else class="text-[11px] text-slate-300 dark:text-zinc-600">—</span>
                 </div>
 
                 <div class="flex justify-center">

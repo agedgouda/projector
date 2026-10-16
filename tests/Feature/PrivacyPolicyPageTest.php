@@ -3,7 +3,7 @@
 it('serves the privacy policy to guests as server-rendered html', function () {
     $this->get(route('privacy'))
         ->assertOk()
-        ->assertSee('Effective date: October 15, 2026')
+        ->assertSee('Effective date: October 16, 2026')
         ->assertSee('KI Inc is the business responsible for this policy')
         ->assertSee('1. Introduction')
         ->assertSee('17. Contact us')
@@ -55,4 +55,13 @@ it('describes the information collected and the providers it is shared with', fu
         ->assertDontSee('as follows: none are shared')
         ->assertDontSee('analytics, advertising,
         social, or service-provider sections', false);
+});
+
+it('discloses email open and click tracking and limits its use', function () {
+    $this->get(route('privacy'))
+        ->assertOk()
+        ->assertSee('the service sends include open and click tracking')
+        ->assertSee('whether it was opened, and whether a link in it was clicked')
+        ->assertSee('for marketing, advertising, or profiling.')
+        ->assertDontSee('does not measure message opens');
 });
