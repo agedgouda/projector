@@ -57,11 +57,13 @@ it('describes the information collected and the providers it is shared with', fu
         social, or service-provider sections', false);
 });
 
-it('discloses email open and click tracking and limits its use', function () {
+it('discloses email open tracking, no click tracking, and limits its use', function () {
     $this->get(route('privacy'))
         ->assertOk()
-        ->assertSee('the service sends include open and click tracking')
-        ->assertSee('whether it was opened, and whether a link in it was clicked')
+        ->assertSee('the service sends include open tracking')
+        ->assertSee('and whether it was opened, with the time of each.')
+        ->assertSee('not tracked.')
+        ->assertDontSee('click tracking')
         ->assertSee('for marketing, advertising, or profiling.')
         ->assertDontSee('does not measure message opens');
 });

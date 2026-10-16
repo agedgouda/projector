@@ -151,7 +151,6 @@ it('updates the invitation status from a signed webhook event', function (string
     'delivered' => ['email.delivered', EmailDeliveryStatus::Delivered],
     'delayed' => ['email.delivery_delayed', EmailDeliveryStatus::DeliveryDelayed],
     'opened' => ['email.opened', EmailDeliveryStatus::Opened],
-    'clicked' => ['email.clicked', EmailDeliveryStatus::Clicked],
     'complained' => ['email.complained', EmailDeliveryStatus::Complained],
     'suppressed' => ['email.suppressed', EmailDeliveryStatus::Suppressed],
 ]);
@@ -186,6 +185,7 @@ it('acknowledges events for other emails or without delivery meaning', function 
 })->with([
     'unknown email' => [['type' => 'email.delivered', 'data' => ['email_id' => 'someone-else']]],
     'scheduled' => [['type' => 'email.scheduled', 'data' => ['email_id' => 'email-123']]],
+    'clicked' => [['type' => 'email.clicked', 'data' => ['email_id' => 'email-123']]],
     'contact event' => [['type' => 'contact.created', 'data' => ['id' => 'c1']]],
     'no email id' => [['type' => 'email.delivered', 'data' => []]],
 ]);

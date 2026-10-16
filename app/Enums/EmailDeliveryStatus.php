@@ -14,7 +14,6 @@ enum EmailDeliveryStatus: string
     case DeliveryDelayed = 'delivery_delayed';
     case Delivered = 'delivered';
     case Opened = 'opened';
-    case Clicked = 'clicked';
     case Bounced = 'bounced';
     case Failed = 'failed';
     case Suppressed = 'suppressed';
@@ -22,7 +21,8 @@ enum EmailDeliveryStatus: string
 
     /**
      * Maps a Resend webhook event type (e.g. "email.delivered") to a status, or null for
-     * events that say nothing about delivery (e.g. "email.scheduled", "email.received").
+     * events that say nothing about delivery (e.g. "email.scheduled", "email.received"). Click
+     * tracking is deliberately off, so "email.clicked" is ignored too.
      */
     public static function fromResendEvent(string $eventType): ?self
     {
@@ -40,7 +40,6 @@ enum EmailDeliveryStatus: string
             self::DeliveryDelayed => 2,
             self::Delivered => 3,
             self::Opened => 4,
-            self::Clicked => 5,
             self::Bounced, self::Failed, self::Suppressed => 6,
             self::Complained => 7,
         };

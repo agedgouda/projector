@@ -34,7 +34,6 @@ const emailStatusBadges: Record<InvitationEmailStatus, { label: string; tone: 'n
     delivery_delayed: { label: 'Delayed', tone: 'warning' },
     delivered: { label: 'Delivered', tone: 'success' },
     opened: { label: 'Opened', tone: 'success' },
-    clicked: { label: 'Clicked', tone: 'success' },
     bounced: { label: 'Bounced', tone: 'danger' },
     failed: { label: 'Failed', tone: 'danger' },
     suppressed: { label: 'Suppressed', tone: 'danger' },

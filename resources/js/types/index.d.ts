@@ -404,7 +404,6 @@ declare global {
         | 'delivery_delayed'
         | 'delivered'
         | 'opened'
-        | 'clicked'
         | 'bounced'
         | 'failed'
         | 'suppressed'
