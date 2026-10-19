@@ -3,7 +3,7 @@
 it('serves the privacy policy to guests as server-rendered html', function () {
     $this->get(route('privacy'))
         ->assertOk()
-        ->assertSee('Effective date: October 16, 2026')
+        ->assertSee('Effective date: October 19, 2026')
         ->assertSee('KI Inc is the business responsible for this policy')
         ->assertSee('1. Introduction')
         ->assertSee('17. Contact us')
@@ -66,4 +66,12 @@ it('discloses email open tracking, no click tracking, and limits its use', funct
         ->assertDontSee('click tracking')
         ->assertSee('for marketing, advertising, or profiling.')
         ->assertDontSee('does not measure message opens');
+});
+
+it('discloses what the public demo sends to the ai provider and keeps', function () {
+    $this->get(route('privacy'))
+        ->assertOk()
+        ->assertSee('The public demo page lets anyone, without an account')
+        ->assertSee('Projector does not save the text or the result')
+        ->assertSee('check sign-ups and demo runs for bots');
 });

@@ -24,10 +24,13 @@ use App\Services\Transcription\Drivers\AssemblyAiTranscriptionDriver;
 use App\Services\Vectors\GeminiDriver;
 use App\Services\Vectors\OllamaDriver;
 use App\Services\VectorService;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use PhpOffice\PhpWord\Settings as PhpWordSettings;
@@ -120,6 +123,17 @@ class AppServiceProvider extends ServiceProvider
         // completely unescaped — a task/document name containing "&" (e.g. "Q&A")
         // produces an invalid document.xml that Word refuses to open.
         PhpWordSettings::setOutputEscapingEnabled(true);
+
+        // Live AI runs on the public demo page, per visitor IP. DemoController adds a site-wide
+        // daily cap on top of this.
+        RateLimiter::for('demo', fn (Request $request): array => [
+            Limit::perHour(5)->by('hour:'.$request->ip())->response(fn () => response()->json([
+                'message' => "You've reached the demo's hourly limit. Try a sample, or come back in a bit.",
+            ], 429)),
+            Limit::perDay(15)->by('day:'.$request->ip())->response(fn () => response()->json([
+                'message' => "You've reached the demo's daily limit. Start a free trial to keep going.",
+            ], 429)),
+        ]);
 
         // Register Model Observers
         Document::observe(DocumentObserver::class);

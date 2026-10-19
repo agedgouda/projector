@@ -94,6 +94,12 @@ return [
         'secret_key' => env('TURNSTILE_SECRET_KEY'),
     ],
 
+    // The public demo page (/demo), embedded in an iframe on the marketing site.
+    'demo' => [
+        'parent_origin' => env('DEMO_PARENT_ORIGIN', 'https://about.projecthq.app'),
+        'daily_live_limit' => (int) env('DEMO_DAILY_LIVE_LIMIT', 300),
+    ],
+
     'vector_driver' => env('VECTOR_DRIVER', 'gemini'),
     'llm_driver' => env('LLM_DRIVER', 'gemini'),
 

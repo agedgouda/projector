@@ -1,0 +1,42 @@
+Harbor & Pine Coffee — website redesign kickoff
+Tuesday, October 13, 2026 · Zoom · auto-transcript
+
+[00:00:04] Maya Chen: Okay, I think everyone's here. Sam, can you hear us alright?
+[00:00:09] Sam Becker: Yep, loud and clear. Sorry, I'm in the roastery so if you hear a grinder, that's why.
+[00:00:14] Luis Ortega: Honestly that's the best background noise possible.
+[00:00:17] Maya Chen: Ha. Okay, so this is the kickoff for the new Harbor & Pine site. Goal today is just to agree on scope, who's doing what, and the big dates. Priya, you good?
+[00:00:26] Priya Natarajan: Yeah, um, give me one sec, my headphones keep dropping. ... Okay, good.
+[00:00:31] Sam Becker: So the big thing for us is the holiday launch. We want the new site live before Black Friday, so November 27th at the very latest. Ideally a week earlier so we're not sweating it.
+[00:00:42] Maya Chen: Got it. Let's plan to launch November 20th and keep the 27th as the hard stop.
+[00:00:47] Sam Becker: Perfect.
+[00:00:49] Luis Ortega: On design, I looked at the current site last night. The menu page is, uh, it's a PDF.
+[00:00:55] Sam Becker: I know. I know. Don't look at me, that was before my time.
+[00:00:58] Luis Ortega: No judgement. So I'll do homepage, menu, and the shop page as the first round of mockups. I can have those to Sam by next Friday.
+[00:01:06] Maya Chen: Next Friday being the 23rd?
+[00:01:08] Luis Ortega: Yeah, the 23rd.
+[00:01:10] Sam Becker: And I need to get you the new brand photos, right? The photographer sent them over but they're huge raw files.
+[00:01:16] Luis Ortega: Yeah, if you can send me the edited ones, not the raws, by Monday that'd be great.
+[00:01:20] Sam Becker: I'll do that. Monday.
+[00:01:22] Maya Chen: Priya, shop side. They're on Shopify right now, yeah?
+[00:01:26] Priya Natarajan: Yeah, Shopify for the store, but the main site is some old WordPress install. My recommendation is we move everything onto Shopify so there's one system. I need to check whether their subscription product, the monthly bean box, migrates cleanly. That's the risky part.
+[00:01:41] Sam Becker: The bean box is like forty percent of online revenue, so... yeah, please don't break that.
+[00:01:46] Priya Natarajan: Noted. Very noted. I'll do a test migration of the subscriptions in a staging store and report back by end of next week.
+[00:01:53] Maya Chen: Let's call that high priority then.
+[00:01:55] Sam Becker: Oh, also, totally unrelated, but did anyone see the game last night?
+[00:01:58] Luis Ortega: Don't. I'm still upset.
+[00:02:01] Maya Chen: Okay, okay. Back to it. Priya, DNS and email, who owns the domain?
+[00:02:06] Sam Becker: I think it's under our old agency's account. Ugh. I'll track down the login and transfer it to us. Might take a bit, they're slow to respond.
+[00:02:13] Maya Chen: Can you try to get that done before November 6th? We need the domain in your account at least two weeks before launch.
+[00:02:18] Sam Becker: Yeah, I'll start that today.
+[00:02:20] Priya Natarajan: And Maya, we'll need someone to write the product descriptions for the new shop pages. The current ones are like one line each.
+[00:02:27] Sam Becker: Our copywriter, Dana, could do that, but she's out until the 26th.
+[00:02:31] Maya Chen: Then I'll draft a content template this week so Dana can just fill it in when she's back. Sam, can you just give her a heads up?
+[00:02:37] Sam Becker: Will do.
+[00:02:39] Luis Ortega: One more thing. Accessibility. The current colours fail contrast pretty badly. I'd like to do a quick accessibility pass on the brand palette before mockups.
+[00:02:47] Maya Chen: Yes, please. Fold that into your design round.
+[00:02:50] Priya Natarajan: Should we set up analytics now too? GA4 plus Shopify's own stuff?
+[00:02:54] Sam Becker: Yes, and I want to be able to see where subscription sign-ups come from.
+[00:02:58] Priya Natarajan: Okay, I'll set up GA4 with conversion tracking for subscriptions. Low priority until the store is migrated though.
+[00:03:04] Maya Chen: Fine. And I'll send everyone the meeting recap and set up a weekly check-in, Thursdays at 10.
+[00:03:09] Sam Becker: Thursdays work. Oh, the grinder's starting again, I'm going to drop off. Thanks everyone!
+[00:03:13] Maya Chen: Thanks Sam. Talk Thursday.

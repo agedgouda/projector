@@ -37,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'teams.token' => \App\Http\Middleware\VerifyTeamsToken::class,
             'dropbox.signature' => \App\Http\Middleware\VerifyDropboxSignature::class,
             'resend.signature' => \App\Http\Middleware\VerifyResendSignature::class,
+            'demo.framing' => \App\Http\Middleware\AllowDemoFraming::class,
         ]);
 
         // Slack's/Dropbox's/Resend's webhooks are verified via their own HMAC signature

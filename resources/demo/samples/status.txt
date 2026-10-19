@@ -1,0 +1,37 @@
+Brightline Fitness — app launch status call
+Thursday, October 15, 2026 · Google Meet transcript (unedited)
+
+Nora Lindqvist: —can you see my screen? The board, with the launch checklist?
+Greg Holt: I can see it. It's a little small but I can see it.
+Nora Lindqvist: Okay, I'll zoom. Um, so quick context, we're two and a half weeks out from the App Store submission. Ben, Carla, Greg, thanks for jumping on.
+Ben Adeyemi: Morning. Sorry, still on my first coffee.
+Nora Lindqvist: Same. So, um, top of the list. Ben, the class booking crash.
+Ben Adeyemi: Yeah so that's the one where if you book a class and then immediately cancel, the app crashes on Android. I found it, it's a race condition in the booking screen. Fix is written, I just need to, uh, test it on the older Samsung devices. I'll have it merged by Monday.
+Greg Holt: Is that the one our trainers kept hitting at the Eastside location?
+Ben Adeyemi: Probably, yeah.
+Greg Holt: Good. That one's been really embarrassing for us, so please make it top priority.
+Nora Lindqvist: Marked high. Okay, Carla, design side?
+Carla Mendes: So the App Store screenshots. I need final versions of all six screens for the listing, and I'm blocked on the copy for them. Greg, are you writing that or are we?
+Greg Holt: Can you guys write it? I'll review.
+Carla Mendes: Sure, I'll draft the screenshot copy and send it to Greg by Tuesday, and then do the final screenshots once he approves.
+Nora Lindqvist: Greg, can you turn around the review in like a day or two?
+Greg Holt: Yeah, I'll review it within two days of getting it.
+Nora Lindqvist: Great. Uh, next thing. [inaudible] —sorry, my mic cut out. The privacy policy. Apple requires a privacy policy URL before we submit.
+Greg Holt: Our lawyer's on it. Actually, I'll chase her. I'll get you the URL by the 23rd.
+Nora Lindqvist: Thank you. That's a hard blocker, so if it slips, tell me right away.
+Ben Adeyemi: Oh, also, push notifications. The certificate for iOS push expires on November 1st. If we don't renew it, class reminders just silently stop.
+Nora Lindqvist: Oof, okay. Ben, can you renew that this week?
+Ben Adeyemi: Yep, I'll do it by Friday.
+Carla Mendes: Totally random, but Greg, are you guys still doing the free smoothie thing on Saturdays? Asking for me.
+Greg Holt: Ha, yes. Eastside only though.
+Carla Mendes: Noted.
+Nora Lindqvist: Okay [laughs]. Um, beta testing. We have, what, thirty people on TestFlight?
+Ben Adeyemi: Thirty-two.
+Nora Lindqvist: I want to send a feedback survey to the beta group this week. I'll put it together and send it out by Friday, then summarize the results for Greg next week.
+Greg Holt: Love that.
+Nora Lindqvist: And last thing, we talked about Apple Health integration last time. Greg, final answer?
+Greg Holt: Let's push that to after launch. Not for version one.
+Nora Lindqvist: Okay, so that's a no for now, we'll revisit after launch. Carla, low priority, but can you start sketching what the Apple Health screen might look like so we're ready?
+Carla Mendes: Sure, whenever I have downtime.
+Nora Lindqvist: Perfect. Submission target is still November 2nd. I'll send notes after this. Thanks all.
+Greg Holt: Thanks, everyone.

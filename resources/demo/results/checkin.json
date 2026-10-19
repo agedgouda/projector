@@ -1,0 +1,167 @@
+{
+    "generated_at": "2026-10-19T19:53:18+00:00",
+    "tasks": [
+        {
+            "title": "Hide weekends in booking calendar",
+            "description": "Update the online appointment booking calendar to hide weekends (specifically Saturdays) since the practice is closed on Saturdays. Complete this change before Friday.",
+            "criteria": [
+                "Weekends (Saturday and Sunday) are not selectable/visible in the booking calendar UI",
+                "Users cannot book appointments on weekends",
+                "Change is deployed/available by the stated deadline"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-16",
+            "assignee": "Aisha Patel",
+            "tags": [
+                "Development"
+            ]
+        },
+        {
+            "title": "Prepare SMS reminder change request",
+            "description": "Create and send a change request including a cost estimate for adding SMS appointment reminders (using Twilio) for delivery 24 hours before appointments.",
+            "criteria": [
+                "Change request document is sent to Dr. Elena Ruiz",
+                "Includes cost estimate and scope for Twilio-based SMS reminders",
+                "Sent by the stated deadline"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-19",
+            "assignee": "Jordan Reyes",
+            "tags": [
+                "Client"
+            ]
+        },
+        {
+            "title": "Pause SMS work until CR approved",
+            "description": "Do not begin implementation of SMS reminders until Dr. Elena Ruiz signs off on the change request.",
+            "criteria": [
+                "No development work on SMS reminders begins prior to written sign-off",
+                "Sign-off is recorded/confirmed before any SMS implementation starts"
+            ],
+            "priority": "medium",
+            "due_date": null,
+            "assignee": null,
+            "tags": [
+                "Client",
+                "Development"
+            ]
+        },
+        {
+            "title": "Fix HEIC insurance card uploads",
+            "description": "Resolve the issue where iPhone photos in HEIC format fail to upload on the insurance card upload page. This is urgent due to front desk calls.",
+            "criteria": [
+                "HEIC images upload successfully on the insurance upload page",
+                "Non-HEIC formats continue to upload successfully",
+                "Fix is deployed to the environment used by patients"
+            ],
+            "priority": "high",
+            "due_date": null,
+            "assignee": "Aisha Patel",
+            "tags": [
+                "Development"
+            ]
+        },
+        {
+            "title": "Retest insurance uploads on mobile",
+            "description": "After the HEIC upload fix is deployed, retest the insurance card upload flow on both iPhone and Android devices.",
+            "criteria": [
+                "Upload test passes on iPhone with HEIC images",
+                "Upload test passes on Android with common image formats",
+                "Results are documented (pass/fail)"
+            ],
+            "priority": "high",
+            "due_date": null,
+            "assignee": "Tom Whitaker",
+            "tags": [
+                "QA"
+            ]
+        },
+        {
+            "title": "Check SPF/DKIM for reset emails",
+            "description": "Investigate why password reset emails go to spam in Gmail by checking the SPF/DKIM setup on the client domain with their IT contact.",
+            "criteria": [
+                "SPF/DKIM configuration is reviewed for the sending domain",
+                "Findings and recommended changes (if any) are documented and shared with the team/client"
+            ],
+            "priority": "medium",
+            "due_date": null,
+            "assignee": "Jordan Reyes",
+            "tags": [
+                "Client"
+            ]
+        },
+        {
+            "title": "Send signed hosting BAA to client",
+            "description": "Obtain the signed Business Associate Agreement (BAA) from the hosting provider and send it to Dr. Elena Ruiz for her HIPAA compliance file by end of next week (Oct 23).",
+            "criteria": [
+                "Signed BAA is obtained from hosting provider",
+                "BAA is sent to Dr. Elena Ruiz",
+                "Sent by the stated deadline"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-23",
+            "assignee": "Jordan Reyes",
+            "tags": [
+                "Client"
+            ]
+        },
+        {
+            "title": "Design text-size toggle option",
+            "description": "Plan and implement a text-size toggle to help older patients who struggle with small text. Marked as low priority, nice-to-have.",
+            "criteria": [
+                "Text-size toggle is available in the portal UI",
+                "Toggling increases/decreases text size across key portal pages"
+            ],
+            "priority": "low",
+            "due_date": null,
+            "assignee": "Aisha Patel",
+            "tags": [
+                "Design",
+                "Development"
+            ]
+        },
+        {
+            "title": "Run full regression test",
+            "description": "Conduct a full regression test during the week of Oct 26 ahead of the Nov 2 go-live target.",
+            "criteria": [
+                "Regression test plan/cases are executed across agreed scope",
+                "Defects are logged with severity and reproduction steps",
+                "Regression testing is completed within the specified week"
+            ],
+            "priority": "medium",
+            "due_date": null,
+            "assignee": "Tom Whitaker",
+            "tags": [
+                "QA",
+                "Launch"
+            ]
+        },
+        {
+            "title": "Schedule front desk training session",
+            "description": "Book a 30-minute training session for front desk staff during the week before launch (go-live target Nov 2).",
+            "criteria": [
+                "30-minute session is scheduled on the calendar within the week before launch",
+                "Front desk staff receive the invite and joining details"
+            ],
+            "priority": "medium",
+            "due_date": null,
+            "assignee": "Jordan Reyes",
+            "tags": [
+                "Launch",
+                "Client"
+            ]
+        },
+        {
+            "title": "Schedule next weekly check-in",
+            "description": "Set up the next check-in meeting at the same time next week.",
+            "criteria": [
+                "Calendar invite is sent for the same time next week",
+                "All attendees are included on the invite"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-21",
+            "assignee": "Jordan Reyes",
+            "tags": []
+        }
+    ]
+}

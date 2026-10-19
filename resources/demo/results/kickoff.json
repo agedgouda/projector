@@ -1,0 +1,161 @@
+{
+    "generated_at": "2026-10-19T19:53:03+00:00",
+    "tasks": [
+        {
+            "title": "Launch redesigned site",
+            "description": "Plan and execute the website launch for Harbor & Pine Coffee, targeting November 20, 2026, with November 27, 2026 as the hard latest acceptable launch date (before Black Friday).",
+            "criteria": [
+                "Launch date is set to 2026-11-20 in the project plan",
+                "Site is live by 2026-11-27 at the latest"
+            ],
+            "priority": "high",
+            "due_date": "2026-11-20",
+            "assignee": null,
+            "tags": [
+                "Launch"
+            ]
+        },
+        {
+            "title": "Create first-round page mockups",
+            "description": "Produce first-round design mockups for the homepage, menu page, and shop page and deliver them to Sam Becker.",
+            "criteria": [
+                "Homepage mockup delivered",
+                "Menu page mockup delivered",
+                "Shop page mockup delivered"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-23",
+            "assignee": "Luis Ortega",
+            "tags": [
+                "Design"
+            ]
+        },
+        {
+            "title": "Send edited brand photos to designer",
+            "description": "Provide Luis Ortega with the edited (not raw) new brand photos for use in the website design.",
+            "criteria": [
+                "Edited photo files are shared with Luis Ortega",
+                "Raw files are not sent as the primary deliverable"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-19",
+            "assignee": "Sam Becker",
+            "tags": [
+                "Client",
+                "Content"
+            ]
+        },
+        {
+            "title": "Test migrate subscription product",
+            "description": "Run a test migration of the monthly bean box subscription product into a staging Shopify store to confirm it migrates cleanly, then report findings back to the team.",
+            "criteria": [
+                "Staging test migration is completed for the subscription product",
+                "Migration risks/issues and recommended approach are documented and shared"
+            ],
+            "priority": "high",
+            "due_date": "2026-10-23",
+            "assignee": "Priya Natarajan",
+            "tags": [
+                "Development",
+                "QA"
+            ]
+        },
+        {
+            "title": "Transfer domain account access",
+            "description": "Track down the domain login currently held by the old agency and transfer the domain into Harbor & Pine's control/account so DNS/email changes can be managed for launch.",
+            "criteria": [
+                "Domain registrar access is obtained",
+                "Domain is transferred into Harbor & Pine's account/control"
+            ],
+            "priority": "medium",
+            "due_date": "2026-11-06",
+            "assignee": "Sam Becker",
+            "tags": [
+                "Client",
+                "Launch"
+            ]
+        },
+        {
+            "title": "Draft product description template",
+            "description": "Create a content template for product descriptions so the copywriter can fill in improved descriptions for the new shop pages upon return.",
+            "criteria": [
+                "Template includes required fields/structure for product descriptions",
+                "Template is shared with relevant stakeholders for use by the copywriter"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-19",
+            "assignee": "Maya Chen",
+            "tags": [
+                "Content"
+            ]
+        },
+        {
+            "title": "Notify copywriter about upcoming work",
+            "description": "Give the copywriter (Dana) a heads-up about the product description work and the availability of the new template so she can start filling it in when she returns.",
+            "criteria": [
+                "Copywriter is contacted with expectations and timing",
+                "Copywriter is directed to the template to use"
+            ],
+            "priority": "medium",
+            "due_date": null,
+            "assignee": "Sam Becker",
+            "tags": [
+                "Content",
+                "Client"
+            ]
+        },
+        {
+            "title": "Run accessibility palette contrast check",
+            "description": "Perform a quick accessibility pass on the brand color palette (contrast checks) and incorporate any necessary adjustments/notes into the first mockup round.",
+            "criteria": [
+                "Contrast issues are identified and documented",
+                "Recommended palette adjustments or usage guidance is reflected in the mockup work"
+            ],
+            "priority": "medium",
+            "due_date": "2026-10-23",
+            "assignee": "Luis Ortega",
+            "tags": [
+                "Design",
+                "QA"
+            ]
+        },
+        {
+            "title": "Set up GA4 subscription conversion tracking",
+            "description": "Implement GA4 analytics and configure conversion tracking specifically for subscription sign-ups (alongside Shopify analytics as needed). Marked low priority until the store migration is underway/complete.",
+            "criteria": [
+                "GA4 property/tagging is set up for the site/store context",
+                "Subscription sign-ups are tracked as a conversion in GA4"
+            ],
+            "priority": "low",
+            "due_date": null,
+            "assignee": "Priya Natarajan",
+            "tags": [
+                "Development"
+            ]
+        },
+        {
+            "title": "Send meeting recap",
+            "description": "Send a written recap of the kickoff meeting to all attendees summarizing scope, responsibilities, and key dates.",
+            "criteria": [
+                "Recap is sent to all meeting participants",
+                "Recap includes key decisions, owners, and dates"
+            ],
+            "priority": "medium",
+            "due_date": null,
+            "assignee": "Maya Chen",
+            "tags": []
+        },
+        {
+            "title": "Schedule weekly Thursday check-in",
+            "description": "Set up a recurring weekly check-in meeting for Thursdays at 10:00.",
+            "criteria": [
+                "Recurring meeting invite is created",
+                "All relevant participants are invited and meeting cadence is weekly Thursdays at 10:00"
+            ],
+            "priority": "medium",
+            "due_date": null,
+            "assignee": "Maya Chen",
+            "tags": []
+        }
+    ]
+}

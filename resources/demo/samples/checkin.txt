@@ -1,0 +1,23 @@
+Northfield Dental — patient portal, weekly check-in
+Wed Oct 14 2026 — notes typed by Jordan during the call (rough!)
+
+Attendees: Jordan Reyes (PM), Aisha Patel (dev), Tom Whitaker (QA), Dr. Elena Ruiz (client, practice owner)
+Late: Tom joined ~10 min in, train wifi
+
+- small talk: Dr. Ruiz back from conference in Denver, says the coffee there was bad lol
+- status: appointment booking flow is basically done, Aisha demoed it. Dr R happy w/ it overall
+- BUT online booking shows Saturdays — practice is closed Sat. Aisha to hide weekends from the calendar, should be quick, before Friday
+- reminder texts: Dr R wants SMS reminders 24h before appts. we quoted email only originally.
+    - Jordan to send a change request w/ cost estimate for SMS (Twilio) by Monday
+    - not starting SMS until she signs off on the CR
+- insurance upload page: patients upload card photos. Tom found that iPhone photos (HEIC) fail to upload. URGENT, front desk already getting calls about it
+    - Aisha fixing HEIC upload ASAP
+    - Tom to retest on iPhone + Android once fixed
+- Tom: also found the password reset email goes to spam on Gmail. not sure if our problem or theirs. Jordan to check the SPF/DKIM setup on their domain w/ their IT person (Kevin?)
+- Dr R asked if portal can show outstanding balances. Out of scope for phase 1. parking it for phase 2, NOT a task now
+- HIPAA: Dr Ruiz needs the signed BAA from our hosting provider for her compliance file. Jordan to get it and send it over by end of next week (Oct 23)
+- accessibility: Dr R mentioned a few older patients struggle w/ small text. Aisha suggested a text-size toggle, low priority, nice-to-have
+- go-live target still Nov 2. Tom wants a full regression test the week of Oct 26 before go-live, everyone ok with that
+- Jordan to book a 30 min training session for the front desk staff the week before launch
+- random: someone's dog barking the whole last 5 min (Tom's?? he says no)
+- next check-in same time next week
