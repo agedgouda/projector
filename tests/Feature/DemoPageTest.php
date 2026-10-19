@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\Ai\AiUsageLogger;
 use App\Services\Demo\DemoSamples;
 use App\Services\Demo\DemoSandbox;
 use Illuminate\Support\Facades\Http;
@@ -221,4 +222,21 @@ it('deletes sandboxes older than a day and keeps newer ones', function () {
         ->and(User::find($newVisitor->id))->not->toBeNull()
         ->and($newVisitor->organizations()->count())->toBe(1)
         ->and(Document::count())->toBe(3);
+});
+
+it('keeps the AI usage of deleted sandboxes, tagged as demo', function () {
+    ['user' => $visitor, 'project' => $project] = app(DemoSandbox::class)->create();
+    $organizationId = $visitor->organizations()->sole()->id;
+
+    app(AiUsageLogger::class)->log('openai', 'gpt-4o-mini', 'llm', 1000, 500, $project);
+
+    $this->travel(DemoSandbox::LIFETIME_HOURS + 1)->hours();
+    $this->artisan('demo:prune')->assertSuccessful();
+
+    $log = AiUsageLog::sole();
+    expect(Organization::find($organizationId))->toBeNull()
+        ->and($log->organization_id)->toBeNull()
+        ->and($log->membership_tier)->toBe(Organization::TIER_DEMO)
+        ->and($log->input_tokens)->toBe(1000)
+        ->and((float) $log->cost_usd)->toBeGreaterThan(0);
 });

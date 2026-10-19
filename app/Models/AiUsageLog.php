@@ -17,6 +17,7 @@ class AiUsageLog extends Model
 
     protected $fillable = [
         'organization_id',
+        'membership_tier',
         'client_id',
         'project_id',
         'driver',

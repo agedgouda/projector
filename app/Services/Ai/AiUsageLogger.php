@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Models\AiUsageLog;
+use App\Models\Organization;
 use App\Models\Project;
 use Illuminate\Support\Facades\Log;
 
@@ -19,9 +20,11 @@ class AiUsageLogger
     ): void {
         try {
             $costUsd = $this->calculateCost($driver, $model, $inputTokens, $outputTokens);
+            $organizationId = $project?->client?->organization_id ?? $organizationId;
 
             AiUsageLog::create([
-                'organization_id' => $project?->client?->organization_id ?? $organizationId,
+                'organization_id' => $organizationId,
+                'membership_tier' => $organizationId ? Organization::query()->whereKey($organizationId)->value('membership_tier') : null,
                 'client_id' => $project?->client_id,
                 'project_id' => $project?->id,
                 'driver' => $driver,
