@@ -57,6 +57,8 @@ it('creates a sandbox with three meeting transcripts and signs the visitor in', 
 
     $organization = $visitor->organizations()->sole();
     expect($organization->membership_tier)->toBe(Organization::TIER_DEMO)
+        ->and($organization->llm_driver)->toBe('openai')
+        ->and($organization->llm_config)->toBe(['model' => 'gpt-4o-mini'])
         ->and($organization->pivot->role)->toBe('org-admin')
         ->and($organization->users()->count())->toBe(1 + 12);
 
@@ -74,6 +76,17 @@ it('creates a sandbox with three meeting transcripts and signs the visitor in', 
 
     $firstProject = $visitor->favoriteProjects()->orderBy('projects.name')->first();
     $response->assertRedirect(route('projects.show', ['project' => $firstProject->id, 'tab' => 'hierarchy']));
+});
+
+it('runs demo AI on the demo model with the system OpenAI key', function () {
+    config(['services.openai.model' => 'gpt-5.2', 'services.openai.key' => 'system-key']);
+
+    $organization = startDemo()->organizations()->sole();
+    $organization->applyDriverConfig();
+
+    expect(config('services.llm_driver'))->toBe('openai')
+        ->and(config('services.openai.model'))->toBe('gpt-4o-mini')
+        ->and(config('services.openai.key'))->toBe('system-key');
 });
 
 it('sends a demo visitor who comes back straight into their sandbox', function () {

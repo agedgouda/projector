@@ -17,7 +17,8 @@ use Symfony\Component\Mime\RawMessage;
  * A temporary, fully working Projector account for one demo visitor: their own organization
  * with three client projects (see DemoSamples), each holding a meeting transcript that the
  * real AI pipeline turns into Meeting Notes as soon as it's created, plus that meeting's team
- * as members so tasks have people to assign. Everything is deleted after LIFETIME_HOURS.
+ * as members so tasks have people to assign. Demo AI runs use the cheaper services.demo.llm_model
+ * with the system OpenAI key. Everything is deleted after LIFETIME_HOURS.
  */
 class DemoSandbox
 {
@@ -44,6 +45,8 @@ class DemoSandbox
                 'slug' => "demo-{$token}",
                 'normalized_name' => "demo-{$token}",
                 'membership_tier' => Organization::TIER_DEMO,
+                'llm_driver' => 'openai',
+                'llm_config' => ['model' => config()->string('services.demo.llm_model')],
             ]);
             Organization::withoutEvents(fn (): bool => $organization->save());
 

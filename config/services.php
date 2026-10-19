@@ -97,6 +97,7 @@ return [
     // The public demo (/demo): temporary sandbox accounts, see App\Services\Demo\DemoSandbox.
     'demo' => [
         'daily_sandbox_limit' => (int) env('DEMO_DAILY_SANDBOX_LIMIT', 100),
+        'llm_model' => env('DEMO_LLM_MODEL', 'gpt-4o-mini'),
     ],
 
     'vector_driver' => env('VECTOR_DRIVER', 'gemini'),
