@@ -17,6 +17,7 @@ use Spatie\Permission\Traits\HasRoles;
 /**
  * @property \Illuminate\Database\Eloquent\Collection<int, \App\Models\Organization> $organizations
  * @property string|null $avatar
+ * @property \Illuminate\Support\Carbon|null $demo_expires_at
  * @property \App\Models\GoogleOauthToken|null $googleOauthToken
  */
 class User extends Authenticatable
@@ -66,7 +67,16 @@ class User extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
             'privacy_policy_accepted_at' => 'datetime',
             'terms_accepted_at' => 'datetime',
+            'demo_expires_at' => 'datetime',
         ];
+    }
+
+    /**
+     * A temporary account from the public demo (see App\Services\Demo\DemoSandbox).
+     */
+    public function isDemo(): bool
+    {
+        return $this->demo_expires_at !== null;
     }
 
     public function getNameAttribute()

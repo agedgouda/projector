@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AiProcessingHeader from '@/components/AiProcessingHeader.vue';
+import DemoBanner from '@/components/DemoBanner.vue';
 import ImpersonationBanner from '@/components/ImpersonationBanner.vue';
 import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue';
 import Toaster from '@/components/ui/sonner/Sonner.vue';
@@ -54,6 +55,7 @@ watch(
 
 <template>
     <ImpersonationBanner />
+    <DemoBanner />
     <SessionTimeoutModal />
 
     <AppLayout :breadcrumbs="breadcrumbs">

@@ -2,73 +2,107 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\DemoExtractRequest;
+use App\Http\Requests\StartDemoRequest;
+use App\Models\User;
 use App\Services\Demo\DemoSamples;
-use App\Services\Demo\DemoTaskExtractor;
-use Illuminate\Http\JsonResponse;
+use App\Services\Demo\DemoSandbox;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 /**
- * The public demo: pick or paste meeting notes and see the tasks Projector drafts from them.
- * Unedited samples show precomputed results; anything else is a live, rate-limited AI run.
+ * The public demo: each visitor gets a temporary account with sample projects in the real app
+ * (see DemoSandbox), deleted after a day.
  */
 class DemoController extends Controller
 {
-    public function show(DemoSamples $samples): Response
+    public function show(Request $request): Response|RedirectResponse
     {
+        $user = $request->user();
+
+        if ($user instanceof User && $user->isDemo()) {
+            return $this->redirectIntoSandbox($user);
+        }
+
         return Inertia::render('Demo/Index', [
-            'samples' => $samples->all(),
-            'tags' => DemoTaskExtractor::TAGS,
-            'minNotesLength' => DemoExtractRequest::MIN_NOTES_LENGTH,
-            'maxNotesLength' => DemoExtractRequest::MAX_NOTES_LENGTH,
+            'projects' => array_values(array_map(fn (array $sample): array => [
+                'name' => $sample['project'],
+                'client' => $sample['client'],
+                'meeting' => $sample['title'],
+            ], DemoSamples::SAMPLES)),
+            'lifetimeHours' => DemoSandbox::LIFETIME_HOURS,
+            'isSignedIn' => $user instanceof User,
             'turnstileSiteKey' => config('services.turnstile.site_key'),
-            'parentOrigin' => config('services.demo.parent_origin'),
         ]);
     }
 
-    public function extract(DemoExtractRequest $request, DemoTaskExtractor $extractor): JsonResponse
+    public function start(StartDemoRequest $request, DemoSandbox $sandbox): RedirectResponse
     {
-        if (! $this->claimLiveRun()) {
-            return response()->json([
-                'message' => 'The live demo is busy right now. Try one of the samples, or come back tomorrow.',
-            ], 503);
+        if (! $this->claimSandbox()) {
+            return back()->withErrors(['demo' => 'The demo is busy right now. Please try again tomorrow, or start a free trial.']);
         }
 
-        try {
-            $tasks = $extractor->extract(
-                $request->string('notes')->toString(),
-                $request->date('meeting_date', 'Y-m-d') ?? Carbon::today(),
-                $request->team(),
-            );
-        } catch (Throwable $e) {
-            report($e);
+        ['user' => $user] = $sandbox->create();
 
-            return response()->json([
-                'message' => "The AI didn't respond. Please try again in a moment.",
-            ], 502);
+        if (Auth::check()) {
+            Auth::logout();
         }
 
-        return response()->json(['tasks' => $tasks]);
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return $this->redirectIntoSandbox($user);
     }
 
     /**
-     * Counts this run against the site-wide daily cap, which bounds what the demo can cost
+     * Leaves the demo for sign-up. The sandbox itself is deleted on schedule.
+     */
+    public function exit(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user instanceof User && $user->isDemo()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        return redirect()->route('register');
+    }
+
+    private function redirectIntoSandbox(User $user): RedirectResponse
+    {
+        $project = $user->favoriteProjects()->orderBy('projects.name')->first();
+        $organizationId = $user->organizations()->value('organizations.id');
+
+        if ($project === null || ! is_string($organizationId)) {
+            return redirect()->route('dashboard');
+        }
+
+        session()->put('active_org_id', $organizationId);
+        cookie()->queue(cookie()->forever('last_org_id', $organizationId));
+
+        return redirect()->route('projects.show', ['project' => $project->id, 'tab' => 'hierarchy']);
+    }
+
+    /**
+     * Counts this sandbox against the site-wide daily cap, which bounds what the demo can cost
      * regardless of how many visitors (or IPs) it gets.
      */
-    private function claimLiveRun(): bool
+    private function claimSandbox(): bool
     {
-        $key = 'demo:live-runs:'.Carbon::today()->toDateString();
-        $limit = config()->integer('services.demo.daily_live_limit', 300);
+        $key = 'demo:sandboxes:'.Carbon::today()->toDateString();
+        $limit = config()->integer('services.demo.daily_sandbox_limit', 100);
 
         Cache::add($key, 0, Carbon::tomorrow()->addHour());
 
-        $runsToday = Cache::get($key, 0);
+        $createdToday = Cache::get($key, 0);
 
-        if (is_numeric($runsToday) && (int) $runsToday >= $limit) {
+        if (is_numeric($createdToday) && (int) $createdToday >= $limit) {
             return false;
         }
 

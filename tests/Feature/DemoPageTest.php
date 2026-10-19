@@ -1,237 +1,211 @@
 <?php
 
-use App\Models\AiTemplate;
+use App\Http\Middleware\RestrictDemoUsers;
+use App\Jobs\ProcessDocumentAI;
+use App\Models\AiUsageLog;
+use App\Models\Client;
 use App\Models\Document;
+use App\Models\Organization;
+use App\Models\Project;
+use App\Models\User;
 use App\Services\Demo\DemoSamples;
-use Illuminate\Http\Client\Request;
+use App\Services\Demo\DemoSandbox;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
     $this->withoutVite();
+    Queue::fake();
 
     config([
-        'services.openai.key' => 'test-key',
         'services.turnstile.secret_key' => null,
-        'services.demo.parent_origin' => 'https://about.projecthq.app',
-        'services.demo.daily_live_limit' => 300,
+        'services.demo.daily_sandbox_limit' => 100,
     ]);
-
-    AiTemplate::query()->firstOrCreate(
-        ['name' => 'Create Tasks', 'organization_id' => null],
-        [
-            'type' => 'workflow',
-            'system_prompt' => '<p>Extract tasks. Today is {{today}}. Tags: {{available_tags}}.</p><p>Do not extract assignee or owner information.</p>',
-            'user_prompt' => "Source Material:\n{{input}}\n\nUse the keys \"title\", \"{{output_key}}\", \"criteria\", \"priority\", \"due_date\", and \"tag_names\".",
-        ],
-    );
 });
 
-/**
- * @param  list<array<string, mixed>>  $items
- */
-function fakeOpenAiTasks(array $items): void
+function startDemo(): User
 {
-    Http::fake([
-        'api.openai.com/*' => Http::response([
-            'choices' => [['message' => ['content' => json_encode(['items' => $items])]]],
-            'usage' => ['prompt_tokens' => 1200, 'completion_tokens' => 300],
-        ]),
-    ]);
+    test()->post(route('demo.start'))->assertRedirect();
+
+    $user = auth()->user();
+    expect($user)->toBeInstanceOf(User::class);
+
+    return $user;
 }
 
-function demoPayload(array $overrides = []): array
-{
-    return [
-        'notes' => str_repeat('Maya will send the recap to the client by Friday. ', 5),
-        'meeting_date' => '2026-10-13',
-        'team' => ['Maya Chen', 'Luis Ortega'],
-        ...$overrides,
-    ];
-}
-
-it('renders the demo page with every sample and its saved result', function () {
+it('shows the demo start page to guests', function () {
     $this->get(route('demo.show'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Demo/Index')
-            ->has('samples', count(DemoSamples::SAMPLES))
-            ->has('samples.0.notes')
-            ->has('samples.0.tasks.0.title')
-            ->where('parentOrigin', 'https://about.projecthq.app'));
+            ->has('projects', count(DemoSamples::SAMPLES))
+            ->where('isSignedIn', false)
+            ->where('lifetimeHours', DemoSandbox::LIFETIME_HOURS));
 });
 
-it('lets only the marketing site frame the demo page', function () {
-    $response = $this->get(route('demo.show'))->assertOk();
+it('creates a sandbox with three meeting transcripts and signs the visitor in', function () {
+    $response = $this->post(route('demo.start'));
 
-    expect($response->headers->get('Content-Security-Policy'))->toBe("frame-ancestors 'self' https://about.projecthq.app")
-        ->and($response->headers->has('X-Frame-Options'))->toBeFalse();
+    $visitor = auth()->user();
+    expect($visitor)->toBeInstanceOf(User::class)
+        ->and($visitor->isDemo())->toBeTrue()
+        ->and($visitor->email)->toEndWith('@'.DemoSandbox::EMAIL_DOMAIN);
+
+    $organization = $visitor->organizations()->sole();
+    expect($organization->membership_tier)->toBe(Organization::TIER_DEMO)
+        ->and($organization->pivot->role)->toBe('org-admin')
+        ->and($organization->users()->count())->toBe(1 + 12);
+
+    $projects = Project::whereHas('client', fn ($query) => $query->where('organization_id', $organization->id))->get();
+    expect($projects)->toHaveCount(3)
+        ->and($visitor->favoriteProjects()->count())->toBe(3);
+
+    $transcripts = Document::whereIn('project_id', $projects->pluck('id'))->get();
+    expect($transcripts)->toHaveCount(3)
+        ->and($transcripts->pluck('type')->unique()->all())->toBe(['intake'])
+        ->and($transcripts->first()->content)->toStartWith('<p>');
+
+    // The real Transcription -> Meeting Notes run starts on its own for each transcript.
+    Queue::assertPushed(ProcessDocumentAI::class, 3);
+
+    $firstProject = $visitor->favoriteProjects()->orderBy('projects.name')->first();
+    $response->assertRedirect(route('projects.show', ['project' => $firstProject->id, 'tab' => 'hierarchy']));
 });
 
-it('keeps every sample within the demo length limit', function () {
-    foreach (array_keys(DemoSamples::SAMPLES) as $id) {
-        expect(mb_strlen(app(DemoSamples::class)->notes($id)))->toBeLessThanOrEqual(6000)->toBeGreaterThanOrEqual(100);
-    }
+it('sends a demo visitor who comes back straight into their sandbox', function () {
+    $visitor = startDemo();
+
+    $this->get(route('demo.show'))->assertRedirectContains('/projects/');
+
+    expect(auth()->id())->toBe($visitor->id);
 });
 
-it('drafts tasks from the submitted notes without saving anything', function () {
-    fakeOpenAiTasks([
-        [
-            'title' => 'Send recap to client',
-            'content' => 'Email the meeting recap.',
-            'criteria' => ['Recap sent'],
-            'priority' => 'high',
-            'due_date' => '2026-10-16',
-            'start_date' => null,
-            'assignee_name' => 'maya chen',
-            'tag_names' => ['Client', 'Not A Real Tag'],
-        ],
-    ]);
+it('opens the real project page for the demo visitor', function () {
+    $visitor = startDemo();
+    $project = $visitor->favoriteProjects()->first();
 
-    $this->postJson(route('demo.extract'), demoPayload())
+    $this->get(route('projects.show', $project))
         ->assertOk()
-        ->assertExactJson(['tasks' => [[
-            'title' => 'Send recap to client',
-            'description' => 'Email the meeting recap.',
-            'criteria' => ['Recap sent'],
-            'priority' => 'high',
-            'due_date' => '2026-10-16',
-            'assignee' => 'Maya Chen',
-            'tags' => ['Client'],
-        ]]]);
-
-    Http::assertSent(function (Request $request) {
-        $messages = $request['messages'];
-
-        return str_contains($messages[0]['content'], 'Today is 2026-10-13')
-            && str_contains($messages[1]['content'], '"Maya Chen", "Luis Ortega"')
-            && str_contains($messages[1]['content'], 'Maya will send the recap');
-    });
-
-    expect(Document::count())->toBe(0);
-    $this->assertDatabaseCount('ai_usage_logs', 0);
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects/Show')
+            ->where('demo.expires_at', $visitor->demo_expires_at->toIso8601String()));
 });
-
-it('drops names outside the team and cleans malformed fields', function () {
-    fakeOpenAiTasks([
-        ['title' => 'Do the thing', 'content' => '<b>Bold</b> text', 'criteria' => 'not-a-list', 'priority' => 'urgent', 'due_date' => 'Friday', 'assignee_name' => 'Somebody Else', 'tag_names' => []],
-        ['title' => '', 'content' => 'No title, so skipped'],
-        'not an object',
-    ]);
-
-    $this->postJson(route('demo.extract'), demoPayload())
-        ->assertOk()
-        ->assertJsonCount(1, 'tasks')
-        ->assertJsonPath('tasks.0.description', 'Bold text')
-        ->assertJsonPath('tasks.0.criteria', [])
-        ->assertJsonPath('tasks.0.priority', 'medium')
-        ->assertJsonPath('tasks.0.due_date', null)
-        ->assertJsonPath('tasks.0.assignee', null);
-});
-
-it('validates the notes, date and team', function (array $overrides, string $field) {
-    Http::fake();
-
-    $this->postJson(route('demo.extract'), demoPayload($overrides))
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors($field);
-
-    Http::assertNothingSent();
-})->with([
-    'notes too short' => [['notes' => 'Too short'], 'notes'],
-    'notes too long' => [['notes' => str_repeat('a', 6001)], 'notes'],
-    'missing date' => [['meeting_date' => ''], 'meeting_date'],
-    'bad date' => [['meeting_date' => '10/13/2026'], 'meeting_date'],
-    'duplicate team member' => [['team' => ['Maya', 'Maya']], 'team.0'],
-    'too many team members' => [['team' => array_map(fn (int $i): string => "Person {$i}", range(1, 13))], 'team'],
-]);
 
 it('requires a Turnstile token when Turnstile is configured', function () {
     config(['services.turnstile.secret_key' => 'test-secret']);
     Http::fake();
 
-    $this->postJson(route('demo.extract'), demoPayload())
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('cf-turnstile-response');
+    $this->post(route('demo.start'))->assertSessionHasErrors('cf-turnstile-response');
 
-    Http::assertNothingSent();
+    expect(Organization::where('membership_tier', Organization::TIER_DEMO)->count())->toBe(0);
 });
 
-it('runs when Cloudflare accepts the Turnstile token', function () {
+it('starts when Cloudflare accepts the Turnstile token', function () {
     config(['services.turnstile.secret_key' => 'test-secret']);
-    Http::fake([
-        'challenges.cloudflare.com/*' => Http::response(['success' => true]),
-        'api.openai.com/*' => Http::response([
-            'choices' => [['message' => ['content' => json_encode(['items' => []])]]],
-            'usage' => [],
-        ]),
-    ]);
+    Http::fake(['challenges.cloudflare.com/*' => Http::response(['success' => true])]);
 
-    $this->postJson(route('demo.extract'), demoPayload(['cf-turnstile-response' => 'valid-token']))
-        ->assertOk()
-        ->assertExactJson(['tasks' => []]);
+    $this->post(route('demo.start'), ['cf-turnstile-response' => 'valid-token'])->assertRedirectContains('/projects/');
+
+    expect(auth()->user()?->isDemo())->toBeTrue();
 });
 
-it('limits each visitor to five live runs an hour', function () {
-    fakeOpenAiTasks([]);
-
-    foreach (range(1, 5) as $attempt) {
-        $this->postJson(route('demo.extract'), demoPayload())->assertOk();
+it('limits each visitor IP to three sandboxes a day', function () {
+    foreach (range(1, 3) as $attempt) {
+        $this->post(route('demo.start'))->assertRedirectContains('/projects/');
+        auth()->logout();
     }
 
-    $this->postJson(route('demo.extract'), demoPayload())
-        ->assertTooManyRequests()
-        ->assertJsonPath('message', "You've reached the demo's hourly limit. Try a sample, or come back in a bit.");
+    $this->post(route('demo.start'))->assertSessionHasErrors('demo');
+
+    expect(Organization::where('membership_tier', Organization::TIER_DEMO)->count())->toBe(3);
 });
 
-it('limits each visitor to fifteen live runs a day', function () {
-    fakeOpenAiTasks([]);
+it('stops creating sandboxes once the site-wide daily cap is reached', function () {
+    config(['services.demo.daily_sandbox_limit' => 1]);
 
-    foreach (range(1, 15) as $attempt) {
-        RateLimiter::clear(md5('demo'.'hour:127.0.0.1'));
-        $this->postJson(route('demo.extract'), demoPayload())->assertOk();
-    }
-
-    RateLimiter::clear(md5('demo'.'hour:127.0.0.1'));
-
-    $this->postJson(route('demo.extract'), demoPayload())
-        ->assertTooManyRequests()
-        ->assertJsonPath('message', "You've reached the demo's daily limit. Start a free trial to keep going.");
-});
-
-it('stops live runs once the site-wide daily cap is reached', function () {
-    config(['services.demo.daily_live_limit' => 1]);
-    fakeOpenAiTasks([]);
-
-    $this->postJson(route('demo.extract'), demoPayload())->assertOk();
+    $this->post(route('demo.start'))->assertRedirectContains('/projects/');
+    auth()->logout();
 
     $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
-        ->postJson(route('demo.extract'), demoPayload())
-        ->assertServiceUnavailable();
+        ->post(route('demo.start'))
+        ->assertSessionHasErrors('demo');
 
-    Http::assertSentCount(1);
+    expect(Organization::where('membership_tier', Organization::TIER_DEMO)->count())->toBe(1);
 });
 
-it('reports a friendly error when the AI call fails', function () {
-    Http::fake(['api.openai.com/*' => Http::response('upstream error', 500)]);
+it('signs the visitor out and sends them to sign up when they leave the demo', function () {
+    startDemo();
 
-    $this->postJson(route('demo.extract'), demoPayload())
-        ->assertStatus(502)
-        ->assertJsonPath('message', "The AI didn't respond. Please try again in a moment.");
+    $this->post(route('demo.exit'))->assertRedirect(route('register'));
+
+    $this->assertGuest();
 });
 
-it('reports a friendly error when the Create Tasks transformation is missing', function () {
-    AiTemplate::query()->whereNull('organization_id')->where('name', 'Create Tasks')->delete();
-    Http::fake();
+it('blocks demo accounts from features that reach outside the app', function () {
+    $visitor = startDemo();
+    $organization = $visitor->organizations()->sole();
 
-    $this->postJson(route('demo.extract'), demoPayload())->assertStatus(502);
+    $this->from(route('dashboard'))
+        ->post(route('organizations.invite', $organization), ['first_name' => 'New', 'last_name' => 'User', 'email' => 'new@example.com', 'role' => 'team-member'])
+        ->assertRedirect(route('dashboard'))
+        ->assertSessionHas('error', RestrictDemoUsers::MESSAGE);
 
-    Http::assertNothingSent();
+    $this->putJson(route('organizations.update', $organization), ['name' => 'Renamed'])
+        ->assertForbidden()
+        ->assertJsonPath('message', RestrictDemoUsers::MESSAGE);
+
+    expect($organization->invitations()->count())->toBe(0)
+        ->and($organization->fresh()->name)->toBe('Demo Agency');
 });
 
-it('rejects an unknown sample id when generating sample results', function () {
-    $this->artisan('demo:generate-samples', ['sample' => 'nope'])->assertFailed();
+it('never sends email to a demo account', function () {
+    config(['mail.default' => 'array']);
+
+    Mail::raw('Hello', fn ($message) => $message->to('visitor-abc@'.DemoSandbox::EMAIL_DOMAIN));
+    Mail::raw('Hello', fn ($message) => $message->to('real@example.com'));
+
+    $sent = app('mail.manager')->mailer('array')->getSymfonyTransport()->messages();
+
+    expect($sent)->toHaveCount(1)
+        ->and($sent->first()->getEnvelope()->getRecipients()[0]->getAddress())->toBe('real@example.com');
+});
+
+it('stops new transcripts once the demo AI budget is used up', function () {
+    $visitor = startDemo();
+    $organization = $visitor->organizations()->sole();
+    $project = $visitor->favoriteProjects()->first();
+
+    foreach (range(1, 15) as $run) {
+        AiUsageLog::create(['organization_id' => $organization->id, 'driver' => 'openai', 'model' => 'test', 'type' => 'llm', 'input_tokens' => 1, 'output_tokens' => 1, 'cost_usd' => 0, 'created_at' => now()]);
+    }
+
+    $this->from(route('projects.show', $project))
+        ->post(route('projects.documents.store', $project), ['name' => 'Another meeting', 'type' => 'intake', 'content' => '<p>Notes</p>', 'priority' => 'low', 'task_status' => 'todo'])
+        ->assertSessionHas('error', "You've used all the AI runs included in the demo. Start a free trial to keep going.");
+
+    expect(Document::where('name', 'Another meeting')->exists())->toBeFalse();
+});
+
+it('deletes sandboxes older than a day and keeps newer ones', function () {
+    $sandbox = app(DemoSandbox::class);
+
+    ['user' => $oldVisitor] = $sandbox->create();
+    $oldOrganization = $oldVisitor->organizations()->sole();
+
+    $this->travel(DemoSandbox::LIFETIME_HOURS + 1)->hours();
+
+    ['user' => $newVisitor] = $sandbox->create();
+
+    $this->artisan('demo:prune')->assertSuccessful();
+
+    expect(Organization::find($oldOrganization->id))->toBeNull()
+        ->and(Client::where('organization_id', $oldOrganization->id)->exists())->toBeFalse()
+        ->and(User::find($oldVisitor->id))->toBeNull()
+        ->and(User::find($newVisitor->id))->not->toBeNull()
+        ->and($newVisitor->organizations()->count())->toBe(1)
+        ->and(Document::count())->toBe(3);
 });

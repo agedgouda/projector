@@ -522,6 +522,8 @@ declare global {
         requirementStatus: RequirementStatus[];
         pendingImportsCount: number;
         session: { lifetime_minutes: number };
+        /** Set only for a temporary demo account (see DemoSandbox). */
+        demo: { expires_at: string | null } | null;
         flash: {
             success: string | null;
             error: string | null;

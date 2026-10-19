@@ -54,6 +54,16 @@ class DocumentController extends Controller
         Gate::authorize('create', [Document::class, $project]);
 
         $validated = $request->validated();
+
+        // A new Transcription runs AI on its own as soon as it's saved (DocumentObserver), so
+        // a demo sandbox's AI budget has to be checked here too, not only on reprocess/transform.
+        $organization = $project->client?->organization;
+        if ($organization?->membership_tier === \App\Models\Organization::TIER_DEMO
+            && ($validated['type'] ?? null) === config('workflow.intake_key')
+            && ($block = \App\Services\MembershipGuard::check($organization, 'ai_docs'))) {
+            return $block;
+        }
+
         $categoryIds = $validated['category_ids'] ?? null;
         unset($validated['category_ids']);
 

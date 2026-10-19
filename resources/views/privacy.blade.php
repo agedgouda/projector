@@ -56,7 +56,7 @@
         <li><strong>Information about other people that users add:</strong> names and email addresses of people invited to an organization, and client contact names, email addresses, and phone numbers.</li>
         <li><strong>Content users add:</strong> projects, documents, tasks, comments, uploaded files, meeting recordings and transcripts, saved AI prompts, and bug reports.</li>
         <li><strong>Connected accounts:</strong> when a user or organization connects Google, Slack, Dropbox, Zoom, or Microsoft Teams, the access tokens needed to keep that connection, and for Slack the user's Slack user ID and username.</li>
-        <li><strong>Technical information:</strong> while a user is signed in, their session records their IP address and browser information. IP addresses are also used to limit repeated sign-up and sign-in attempts and uses of the public demo, and are sent to Cloudflare Turnstile to check sign-ups and demo runs for bots. Server logs record IP address and browser information for some requests for security and troubleshooting.</li>
+        <li><strong>Technical information:</strong> while a user is signed in, their session records their IP address and browser information. IP addresses are also used to limit repeated sign-up and sign-in attempts and demo accounts, and are sent to Cloudflare Turnstile to check sign-ups and new demo accounts for bots. Server logs record IP address and browser information for some requests for security and troubleshooting.</li>
         <li><strong>Email delivery and engagement:</strong> for emails the service sends, whether each was delivered, delayed, bounced, or marked as spam, and whether it was opened, with the time of each.</li>
         <li><strong>Visits from marketing links:</strong> when someone arrives at the sign-in or sign-up page from one of the operator's marketing links, the service records the link's campaign code, the page, the visitor's country, device type, and browser, the referring website's domain, and whether a sign-up followed. This record does not include an IP address and is not linked to an account.</li>
     </ul>
@@ -125,10 +125,10 @@
         the operator or an AI provider may review prompts, submitted content, or outputs.
     </p>
     <p>
-        The public demo page lets anyone, without an account, paste meeting notes and see the tasks the AI
-        drafts from them. That text, along with the meeting date and team names entered with it, is sent to
-        OpenAI to produce the result. Projector does not save the text or the result, and logs only the amount
-        of AI usage. Visitors should not paste confidential information into the demo.
+        The public demo gives anyone a temporary account, without signing up, with sample projects to try the
+        AI features on. Content in a demo account, including anything a visitor adds, is processed by the AI
+        providers described above like any other account's, and the demo account and everything in it is
+        deleted after 24 hours. Visitors should not put confidential information into the demo.
     </p>
     <p>
         By creating an account, users agree to the AI processing described in this section.

@@ -68,10 +68,10 @@ it('discloses email open tracking, no click tracking, and limits its use', funct
         ->assertDontSee('does not measure message opens');
 });
 
-it('discloses what the public demo sends to the ai provider and keeps', function () {
+it('discloses how demo accounts are processed and deleted', function () {
     $this->get(route('privacy'))
         ->assertOk()
-        ->assertSee('The public demo page lets anyone, without an account')
-        ->assertSee('Projector does not save the text or the result')
-        ->assertSee('check sign-ups and demo runs for bots');
+        ->assertSee('The public demo gives anyone a temporary account')
+        ->assertSee('deleted after 24 hours')
+        ->assertSee('check sign-ups and new demo accounts for bots');
 });

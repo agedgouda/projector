@@ -170,6 +170,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'organizations' => $organizations,
             'favoriteProjects' => $favoriteProjects,
+            'demo' => $user?->isDemo() ? ['expires_at' => $user->demo_expires_at?->toIso8601String()] : null,
             'orgMembership' => $orgMembership,
             'pendingImportsCount' => $pendingImportsCount,
             'flash' => [

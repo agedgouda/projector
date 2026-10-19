@@ -44,6 +44,9 @@ class Organization extends Model implements HasMedia
 
     const TIER_FRIENDS_FAMILY = 'friends_family';
 
+    /** The temporary organizations the public demo creates (see App\Services\Demo\DemoSandbox). */
+    const TIER_DEMO = 'demo';
+
     /** @var array<string, array{users: ?int, clients: ?int, projects: ?int, ai_docs_per_month: ?int}> */
     const TIER_LIMITS = [
         self::TIER_FREE => [
@@ -63,6 +66,12 @@ class Organization extends Model implements HasMedia
             'clients' => null,
             'projects' => null,
             'ai_docs_per_month' => null,
+        ],
+        self::TIER_DEMO => [
+            'users' => null,
+            'clients' => null,
+            'projects' => null,
+            'ai_docs_per_month' => 15,
         ],
     ];
 
@@ -317,6 +326,7 @@ class Organization extends Model implements HasMedia
         return match ($this->membership_tier) {
             self::TIER_PRO => 'Pro',
             self::TIER_FRIENDS_FAMILY => 'Friends & Family',
+            self::TIER_DEMO => 'Demo',
             default => 'Free',
         };
     }
