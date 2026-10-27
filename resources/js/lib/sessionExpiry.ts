@@ -1,10 +1,59 @@
 import type { AxiosError, AxiosResponse } from 'axios';
 
+const RETRY_LOGIN_REDIRECT_MS = 5000;
+
+let attemptLoginRedirect: (() => Promise<void>) | null = null;
+
+/**
+ * Sends the tab to the login page — but only once it's visible and the server is actually
+ * reachable. The idle timer fires this from a background tab, often the moment a laptop wakes
+ * from sleep, before Wi-Fi is back; navigating right then left a pinned tab on Chrome's
+ * offline (dinosaur) page until Chrome's own auto-reload kicked in. navigator.onLine alone
+ * isn't enough (it's true as soon as Wi-Fi associates, before anything routes), so each
+ * attempt pings /up first. Calling it again while a redirect is pending just retries now.
+ */
 export function goToLogin(): void {
+    if (attemptLoginRedirect) {
+        void attemptLoginRedirect();
+        return;
+    }
+
     const isMobile = window.location.pathname.startsWith('/app');
-    window.location.href = isMobile
-        ? '/app/login?expired=1'
-        : '/login?expired=1';
+    const target = isMobile ? '/app/login?expired=1' : '/login?expired=1';
+    let navigating = false;
+
+    const attempt = async () => {
+        if (
+            navigating ||
+            document.visibilityState !== 'visible' ||
+            !navigator.onLine
+        ) {
+            return;
+        }
+
+        try {
+            await fetch('/up', { method: 'HEAD', cache: 'no-store' });
+        } catch {
+            return;
+        }
+
+        if (navigating) {
+            return;
+        }
+
+        navigating = true;
+        clearInterval(retryHandle);
+        document.removeEventListener('visibilitychange', attempt);
+        window.removeEventListener('online', attempt);
+        window.location.href = target;
+    };
+
+    const retryHandle = setInterval(attempt, RETRY_LOGIN_REDIRECT_MS);
+    document.addEventListener('visibilitychange', attempt);
+    window.addEventListener('online', attempt);
+    attemptLoginRedirect = attempt;
+
+    void attempt();
 }
 
 /**

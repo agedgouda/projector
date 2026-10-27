@@ -62,15 +62,20 @@ const props = defineProps<{
     allRoles: string[];
     invitations: OrganizationInvitation[];
     clients: Client[];
-    usageTotals: { documents_processed: number; cost_usd: number };
+    usageTotals: { documents_processed: number; audio_seconds: number; cost_usd: number };
+    // This month's pooled recording transcription (hours per user × members); limit_seconds is
+    // null on a tier with no limit.
+    transcriptionAllowance: { used_seconds: number; limit_seconds: number | null } | null;
     usageByClient: Record<
         string,
         {
             documents_processed: number;
+            audio_seconds: number;
             cost_usd: number;
             projects: {
                 project_id: string;
                 documents_processed: number;
+                audio_seconds: number;
                 cost_usd: number;
             }[];
         }
@@ -145,6 +150,26 @@ watch(activeTab, (tab) => {
 
 const formatDocs = (n: number) =>
     `${n.toLocaleString()} ${n === 1 ? 'document' : 'documents'}`;
+
+const transcriptionAllowanceLabel = computed(() => {
+    const allowance = props.transcriptionAllowance;
+    if (!allowance) return null;
+    const used = Math.ceil(allowance.used_seconds / 60).toLocaleString();
+    if (allowance.limit_seconds === null) return `${used} minutes used this month`;
+    const available = Math.floor(allowance.limit_seconds / 60).toLocaleString();
+    return `${used} of ${available} available minutes used this month`;
+});
+
+// Documents processed by the LLM, plus minutes of recordings transcribed (billed separately,
+// per hour of audio) — either part left out when it's zero.
+const formatUsage = (usage: { documents_processed: number; audio_seconds: number }) => {
+    const parts: string[] = [];
+    if (usage.documents_processed > 0 || usage.audio_seconds === 0)
+        parts.push(formatDocs(usage.documents_processed));
+    if (usage.audio_seconds > 0)
+        parts.push(`${Math.ceil(usage.audio_seconds / 60).toLocaleString()} min transcribed`);
+    return parts.join(' · ');
+};
 
 // Only counts a non-default option that's been picked but not yet backed by saved
 // credentials — System Default / None are left alone, same as the row-level badges.
@@ -624,7 +649,7 @@ const submitInvite = (orgId: string) => {
                                     >{{ row.clientName }}</span
                                 >
                                 <span class="text-xs text-slate-400">{{
-                                    formatDocs(row.documents_processed)
+                                    formatUsage(row)
                                 }}</span>
                             </div>
 
@@ -643,7 +668,7 @@ const submitInvite = (orgId: string) => {
                                         >{{ project.projectName }}</span
                                     >
                                     <span class="text-xs text-slate-400">{{
-                                        formatDocs(project.documents_processed)
+                                        formatUsage(project)
                                     }}</span>
                                 </div>
                             </div>
@@ -662,9 +687,21 @@ const submitInvite = (orgId: string) => {
                         <span
                             class="text-sm font-black text-slate-800 dark:text-slate-100"
                             >{{
-                                formatDocs(usageTotals.documents_processed)
+                                formatUsage(usageTotals)
                             }}</span
                         >
+                    </div>
+
+                    <div
+                        v-if="transcriptionAllowanceLabel"
+                        class="flex h-10 items-center rounded-md border border-slate-200 px-3 dark:border-slate-800"
+                    >
+                        <span class="flex-1 text-[13px] font-semibold text-slate-800 dark:text-slate-100"
+                            >Transcription Generation</span
+                        >
+                        <span class="text-xs text-slate-500 dark:text-slate-400">{{
+                            transcriptionAllowanceLabel
+                        }}</span>
                     </div>
                 </div>
             </div>

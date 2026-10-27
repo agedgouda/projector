@@ -184,6 +184,7 @@ const titles: Record<string, string> = {
                             <div>
                                 <p class="font-bold text-gray-900 dark:text-white">Enable Transcription in Workspace Admin</p>
                                 <p class="text-xs text-gray-500 mt-0.5">In <span class="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">admin.google.com</span>, go to <strong>Apps &gt; Google Workspace &gt; Google Meet &gt; Meet video settings</strong> and enable <strong>Transcription</strong>. Requires Business Standard or higher.</p>
+                                <p class="text-xs text-gray-500 mt-1">Recommended: under <strong>Automatic transcription</strong> on the same page, check <strong>Meetings are transcribed by default</strong>, so meetings are transcribed even when nobody remembers to turn it on (Business Plus, Enterprise, Education Plus or Enterprise Essentials; applies to meetings created after you turn it on, and hosts can still switch it off). Meetings that were only recorded can still be imported, but they're transcribed by Projector from the recording, which takes longer.</p>
                             </div>
                         </div>
 
@@ -203,7 +204,9 @@ const titles: Record<string, string> = {
                                 <ul class="mt-1 space-y-1">
                                     <li class="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">https://www.googleapis.com/auth/meetings.space.readonly</li>
                                     <li class="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">https://www.googleapis.com/auth/meetings.space.created</li>
+                                    <li class="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">https://www.googleapis.com/auth/drive.meet.readonly</li>
                                 </ul>
+                                <p class="text-xs text-gray-500 mt-1">The last scope lets Projector download meeting recordings that have no transcript, so it can transcribe them. It only covers files Google Meet created, not the rest of anyone's Drive. Without it, meetings with transcripts still import normally.</p>
                             </div>
                         </div>
                     </div>

@@ -11,8 +11,11 @@ interface TranscriptionDriver
     public function submit(string $absoluteFilePath): string;
 
     /**
-     * @return array{status: string, text: ?string, error: ?string} status is one of
-     *                                                              'queued', 'processing', 'completed', 'error'.
+     * usage is what the vendor bills for, once known (a completed transcript) — audio length
+     * and the model that actually ran.
+     *
+     * @return array{status: string, text: ?string, error: ?string, usage?: ?array{driver: string, model: string, audio_seconds: int}} status is one of
+     *                                                                                                                                 'queued', 'processing', 'completed', 'error'.
      */
     public function poll(string $transcriptId): array;
 }

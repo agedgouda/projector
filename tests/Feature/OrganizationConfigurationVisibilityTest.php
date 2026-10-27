@@ -74,3 +74,23 @@ it('gives super-admins configuration and AI usage data even without a membership
         ->and($props['currentOrg']['meeting_config_form'])->not()->toBeNull()
         ->and($props['usageTotals']['documents_processed'])->toBe(1);
 });
+
+it('reports transcribed audio separately from documents processed', function () {
+    $admin = User::factory()->create();
+    $this->org->users()->attach($admin->id, ['role' => 'org-admin']);
+
+    AiUsageLog::create([
+        'organization_id' => $this->org->id,
+        'driver' => 'assemblyai',
+        'model' => 'universal-2',
+        'type' => 'transcription',
+        'audio_seconds' => 3120,
+        'cost_usd' => 0.15,
+    ]);
+
+    $props = organizationPageProps($admin, $this->org);
+
+    expect($props['usageTotals']['documents_processed'])->toBe(1)
+        ->and($props['usageTotals']['audio_seconds'])->toBe(3120)
+        ->and($props['usageTotals']['cost_usd'])->toEqual(1.40);
+});

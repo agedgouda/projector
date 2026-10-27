@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\MeetingDriver;
+use App\Contracts\ProvidesRecordingAudio;
 use App\Models\Organization;
 use App\Services\Meeting\Drivers\GoogleMeetMeetingDriver;
 use App\Services\Meeting\Drivers\SlackMeetingDriver;
@@ -32,7 +33,7 @@ class MeetingTranscriptService
     /**
      * List recordings available for import.
      *
-     * @return array<int, array{id: string, title: string, started_at: string, duration_minutes: int}>
+     * @return array<int, array{id: string, title: string, started_at: string, duration_minutes: int, has_transcript?: bool}>
      */
     public function listRecordings(Organization $organization, \DateTimeInterface $since): array
     {
@@ -49,5 +50,32 @@ class MeetingTranscriptService
         $config = $organization->meeting_config ?? [];
 
         return $this->driver($organization)->fetchTranscript($config, $recordingId);
+    }
+
+    /**
+     * Whether this recording has no provider transcript and has to be transcribed from its
+     * audio instead (see ProvidesRecordingAudio). Always false for a provider that can't hand
+     * over audio — those only ever list recordings that have transcripts.
+     */
+    public function needsAudioTranscription(Organization $organization, string $recordingId): bool
+    {
+        $driver = $this->driver($organization);
+
+        return $driver instanceof ProvidesRecordingAudio
+            && ! $driver->hasTranscript($organization->meeting_config ?? [], $recordingId);
+    }
+
+    /**
+     * Streams a recording's media file from the provider to $destinationPath.
+     */
+    public function downloadRecording(Organization $organization, string $recordingId, string $destinationPath): void
+    {
+        $driver = $this->driver($organization);
+
+        if (! $driver instanceof ProvidesRecordingAudio) {
+            throw new \RuntimeException("Meeting provider [{$organization->meeting_provider}] can't provide recording audio.");
+        }
+
+        $driver->downloadRecording($organization->meeting_config ?? [], $recordingId, $destinationPath);
     }
 }

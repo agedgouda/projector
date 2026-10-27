@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\AssembleBrowserRecording;
+use App\Jobs\DownloadMeetingRecording;
 use App\Jobs\TranscribeRecording;
 use App\Models\Document;
 use App\Models\TusUpload;
@@ -26,7 +27,7 @@ class RecordingRecoveryService
      */
     public const STUCK_AFTER_MINUTES = 60;
 
-    private const RECORDING_SOURCES = ['mobile_recording', 'browser_capture'];
+    private const RECORDING_SOURCES = ['mobile_recording', 'browser_capture', 'recording_upload', 'provider_audio'];
 
     /**
      * The recording behind a page: the transcript document itself, or — on its Meeting Notes
@@ -68,12 +69,13 @@ class RecordingRecoveryService
         }
 
         $hasAudio = $this->audioMedia($recording) !== null || $this->chunks($recording)->isNotEmpty();
+        $canRefetch = $this->providerRecordingId($recording) !== null;
 
         return [
             'document_id' => $recording->id,
             'reason' => $error,
             'has_audio' => $hasAudio,
-            'can_retry' => $hasAudio && ($metadata['audio_too_large'] ?? false) !== true,
+            'can_retry' => ($hasAudio || $canRefetch) && ($metadata['audio_too_large'] ?? false) !== true,
         ];
     }
 
@@ -98,6 +100,17 @@ class RecordingRecoveryService
             unset($metadata['transcription_error']);
             $recording->update(['metadata' => [...$metadata, 'retried_at' => now()->toIso8601String()]]);
             AssembleBrowserRecording::dispatch($recording);
+
+            return true;
+        }
+
+        // A provider recording whose download never succeeded (e.g. the Drive permission was
+        // missing and has since been added) — fetch it again.
+        $recordingId = $this->providerRecordingId($recording);
+        if ($recordingId !== null && ($metadata['audio_too_large'] ?? false) !== true) {
+            unset($metadata['transcription_error']);
+            $recording->update(['metadata' => [...$metadata, 'retried_at' => now()->toIso8601String()]]);
+            DownloadMeetingRecording::dispatch($recording, $recordingId);
 
             return true;
         }
@@ -136,6 +149,15 @@ class RecordingRecoveryService
                 fclose($in);
             }
         }, $filename, ['Content-Type' => $isMp4 ? 'audio/mp4' : 'audio/webm']);
+    }
+
+    private function providerRecordingId(Document $recording): ?string
+    {
+        $recordingId = $recording->metadata['recording_id'] ?? null;
+
+        return ($recording->metadata['recording_source'] ?? null) === 'provider_audio' && is_string($recordingId)
+            ? $recordingId
+            : null;
     }
 
     private function isRecording(Document $document): bool

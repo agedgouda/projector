@@ -17,6 +17,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Long-Running Recording Jobs
+    |--------------------------------------------------------------------------
+    |
+    | Downloading a meeting recording from its provider and uploading it to
+    | the transcription service can take many minutes for a 1-2 GB file, far
+    | past the default connection's retry_after (which would hand the job to
+    | a second worker mid-transfer). These jobs run on their own connection
+    | and queue, worked by Horizon's "supervisor-recordings".
+    |
+    */
+
+    'recordings' => [
+        'connection' => env('QUEUE_RECORDINGS_CONNECTION', env('QUEUE_CONNECTION', 'database') === 'redis' ? 'redis-long' : env('QUEUE_CONNECTION', 'database')),
+        'queue' => 'recordings',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |
@@ -69,6 +87,17 @@ return [
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'redis-long' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'recordings',
+            // Longer than supervisor-recordings' 3600s timeout, so a job is never retried
+            // while it's still running.
+            'retry_after' => 3700,
             'block_for' => null,
             'after_commit' => false,
         ],

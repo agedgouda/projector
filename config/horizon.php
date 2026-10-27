@@ -210,6 +210,20 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        // Recording download/transcription-upload jobs (see config/queue.php's 'recordings') —
+        // a 1-2 GB file can take many minutes to move, so these get their own long timeout.
+        'supervisor-recordings' => [
+            'connection' => 'redis-long',
+            'queue' => ['recordings'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 3600,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -219,11 +233,17 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+            'supervisor-recordings' => [
+                'maxProcesses' => 3,
+            ],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
+            ],
+            'supervisor-recordings' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],

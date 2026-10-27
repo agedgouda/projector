@@ -26,6 +26,9 @@ export function useIdleSessionTimer() {
     const page = usePage<AppPageProps>();
 
     const showWarning = ref(false);
+    // Logged out, but goToLogin() may still be waiting for the tab to be visible and back
+    // online — the modal covers the page in the meantime instead of leaving it usable-looking.
+    const isLoggedOut = ref(false);
     const remainingSeconds = ref(0);
     const isExtending = ref(false);
 
@@ -51,17 +54,19 @@ export function useIdleSessionTimer() {
     };
 
     const performLogout = () => {
+        if (tickHandle) clearInterval(tickHandle);
+        showWarning.value = true;
+        isLoggedOut.value = true;
         router.flushAll();
         // The session is already gone or about to be by the time this runs, so the POST
-        // itself may well fail (e.g. a dead CSRF token) — that's fine, the goal is just
-        // to land back on the login page either way.
-        router.post(
-            logout().url,
-            {},
-            {
-                onFinish: () => goToLogin(),
-            },
-        );
+        // itself may well fail (e.g. a dead CSRF token, or no network yet after sleep) —
+        // that's fine, the goal is just to land back on the login page either way. A plain
+        // axios call rather than an Inertia visit, so following the logout redirect doesn't
+        // swap the page out from under the logged-out modal while goToLogin() waits.
+        axios
+            .post(logout().url)
+            .catch(() => {})
+            .finally(() => goToLogin());
     };
 
     const tick = () => {
@@ -69,7 +74,6 @@ export function useIdleSessionTimer() {
         const remaining = lifetimeMs() - idleFor;
 
         if (remaining <= 0) {
-            if (tickHandle) clearInterval(tickHandle);
             performLogout();
             return;
         }
@@ -98,6 +102,8 @@ export function useIdleSessionTimer() {
 
     const logoutNow = () => performLogout();
 
+    const logInAgain = () => goToLogin();
+
     onMounted(() => {
         ACTIVITY_EVENTS.forEach((event) =>
             window.addEventListener(event, recordActivity, { passive: true }),
@@ -114,9 +120,11 @@ export function useIdleSessionTimer() {
 
     return {
         showWarning,
+        isLoggedOut,
         remainingSeconds,
         isExtending,
         stayLoggedIn,
         logoutNow,
+        logInAgain,
     };
 }

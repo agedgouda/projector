@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGooglePicker } from '@/composables/transcripts/useGooglePicker';
 import { useDocumentImportActions, type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
+import { useRecordingFileUpload } from '@/composables/transcripts/useRecordingFileUpload';
 import { type CustomPrompt } from '@/lib/constants';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { documentTypeLabel, visibleDocumentTypeKeys } from '@/lib/documentTypes';
@@ -48,6 +49,7 @@ const props = withDefaults(defineProps<{
 
 const { isOpening, openPicker } = useGooglePicker();
 const { importingGoogleDoc, importGoogleDoc, importingFile, importFile } = useDocumentImportActions(props.projectId);
+const { uploadProgress: recordingUploadProgress, uploadRecordingFile } = useRecordingFileUpload(props.projectId);
 
 const modalOpen = ref(false);
 
@@ -131,6 +133,13 @@ const confirmImport = (additionalInfo: CustomPrompt | null) => {
 
 const handleFilePicked = (file: File, kind: 'docx' | 'txt') => {
     handleItemPicked(file.name, (prompt) => importFile(file, kind, prompt, typeChoice.value));
+};
+
+// Always Transcription regardless of "Import As" (the panel disables the row otherwise), so
+// this goes straight to the confirmation dialog rather than through handleItemPicked's gate.
+const handleRecordingPicked = (file: File) => {
+    pendingImport.value = { title: file.name, run: (prompt) => void uploadRecordingFile(file, prompt) };
+    isImportConfirmOpen.value = true;
 };
 
 // Unlike the export flows elsewhere in the app, picking a file can't survive a redirect —
@@ -263,9 +272,13 @@ watch(modalOpen, async (open) => {
                     :importing-google-doc="importingGoogleDoc"
                     :importing-file="importingFile"
                     :disabled="typeChoiceIncomplete"
+                    show-recording-upload
+                    :recording-upload-progress="recordingUploadProgress"
+                    :recording-upload-disabled="skipProcessing"
                     @pick-google-doc="startGoogleDocImport"
                     @pick-docx-file="(file) => handleFilePicked(file, 'docx')"
                     @pick-txt-file="(file) => handleFilePicked(file, 'txt')"
+                    @pick-recording-file="handleRecordingPicked"
                 />
 
                 <!-- Always shown whenever the org has a transcription source. A picked recording

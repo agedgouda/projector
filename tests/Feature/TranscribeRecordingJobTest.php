@@ -3,6 +3,7 @@
 use App\Contracts\TranscriptionDriver;
 use App\Jobs\ProcessDocumentAI;
 use App\Jobs\TranscribeRecording;
+use App\Models\AiUsageLog;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
@@ -159,4 +160,129 @@ it('does nothing when another run already got the transcript', function () {
     (new TranscribeRecording($document))->handle($driver);
 
     expect($document->fresh()->content)->toBe('Already transcribed.');
+});
+
+function completedPoll(string $text, ?array $usage = ['driver' => 'assemblyai', 'model' => 'universal-2', 'audio_seconds' => 3600]): array
+{
+    return ['status' => 'completed', 'text' => $text, 'error' => null, 'usage' => $usage];
+}
+
+it('logs the transcribed audio against the project with its per-hour cost', function () {
+    Queue::fake();
+
+    $document = createPlaceholderRecording();
+    $document->update(['metadata' => array_merge($document->metadata, ['transcription_id' => 'transcript-123'])]);
+
+    $driver = Mockery::mock(TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->once()->andReturn(completedPoll('This is the meeting transcript.'));
+
+    (new TranscribeRecording($document))->handle($driver);
+
+    $log = AiUsageLog::sole();
+    $project = $document->project;
+
+    expect($log->type)->toBe('transcription')
+        ->and($log->driver)->toBe('assemblyai')
+        ->and($log->model)->toBe('universal-2')
+        ->and($log->audio_seconds)->toBe(3600)
+        ->and($log->project_id)->toBe($project->id)
+        ->and($log->client_id)->toBe($project->client_id)
+        ->and($log->organization_id)->toBe($project->client->organization_id)
+        ->and((float) $log->cost_usd)->toEqualWithDelta(0.17, 0.000001)
+        ->and($document->fresh()->metadata['transcription_usage_logged'])->toBe('transcript-123');
+});
+
+it('prices an unrecognized model at the fallback rate', function () {
+    Queue::fake();
+
+    $document = createPlaceholderRecording();
+    $document->update(['metadata' => array_merge($document->metadata, ['transcription_id' => 'transcript-123'])]);
+
+    $driver = Mockery::mock(TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->once()->andReturn(completedPoll('Transcript.', ['driver' => 'assemblyai', 'model' => 'some-new-model', 'audio_seconds' => 1800]));
+
+    (new TranscribeRecording($document))->handle($driver);
+
+    expect((float) AiUsageLog::sole()->cost_usd)->toEqualWithDelta(0.115, 0.000001);
+});
+
+it('logs usage even when the transcript held no speech, since the audio is still billed', function () {
+    $document = createPlaceholderRecording();
+    $document->update(['metadata' => array_merge($document->metadata, ['transcription_id' => 'transcript-123'])]);
+
+    $driver = Mockery::mock(TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->once()->andReturn(completedPoll(''));
+
+    (new TranscribeRecording($document))->handle($driver);
+
+    expect(AiUsageLog::count())->toBe(1)
+        ->and($document->fresh()->metadata['transcription_error'])->toBe('No speech detected in the recording.');
+});
+
+it('does not log the same transcript twice when the poll re-runs', function () {
+    Queue::fake();
+
+    $document = createPlaceholderRecording();
+    $document->update(['metadata' => array_merge($document->metadata, [
+        'transcription_id' => 'transcript-123',
+        'transcription_usage_logged' => 'transcript-123',
+    ])]);
+
+    $driver = Mockery::mock(TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->once()->andReturn(completedPoll('Transcript.'));
+
+    (new TranscribeRecording($document))->handle($driver);
+
+    expect(AiUsageLog::count())->toBe(0)
+        ->and($document->fresh()->content)->toBe('Transcript.');
+});
+
+it('logs a resubmitted transcript separately', function () {
+    Queue::fake();
+
+    $document = createPlaceholderRecording();
+    $document->update(['metadata' => array_merge($document->metadata, [
+        'transcription_id' => 'transcript-456',
+        'transcription_usage_logged' => 'transcript-123',
+    ])]);
+
+    $driver = Mockery::mock(TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->once()->andReturn(completedPoll('Transcript.'));
+
+    (new TranscribeRecording($document))->handle($driver);
+
+    expect(AiUsageLog::count())->toBe(1);
+});
+
+it('logs nothing while the transcript is still processing or when the vendor reports no usage', function (array $result) {
+    Queue::fake();
+
+    $document = createPlaceholderRecording();
+    $document->update(['metadata' => array_merge($document->metadata, ['transcription_id' => 'transcript-123'])]);
+
+    $driver = Mockery::mock(TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->once()->andReturn($result);
+
+    (new TranscribeRecording($document))->handle($driver);
+
+    expect(AiUsageLog::count())->toBe(0);
+})->with([
+    'processing' => [['status' => 'processing', 'text' => null, 'error' => null, 'usage' => null]],
+    'error' => [['status' => 'error', 'text' => null, 'error' => 'Bad audio', 'usage' => null]],
+    'no usage reported' => [['status' => 'completed', 'text' => 'Transcript.', 'error' => null, 'usage' => null]],
+]);
+
+it('reads audio length and model from the AssemblyAI transcript', function () {
+    \Illuminate\Support\Facades\Http::fake([
+        'api.assemblyai.com/*' => \Illuminate\Support\Facades\Http::response([
+            'status' => 'completed',
+            'text' => 'Hello.',
+            'audio_duration' => 3125.4,
+            'speech_model_used' => 'universal-3-5-pro',
+        ]),
+    ]);
+
+    $result = app(\App\Services\Transcription\Drivers\AssemblyAiTranscriptionDriver::class)->poll('transcript-123');
+
+    expect($result['usage'])->toBe(['driver' => 'assemblyai', 'model' => 'universal-3-5-pro', 'audio_seconds' => 3126]);
 });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\FinishBrowserRecordingRequest;
+use App\Http\Requests\FinishRecordingUploadRequest;
 use App\Jobs\AssembleBrowserRecording;
 use App\Models\Document;
 use App\Models\Project;
@@ -13,9 +14,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Our own minimal server-side implementation of the tus resumable-upload protocol's
@@ -46,13 +49,11 @@ class TusUploadController extends Controller
     {
         Gate::authorize('create', [Document::class, $project]);
 
-        $configuredMax = config('media-library.max_file_size');
-
         return response('', 204, [
             'Tus-Resumable' => self::TUS_VERSION,
             'Tus-Version' => self::TUS_VERSION,
             'Tus-Extension' => 'creation,concatenation',
-            'Tus-Max-Size' => is_numeric($configuredMax) ? (string) (int) $configuredMax : '',
+            'Tus-Max-Size' => (string) RecordingIntakeService::MAX_UPLOAD_BYTES,
         ]);
     }
 
@@ -118,7 +119,7 @@ class TusUploadController extends Controller
         ]);
     }
 
-    private function createPartial(Request $request, Project $project): Response
+    private function createPartial(Request $request, Project $project): Response|JsonResponse
     {
         $user = $request->user();
         if ($user === null) {
@@ -129,16 +130,24 @@ class TusUploadController extends Controller
         $length = is_string($rawLength) ? (int) $rawLength : 0;
         abort_if($length <= 0, 400, 'Upload-Length is required.');
 
-        $configuredMax = config('media-library.max_file_size');
-        if (is_numeric($configuredMax) && $length > (int) $configuredMax) {
+        if ($length > RecordingIntakeService::MAX_UPLOAD_BYTES) {
             return response('', 413, ['Tus-Resumable' => self::TUS_VERSION]);
+        }
+
+        $rawMetadata = $request->header('Upload-Metadata');
+        $metadata = $this->parseMetadata(is_string($rawMetadata) ? $rawMetadata : '');
+
+        // Only the upload that begins a new recording (a file upload, or a capture's first
+        // chunk) is checked against the transcription allowance — never a later chunk of a
+        // capture that's already running.
+        if (($metadata['starts_recording'] ?? null) === 'true'
+            && ($limitMessage = $project->client?->organization?->transcriptionLimitMessage())) {
+            return response()->json(['message' => $limitMessage], 403, ['Tus-Resumable' => self::TUS_VERSION]);
         }
 
         $id = (string) Str::orderedUuid();
         $path = 'tus-uploads/'.$id.'.partial';
         Storage::disk('local')->put($path, '');
-
-        $rawMetadata = $request->header('Upload-Metadata');
 
         $upload = TusUpload::create([
             'id' => $id,
@@ -148,7 +157,7 @@ class TusUploadController extends Controller
             'upload_length' => $length,
             'upload_offset' => 0,
             'storage_path' => $path,
-            'metadata' => $this->parseMetadata(is_string($rawMetadata) ? $rawMetadata : ''),
+            'metadata' => $metadata,
         ]);
 
         return response('', 201, [
@@ -164,6 +173,66 @@ class TusUploadController extends Controller
     public function finish(FinishBrowserRecordingRequest $request, Project $project): JsonResponse
     {
         return $this->finishRecording($project, $request->uploadIds());
+    }
+
+    /**
+     * An uploaded audio/video file (Import a Document's "Upload Meeting Recording" row) — the
+     * whole file is one partial upload, sent in tus-sized pieces so a large recording never
+     * has to fit in a single request body. It's checked here, before any document exists, so a
+     * file that can't be transcribed is refused outright instead of failing later in
+     * AssembleBrowserRecording; its chunk is deleted too, or PruneAbandonedTusUploads would
+     * "recover" it as a recording.
+     */
+    public function finishUpload(FinishRecordingUploadRequest $request, Project $project): JsonResponse
+    {
+        $chunk = TusUpload::where('id', $request->validated('upload_id'))
+            ->where('project_id', $project->id)
+            ->where('kind', 'partial')
+            ->first();
+
+        abort_if($chunk === null, 404);
+
+        if ($chunk->document !== null) {
+            return $this->finishedResponse($chunk->document);
+        }
+
+        abort_if(! $chunk->isComplete(), 400, 'This file hasn\'t finished uploading.');
+
+        $path = Storage::disk('local')->path($chunk->storage_path);
+        $acceptedMimes = explode(',', RecordingIntakeService::RECORDING_MIMES);
+
+        if (! in_array(File::mimeType($path), $acceptedMimes, true)) {
+            Storage::disk('local')->delete($chunk->storage_path);
+            $chunk->delete();
+
+            throw ValidationException::withMessages([
+                'upload_id' => 'This file isn\'t an audio or video recording that can be transcribed.',
+            ]);
+        }
+
+        $customPrompt = $request->validated('custom_prompt');
+
+        $document = DB::transaction(function () use ($request, $project, $chunk, $customPrompt): Document {
+            $document = $this->recordings->startRecording(
+                $project,
+                $request->string('name')->toString(),
+                null,
+                'recording_upload',
+                is_string($customPrompt) ? $customPrompt : null,
+                $request->customPromptMode(),
+            );
+
+            $chunk->update([
+                'document_id' => $document->id,
+                'claimed_at' => now(),
+            ]);
+
+            return $document;
+        });
+
+        AssembleBrowserRecording::dispatch($document);
+
+        return $this->finishedResponse($document);
     }
 
     /**

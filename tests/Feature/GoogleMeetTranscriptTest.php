@@ -222,7 +222,7 @@ it('returns available recordings from google meet', function () {
         );
 });
 
-it('excludes conferences with no transcripts available', function () {
+it('excludes conferences with neither a transcript nor a recording', function () {
     Http::fake([
         'oauth2.googleapis.com/token' => Http::response(['access_token' => 'fake-token'], 200),
         'meet.googleapis.com/v2/conferenceRecords*' => Http::response([
@@ -621,4 +621,260 @@ it('exposes google meet config form fields on edit page', function () {
             ->where('organization.meeting_config_form.impersonate_email', 'user@workspace.com')
             ->where('organization.meeting_config_form.has_private_key', true)
         );
+});
+
+// ── Recording-only meetings (recorded without Meet transcripts) ──────────────
+
+/**
+ * Fake a Meet conference that has no transcript but does have recordings, plus the Drive
+ * download of its file. $tokens lets a test make the second (Drive-scoped) token request fail.
+ *
+ * @param  array<int, array<string, mixed>>  $recordings
+ */
+function fakeRecordingOnlyMeet(array $conference, array $recordings, ?\GuzzleHttp\Promise\PromiseInterface $driveResponse = null, ?\Illuminate\Http\Client\ResponseSequence $tokens = null): void
+{
+    Http::fake([
+        'oauth2.googleapis.com/token' => $tokens ?? Http::response(['access_token' => 'fake-google-token'], 200),
+        'meet.googleapis.com/v2/*/transcripts*' => Http::response(['transcripts' => []], 200),
+        'meet.googleapis.com/v2/*/recordings*' => Http::response(['recordings' => $recordings], 200),
+        'meet.googleapis.com/v2/conferenceRecords*' => Http::response(['conferenceRecords' => [$conference]], 200),
+        'www.googleapis.com/drive/v3/files/*' => $driveResponse ?? Http::response(fakeMeetMp4Bytes(), 200, ['Content-Type' => 'video/mp4']),
+    ]);
+}
+
+function fakeMeetMp4Bytes(): string
+{
+    return "\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isommp41".str_repeat("\x00", 64);
+}
+
+function generatedRecording(string $fileId, string $start = '2026-03-01T10:00:00Z', string $end = '2026-03-01T10:30:00Z'): array
+{
+    return [
+        'name' => "conferenceRecords/rec-only/recordings/{$fileId}",
+        'state' => 'FILE_GENERATED',
+        'startTime' => $start,
+        'endTime' => $end,
+        'driveDestination' => ['file' => $fileId, 'exportUri' => "https://drive.google.com/file/d/{$fileId}/view"],
+    ];
+}
+
+function recordingOnlyPlaceholder(Project $project, string $type = 'intake'): \App\Models\Document
+{
+    return $project->documents()->create([
+        'type' => $type,
+        'name' => 'Recorded Only',
+        'content' => '',
+        'processed_at' => now(),
+        'metadata' => ['recording_id' => 'conferenceRecords/rec-only', 'provider' => 'google_meet'],
+    ]);
+}
+
+it('lists a meeting that was recorded without a transcript, flagged as recording only', function () {
+    fakeRecordingOnlyMeet(
+        ['name' => 'conferenceRecords/rec-only', 'startTime' => '2026-03-01T10:00:00Z', 'endTime' => '2026-03-01T10:30:00Z'],
+        [generatedRecording('file-1')],
+    );
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.transcripts.index', $this->project))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('recordings', 1)
+            ->where('recordings.0.id', 'conferenceRecords/rec-only')
+            ->where('recordings.0.has_transcript', false)
+        );
+});
+
+it('flags a meeting with a transcript as having one', function () {
+    fakeGoogleMeetApi(conferences: [
+        ['name' => 'conferenceRecords/abc123', 'startTime' => '2026-03-01T10:00:00Z', 'endTime' => '2026-03-01T10:30:00Z'],
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.transcripts.index', $this->project))
+        ->assertInertia(fn ($page) => $page->where('recordings.0.has_transcript', true));
+});
+
+it('leaves out a recording whose file Meet hasn\'t generated yet', function () {
+    fakeRecordingOnlyMeet(
+        ['name' => 'conferenceRecords/rec-only', 'startTime' => '2026-03-01T10:00:00Z'],
+        [array_merge(generatedRecording('file-1'), ['state' => 'ENDED'])],
+    );
+
+    $this->actingAs($this->admin)
+        ->get(route('projects.transcripts.index', $this->project))
+        ->assertInertia(fn ($page) => $page->where('recordings', []));
+});
+
+it('sends a recording-only meeting to be downloaded and transcribed instead of fetching a transcript', function () {
+    Queue::fake();
+    fakeRecordingOnlyMeet(['name' => 'conferenceRecords/rec-only'], [generatedRecording('file-1')]);
+
+    $document = recordingOnlyPlaceholder($this->project);
+
+    (new ImportMeetingTranscript($document, 'conferenceRecords/rec-only'))
+        ->handle(app(\App\Services\MeetingTranscriptService::class));
+
+    expect($document->fresh()->metadata['recording_source'])->toBe('provider_audio');
+    Queue::assertPushedOn('recordings', \App\Jobs\DownloadMeetingRecording::class, fn ($job) => $job->document->is($document)
+        && $job->recordingId === 'conferenceRecords/rec-only');
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('downloads the recording from Drive, attaches it, and starts transcription', function () {
+    Queue::fake();
+    \Illuminate\Support\Facades\Storage::fake('local');
+    fakeRecordingOnlyMeet(['name' => 'conferenceRecords/rec-only'], [generatedRecording('file-1')]);
+
+    $document = recordingOnlyPlaceholder($this->project);
+
+    app()->call([new \App\Jobs\DownloadMeetingRecording($document, 'conferenceRecords/rec-only'), 'handle']);
+
+    $media = $document->fresh()->getFirstMedia('recording');
+    expect($media)->not->toBeNull()
+        ->and($media->mime_type)->toBe('video/mp4');
+    expect(\Illuminate\Support\Facades\Storage::disk('local')->files('meeting-recordings'))->toBe([]);
+    Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://www.googleapis.com/drive/v3/files/file-1')
+        && $request['alt'] === 'media');
+    Queue::assertPushedOn('recordings', \App\Jobs\TranscribeRecording::class, fn ($job) => $job->document->is($document));
+});
+
+it('downloads the longest recording when recording was stopped and restarted', function () {
+    Queue::fake();
+    \Illuminate\Support\Facades\Storage::fake('local');
+    fakeRecordingOnlyMeet(['name' => 'conferenceRecords/rec-only'], [
+        generatedRecording('short', '2026-03-01T10:00:00Z', '2026-03-01T10:01:00Z'),
+        generatedRecording('long', '2026-03-01T10:02:00Z', '2026-03-01T10:50:00Z'),
+    ]);
+
+    app()->call([new \App\Jobs\DownloadMeetingRecording(recordingOnlyPlaceholder($this->project), 'conferenceRecords/rec-only'), 'handle']);
+
+    Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://www.googleapis.com/drive/v3/files/long'));
+    Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://www.googleapis.com/drive/v3/files/short'));
+});
+
+it('tells the user to add the Drive scope when the organization hasn\'t delegated it', function () {
+    Queue::fake();
+    \Illuminate\Support\Facades\Storage::fake('local');
+    fakeRecordingOnlyMeet(
+        ['name' => 'conferenceRecords/rec-only'],
+        [generatedRecording('file-1')],
+        tokens: Http::sequence()
+            ->push(['access_token' => 'meet-token'], 200)
+            ->push(['error' => 'unauthorized_client', 'error_description' => 'Client is unauthorized to retrieve access tokens using this method.'], 401),
+    );
+
+    $document = recordingOnlyPlaceholder($this->project);
+
+    app()->call([new \App\Jobs\DownloadMeetingRecording($document, 'conferenceRecords/rec-only'), 'handle']);
+
+    expect($document->fresh()->metadata['transcription_error'])
+        ->toBe(\App\Services\Meeting\Drivers\GoogleMeetMeetingDriver::MISSING_DRIVE_SCOPE_MESSAGE);
+    expect($document->fresh()->getFirstMedia('recording'))->toBeNull();
+    Queue::assertNotPushed(\App\Jobs\TranscribeRecording::class);
+});
+
+it('says so when the recording file was deleted from Drive', function () {
+    Queue::fake();
+    \Illuminate\Support\Facades\Storage::fake('local');
+    fakeRecordingOnlyMeet(['name' => 'conferenceRecords/rec-only'], [generatedRecording('file-1')], Http::response(['error' => ['code' => 404]], 404));
+
+    $document = recordingOnlyPlaceholder($this->project);
+
+    app()->call([new \App\Jobs\DownloadMeetingRecording($document, 'conferenceRecords/rec-only'), 'handle']);
+
+    expect($document->fresh()->metadata['transcription_error'])->toContain('no longer in Google Drive');
+    Queue::assertNotPushed(\App\Jobs\TranscribeRecording::class);
+});
+
+it('offers Try Again for a recording-only meeting whose download failed, and downloads it again', function () {
+    Queue::fake();
+
+    $document = recordingOnlyPlaceholder($this->project);
+    $document->update(['metadata' => array_merge($document->metadata, [
+        'recording_source' => 'provider_audio',
+        'transcription_error' => \App\Services\Meeting\Drivers\GoogleMeetMeetingDriver::MISSING_DRIVE_SCOPE_MESSAGE,
+    ])]);
+
+    $recovery = app(\App\Services\RecordingRecoveryService::class);
+    expect($recovery->problemFor($document->fresh()))->toMatchArray(['has_audio' => false, 'can_retry' => true]);
+
+    expect($recovery->retry($document->fresh()))->toBeTrue();
+    expect($document->fresh()->metadata)->not->toHaveKey('transcription_error');
+    Queue::assertPushed(\App\Jobs\DownloadMeetingRecording::class, fn ($job) => $job->document->is($document));
+});
+
+it('saves a transcribed recording picked as a non-transcript type as finished content with no AI step', function () {
+    Queue::fake();
+    \Illuminate\Support\Facades\Storage::fake('local');
+
+    $document = recordingOnlyPlaceholder($this->project, 'meeting_notes');
+    $document->addMediaFromString(fakeMeetMp4Bytes())->usingFileName('meeting.mp4')->toMediaCollection('recording');
+    $document->update(['metadata' => array_merge($document->metadata, ['transcription_id' => 't-1'])]);
+
+    $driver = Mockery::mock(\App\Contracts\TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->with('t-1')->andReturn(['status' => 'completed', 'text' => 'We agreed to ship Friday.', 'error' => null]);
+
+    (new \App\Jobs\TranscribeRecording($document))->handle($driver);
+
+    $document->refresh();
+    expect($document->content)->toBe('We agreed to ship Friday.')
+        ->and($document->processed_at)->not->toBeNull();
+    Queue::assertNotPushed(ProcessDocumentAI::class);
+});
+
+it('handles a recording-only meeting imported as a Status Meeting', function () {
+    Queue::fake();
+    \Illuminate\Support\Facades\Storage::fake('local');
+    fakeRecordingOnlyMeet(['name' => 'conferenceRecords/rec-only'], [generatedRecording('file-1')]);
+
+    $orgDocument = \App\Models\OrgDocument::create([
+        'organization_id' => $this->org->id,
+        'type' => 'status_meeting',
+        'name' => 'Weekly Status',
+        'content' => '',
+        'processed_at' => now(),
+        'metadata' => ['recording_id' => 'conferenceRecords/rec-only', 'provider' => 'google_meet'],
+    ]);
+
+    (new \App\Jobs\ImportOrgMeetingTranscript($orgDocument, 'conferenceRecords/rec-only'))
+        ->handle(app(\App\Services\MeetingTranscriptService::class));
+
+    Queue::assertPushedOn('recordings', \App\Jobs\DownloadMeetingRecording::class, fn ($job) => $job->document->is($orgDocument));
+
+    app()->call([new \App\Jobs\DownloadMeetingRecording($orgDocument, 'conferenceRecords/rec-only'), 'handle']);
+    expect($orgDocument->fresh()->getFirstMedia('recording'))->not->toBeNull();
+
+    $orgDocument->update(['metadata' => array_merge($orgDocument->fresh()->metadata, ['transcription_id' => 't-2'])]);
+    $driver = Mockery::mock(\App\Contracts\TranscriptionDriver::class);
+    $driver->shouldReceive('poll')->with('t-2')->andReturn(['status' => 'completed', 'text' => 'Project A is on track.', 'error' => null]);
+
+    (new \App\Jobs\TranscribeRecording($orgDocument->fresh()))->handle($driver);
+
+    $orgDocument->refresh();
+    expect($orgDocument->content)->toBe('Project A is on track.')
+        ->and($orgDocument->processed_at)->toBeNull()
+        ->and($orgDocument->metadata['ai_draft']['status'])->toBe('processing');
+    Queue::assertPushed(\App\Jobs\ProcessOrgDocumentAI::class);
+    Queue::assertPushed(\App\Jobs\GenerateOrgDocumentEmbedding::class);
+});
+
+it('refuses to download a recording-only meeting once the organization has used its transcription hours', function () {
+    Queue::fake();
+    fakeRecordingOnlyMeet(['name' => 'conferenceRecords/rec-only'], [generatedRecording('file-1')]);
+    \App\Models\AiUsageLog::create([
+        'organization_id' => $this->org->id,
+        'driver' => 'assemblyai',
+        'model' => 'universal-2',
+        'type' => 'transcription',
+        'audio_seconds' => 5 * 3600,
+    ]);
+
+    $document = recordingOnlyPlaceholder($this->project);
+
+    app()->call([new \App\Jobs\DownloadMeetingRecording($document, 'conferenceRecords/rec-only'), 'handle']);
+
+    expect($document->fresh()->metadata['transcription_error'])->toContain('used all 5 hours of recording transcription');
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'drive/v3/files'));
+    Queue::assertNotPushed(\App\Jobs\TranscribeRecording::class);
 });

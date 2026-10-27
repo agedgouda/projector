@@ -50,12 +50,12 @@ return [
      * The maximum file size of an item in bytes.
      * Adding a larger file will result in an exception.
      *
-     * Matches RecordingIntakeService::RECORDING_MIMES's own 200MB validation cap
-     * (`max:204800` KB) — a real meeting recording easily clears the package's 10MB
-     * default, which silently disagreed with our own limit and threw well past
-     * validation, past the point of returning a normal error. Keep these two in sync.
+     * Sized for meeting recordings fetched from a provider (e.g. a Google Meet .mp4 from
+     * Drive, see DownloadMeetingRecording), kept under AssemblyAI's 2.2 GB upload limit.
+     * Browser and app uploads have their own, lower cap —
+     * RecordingIntakeService::MAX_UPLOAD_BYTES (and the matching `max:204800` validation).
      */
-    'max_file_size' => 1024 * 1024 * 200, // 200MB
+    'max_file_size' => 1024 * 1024 * 2048, // 2GB
 
     /*
      * Uploads whose file name contains any of these extensions will be rejected.

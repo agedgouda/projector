@@ -5,6 +5,7 @@ import AiInstructionsPopover from '@/components/transcripts/AiInstructionsPopove
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { useTranscriptionLimit } from '@/composables/useTranscriptionLimit';
 
 const props = withDefaults(defineProps<{
     recordings: Recording[];
@@ -33,6 +34,12 @@ const pendingRecordings = computed(() =>
 // Optional per-recording AI instructions, entered via the popover below — keyed by
 // recording id so multiple pending recordings can each hold their own text at once.
 const customPrompts = reactive<Record<string, string>>({});
+
+// A "Recording only" meeting is transcribed by Projector, so it counts against the month's
+// transcription allowance — one with the provider's own transcript doesn't.
+const transcriptionLimitMessage = useTranscriptionLimit();
+const isBlockedByLimit = (recording: Recording) =>
+    recording.has_transcript === false && transcriptionLimitMessage.value !== null;
 </script>
 
 <template>
@@ -81,13 +88,30 @@ const customPrompts = reactive<Record<string, string>>({});
                         {{ formatDate(recording.started_at) }}
                         <template v-if="recording.duration_minutes">· {{ recording.duration_minutes }} min</template>
                     </span>
+                    <!-- No provider transcript — Projector transcribes the recording itself on
+                         import (see App\Contracts\ProvidesRecordingAudio), which takes longer. -->
+                    <span
+                        v-if="recording.has_transcript === false"
+                        class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                        title="This meeting was recorded without a transcript. Projector will transcribe the recording when you import it."
+                    >
+                        Recording only
+                    </span>
                 </div>
 
                 <template v-if="canManage">
-                    <AiInstructionsPopover v-if="showAiPrompt" v-model="customPrompts[recording.id]" />
+                    <span
+                        v-if="isBlockedByLimit(recording)"
+                        class="max-w-[50%] shrink-0 truncate text-[11px] text-amber-700 dark:text-amber-400"
+                        :title="transcriptionLimitMessage ?? undefined"
+                    >
+                        Monthly transcription limit reached
+                    </span>
+
+                    <AiInstructionsPopover v-if="showAiPrompt && !isBlockedByLimit(recording)" v-model="customPrompts[recording.id]" />
 
                     <Button
-                        v-for="action in actions"
+                        v-for="action in isBlockedByLimit(recording) ? [] : actions"
                         :key="action.label"
                         size="sm"
                         :variant="action.variant === 'outline' ? 'outline' : undefined"

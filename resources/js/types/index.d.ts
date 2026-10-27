@@ -170,7 +170,7 @@ declare global {
         error?: string;
         failed_at?: string;
         recording_id?: string | null;
-        recording_source?: 'mobile_recording' | 'browser_capture';
+        recording_source?: 'mobile_recording' | 'browser_capture' | 'recording_upload' | 'provider_audio';
         [key: string]: any;
     }
 
@@ -459,6 +459,9 @@ declare global {
         title: string;
         started_at: string;
         duration_minutes: number;
+        // false for a recording with no provider transcript, which Projector transcribes from
+        // its audio on import (see App\Contracts\ProvidesRecordingAudio); absent means true.
+        has_transcript?: boolean;
     }
 
     // One button per recording row in RecordingsList.vue — lets each context (project vs.

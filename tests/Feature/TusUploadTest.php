@@ -356,3 +356,124 @@ it('rejects tus requests for a project outside the user\'s organization', functi
         'Tus-Resumable' => '1.0.0',
     ])->assertNotFound();
 });
+
+/**
+ * Just enough of an ISO media header for libmagic to identify the file the way it does a real
+ * Google Meet .mp4 (or, with 'qt  ', a QuickTime .mov).
+ */
+function fakeVideoBytes(string $brand = 'isom'): string
+{
+    return "\x00\x00\x00\x18ftyp{$brand}\x00\x00\x02\x00{$brand}mp41".str_repeat("\x00", 64);
+}
+
+it('turns an uploaded video file into a recording that transcribes like a captured one', function (string $brand) {
+    Queue::fake();
+    meetingNotesTemplate();
+
+    $location = uploadTusChunk($this->project, fakeVideoBytes($brand));
+
+    $response = $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), [
+        'upload_id' => basename($location),
+        'name' => 'Weekly Sync',
+        'custom_prompt' => 'Focus on decisions.',
+        'custom_prompt_mode' => 'add',
+    ]);
+
+    $response->assertCreated();
+
+    $intake = Document::where('metadata->recording_source', 'recording_upload')->firstOrFail();
+    $meetingNotes = $this->project->documents()->where('parent_id', $intake->id)->firstOrFail();
+    expect($intake->type)->toBe(config('workflow.intake_key'));
+    expect($intake->name)->toBe('Weekly Sync');
+    expect($intake->custom_prompt)->toBe('Focus on decisions.');
+    expect($intake->custom_prompt_mode?->value)->toBe('add');
+    expect($response->json('recording.notes_id'))->toBe($meetingNotes->id);
+    Queue::assertPushed(AssembleBrowserRecording::class, fn ($job) => $job->document->is($intake));
+
+    app()->call([new AssembleBrowserRecording($intake), 'handle']);
+
+    expect($intake->fresh()->getFirstMedia('recording'))->not->toBeNull();
+    expect(TusUpload::count())->toBe(0);
+    Queue::assertPushed(TranscribeRecording::class, fn ($job) => $job->document->is($intake));
+})->with([
+    'mp4' => 'isom',
+    'mov' => 'qt  ',
+]);
+
+it('accepts an uploaded audio file too', function () {
+    Queue::fake();
+
+    $chunk = storedChunk($this->project, $this->user, 0, implode('', wavChunks()));
+
+    $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), [
+        'upload_id' => $chunk->id,
+        'name' => 'Phone Call',
+    ])->assertCreated();
+
+    $intake = Document::where('metadata->recording_source', 'recording_upload')->firstOrFail();
+    expect($intake->custom_prompt)->toBeNull();
+    expect($chunk->fresh()->document_id)->toBe($intake->id);
+});
+
+it('refuses an uploaded file that isn\'t audio or video and deletes it', function () {
+    Queue::fake();
+
+    $chunk = storedChunk($this->project, $this->user, 0, 'just some text, not a recording');
+
+    $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), [
+        'upload_id' => $chunk->id,
+        'name' => 'Notes',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['upload_id']);
+
+    expect(Document::count())->toBe(0);
+    expect(TusUpload::find($chunk->id))->toBeNull();
+    expect(Storage::disk('local')->exists($chunk->storage_path))->toBeFalse();
+    Queue::assertNothingPushed();
+});
+
+it('refuses an upload that hasn\'t finished', function () {
+    $chunk = storedChunk($this->project, $this->user, 0, fakeVideoBytes(), ['upload_offset' => 10, 'completed_at' => null]);
+
+    $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), [
+        'upload_id' => $chunk->id,
+        'name' => 'Weekly Sync',
+    ])->assertStatus(400);
+
+    expect(Document::count())->toBe(0);
+});
+
+it('returns the same recording when finishing an upload is retried', function () {
+    Queue::fake();
+
+    $chunk = storedChunk($this->project, $this->user, 0, fakeVideoBytes());
+    $payload = ['upload_id' => $chunk->id, 'name' => 'Weekly Sync'];
+
+    $first = $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), $payload)->assertCreated();
+    $second = $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), $payload)->assertCreated();
+
+    expect($second->json('recording.id'))->toBe($first->json('recording.id'));
+    expect(Document::where('metadata->recording_source', 'recording_upload')->count())->toBe(1);
+});
+
+it('ignores an upload id from another project', function () {
+    $otherProject = Project::create(['name' => 'Other Project', 'client_id' => $this->client->id]);
+    $foreign = storedChunk($otherProject, $this->user, 0, fakeVideoBytes());
+
+    $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), [
+        'upload_id' => $foreign->id,
+        'name' => 'Weekly Sync',
+    ])->assertNotFound();
+
+    expect($foreign->fresh()->document_id)->toBeNull();
+});
+
+it('rejects finishing an upload without valid fields', function (array $payload, string $errorKey) {
+    $this->postJson(route('projects.browser-recordings.tus.finish-upload', $this->project), $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors([$errorKey]);
+})->with([
+    'missing upload id' => [['name' => 'Weekly Sync'], 'upload_id'],
+    'non-uuid upload id' => [['upload_id' => 'nope', 'name' => 'Weekly Sync'], 'upload_id'],
+    'missing name' => [['upload_id' => '00000000-0000-0000-0000-000000000000'], 'name'],
+    'bad prompt mode' => [['upload_id' => '00000000-0000-0000-0000-000000000000', 'name' => 'x', 'custom_prompt_mode' => 'bogus'], 'custom_prompt_mode'],
+]);

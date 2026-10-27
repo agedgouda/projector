@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, useTemplateRef } from 'vue';
-import { FileStack, FileType, Loader2 } from 'lucide-vue-next';
+import { FileAudio, FileStack, FileType, Loader2 } from 'lucide-vue-next';
 import AiInstructionsPopover from '@/components/transcripts/AiInstructionsPopover.vue';
 import { Button } from '@/components/ui/button';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { useTranscriptionLimit } from '@/composables/useTranscriptionLimit';
 
 // Purely presentational — the Google-connect-redirect dance and the actual route calls stay
 // in each context's thin wrapper (Projects/Partials/ImportDocumentOptions.vue,
@@ -36,23 +37,39 @@ withDefaults(defineProps<{
     // nothing valid to submit yet, so both buttons are held off rather than letting the request
     // round-trip just to come back a 422.
     disabled?: boolean;
+    // Only the project-level consumer offers this — a recording belongs to a project, and the
+    // org-level Import has none to put it in.
+    showRecordingUpload?: boolean;
+    // Percent uploaded while a recording file is uploading, null otherwise.
+    recordingUploadProgress?: number | null;
+    // Held off separately from `disabled` — an uploaded recording always becomes a
+    // Transcription (it has to be transcribed before it's anything else), so this row is
+    // unavailable whenever "Import As" is set to some other type.
+    recordingUploadDisabled?: boolean;
 }>(), {
     heading: 'Import a Document',
     spacingClass: 'mb-8',
     showPromptPopover: false,
     disabled: false,
+    showRecordingUpload: false,
+    recordingUploadProgress: null,
+    recordingUploadDisabled: false,
 });
+
+const transcriptionLimitMessage = useTranscriptionLimit();
 
 const emit = defineEmits<{
     (e: 'pick-google-doc', prompt: string): void;
     (e: 'pick-docx-file', file: File, prompt: string): void;
     (e: 'pick-txt-file', file: File, prompt: string): void;
+    (e: 'pick-recording-file', file: File): void;
 }>();
 
 const googleDocPrompt = ref('');
 const filePrompt = ref('');
 
 const fileInput = useTemplateRef('fileInput');
+const recordingInput = useTemplateRef('recordingInput');
 
 // The one hidden input accepts both .docx and .txt, so which of the two emits fires is decided
 // here from the file itself (extension, falling back to MIME type) rather than by which button
@@ -71,6 +88,15 @@ const onFileChosen = (event: Event) => {
     } else {
         emit('pick-txt-file', file, filePrompt.value);
     }
+    input.value = '';
+};
+
+const onRecordingChosen = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    emit('pick-recording-file', file);
     input.value = '';
 };
 </script>
@@ -124,6 +150,33 @@ const onFileChosen = (event: Event) => {
                 >
                     <Loader2 v-if="importingFile !== null" class="w-3 h-3 mr-1.5 animate-spin" />
                     {{ importingFile !== null ? 'Importing...' : 'Choose File' }}
+                </Button>
+            </div>
+
+            <div v-if="showRecordingUpload" :class="['flex items-center gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]">
+                <div class="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400">
+                    <FileAudio class="h-3.5 w-3.5" />
+                </div>
+                <div class="min-w-0 flex-1">
+                    <span class="block text-[13px] font-semibold text-slate-900 dark:text-slate-100">Upload Meeting Recording (audio or video)</span>
+                    <span v-if="transcriptionLimitMessage" class="block truncate text-[11px] text-amber-700 dark:text-amber-400" :title="transcriptionLimitMessage">Monthly transcription limit reached</span>
+                    <span v-else-if="recordingUploadDisabled" class="block text-[11px] text-slate-500 dark:text-slate-400">Recordings always import as Transcription</span>
+                </div>
+                <input
+                    ref="recordingInput"
+                    type="file"
+                    accept=".mp4,.mov,.m4a,.mp3,.wav,.webm,.aac,video/mp4,video/quicktime,video/webm,audio/*"
+                    class="hidden"
+                    @change="onRecordingChosen($event)"
+                />
+                <Button
+                    size="sm"
+                    :disabled="recordingUploadProgress !== null || recordingUploadDisabled || transcriptionLimitMessage !== null"
+                    class="w-28 shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest bg-projector-primary-600 hover:bg-projector-primary-700 text-white"
+                    @click="recordingInput?.click()"
+                >
+                    <Loader2 v-if="recordingUploadProgress !== null" class="w-3 h-3 mr-1.5 animate-spin" />
+                    {{ recordingUploadProgress !== null ? `${recordingUploadProgress}%` : 'Choose File' }}
                 </Button>
             </div>
         </div>

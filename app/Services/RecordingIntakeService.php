@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CustomPromptMode;
 use App\Jobs\TranscribeRecording;
 use App\Models\Document;
 use App\Models\Project;
@@ -14,14 +15,20 @@ use Spatie\MediaLibrary\MediaCollections\Exceptions\FileIsTooBig;
 
 class RecordingIntakeService
 {
-    // video/webm is intentional, not a mistake — libmagic's content-sniffing (which is what
-    // Laravel's mimetypes rule actually validates against, not the browser's reported
-    // Content-Type) frequently identifies an audio-only WebM/Opus recording as video/webm,
-    // since the WebM container doesn't signal "audio-only" at the level libmagic inspects.
-    // Every upload path funneling through here (mobile, Sanctum API, browser capture) only
-    // ever sends what MediaRecorder produced from an audio-only stream, so this never actually
-    // admits real video.
-    public const RECORDING_MIMES = 'audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/webm,video/webm';
+    // video/webm is listed because libmagic's content-sniffing (which is what Laravel's
+    // mimetypes rule actually validates against, not the browser's reported Content-Type)
+    // frequently identifies an audio-only WebM/Opus recording as video/webm, since the WebM
+    // container doesn't signal "audio-only" at the level libmagic inspects. video/mp4 and
+    // video/quicktime are real video — an uploaded meeting recording (e.g. a Google Meet .mp4
+    // from Drive) is sent to AssemblyAI as-is, which strips the audio track itself.
+    /**
+     * Cap on a recording uploaded from a browser or app (tus chunks, single-shot uploads) —
+     * matches the `max:204800` validation rules. Provider recordings fetched server-side can be
+     * larger, up to config/media-library.php's max_file_size.
+     */
+    public const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
+
+    public const RECORDING_MIMES = 'audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/webm,video/webm,video/mp4,video/quicktime';
 
     public function __construct(private readonly DocumentImportFinalizer $finalizer) {}
 
@@ -58,7 +65,7 @@ class RecordingIntakeService
                 // which is neither useful nor appropriate to show a user. Our own validation
                 // rule already covers the normal case (mimetype/204800 KB); this is the
                 // defense-in-depth backstop for whenever the two disagree (see
-                // config/media-library.php's max_file_size, which should match).
+                // config/media-library.php's max_file_size).
                 $configuredMax = config('media-library.max_file_size');
                 $maxLabel = is_numeric($configuredMax) ? Number::fileSize((int) $configuredMax) : 'the configured limit';
 
@@ -97,10 +104,10 @@ class RecordingIntakeService
      * into one audio file, which happens afterwards in AssembleBrowserRecording. Nothing about
      * assembling the audio can then lose the recording itself.
      */
-    public function startRecording(Project $project, ?string $name, ?string $recordedAt, string $source = 'browser_capture'): Document
+    public function startRecording(Project $project, ?string $name, ?string $recordedAt, string $source = 'browser_capture', ?string $customPrompt = null, ?CustomPromptMode $customPromptMode = null): Document
     {
-        return DB::transaction(function () use ($project, $name, $recordedAt, $source) {
-            $document = $this->createIntakeDocument($project, $name, $recordedAt, $source);
+        return DB::transaction(function () use ($project, $name, $recordedAt, $source, $customPrompt, $customPromptMode) {
+            $document = $this->createIntakeDocument($project, $name, $recordedAt, $source, $customPrompt, $customPromptMode);
             $this->finalizer->finalize($project, $document);
 
             return $document;
@@ -119,7 +126,7 @@ class RecordingIntakeService
         TranscribeRecording::dispatch($document);
     }
 
-    private function createIntakeDocument(Project $project, ?string $name, ?string $recordedAt, string $source): Document
+    private function createIntakeDocument(Project $project, ?string $name, ?string $recordedAt, string $source, ?string $customPrompt = null, ?CustomPromptMode $customPromptMode = null): Document
     {
         return $project->documents()->create([
             'type' => config('workflow.intake_key'),
@@ -131,6 +138,8 @@ class RecordingIntakeService
                 'audio_status' => 'pending',
                 'recorded_at' => $recordedAt,
             ],
+            'custom_prompt' => $customPrompt,
+            'custom_prompt_mode' => filled($customPrompt) ? $customPromptMode : null,
         ]);
     }
 

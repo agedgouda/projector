@@ -110,6 +110,7 @@ class HandleInertiaRequests extends Middleware
                 $userCount = $org->currentUserCount();
                 $clientCount = $org->currentClientCount();
                 $projectCount = $org->currentProjectCount();
+                $transcriptionLimitMessage = $org->transcriptionLimitMessage();
 
                 $orgMembership = [
                     'tier' => $org->membership_tier,
@@ -122,13 +123,19 @@ class HandleInertiaRequests extends Middleware
                         'clients' => $clientCount,
                         'projects' => $projectCount,
                         'ai_docs_this_month' => $aiUsage,
+                        'transcription_seconds_this_month' => $org->currentMonthTranscriptionSeconds(),
+                        'transcription_seconds_limit' => $org->transcriptionSecondsLimit($userCount),
                     ],
                     'at_limit' => [
                         'users' => $limits['users'] !== null && $userCount >= $limits['users'],
                         'clients' => $limits['clients'] !== null && $clientCount >= $limits['clients'],
                         'projects' => $limits['projects'] !== null && $projectCount >= $limits['projects'],
                         'ai_docs' => $limits['ai_docs_per_month'] !== null && $aiUsage >= $limits['ai_docs_per_month'],
+                        'transcription' => $transcriptionLimitMessage !== null,
                     ],
+                    // Shown in place of Start Capture / the upload row once the month's pooled
+                    // transcription allowance is used up — see Organization::transcriptionLimitMessage().
+                    'transcription_limit_message' => $transcriptionLimitMessage,
                 ];
             }
         }

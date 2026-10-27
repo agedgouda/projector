@@ -61,6 +61,21 @@ class ImportMeetingTranscript implements ShouldQueue
                 return;
             }
 
+            // Recorded without the provider's own transcript — fetch the recording itself and
+            // transcribe it the way a captured recording is. Tagged as a recording so the
+            // Try Again/Download panel (RecordingRecoveryService) covers it too.
+            if ($service->needsAudioTranscription($organization, $this->recordingId)) {
+                $this->document->update([
+                    'metadata' => array_merge($this->document->metadata ?? [], [
+                        'recording_source' => 'provider_audio',
+                    ]),
+                ]);
+
+                DownloadMeetingRecording::dispatch($this->document, $this->recordingId);
+
+                return;
+            }
+
             $content = $service->fetchTranscript($organization, $this->recordingId);
         } else {
             $content = $this->content ?? '';

@@ -29,4 +29,21 @@ return [
         'claude-sonnet-4-6' => ['input' => 3.00, 'output' => 15.00],
         'claude-haiku-4-5-20251001' => ['input' => 0.80, 'output' => 4.00],
     ],
+
+    /*
+     * Transcription is billed per hour of audio submitted, keyed by the model AssemblyAI reports
+     * it used (speech_model_used), plus the speaker-labels add-on every request turns on. A model
+     * not listed here is priced at 'fallback' — the most expensive one — so an unrecognized model
+     * never undercounts.
+     */
+    'transcription' => [
+        'assemblyai' => [
+            'models' => [
+                'universal-3-5-pro' => 0.21,
+                'universal-2' => 0.15,
+            ],
+            'fallback' => 0.21,
+            'speaker_labels' => 0.02,
+        ],
+    ],
 ];

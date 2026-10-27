@@ -47,31 +47,41 @@ class Organization extends Model implements HasMedia
     /** The temporary organizations the public demo creates (see App\Services\Demo\DemoSandbox). */
     const TIER_DEMO = 'demo';
 
-    /** @var array<string, array{users: ?int, clients: ?int, projects: ?int, ai_docs_per_month: ?int}> */
+    /**
+     * transcription_hours_per_user is audio Projector transcribes itself (AssemblyAI) per month,
+     * pooled across the organization — see transcriptionSecondsLimit(). Meet/Zoom's own
+     * transcripts cost nothing and never count.
+     *
+     * @var array<string, array{users: ?int, clients: ?int, projects: ?int, ai_docs_per_month: ?int, transcription_hours_per_user: ?int}>
+     */
     const TIER_LIMITS = [
         self::TIER_FREE => [
             'users' => 1,
             'clients' => 1,
             'projects' => 1,
             'ai_docs_per_month' => 10,
+            'transcription_hours_per_user' => 5,
         ],
         self::TIER_PRO => [
             'users' => null,
             'clients' => null,
             'projects' => null,
             'ai_docs_per_month' => 100,
+            'transcription_hours_per_user' => 20,
         ],
         self::TIER_FRIENDS_FAMILY => [
             'users' => null,
             'clients' => null,
             'projects' => null,
             'ai_docs_per_month' => null,
+            'transcription_hours_per_user' => null,
         ],
         self::TIER_DEMO => [
             'users' => null,
             'clients' => null,
             'projects' => null,
             'ai_docs_per_month' => 15,
+            'transcription_hours_per_user' => 1,
         ],
     ];
 
@@ -340,6 +350,55 @@ class Organization extends Model implements HasMedia
             ->count();
     }
 
+    public function currentMonthTranscriptionSeconds(): int
+    {
+        return (int) AiUsageLog::where('organization_id', $this->id)
+            ->where('type', 'transcription')
+            ->whereYear('created_at', Carbon::now()->year)
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->sum('audio_seconds');
+    }
+
+    /**
+     * The month's pooled transcription allowance — the tier's hours per user times the
+     * organization's members (at least one) — or null when the tier has no limit.
+     */
+    public function transcriptionSecondsLimit(?int $userCount = null): ?int
+    {
+        $hoursPerUser = $this->tierLimits()['transcription_hours_per_user'];
+
+        if ($hoursPerUser === null) {
+            return null;
+        }
+
+        return $hoursPerUser * 3600 * max(1, $userCount ?? $this->currentUserCount());
+    }
+
+    /**
+     * Why a new recording can't be transcribed right now, or null when it can. Checked before
+     * transcription work starts (a recording-only meeting's download, a file upload, Start
+     * Capture) — a recording already captured is always transcribed, even if it runs past the
+     * allowance.
+     */
+    public function transcriptionLimitMessage(): ?string
+    {
+        $limitSeconds = $this->transcriptionSecondsLimit();
+
+        if ($limitSeconds === null || $this->currentMonthTranscriptionSeconds() < $limitSeconds) {
+            return null;
+        }
+
+        if ($this->membership_tier === self::TIER_DEMO) {
+            return "You've used all the transcription included in the demo. Start a free trial to keep going.";
+        }
+
+        $hours = intdiv($limitSeconds, 3600);
+
+        return 'Your organization has used all '.$hours.' '.($hours === 1 ? 'hour' : 'hours')
+            .' of recording transcription included this month. It resets on '
+            .Carbon::now()->addMonthNoOverflow()->startOfMonth()->format('F j').'.';
+    }
+
     public function currentUserCount(): int
     {
         return $this->users()->count();
@@ -356,7 +415,7 @@ class Organization extends Model implements HasMedia
     }
 
     /**
-     * @return array{users: bool, clients: bool, projects: bool, ai_docs: bool}
+     * @return array{users: bool, clients: bool, projects: bool, ai_docs: bool, transcription: bool}
      */
     public function atLimits(): array
     {
@@ -367,6 +426,7 @@ class Organization extends Model implements HasMedia
             'clients' => $limits['clients'] !== null && $this->currentClientCount() >= $limits['clients'],
             'projects' => $limits['projects'] !== null && $this->currentProjectCount() >= $limits['projects'],
             'ai_docs' => $limits['ai_docs_per_month'] !== null && $this->currentMonthAiUsage() >= $limits['ai_docs_per_month'],
+            'transcription' => $this->transcriptionLimitMessage() !== null,
         ];
     }
 

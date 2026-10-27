@@ -3,6 +3,7 @@
 namespace App\Services\Transcription\Drivers;
 
 use App\Contracts\TranscriptionDriver;
+use GuzzleHttp\Psr7\Utils;
 use Illuminate\Support\Facades\Http;
 
 class AssemblyAiTranscriptionDriver implements TranscriptionDriver
@@ -11,10 +12,24 @@ class AssemblyAiTranscriptionDriver implements TranscriptionDriver
 
     public function submit(string $absoluteFilePath): string
     {
-        $uploadResponse = Http::withHeaders(['authorization' => config('services.assemblyai.key')])
-            ->withBody(file_get_contents($absoluteFilePath) ?: '', 'application/octet-stream')
-            ->timeout(120)
-            ->post(self::BASE_URL.'/upload');
+        $stream = fopen($absoluteFilePath, 'rb');
+
+        if ($stream === false) {
+            throw new \RuntimeException("Could not read recording file [{$absoluteFilePath}].");
+        }
+
+        // Streamed rather than read into memory — a meeting recording can be up to 2 GB. The
+        // long timeout is for that same case; the job runs on the long-running recordings queue.
+        try {
+            $uploadResponse = Http::withHeaders(['authorization' => config('services.assemblyai.key')])
+                ->withBody(Utils::streamFor($stream), 'application/octet-stream')
+                ->timeout(3600)
+                ->post(self::BASE_URL.'/upload');
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
 
         if ($uploadResponse->failed()) {
             throw new \RuntimeException('AssemblyAI upload failed: '.$uploadResponse->body());
@@ -59,11 +74,18 @@ class AssemblyAiTranscriptionDriver implements TranscriptionDriver
         $status = $response->json('status');
         $text = $response->json('text');
         $error = $response->json('error');
+        $audioSeconds = $response->json('audio_duration');
+        $model = $response->json('speech_model_used');
 
         return [
             'status' => is_string($status) ? $status : 'error',
             'text' => is_string($text) ? $text : null,
             'error' => is_string($error) ? $error : null,
+            'usage' => is_numeric($audioSeconds) ? [
+                'driver' => 'assemblyai',
+                'model' => is_string($model) ? $model : 'unknown',
+                'audio_seconds' => (int) ceil((float) $audioSeconds),
+            ] : null,
         ];
     }
 }

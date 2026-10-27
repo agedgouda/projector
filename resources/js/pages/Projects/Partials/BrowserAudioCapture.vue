@@ -8,6 +8,7 @@ import { BANNER_PRIORITY, useGlobalProcessingBanner } from '@/composables/useGlo
 import tusRoutes from '@/routes/projects/browser-recordings/tus';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { goToLogin } from '@/lib/sessionExpiry';
+import { useTranscriptionLimit } from '@/composables/useTranscriptionLimit';
 
 const props = defineProps<{
     projectId: string;
@@ -20,6 +21,8 @@ type Phase = 'idle' | 'requesting-permission' | 'recording' | 'uploading' | 'err
 // an audio track, older browsers don't have the API at all) — checked once up front so the
 // rest of the component never has to special-case a missing capability mid-flow.
 const isUnsupported = computed(() => typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia);
+
+const transcriptionLimitMessage = useTranscriptionLimit();
 
 const phase = ref<Phase>('idle');
 const errorMessage = ref('');
@@ -143,16 +146,50 @@ const uploadChunk = (blob: Blob, index: number): Promise<string> => new Promise(
             filename: `chunk-${index}.webm`,
             filetype: blob.type || 'audio/webm',
             recorded_at: recordedAt ?? new Date().toISOString(),
+            // The server checks the transcription allowance on a recording's first chunk only.
+            ...(index === 0 ? { starts_recording: 'true' } : {}),
         },
         retryDelays: [0, 1000, 3000, 5000, 10000],
         onSuccess: () => {
             if (upload.url) resolve(upload.url);
             else reject(new Error('Upload finished without a URL.'));
         },
-        onError: (error) => reject(error),
+        onError: (error) => {
+            const response = (error as tus.DetailedError).originalResponse;
+            if (index === 0 && response?.getStatus() === 403) {
+                abortForLimit(limitMessageFrom(response.getBody()));
+            }
+            reject(error);
+        },
     });
     upload.start();
 });
+
+const limitMessageFrom = (body: string): string => {
+    try {
+        const message = JSON.parse(body)?.message;
+        if (typeof message === 'string') return message;
+    } catch {
+        // Not JSON — fall through to the generic message.
+    }
+    return 'Your organization has used all of its recording transcription for this month.';
+};
+
+// The allowance ran out after this page loaded (the server refused the first chunk) — stop
+// without saving, since nothing past that first chunk would be accepted anyway.
+const abortForLimit = (message: string) => {
+    if (mediaRecorder) {
+        mediaRecorder.onstop = null;
+        if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    }
+    stopStreams();
+    clearTimer();
+    unguardUnload();
+    chunkUploads = [];
+    recordedBlobs = [];
+    phase.value = 'error';
+    errorMessage.value = message;
+};
 
 const startCapture = async () => {
     errorMessage.value = '';
@@ -352,7 +389,11 @@ onBeforeUnmount(() => {
         </p>
 
         <template v-else>
-            <div v-if="phase === 'idle' || phase === 'requesting-permission'" class="mt-4">
+            <p v-if="phase === 'idle' && transcriptionLimitMessage" class="mt-4 text-sm text-amber-700 dark:text-amber-400">
+                {{ transcriptionLimitMessage }}
+            </p>
+
+            <div v-else-if="phase === 'idle' || phase === 'requesting-permission'" class="mt-4">
                 <Button
                     :disabled="phase === 'requesting-permission'"
                     class="h-10 rounded-xl bg-projector-primary-600 px-5 font-bold text-white hover:bg-projector-primary-700"

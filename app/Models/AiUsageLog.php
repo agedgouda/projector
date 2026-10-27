@@ -25,6 +25,7 @@ class AiUsageLog extends Model
         'type',
         'input_tokens',
         'output_tokens',
+        'audio_seconds',
         'cost_usd',
         'created_at',
     ];
@@ -34,6 +35,7 @@ class AiUsageLog extends Model
         return [
             'input_tokens' => 'integer',
             'output_tokens' => 'integer',
+            'audio_seconds' => 'integer',
             'cost_usd' => 'decimal:6',
             'created_at' => 'datetime',
         ];

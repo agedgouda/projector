@@ -500,6 +500,9 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/browser-recordings/tus/finish', [TusUploadController::class, 'finish'])
                 ->middleware('throttle:120,1')
                 ->name('browser-recordings.tus.finish');
+            Route::post('/browser-recordings/tus/finish-upload', [TusUploadController::class, 'finishUpload'])
+                ->middleware('throttle:20,1')
+                ->name('browser-recordings.tus.finish-upload');
             Route::options('/browser-recordings/tus', [TusUploadController::class, 'preflight'])
                 ->name('browser-recordings.tus.preflight');
             Route::match(['head'], '/browser-recordings/tus/{upload}', [TusUploadController::class, 'head'])

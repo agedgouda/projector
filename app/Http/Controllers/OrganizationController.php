@@ -123,22 +123,25 @@ class OrganizationController extends Controller
 
         $usageByProject = ! $canConfigure ? collect() : AiUsageLog::query()
             ->where('organization_id', $currentOrg->id)
-            ->where('type', 'llm')
-            ->selectRaw('project_id, client_id, COUNT(*) as documents_processed, SUM(cost_usd) as cost_usd')
+            ->whereIn('type', ['llm', 'transcription'])
+            ->selectRaw("project_id, client_id, SUM(CASE WHEN type = 'llm' THEN 1 ELSE 0 END) as documents_processed, SUM(audio_seconds) as audio_seconds, SUM(cost_usd) as cost_usd")
             ->groupBy('project_id', 'client_id')
             ->get();
 
         $usageTotals = [
             'documents_processed' => (int) $usageByProject->sum('documents_processed'),
+            'audio_seconds' => (int) $usageByProject->sum('audio_seconds'),
             'cost_usd' => (float) $usageByProject->sum('cost_usd'),
         ];
 
         $usageByClient = $usageByProject->groupBy('client_id')->map(fn ($rows) => [
             'documents_processed' => (int) $rows->sum('documents_processed'),
+            'audio_seconds' => (int) $rows->sum('audio_seconds'),
             'cost_usd' => (float) $rows->sum('cost_usd'),
             'projects' => $rows->map(fn ($row) => [
                 'project_id' => $row->project_id,
                 'documents_processed' => (int) $row->documents_processed,
+                'audio_seconds' => (int) $row->audio_seconds,
                 'cost_usd' => (float) $row->cost_usd,
             ])->values(),
         ]);
@@ -172,6 +175,10 @@ class OrganizationController extends Controller
             'clients' => $clients,
             'usageTotals' => $usageTotals,
             'usageByClient' => $usageByClient,
+            'transcriptionAllowance' => $canConfigure ? [
+                'used_seconds' => $currentOrg->currentMonthTranscriptionSeconds(),
+                'limit_seconds' => $currentOrg->transcriptionSecondsLimit(),
+            ] : null,
             'slackConnected' => (bool) $slackWorkspace,
             'slackTeamName' => $slackWorkspace?->team_name,
             'slackConfigured' => filled(config('services.slack.client_id')) && filled(config('services.slack.client_secret')) && filled(config('services.slack.signing_secret')),

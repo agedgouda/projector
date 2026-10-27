@@ -2,18 +2,21 @@
 
 namespace App\Models;
 
+use App\Services\RecordingIntakeService;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property Organization|null $organization
  * @property User|null $creator
  * @property string|null $custom_prompt
  */
-class OrgDocument extends Model
+class OrgDocument extends Model implements HasMedia
 {
-    use HasUuids;
+    use HasUuids, InteractsWithMedia;
 
     protected $fillable = [
         'organization_id',
@@ -75,5 +78,18 @@ class OrgDocument extends Model
     public function editor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'editor_id');
+    }
+
+    /**
+     * Source audio for a Status Meeting imported from a recording that had no provider
+     * transcript, pending transcription — private 'local' disk, same as Document's own
+     * 'recording' collection.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('recording')
+            ->useDisk('local')
+            ->singleFile()
+            ->acceptsMimeTypes(explode(',', RecordingIntakeService::RECORDING_MIMES));
     }
 }
