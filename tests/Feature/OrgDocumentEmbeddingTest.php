@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Queue;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    $this->useRealAiDrivers();
+
     Queue::fake([GenerateOrgDocumentEmbedding::class, ProcessOrgDocumentAI::class]);
 
     $this->org = Organization::create(['name' => 'Test Org']);

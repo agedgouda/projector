@@ -32,6 +32,8 @@ uses(RefreshDatabase::class);
  */
 
 beforeEach(function () {
+    $this->useRealAiDrivers();
+
     Queue::fake([GenerateOrgDocumentEmbedding::class, ProcessOrgDocumentAI::class]);
 
     config([
