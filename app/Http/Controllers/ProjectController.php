@@ -9,11 +9,16 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
+use App\Models\User;
 use App\Services\MeetingTranscriptService;
+use App\Services\MembershipGuard;
 use App\Services\Reports\CalendarExportBuilder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -28,7 +33,7 @@ class ProjectController extends Controller
         Gate::authorize('create', Project::class);
 
         $user = $request->user();
-        abort_unless($user instanceof \App\Models\User, 403);
+        abort_unless($user instanceof User, 403);
 
         $orgId = $request->cookie('last_org_id') ?? getPermissionsTeamId();
         $orgId = is_string($orgId) ? $orgId : null;
@@ -217,7 +222,7 @@ class ProjectController extends Controller
      * toggle (?show_tasks=&show_events=, each defaulting to true so a bare export link shows
      * everything).
      */
-    private function calendarExportItems(Request $request, Project $project): \Illuminate\Support\Collection
+    private function calendarExportItems(Request $request, Project $project): Collection
     {
         return $this->calendars()->items(
             $project,
@@ -240,7 +245,7 @@ class ProjectController extends Controller
      * on-screen calendar, months stacked vertically one after another rather than paginated per
      * month.
      */
-    public function exportCalendarPdf(Request $request, Project $project): \Illuminate\Http\Response
+    public function exportCalendarPdf(Request $request, Project $project): Response
     {
         Gate::authorize('view', $project);
 
@@ -307,8 +312,8 @@ class ProjectController extends Controller
             Gate::authorize('create', Project::class);
 
             $orgId = getPermissionsTeamId();
-            $org = \App\Models\Organization::find($orgId);
-            if ($org && ($block = \App\Services\MembershipGuard::check($org, 'projects'))) {
+            $org = Organization::find($orgId);
+            if ($org && ($block = MembershipGuard::check($org, 'projects'))) {
                 return $block;
             }
 
@@ -368,7 +373,7 @@ class ProjectController extends Controller
 
             return redirect()->back()->with('success', 'Project updated successfully.');
 
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
 
             \Log::error('[ControllerDebug] Authorization Failed', [
                 'user_id' => auth()->id(),
@@ -436,7 +441,7 @@ class ProjectController extends Controller
             'client_id' => 'required|exists:clients,id',
         ]);
 
-        $client = Client::findOrFail($validated['client_id']);
+        $client = Client::findOrFail((string) $validated['client_id']);
         $client->organization?->applyDriverConfig();
 
         /** @var LlmDriver $llmDriver */

@@ -76,7 +76,7 @@ class DocumentObserver implements ShouldHandleEventsAfterCommit
         // (with a default), but that default only applies at INSERT time — on this in-memory,
         // not-yet-created model, the attribute is genuinely unset/null whenever the caller
         // didn't explicitly assign it, exactly the case this check exists to catch.
-        // @phpstan-ignore function.impossibleType, booleanAnd.alwaysFalse
+        // @phpstan-ignore function.impossibleType
         if ($isTask && is_null($document->task_status)) {
             $document->status = 'todo';
             $document->task_status = 'todo'; // Keep both in sync for your board
