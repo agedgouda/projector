@@ -4,9 +4,27 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - '**.md'
+      - '.github/dependabot.yml'
+      - '.github/workflows/lint.yml'
+      - '.github/workflows/security-audit.yml'
+      - '.gitignore'
+      - '.editorconfig'
   pull_request:
     branches:
       - master
+    paths-ignore:
+      - '**.md'
+      - '.github/dependabot.yml'
+      - '.github/workflows/lint.yml'
+      - '.github/workflows/security-audit.yml'
+      - '.gitignore'
+      - '.editorconfig'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
