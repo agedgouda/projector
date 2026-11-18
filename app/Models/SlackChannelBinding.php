@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\SlackChannelBindingFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SlackChannelBinding extends Model
 {
-    /** @use HasFactory<\Database\Factories\SlackChannelBindingFactory> */
+    /** @use HasFactory<SlackChannelBindingFactory> */
     use HasFactory, HasUuids;
 
     protected $fillable = [

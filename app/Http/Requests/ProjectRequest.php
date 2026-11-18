@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Client;
 use App\Models\Project;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -32,7 +33,7 @@ class ProjectRequest extends FormRequest
         }
 
         // 3. Reach through to get the Org ID
-        $client = \App\Models\Client::find($clientId);
+        $client = Client::find($clientId);
         if (! $client) {
             return true;
         }
@@ -102,7 +103,7 @@ class ProjectRequest extends FormRequest
         ];
     }
 
-    protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    protected function failedValidation(Validator $validator)
     {
         \Log::error('[ValidationDebug] ProjectRequest Failed', [
             'errors' => $validator->errors()->toArray(),

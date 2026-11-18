@@ -7,9 +7,10 @@ use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);

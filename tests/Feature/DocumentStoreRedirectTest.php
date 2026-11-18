@@ -3,11 +3,11 @@
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->org = Organization::create(['name' => 'Acme Inc']);
@@ -21,14 +21,12 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
 
-    // Seeds the global document type catalog (via ProjectTypeObserver) — the store()
+    // Seeds the global document type catalog — the store()
     // redirect target depends on whether the document's type resolves as is_task via that
     // catalog, not on the literal type string, per DocumentTypeCatalogGroupingTest.php.
-    ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Meeting Notes', 'key' => 'action_items', 'is_task' => false],
-            ['label' => 'Task', 'key' => 'task', 'is_task' => true],
-        ],
+    seedDocumentTypes([
+        ['label' => 'Meeting Notes', 'key' => 'action_items', 'is_task' => false],
+        ['label' => 'Task', 'key' => 'task', 'is_task' => true],
     ]);
 
     $this->project = Project::create([

@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class RecordController extends Controller
 {
@@ -18,7 +19,7 @@ class RecordController extends Controller
     /**
      * Pick which project a new recording belongs to.
      */
-    public function index(Request $request): \Inertia\Response
+    public function index(Request $request): Response
     {
         $user = $request->user();
 
@@ -47,7 +48,7 @@ class RecordController extends Controller
     /**
      * The recording screen for a specific project.
      */
-    public function show(Project $project): \Inertia\Response
+    public function show(Project $project): Response
     {
         Gate::authorize('view', $project);
 

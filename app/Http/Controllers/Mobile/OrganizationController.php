@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class OrganizationController extends Controller
 {
@@ -26,7 +27,7 @@ class OrganizationController extends Controller
      * choice has been made) and any time afterward via the dashboard header, for a user with
      * access to more than one organization.
      */
-    public function index(Request $request): \Inertia\Response
+    public function index(Request $request): Response
     {
         $user = $request->user();
 

@@ -2,10 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\LifecycleTemplate;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\LifecycleTemplate>
+ * @extends Factory<LifecycleTemplate>
  */
 class LifecycleTemplateFactory extends Factory
 {

@@ -1,12 +1,15 @@
-import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 // Ensure the 'export' keyword is right here:
 export function useKanbanPermissions() {
     const page = usePage<AppPageProps>();
 
-    const isCreator = computed(() =>
-        page.props.auth?.user?.roles?.some((role: any) => role.name === 'super-admin') ?? false
+    const isCreator = computed(
+        () =>
+            page.props.auth?.user?.roles?.some(
+                (role: any) => role.name === 'super-admin',
+            ) ?? false,
     );
 
     return { isCreator };

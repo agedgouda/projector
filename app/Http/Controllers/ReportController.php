@@ -10,6 +10,8 @@ use App\Services\Google\GoogleExportService;
 use App\Services\Reports\TaskReportBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\PhpWord;
@@ -36,18 +38,14 @@ class ReportController extends Controller
         $tasks = $query?->get([
             'id', 'project_id', 'name', 'due_at', 'external_due_at', 'start_at', 'predecessor_id', 'status_changed_at',
             'priority', 'task_status', 'assignee_id', 'pending_assignee_invitation_id',
-            'content', 'type', 'custom_prompt', 'locked_project_type_id',
+            'content', 'type', 'custom_prompt',
             'last_ai_template_id', 'processed_at', 'updated_at',
         ]);
 
-        // Needed for the detail sheet's Reprocess-availability check, same as
-        // DocumentController::show()'s own loadExists() call — a locked document only has
-        // something left to (re)process if its locked protocol still defines a next step.
         // Done here rather than folded into the `?? collect()` below so $tasks stays a real
-        // Eloquent collection (loadExists() isn't defined on the base Support\Collection
-        // collect() would otherwise widen it to).
+        // Eloquent collection (load() isn't defined on the base Support\Collection collect()
+        // would otherwise widen it to).
         if ($tasks) {
-            $tasks->loadExists('lockedNextWorkflowStep');
             $tasks->load('comments.user');
         } else {
             $tasks = collect();
@@ -117,7 +115,7 @@ class ReportController extends Controller
      * report's column order (status, due date(s), name, assignee, priority), with an
      * optional trailing "Details" column holding each task's full content as plain text.
      */
-    public function exportTasksPdf(Request $request, Project $project): \Illuminate\Http\Response
+    public function exportTasksPdf(Request $request, Project $project): Response
     {
         Gate::authorize('view', $project);
 
@@ -309,7 +307,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Collection<int, Document>, 1: bool, 2: array<string, string>, 3: string}
+     * @return array{0: Collection<int, Document>, 1: bool, 2: array<string, string>, 3: string}
      */
     private function tasksForExport(Request $request, Project $project): array
     {
@@ -353,8 +351,6 @@ class ReportController extends Controller
             'content' => $task->content,
             'type' => $task->type,
             'custom_prompt' => $task->custom_prompt,
-            'locked_project_type_id' => $task->locked_project_type_id,
-            'locked_next_workflow_step_exists' => $task->locked_next_workflow_step_exists,
             'last_ai_template_id' => $task->last_ai_template_id,
             'processed_at' => $task->processed_at,
             'updated_at' => $task->updated_at,

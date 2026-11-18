@@ -5,9 +5,10 @@ use App\Jobs\ProcessOrgDocumentAI;
 use App\Models\Organization;
 use App\Models\OrgDocument;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Queue::fake([GenerateOrgDocumentEmbedding::class, ProcessOrgDocumentAI::class]);

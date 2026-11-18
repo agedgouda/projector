@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import TaskRowContent from '@/components/documents/TaskRowContent.vue';
-import { useDocumentActions } from '@/composables/useDocumentActions';
-import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
-import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { Label } from '@/components/ui/label';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { useDocumentActions } from '@/composables/useDocumentActions';
+import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
+import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { mergeAssigneeOptions, mergeMentionableUsers } from '@/lib/assignees';
-import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import { kanbanDotClasses } from '@/lib/constants';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import { formatDateOnly } from '@/lib/utils';
 import { show as showDocument } from '@/routes/projects/documents';
 import { Link, usePage, type InertiaForm } from '@inertiajs/vue3';
@@ -225,7 +225,6 @@ const usesExternalDueDates = computed(
 const usesTaskStartDates = computed(
     () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
 );
-
 </script>
 
 <template>

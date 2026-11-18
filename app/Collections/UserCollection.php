@@ -2,6 +2,7 @@
 
 namespace App\Collections;
 
+use App\Models\Client;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -80,14 +81,14 @@ class UserCollection extends Collection
      * formatted for project creation selects.
      */
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\Client>
+     * @return Collection<int, Client>
      */
-    public function availableClients(?string $orgId = null): \Illuminate\Database\Eloquent\Collection
+    public function availableClients(?string $orgId = null): Collection
     {
         if (! $orgId) {
-            return new \Illuminate\Database\Eloquent\Collection;
+            return new Collection;
         }
 
-        return \App\Models\Client::where('organization_id', $orgId)->get();
+        return Client::where('organization_id', $orgId)->get();
     }
 }

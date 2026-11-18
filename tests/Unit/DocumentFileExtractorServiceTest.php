@@ -1,15 +1,17 @@
 <?php
 
 use App\Services\DocumentFileExtractorService;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Writer\Word2007;
 
 it('extracts body-only html from a real docx file', function () {
-    $phpWord = new \PhpOffice\PhpWord\PhpWord;
+    $phpWord = new PhpWord;
     $section = $phpWord->addSection();
     $section->addText('First paragraph.');
     $section->addText('Second paragraph.');
 
     $tmpPath = tempnam(sys_get_temp_dir(), 'docx').'.docx';
-    (new \PhpOffice\PhpWord\Writer\Word2007($phpWord))->save($tmpPath);
+    (new Word2007($phpWord))->save($tmpPath);
 
     $html = (new DocumentFileExtractorService)->extractDocxHtml($tmpPath);
 

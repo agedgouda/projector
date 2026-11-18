@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
 import MobileLayout from '@/layouts/MobileLayout.vue';
-import DOMPurify from 'dompurify';
-import { RefreshCw, User as UserIcon, Calendar } from 'lucide-vue-next';
-import mobileNoteRoutes from '@/routes/mobile/notes';
-import { PRIORITY_LABELS, kanbanDotClasses, priorityDotClasses } from '@/lib/constants';
+import {
+    PRIORITY_LABELS,
+    kanbanDotClasses,
+    priorityDotClasses,
+} from '@/lib/constants';
 import { formatDateMdy } from '@/lib/utils';
+import mobileNoteRoutes from '@/routes/mobile/notes';
+import { Head } from '@inertiajs/vue3';
+import DOMPurify from 'dompurify';
+import { Calendar, RefreshCw, User as UserIcon } from 'lucide-vue-next';
 
 interface DocumentItem {
     id: string;
@@ -28,7 +32,9 @@ defineProps<{
 const sanitize = (html: string | null) => DOMPurify.sanitize(html ?? '');
 
 const formatDate = (value: string | null) => {
-    if (!value) { return null; }
+    if (!value) {
+        return null;
+    }
     return formatDateMdy(value);
 };
 </script>
@@ -36,58 +42,110 @@ const formatDate = (value: string | null) => {
 <template>
     <Head :title="document.name" />
 
-    <MobileLayout :title="document.name" :back-href="mobileNoteRoutes.show({ project: project.id, document: noteId }).url">
-        <div class="p-4 space-y-6">
+    <MobileLayout
+        :title="document.name"
+        :back-href="
+            mobileNoteRoutes.show({ project: project.id, document: noteId }).url
+        "
+    >
+        <div class="space-y-6 p-4">
             <div
                 v-if="document.status === 'processing'"
-                class="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 rounded-2xl p-4 text-sm font-bold"
+                class="flex items-center gap-2 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
             >
-                <RefreshCw class="w-4 h-4 animate-spin shrink-0" />
+                <RefreshCw class="h-4 w-4 shrink-0 animate-spin" />
                 Still processing…
             </div>
 
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-5 space-y-4">
+            <div
+                class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-black uppercase tracking-widest text-projector-primary-600 bg-projector-primary-50 dark:bg-projector-primary-950/30 dark:text-projector-primary-400 px-2 py-1 rounded border border-projector-primary-100 dark:border-projector-primary-900">
+                    <span
+                        class="rounded border border-projector-primary-100 bg-projector-primary-50 px-2 py-1 text-[10px] font-black tracking-widest text-projector-primary-600 uppercase dark:border-projector-primary-900 dark:bg-projector-primary-950/30 dark:text-projector-primary-400"
+                    >
                         {{ document.typeLabel }}
                     </span>
                 </div>
 
-                <div v-if="document.isTask" class="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px]">
+                <div
+                    v-if="document.isTask"
+                    class="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px]"
+                >
                     <div class="flex items-center gap-1.5 text-slate-400">
-                        <UserIcon class="w-3.5 h-3.5" />
-                        <span class="font-bold uppercase tracking-wide text-[10px]">Assignee</span>
+                        <UserIcon class="h-3.5 w-3.5" />
+                        <span
+                            class="text-[10px] font-bold tracking-wide uppercase"
+                            >Assignee</span
+                        >
                     </div>
-                    <div class="text-right font-bold text-slate-700 dark:text-slate-300 truncate">
+                    <div
+                        class="truncate text-right font-bold text-slate-700 dark:text-slate-300"
+                    >
                         {{ document.assignee?.name ?? 'Unassigned' }}
                     </div>
 
                     <div class="flex items-center gap-1.5 text-slate-400">
-                        <Calendar class="w-3.5 h-3.5" />
-                        <span class="font-bold uppercase tracking-wide text-[10px]">Due Date</span>
+                        <Calendar class="h-3.5 w-3.5" />
+                        <span
+                            class="text-[10px] font-bold tracking-wide uppercase"
+                            >Due Date</span
+                        >
                     </div>
-                    <div class="text-right font-bold text-slate-700 dark:text-slate-300">
+                    <div
+                        class="text-right font-bold text-slate-700 dark:text-slate-300"
+                    >
                         {{ formatDate(document.dueAt) ?? '—' }}
                     </div>
 
                     <div class="flex items-center gap-1.5 text-slate-400">
-                        <span class="font-bold uppercase tracking-wide text-[10px]">Status</span>
+                        <span
+                            class="text-[10px] font-bold tracking-wide uppercase"
+                            >Status</span
+                        >
                     </div>
                     <div class="flex items-center justify-end gap-1.5">
-                        <span class="font-bold text-slate-700 dark:text-slate-300">{{ document.taskStatus ?? 'todo' }}</span>
-                        <div :class="[kanbanDotClasses.slate, 'w-2 h-2 rounded-full']"></div>
+                        <span
+                            class="font-bold text-slate-700 dark:text-slate-300"
+                            >{{ document.taskStatus ?? 'todo' }}</span
+                        >
+                        <div
+                            :class="[
+                                kanbanDotClasses.slate,
+                                'h-2 w-2 rounded-full',
+                            ]"
+                        ></div>
                     </div>
 
                     <div class="flex items-center gap-1.5 text-slate-400">
-                        <span class="font-bold uppercase tracking-wide text-[10px]">Priority</span>
+                        <span
+                            class="text-[10px] font-bold tracking-wide uppercase"
+                            >Priority</span
+                        >
                     </div>
                     <div class="flex items-center justify-end gap-1.5">
-                        <span class="font-bold text-slate-700 dark:text-slate-300">{{ PRIORITY_LABELS[document.priority ?? 'low'] ?? document.priority }}</span>
-                        <div :class="[priorityDotClasses[document.priority ?? 'low'] ?? priorityDotClasses.low, 'w-2 h-2 rounded-full']"></div>
+                        <span
+                            class="font-bold text-slate-700 dark:text-slate-300"
+                            >{{
+                                PRIORITY_LABELS[document.priority ?? 'low'] ??
+                                document.priority
+                            }}</span
+                        >
+                        <div
+                            :class="[
+                                priorityDotClasses[
+                                    document.priority ?? 'low'
+                                ] ?? priorityDotClasses.low,
+                                'h-2 w-2 rounded-full',
+                            ]"
+                        ></div>
                     </div>
                 </div>
 
-                <div class="note-content text-[15px] text-slate-900 dark:text-slate-300 leading-relaxed" v-html="sanitize(document.content) || 'No content yet.'"></div>
+                <div
+                    class="note-content text-[15px] leading-relaxed text-slate-900 dark:text-slate-300"
+                    v-html="sanitize(document.content) || 'No content yet.'"
+                ></div>
             </div>
         </div>
     </MobileLayout>

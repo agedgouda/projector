@@ -12,7 +12,8 @@ export function visibleDocumentTypeKeys(
     documents: ProjectDocument[],
     catalog: DocumentSchemaItem[],
 ): string[] {
-    const isTaskType = (key: string) => catalog.find((t) => t.key === key)?.is_task ?? false;
+    const isTaskType = (key: string) =>
+        catalog.find((t) => t.key === key)?.is_task ?? false;
 
     const parentIds = new Set<string>();
     documents.forEach((d) => {
@@ -52,9 +53,11 @@ export function visibleDocumentTypeKeys(
 export function isAsyncImportedDocument(document: ProjectDocument): boolean {
     const metadata = document.metadata ?? {};
 
-    return metadata.recording_id != null
-        || metadata.recording_source === 'mobile_recording'
-        || metadata.recording_source === 'browser_capture';
+    return (
+        metadata.recording_id != null ||
+        metadata.recording_source === 'mobile_recording' ||
+        metadata.recording_source === 'browser_capture'
+    );
 }
 
 /**
@@ -65,11 +68,17 @@ export function isAsyncImportedDocument(document: ProjectDocument): boolean {
  * catalog row at all — matches useDocumentTree.ts's own getGroupLabel, so a type reads the
  * same way here as it does on the Documentation tab itself.
  */
-export function documentTypeLabel(key: string, catalog: DocumentSchemaItem[]): string {
+export function documentTypeLabel(
+    key: string,
+    catalog: DocumentSchemaItem[],
+): string {
     const catalogLabel = catalog.find((t) => t.key === key)?.label;
     if (catalogLabel) return catalogLabel;
 
     return key
         .replace(/_/g, ' ')
-        .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+        .replace(
+            /\w\S*/g,
+            (word) => word.charAt(0).toUpperCase() + word.slice(1),
+        );
 }

@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import ResourceSearch from '@/components/ResourceSearch.vue';
 import FlatRow from '@/components/FlatRow.vue';
 import IconTile from '@/components/IconTile.vue';
+import ResourceSearch from '@/components/ResourceSearch.vue';
 import OrgUserTable from '@/components/user/OrgUserTable.vue';
 import { useResourceExpansion } from '@/composables/useResourceExpansion';
+import AppLayout from '@/layouts/AppLayout.vue';
+import userRoutes from '@/routes/users/index';
+import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import { type BreadcrumbItem} from '@/types';
-import { ref, computed } from 'vue';
 import {
     Building2,
     ChevronDown,
     ChevronRight,
     CircleUserRound,
 } from 'lucide-vue-next';
-import userRoutes from '@/routes/users/index';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     users: Record<string, User[]>;
@@ -30,8 +30,8 @@ const orgData = computed(() =>
     Object.entries(props.users).map(([name, members]) => ({
         id: name,
         name: name,
-        members: members
-    }))
+        members: members,
+    })),
 );
 
 const filteredOrgs = ref([...orgData.value]);
@@ -40,7 +40,7 @@ const filteredOrgs = ref([...orgData.value]);
 const {
     collapsedStates: collapsedOrgs,
     toggle: toggleOrg,
-    handleSearchExpand
+    handleSearchExpand,
 } = useResourceExpansion(orgData.value);
 
 // Note: toggleAdminStatus is removed from here as it's now inside OrgUserTable
@@ -50,14 +50,19 @@ const {
     <Head title="User Management" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 w-full">
+        <div class="w-full p-6">
             <div class="mb-8">
-                <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase flex items-center gap-3">
-                    <CircleUserRound class="w-8 h-8 text-projector-primary-500" />
+                <h1
+                    class="flex items-center gap-3 text-2xl font-black tracking-tight text-gray-900 uppercase dark:text-white"
+                >
+                    <CircleUserRound
+                        class="h-8 w-8 text-projector-primary-500"
+                    />
                     User Management
                 </h1>
-                <p class="text-sm text-gray-500 mt-1">
-                    Manage system roles and administrative privileges by organization.
+                <p class="mt-1 text-sm text-gray-500">
+                    Manage system roles and administrative privileges by
+                    organization.
                 </p>
             </div>
 
@@ -72,28 +77,50 @@ const {
             </div>
 
             <div class="space-y-4">
-                <div v-if="filteredOrgs.length === 0" class="p-12 text-center border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-2xl">
-                    <p class="text-gray-500 font-medium italic">No organizations or users found matching your search.</p>
+                <div
+                    v-if="filteredOrgs.length === 0"
+                    class="rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center dark:border-zinc-800"
+                >
+                    <p class="font-medium text-gray-500 italic">
+                        No organizations or users found matching your search.
+                    </p>
                 </div>
 
                 <div v-for="org in filteredOrgs" :key="org.id">
                     <FlatRow height="md" clickable @click="toggleOrg(org.id)">
                         <template #leading>
-                            <component :is="collapsedOrgs[org.id] ? ChevronRight : ChevronDown" class="w-4 h-4 text-slate-400 shrink-0" />
+                            <component
+                                :is="
+                                    collapsedOrgs[org.id]
+                                        ? ChevronRight
+                                        : ChevronDown
+                                "
+                                class="h-4 w-4 shrink-0 text-slate-400"
+                            />
                             <IconTile :icon="Building2" size="sm" />
                         </template>
 
-                        <span class="font-bold text-[13px] text-slate-900 dark:text-slate-100 truncate">{{ org.name }}</span>
+                        <span
+                            class="truncate text-[13px] font-bold text-slate-900 dark:text-slate-100"
+                            >{{ org.name }}</span
+                        >
 
                         <template #trailing>
-                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                {{ org.members.length }} {{ org.members.length === 1 ? 'User' : 'Users' }}
+                            <span
+                                class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                {{ org.members.length }}
+                                {{
+                                    org.members.length === 1 ? 'User' : 'Users'
+                                }}
                             </span>
                         </template>
                     </FlatRow>
 
                     <div v-if="!collapsedOrgs[org.id]" class="relative pl-7">
-                        <div class="absolute left-[14px] top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
+                        <div
+                            class="absolute top-0 bottom-0 left-[14px] w-px bg-slate-200 dark:bg-slate-800"
+                        ></div>
                         <OrgUserTable
                             :users="org.members"
                             :show-admin-toggle="true"

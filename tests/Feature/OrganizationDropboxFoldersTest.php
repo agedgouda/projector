@@ -6,9 +6,10 @@ use App\Models\DropboxWorkspace;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);

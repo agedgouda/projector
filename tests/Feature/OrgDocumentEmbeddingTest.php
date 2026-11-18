@@ -4,11 +4,12 @@ use App\Jobs\GenerateOrgDocumentEmbedding;
 use App\Jobs\ProcessOrgDocumentAI;
 use App\Models\Organization;
 use App\Models\OrgDocument;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Queue::fake([GenerateOrgDocumentEmbedding::class, ProcessOrgDocumentAI::class]);

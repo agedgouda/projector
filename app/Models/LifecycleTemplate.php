@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\LifecycleTemplateFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LifecycleTemplate extends Model
 {
-    /** @use HasFactory<\Database\Factories\LifecycleTemplateFactory> */
+    /** @use HasFactory<LifecycleTemplateFactory> */
     use HasFactory, HasUuids;
 
     protected $fillable = ['name', 'organization_id'];

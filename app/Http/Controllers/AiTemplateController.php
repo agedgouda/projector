@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateAiTemplateAvailabilityRequest;
 use App\Models\AiTemplate;
 use App\Models\Organization;
 use App\Services\Ai\AiUsageLogger;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -169,7 +170,7 @@ class AiTemplateController extends Controller
      * 'text_import' passes carry an `extraction_rule` string instead, since there are no columns
      * to map against a text source.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     private function rules(): array
     {

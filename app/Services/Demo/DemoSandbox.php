@@ -5,7 +5,6 @@ namespace App\Services\Demo;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -111,10 +110,9 @@ class DemoSandbox
             ->pluck('id');
 
         if ($organizationIds->isNotEmpty()) {
-            // Clients and project types only null out their organization on delete, so they go
-            // first; deleting a client cascades to its projects and their documents.
+            // Clients only null out their organization on delete, so they go first; deleting a
+            // client cascades to its projects and their documents.
             Client::query()->whereIn('organization_id', $organizationIds)->delete();
-            ProjectType::query()->whereIn('organization_id', $organizationIds)->delete();
             Organization::query()->whereIn('id', $organizationIds)->delete();
         }
 

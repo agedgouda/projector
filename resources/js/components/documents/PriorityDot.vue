@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import {
     Select,
     SelectContent,
@@ -7,6 +6,7 @@ import {
     SelectTrigger,
 } from '@/components/ui/select';
 import { PRIORITY_LABELS, priorityDotClasses } from '@/lib/constants';
+import { computed } from 'vue';
 
 const props = defineProps<{
     priority?: string | null;
@@ -23,24 +23,50 @@ const emit = defineEmits<{
 // the picker (below), never next to the dot.
 const dotColor = computed(() => {
     const priority = props.priority ?? 'low';
-    return priority === 'high' || priority === 'low' ? (priorityDotClasses[priority] ?? null) : null;
+    return priority === 'high' || priority === 'low'
+        ? (priorityDotClasses[priority] ?? null)
+        : null;
 });
 </script>
 
 <template>
-    <div v-if="readOnly" class="flex w-2.5 shrink-0 items-center justify-center">
-        <span v-if="dotColor" :class="['h-1.5 w-1.5 rounded-full', dotColor]"></span>
+    <div
+        v-if="readOnly"
+        class="flex w-2.5 shrink-0 items-center justify-center"
+    >
+        <span
+            v-if="dotColor"
+            :class="['h-1.5 w-1.5 rounded-full', dotColor]"
+        ></span>
     </div>
     <div v-else class="w-2.5 shrink-0">
-        <Select :model-value="priority ?? 'low'" @update:model-value="(val) => emit('update', val as string)">
-            <SelectTrigger class="h-auto w-2.5 justify-center border-none bg-transparent p-0 shadow-none [&>svg]:hidden">
-                <span v-if="dotColor" :class="['h-1.5 w-1.5 rounded-full', dotColor]"></span>
+        <Select
+            :model-value="priority ?? 'low'"
+            @update:model-value="(val) => emit('update', val as string)"
+        >
+            <SelectTrigger
+                class="h-auto w-2.5 justify-center border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
+            >
+                <span
+                    v-if="dotColor"
+                    :class="['h-1.5 w-1.5 rounded-full', dotColor]"
+                ></span>
             </SelectTrigger>
             <SelectContent align="start">
-                <SelectItem v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key" class="text-[10px] font-black uppercase">
+                <SelectItem
+                    v-for="(label, key) in PRIORITY_LABELS"
+                    :key="key"
+                    :value="key"
+                    class="text-[10px] font-black uppercase"
+                >
                     <div class="flex w-24 items-center justify-between">
                         {{ label }}
-                        <div :class="[priorityDotClasses[key], 'h-2 w-2 rounded-full']"></div>
+                        <div
+                            :class="[
+                                priorityDotClasses[key],
+                                'h-2 w-2 rounded-full',
+                            ]"
+                        ></div>
                     </div>
                 </SelectItem>
             </SelectContent>

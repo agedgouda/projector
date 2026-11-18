@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\GoogleOauthTokenFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +21,7 @@ use Illuminate\Support\Carbon;
  */
 class GoogleOauthToken extends Model
 {
-    /** @use HasFactory<\Database\Factories\GoogleOauthTokenFactory> */
+    /** @use HasFactory<GoogleOauthTokenFactory> */
     use HasFactory, HasUuids;
 
     protected $fillable = [

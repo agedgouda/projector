@@ -2,16 +2,19 @@
 
 use App\Jobs\ImportMeetingTranscript;
 use App\Jobs\ProcessDocumentAI;
+use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
 use App\Models\GoogleOauthToken;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -99,7 +102,7 @@ it('creates an intake document from a picked google doc, using the picker-suppli
 it('redirects to a pre-created blank Meeting Notes document, same as a picked recording, when imported as Transcription', function () {
     Queue::fake();
 
-    $template = \App\Models\AiTemplate::create([
+    $template = AiTemplate::create([
         'name' => 'Transcript to Meeting Notes',
         'type' => 'workflow',
         'system_prompt' => 'x',
@@ -199,7 +202,7 @@ it('creates a new org-scoped document type and uses it when new_type_label is gi
         ])
         ->assertRedirect();
 
-    $definition = \App\Models\DocumentTypeDefinition::where('organization_id', $this->org->id)
+    $definition = DocumentTypeDefinition::where('organization_id', $this->org->id)
         ->where('key', 'design_brief')
         ->first();
 

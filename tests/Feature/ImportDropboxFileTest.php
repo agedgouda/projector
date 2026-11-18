@@ -1,5 +1,6 @@
 <?php
 
+use App\Contracts\LlmDriver;
 use App\Jobs\ImportDropboxFile;
 use App\Mail\ImportResultMail;
 use App\Models\Client;
@@ -11,9 +12,12 @@ use App\Models\Project;
 use App\Models\ProjectImportMapping;
 use App\Models\User;
 use App\Services\Dropbox\DropboxApiClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -45,7 +49,7 @@ it('imports a known-mapping csv and attributes it to the workspace owner', funct
     $mapping = ['name' => 'Name', 'priority' => null, 'task_status' => null, 'due_at' => null, 'assignee' => 'Assignee', 'start_date' => null, 'description' => null, 'tag' => null];
     ProjectImportMapping::record($this->project, 'task', $mapping);
 
-    $this->mock(\App\Contracts\LlmDriver::class)
+    $this->mock(LlmDriver::class)
         ->shouldReceive('call')
         ->once()
         ->andReturn(['status' => 'success', 'content' => ['passes' => [
@@ -74,7 +78,7 @@ it('notifies the workspace owner that the import has started, before processing 
     $mapping = ['name' => 'Name', 'priority' => null, 'task_status' => null, 'due_at' => null, 'assignee' => 'Assignee', 'start_date' => null, 'description' => null, 'tag' => null];
     ProjectImportMapping::record($this->project, 'task', $mapping);
 
-    $this->mock(\App\Contracts\LlmDriver::class)
+    $this->mock(LlmDriver::class)
         ->shouldReceive('call')
         ->once()
         ->andReturn(['status' => 'success', 'content' => ['passes' => [
@@ -121,10 +125,10 @@ it('ignores a file whose extension is not importable', function () {
 it('files a docx directly as the tagged type via a subfolder name, with no #tag needed', function () {
     DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'meeting_notes', 'label' => 'Meeting Notes', 'is_task' => false, 'order' => 3]);
 
-    $phpWord = new \PhpOffice\PhpWord\PhpWord;
+    $phpWord = new PhpWord;
     $phpWord->addSection()->addText('Discussed the roadmap.');
     $tmpPath = tempnam(sys_get_temp_dir(), 'dropbox_test_docx').'.docx';
-    \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007')->save($tmpPath);
+    IOFactory::createWriter($phpWord, 'Word2007')->save($tmpPath);
     $bytes = (string) file_get_contents($tmpPath);
     @unlink($tmpPath);
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommentEditForm from '@/components/comments/CommentEditForm.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -13,8 +14,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import CommentEditForm from '@/components/comments/CommentEditForm.vue';
 import { useDocumentEditor } from '@/composables/useDocumentEditor';
+import { formatTimestampMdy } from '@/lib/utils';
 import CommentRoutes from '@/routes/comments/index';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { EditorContent } from '@tiptap/vue-3';
@@ -34,7 +35,6 @@ import {
 } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
-import { formatTimestampMdy } from '@/lib/utils';
 
 const props = defineProps<{
     comments: Comment[];
@@ -258,7 +258,10 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                         </div>
 
                         <div
-                            v-if="comment.user_id === currentUserId && editingCommentId !== comment.id"
+                            v-if="
+                                comment.user_id === currentUserId &&
+                                editingCommentId !== comment.id
+                            "
                         >
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -399,7 +402,9 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                 >
                 <Button
                     @click="submitComment"
-                    :disabled="!form.body.trim() || form.processing || isUploading"
+                    :disabled="
+                        !form.body.trim() || form.processing || isUploading
+                    "
                     size="sm"
                     class="h-8 rounded-lg bg-projector-primary-600 px-4 text-[10px] font-bold tracking-widest uppercase hover:bg-projector-primary-700"
                 >

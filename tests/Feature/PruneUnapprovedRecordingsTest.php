@@ -4,12 +4,14 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
-function createRecordingWithAudio(array $metadata, \Carbon\Carbon $createdAt): Document
+function createRecordingWithAudio(array $metadata, Carbon $createdAt): Document
 {
     $org = Organization::create(['name' => 'Acme Inc']);
     $client = Client::create([

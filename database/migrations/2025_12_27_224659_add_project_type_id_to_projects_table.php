@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::table('projects', function (Blueprint $table) {
             $table->foreignUuid('project_type_id')
-                  ->after('id')
-                  ->nullable()
-                  ->constrained('project_types')
-                  ->onDelete('restrict');
+                ->after('id')
+                ->nullable()
+                ->constrained('project_types')
+                ->onDelete('restrict');
         });
     }
 

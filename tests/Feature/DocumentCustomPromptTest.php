@@ -10,8 +10,9 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Ai\ProjectAiService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->org = Organization::create(['name' => 'Acme Inc']);
@@ -132,7 +133,6 @@ it('creates a new child document from a custom prompt and leaves the source docu
             'mock_response' => ['title' => 'Marketing Briefing', 'content' => '# Cleaned Notes'],
             'output_type' => 'action_items',
             'single_output' => true,
-            'locked_project_type_id' => null,
         ]);
     });
 

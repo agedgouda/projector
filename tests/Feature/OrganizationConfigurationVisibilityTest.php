@@ -3,8 +3,10 @@
 use App\Models\AiUsageLog;
 use App\Models\Organization;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -63,7 +65,7 @@ it('gives org-admins their configuration and AI usage data', function () {
 });
 
 it('gives super-admins configuration and AI usage data even without a membership role', function () {
-    \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
     $superAdmin = User::factory()->create();
     $superAdmin->assignRole('super-admin');
     $this->org->users()->attach($superAdmin->id, ['role' => 'team-member']);

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import UserInfo from '@/components/UserInfo.vue';
-import { ShieldAlert } from 'lucide-vue-next';
-import { router, usePage, Link } from '@inertiajs/vue3';
-import userRoutes from '@/routes/users/index';
-import { promote } from '@/actions/App/Http/Controllers/UserController';
 import { store as impersonate } from '@/actions/App/Http/Controllers/ImpersonationController';
+import { promote } from '@/actions/App/Http/Controllers/UserController';
+import UserInfo from '@/components/UserInfo.vue';
+import userRoutes from '@/routes/users/index';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { ShieldAlert } from 'lucide-vue-next';
 
 import {
     Select,
@@ -13,8 +13,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { computed } from 'vue';
 import { formatRoleName } from '@/lib/utils';
+import { computed } from 'vue';
 
 const props = defineProps<{
     users: User[];
@@ -24,23 +24,34 @@ const props = defineProps<{
 
 const page = usePage<AppPageProps>();
 const allRoles = computed(() => props.allRoles ?? []);
-const viewerIsSuperAdmin = computed(() => page.props.auth.user.is_super === true);
-const viewerIsOrgAdmin = computed(() => page.props.auth.user.roles?.includes('org-admin'));
-const canAssignRoles = computed(() => props.showAdminToggle && (viewerIsSuperAdmin.value || viewerIsOrgAdmin.value));
+const viewerIsSuperAdmin = computed(
+    () => page.props.auth.user.is_super === true,
+);
+const viewerIsOrgAdmin = computed(() =>
+    page.props.auth.user.roles?.includes('org-admin'),
+);
+const canAssignRoles = computed(
+    () =>
+        props.showAdminToggle &&
+        (viewerIsSuperAdmin.value || viewerIsOrgAdmin.value),
+);
 
 const NO_ROLE = '__none__';
 
 const updateUserRole = (user: User, role: string) => {
     if (user.is_super) return;
 
-    router.put(userRoutes.update(user.id).url, {
-        organization_id: user.organization_id,
-        role: role === NO_ROLE ? null : role,
-    }, {
-        preserveScroll: true,
-    });
+    router.put(
+        userRoutes.update(user.id).url,
+        {
+            organization_id: user.organization_id,
+            role: role === NO_ROLE ? null : role,
+        },
+        {
+            preserveScroll: true,
+        },
+    );
 };
-
 </script>
 
 <template>
@@ -50,28 +61,41 @@ const updateUserRole = (user: User, role: string) => {
             :key="user.row_key"
             class="grid items-center rounded-md transition-colors"
             :class="[
-                viewerIsSuperAdmin ? 'grid-cols-[1fr_auto_200px]' : 'grid-cols-[1fr_200px]',
-                index % 2 === 1 ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25' : '',
+                viewerIsSuperAdmin
+                    ? 'grid-cols-[1fr_auto_200px]'
+                    : 'grid-cols-[1fr_200px]',
+                index % 2 === 1
+                    ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
+                    : '',
             ]"
         >
-            <div class="p-4 pl-8 min-w-0">
+            <div class="min-w-0 p-4 pl-8">
                 <div class="flex items-center gap-3">
                     <UserInfo :user="user" />
-                    <div v-if="user.is_super" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20">
-                        <ShieldAlert class="w-3 h-3" />
-                        <span class="text-[9px] font-black uppercase tracking-tighter">Super</span>
+                    <div
+                        v-if="user.is_super"
+                        class="flex items-center gap-1.5 rounded border border-amber-100 bg-amber-50 px-2 py-0.5 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10"
+                    >
+                        <ShieldAlert class="h-3 w-3" />
+                        <span
+                            class="text-[9px] font-black tracking-tighter uppercase"
+                            >Super</span
+                        >
                     </div>
                 </div>
             </div>
 
-            <div v-if="viewerIsSuperAdmin" class="px-4 flex justify-center gap-2">
+            <div
+                v-if="viewerIsSuperAdmin"
+                class="flex justify-center gap-2 px-4"
+            >
                 <Link
                     v-if="!user.is_super"
                     :href="promote(user.id).url"
                     method="post"
                     as="button"
                     :preserve-scroll="true"
-                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-projector-highlight-200 bg-white text-projector-highlight-700 hover:bg-projector-highlight-50 dark:border-projector-highlight-900/50 dark:bg-zinc-900 dark:text-projector-highlight-400 dark:hover:bg-projector-highlight-950/30 transition-colors"
+                    class="inline-flex h-9 items-center justify-center rounded-md border border-projector-highlight-200 bg-white px-3 text-[10px] font-black tracking-widest whitespace-nowrap text-projector-highlight-700 uppercase transition-colors hover:bg-projector-highlight-50 dark:border-projector-highlight-900/50 dark:bg-zinc-900 dark:text-projector-highlight-400 dark:hover:bg-projector-highlight-950/30"
                 >
                     Make Super Admin
                 </Link>
@@ -81,27 +105,38 @@ const updateUserRole = (user: User, role: string) => {
                     method="post"
                     as="button"
                     :preserve-scroll="true"
-                    class="inline-flex items-center justify-center h-9 px-3 text-[10px] font-black uppercase tracking-widest whitespace-nowrap rounded-md border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 dark:border-amber-900/50 dark:bg-zinc-900 dark:text-amber-400 dark:hover:bg-amber-950/30 transition-colors"
+                    class="inline-flex h-9 items-center justify-center rounded-md border border-amber-200 bg-white px-3 text-[10px] font-black tracking-widest whitespace-nowrap text-amber-700 uppercase transition-colors hover:bg-amber-50 dark:border-amber-900/50 dark:bg-zinc-900 dark:text-amber-400 dark:hover:bg-amber-950/30"
                 >
                     Impersonate
                 </Link>
             </div>
 
-            <div class="p-4 pr-6 flex justify-center">
-                <span v-if="user.is_super" class="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+            <div class="flex justify-center p-4 pr-6">
+                <span
+                    v-if="user.is_super"
+                    class="text-[10px] font-black tracking-widest text-amber-600 uppercase dark:text-amber-400"
+                >
                     Super Admin
                 </span>
                 <Select
                     v-else-if="canAssignRoles"
                     :model-value="user.roles[0] ?? NO_ROLE"
-                    @update:model-value="(val) => updateUserRole(user, String(val))"
+                    @update:model-value="
+                        (val) => updateUserRole(user, String(val))
+                    "
                 >
-                    <SelectTrigger class="h-8 text-xs w-40 bg-white dark:bg-zinc-900">
+                    <SelectTrigger
+                        class="h-8 w-40 bg-white text-xs dark:bg-zinc-900"
+                    >
                         <SelectValue placeholder="No role" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem :value="NO_ROLE">No role</SelectItem>
-                        <SelectItem v-for="role in allRoles" :key="role" :value="role">
+                        <SelectItem
+                            v-for="role in allRoles"
+                            :key="role"
+                            :value="role"
+                        >
                             {{ formatRoleName(role) }}
                         </SelectItem>
                     </SelectContent>

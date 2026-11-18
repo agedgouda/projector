@@ -19,22 +19,25 @@ import {
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
-const props = withDefaults(defineProps<{
-    item: any;
-    level: number;
-    index?: number;
-    expandedRootIds: Set<string | number>;
-    isTaskType: (type: string) => boolean;
-    selectedSheetId: string | number | null;
-    assigneeOptions: AssigneeOption[];
-    usesExternalDueDates?: boolean;
-    usesTaskStartDates?: boolean;
-    isReadOnly?: boolean;
-    columns: KanbanColumnDef[];
-    unreadDocumentIds?: Set<string>;
-}>(), {
-    unreadDocumentIds: () => new Set(),
-});
+const props = withDefaults(
+    defineProps<{
+        item: any;
+        level: number;
+        index?: number;
+        expandedRootIds: Set<string | number>;
+        isTaskType: (type: string) => boolean;
+        selectedSheetId: string | number | null;
+        assigneeOptions: AssigneeOption[];
+        usesExternalDueDates?: boolean;
+        usesTaskStartDates?: boolean;
+        isReadOnly?: boolean;
+        columns: KanbanColumnDef[];
+        unreadDocumentIds?: Set<string>;
+    }>(),
+    {
+        unreadDocumentIds: () => new Set(),
+    },
+);
 
 const emit = defineEmits<{
     (e: 'toggleRoot', id: string | number): void;
@@ -189,7 +192,9 @@ const handleRowClick = () => {
                         ]"
                     >
                         {{ item.name
-                        }}<template v-if="isGroup"> ({{ item.children.length }})</template>
+                        }}<template v-if="isGroup">
+                            ({{ item.children.length }})</template
+                        >
                     </span>
 
                     <span
@@ -227,8 +232,12 @@ const handleRowClick = () => {
                         v-if="!isGroup"
                         class="ml-auto flex shrink-0 items-center gap-2.5 text-[9px] font-black text-slate-400 dark:text-slate-500"
                     >
-                        <span>Created {{ formatRowDate(item.created_at) }}</span>
-                        <span>Updated {{ formatRowDate(item.updated_at) }}</span>
+                        <span
+                            >Created {{ formatRowDate(item.created_at) }}</span
+                        >
+                        <span
+                            >Updated {{ formatRowDate(item.updated_at) }}</span
+                        >
                     </span>
                 </div>
             </template>

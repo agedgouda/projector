@@ -2,7 +2,14 @@
 import { Button } from '@/components/ui/button';
 import { useDocumentEditor } from '@/composables/useDocumentEditor';
 import { EditorContent } from '@tiptap/vue-3';
-import { Bold, Italic, List, ListOrdered, Loader2, Paperclip } from 'lucide-vue-next';
+import {
+    Bold,
+    Italic,
+    List,
+    ListOrdered,
+    Loader2,
+    Paperclip,
+} from 'lucide-vue-next';
 import { ref } from 'vue';
 
 // Same toolbar/editor shape as CommentSection.vue's own new-comment composer — kept as a
@@ -30,7 +37,9 @@ const draft = ref(props.body);
 
 const { editor, triggerUpload, isUploading } = useDocumentEditor(
     props.body,
-    (html) => { draft.value = html; },
+    (html) => {
+        draft.value = html;
+    },
     props.mentionableUsers ?? [],
     props.projectId,
 );
@@ -57,7 +66,8 @@ const save = () => {
                     class="h-8 w-8 dark:text-slate-300"
                     @click="editor.chain().focus().toggleBold().run()"
                     :class="{
-                        'bg-slate-200 dark:bg-white/20': editor.isActive('bold'),
+                        'bg-slate-200 dark:bg-white/20':
+                            editor.isActive('bold'),
                     }"
                 >
                     <Bold class="h-4 w-4" />
@@ -69,7 +79,8 @@ const save = () => {
                     class="h-8 w-8 dark:text-slate-300"
                     @click="editor.chain().focus().toggleItalic().run()"
                     :class="{
-                        'bg-slate-200 dark:bg-white/20': editor.isActive('italic'),
+                        'bg-slate-200 dark:bg-white/20':
+                            editor.isActive('italic'),
                     }"
                 >
                     <Italic class="h-4 w-4" />
@@ -82,7 +93,8 @@ const save = () => {
                     class="h-8 w-8 dark:text-slate-300"
                     @click="editor.chain().focus().toggleBulletList().run()"
                     :class="{
-                        'bg-slate-200 dark:bg-white/20': editor.isActive('bulletList'),
+                        'bg-slate-200 dark:bg-white/20':
+                            editor.isActive('bulletList'),
                     }"
                 >
                     <List class="h-4 w-4" />
@@ -94,7 +106,8 @@ const save = () => {
                     class="h-8 w-8 dark:text-slate-300"
                     @click="editor.chain().focus().toggleOrderedList().run()"
                     :class="{
-                        'bg-slate-200 dark:bg-white/20': editor.isActive('orderedList'),
+                        'bg-slate-200 dark:bg-white/20':
+                            editor.isActive('orderedList'),
                     }"
                 >
                     <ListOrdered class="h-4 w-4" />
@@ -129,7 +142,10 @@ const save = () => {
                 class="h-7 rounded-lg bg-projector-primary-600 px-4 text-[10px] font-bold tracking-widest uppercase hover:bg-projector-primary-700"
                 @click="save"
             >
-                <Loader2 v-if="saving || isUploading" class="mr-1 h-3 w-3 animate-spin" />
+                <Loader2
+                    v-if="saving || isUploading"
+                    class="mr-1 h-3 w-3 animate-spin"
+                />
                 {{ isUploading ? 'Uploading…' : 'Save' }}
             </Button>
         </div>

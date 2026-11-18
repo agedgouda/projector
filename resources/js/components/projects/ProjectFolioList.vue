@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import ProjectFolio from '@/components/projects/ProjectFolio.vue';
+import { computed } from 'vue';
 
 const props = defineProps<{
     // A single client's projects (top-level + their sub-projects) — already whatever
@@ -36,7 +36,9 @@ const ordered = computed(() => {
         (childrenByParentId.get(project.id) ?? [])
             .slice()
             .sort((a, b) => a.name.localeCompare(b.name))
-            .forEach((child) => flattened.push({ project: child, isSubProject: true }));
+            .forEach((child) =>
+                flattened.push({ project: child, isSubProject: true }),
+            );
     });
 
     return flattened.map((entry, rowIndex) => ({ ...entry, rowIndex }));
@@ -44,7 +46,10 @@ const ordered = computed(() => {
 </script>
 
 <template>
-    <div v-if="ordered.length === 0" class="py-4 text-slate-400 text-[10px] font-black uppercase tracking-widest italic">
+    <div
+        v-if="ordered.length === 0"
+        class="py-4 text-[10px] font-black tracking-widest text-slate-400 uppercase italic"
+    >
         No projects yet.
     </div>
 

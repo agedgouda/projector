@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Contracts\VectorDriver;
+use App\Events\DocumentProcessingUpdate;
 use App\Models\Document;
 use App\Models\Project;
 use App\Models\User;
-use App\Contracts\VectorDriver;
-use App\Events\DocumentProcessingUpdate;
 use Illuminate\Support\Facades\Log;
 
 class VectorService
@@ -39,22 +39,22 @@ class VectorService
             $embedding = $this->vectorDriver->getEmbedding($text);
 
             if (empty($embedding)) {
-                throw new \RuntimeException("Driver returned an empty embedding array.");
+                throw new \RuntimeException('Driver returned an empty embedding array.');
             }
 
             return $embedding;
 
         } catch (\Throwable $e) {
-            Log::error("Vector Service Error: " . $e->getMessage(), [
-                'document_id' => $document?->id
+            Log::error('Vector Service Error: '.$e->getMessage(), [
+                'document_id' => $document?->id,
             ]);
 
             if ($document) {
                 $document->update(['processed_at' => now()]);
-                event(new DocumentProcessingUpdate($document, "AI Service Error: Connection Failed", 0));
+                event(new DocumentProcessingUpdate($document, 'AI Service Error: Connection Failed', 0));
             }
 
-            throw new \RuntimeException("Vectorization failed: " . $e->getMessage());
+            throw new \RuntimeException('Vectorization failed: '.$e->getMessage());
         }
     }
 
@@ -66,7 +66,7 @@ class VectorService
             return collect();
         }
 
-        $vectorString = '[' . implode(',', $vector) . ']';
+        $vectorString = '['.implode(',', $vector).']';
 
         return Document::query()
             ->visibleTo($user)

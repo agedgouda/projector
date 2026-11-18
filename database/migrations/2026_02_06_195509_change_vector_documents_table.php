@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-    // 1. Clear existing data to avoid 'Not Null' violations during the change
+        // 1. Clear existing data to avoid 'Not Null' violations during the change
         DB::table('documents')->truncate();
 
         // 2. Drop the old column and index

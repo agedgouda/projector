@@ -1,5 +1,5 @@
-import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 /**
  * Why a new recording can't be transcribed right now (the organization has used its month's
@@ -11,6 +11,8 @@ export function useTranscriptionLimit() {
     const page = usePage();
 
     return computed<string | null>(
-        () => (page.props as any).orgMembership?.transcription_limit_message ?? null,
+        () =>
+            (page.props as any).orgMembership?.transcription_limit_message ??
+            null,
     );
 }

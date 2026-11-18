@@ -1,15 +1,18 @@
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
-import { toast } from 'vue-sonner';
-import transcriptRoutes from '@/routes/projects/transcripts/index';
 import { type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { type CustomPrompt } from '@/lib/constants';
+import transcriptRoutes from '@/routes/projects/transcripts/index';
+import { router } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { toast } from 'vue-sonner';
 
-export function useTranscriptActions(projectId: string, callbacks?: {
-    onImportQueued?: () => void;
-    onImportFailed?: () => void;
-}) {
+export function useTranscriptActions(
+    projectId: string,
+    callbacks?: {
+        onImportQueued?: () => void;
+        onImportFailed?: () => void;
+    },
+) {
     // ── Import ────────────────────────────────────────────────────────────────
 
     const importing = ref<string | null>(null);
@@ -19,26 +22,41 @@ export function useTranscriptActions(projectId: string, callbacks?: {
     // unconditionally imported as the intake type just because it's a recording. Defaults to
     // the intake type for the two contexts that don't offer a picker at all (the standalone
     // Transcripts tab, Show.vue's old Recordings tab).
-    const importRecording = (recording: Recording, customPrompt: CustomPrompt | null = null, typeChoice: ImportTypeChoice = { type: INTAKE_KEY }) => {
+    const importRecording = (
+        recording: Recording,
+        customPrompt: CustomPrompt | null = null,
+        typeChoice: ImportTypeChoice = { type: INTAKE_KEY },
+    ) => {
         importing.value = recording.id;
         callbacks?.onImportQueued?.();
 
-        router.post(transcriptRoutes.store.url(projectId), {
-            recording_id: recording.id,
-            title: recording.title,
-            started_at: recording.started_at,
-            custom_prompt: customPrompt?.text ?? null,
-            custom_prompt_mode: customPrompt?.mode ?? null,
-            type: 'type' in typeChoice ? typeChoice.type : null,
-            new_type_label: 'newTypeLabel' in typeChoice ? typeChoice.newTypeLabel : null,
-        }, {
-            preserveScroll: true,
-            onError: (errors) => {
-                toast.error('Import failed', { description: Object.values(errors)[0] as string });
-                callbacks?.onImportFailed?.();
+        router.post(
+            transcriptRoutes.store.url(projectId),
+            {
+                recording_id: recording.id,
+                title: recording.title,
+                started_at: recording.started_at,
+                custom_prompt: customPrompt?.text ?? null,
+                custom_prompt_mode: customPrompt?.mode ?? null,
+                type: 'type' in typeChoice ? typeChoice.type : null,
+                new_type_label:
+                    'newTypeLabel' in typeChoice
+                        ? typeChoice.newTypeLabel
+                        : null,
             },
-            onFinish: () => { importing.value = null; },
-        });
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    toast.error('Import failed', {
+                        description: Object.values(errors)[0] as string,
+                    });
+                    callbacks?.onImportFailed?.();
+                },
+                onFinish: () => {
+                    importing.value = null;
+                },
+            },
+        );
     };
 
     // ── Dismiss ───────────────────────────────────────────────────────────────
@@ -54,19 +72,31 @@ export function useTranscriptActions(projectId: string, callbacks?: {
 
     const closeDismissRecording = () => {
         isDismissRecordingOpen.value = false;
-        setTimeout(() => { recordingToDismiss.value = null; }, 200);
+        setTimeout(() => {
+            recordingToDismiss.value = null;
+        }, 200);
     };
 
     const handleDismissRecording = () => {
-        if (!recordingToDismiss.value) { return; }
+        if (!recordingToDismiss.value) {
+            return;
+        }
         dismissingRecording.value = true;
-        router.post(transcriptRoutes.destroy.url({ project: projectId }), {
-            recording_id: recordingToDismiss.value.id,
-        }, {
-            preserveScroll: true,
-            onSuccess: () => { closeDismissRecording(); },
-            onFinish: () => { dismissingRecording.value = false; },
-        });
+        router.post(
+            transcriptRoutes.destroy.url({ project: projectId }),
+            {
+                recording_id: recordingToDismiss.value.id,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    closeDismissRecording();
+                },
+                onFinish: () => {
+                    dismissingRecording.value = false;
+                },
+            },
+        );
     };
 
     return {

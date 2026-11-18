@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { RefreshCw } from 'lucide-vue-next';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RefreshCw } from 'lucide-vue-next';
 
 withDefaults(
     defineProps<{
@@ -24,9 +24,12 @@ withDefaults(
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
         >
-            <div v-if="isProcessing" class="fixed top-0 left-0 right-0 z-[100] h-[3px] bg-projector-primary-100/20">
+            <div
+                v-if="isProcessing"
+                class="fixed top-0 right-0 left-0 z-[100] h-[3px] bg-projector-primary-100/20"
+            >
                 <div
-                    class="h-full bg-projector-primary-600 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(198,54,21,0.5)]"
+                    class="h-full bg-projector-primary-600 shadow-[0_0_8px_rgba(198,54,21,0.5)] transition-all duration-500 ease-out"
                     :style="{ width: `${progress}%` }"
                 ></div>
             </div>
@@ -40,21 +43,35 @@ withDefaults(
             leave-from-class="opacity-100 translate-y-0"
             leave-to-class="opacity-0 -translate-y-2"
         >
-            <Alert v-if="isProcessing" class="bg-projector-primary-50 border-projector-primary-100 p-0 block shadow-sm overflow-hidden mb-6">
-                <div class="p-4 flex justify-between items-center">
+            <Alert
+                v-if="isProcessing"
+                class="mb-6 block overflow-hidden border-projector-primary-100 bg-projector-primary-50 p-0 shadow-sm"
+            >
+                <div class="flex items-center justify-between p-4">
                     <div class="flex items-center gap-3">
-                        <AppLogoIcon class="h-10 w-10 text-projector-primary-600" />
+                        <AppLogoIcon
+                            class="h-10 w-10 text-projector-primary-600"
+                        />
                         <div>
-                            <AlertTitle class="text-sm font-black text-projector-primary-900 animate-pulse uppercase tracking-widest">
+                            <AlertTitle
+                                class="animate-pulse text-sm font-black tracking-widest text-projector-primary-900 uppercase"
+                            >
                                 {{ title }}
                             </AlertTitle>
-                            <AlertDescription class="text-xs text-projector-primary-700/70 font-medium">
-                                {{ message || 'Synchronizing project mapping...' }}
+                            <AlertDescription
+                                class="text-xs font-medium text-projector-primary-700/70"
+                            >
+                                {{
+                                    message ||
+                                    'Synchronizing project mapping...'
+                                }}
                             </AlertDescription>
                         </div>
                     </div>
-                    <div class="flex flex-col items-end gap-1 mr-4">
-                        <RefreshCw class="animate-spin text-projector-primary-400 h-5 w-5" />
+                    <div class="mr-4 flex flex-col items-end gap-1">
+                        <RefreshCw
+                            class="h-5 w-5 animate-spin text-projector-primary-400"
+                        />
                     </div>
                 </div>
             </Alert>

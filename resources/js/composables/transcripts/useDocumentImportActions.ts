@@ -1,9 +1,9 @@
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
-import { toast } from 'vue-sonner';
-import transcriptRoutes from '@/routes/projects/transcripts/index';
 import { type PickedGoogleDoc } from '@/composables/transcripts/useGooglePicker';
 import { type CustomPrompt } from '@/lib/constants';
+import transcriptRoutes from '@/routes/projects/transcripts/index';
+import { router } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 // What the picker chose the imported content should become — an existing catalog type (the
 // intake type included, still the default), or a brand-new one the user is naming right now.
@@ -17,42 +17,73 @@ export function useDocumentImportActions(projectId: string) {
     const importingGoogleDoc = ref(false);
     const importingFile = ref<'docx' | 'txt' | null>(null);
 
-    const importGoogleDoc = (file: PickedGoogleDoc, customPrompt: CustomPrompt | null, typeChoice: ImportTypeChoice) => {
+    const importGoogleDoc = (
+        file: PickedGoogleDoc,
+        customPrompt: CustomPrompt | null,
+        typeChoice: ImportTypeChoice,
+    ) => {
         importingGoogleDoc.value = true;
 
-        router.post(transcriptRoutes.importGoogleDoc.url(projectId), {
-            file_id: file.id,
-            title: file.name,
-            custom_prompt: customPrompt?.text ?? null,
-            custom_prompt_mode: customPrompt?.mode ?? null,
-            type: 'type' in typeChoice ? typeChoice.type : null,
-            new_type_label: 'newTypeLabel' in typeChoice ? typeChoice.newTypeLabel : null,
-        }, {
-            preserveScroll: true,
-            onError: (errors) => {
-                toast.error('Import failed', { description: Object.values(errors)[0] as string });
+        router.post(
+            transcriptRoutes.importGoogleDoc.url(projectId),
+            {
+                file_id: file.id,
+                title: file.name,
+                custom_prompt: customPrompt?.text ?? null,
+                custom_prompt_mode: customPrompt?.mode ?? null,
+                type: 'type' in typeChoice ? typeChoice.type : null,
+                new_type_label:
+                    'newTypeLabel' in typeChoice
+                        ? typeChoice.newTypeLabel
+                        : null,
             },
-            onFinish: () => { importingGoogleDoc.value = false; },
-        });
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    toast.error('Import failed', {
+                        description: Object.values(errors)[0] as string,
+                    });
+                },
+                onFinish: () => {
+                    importingGoogleDoc.value = false;
+                },
+            },
+        );
     };
 
-    const importFile = (file: File, kind: 'docx' | 'txt', customPrompt: CustomPrompt | null, typeChoice: ImportTypeChoice) => {
+    const importFile = (
+        file: File,
+        kind: 'docx' | 'txt',
+        customPrompt: CustomPrompt | null,
+        typeChoice: ImportTypeChoice,
+    ) => {
         importingFile.value = kind;
 
-        router.post(transcriptRoutes.importFile.url(projectId), {
-            file,
-            custom_prompt: customPrompt?.text ?? null,
-            custom_prompt_mode: customPrompt?.mode ?? null,
-            type: 'type' in typeChoice ? typeChoice.type : null,
-            new_type_label: 'newTypeLabel' in typeChoice ? typeChoice.newTypeLabel : null,
-        }, {
-            forceFormData: true,
-            preserveScroll: true,
-            onError: (errors) => {
-                toast.error('Import failed', { description: Object.values(errors)[0] as string });
+        router.post(
+            transcriptRoutes.importFile.url(projectId),
+            {
+                file,
+                custom_prompt: customPrompt?.text ?? null,
+                custom_prompt_mode: customPrompt?.mode ?? null,
+                type: 'type' in typeChoice ? typeChoice.type : null,
+                new_type_label:
+                    'newTypeLabel' in typeChoice
+                        ? typeChoice.newTypeLabel
+                        : null,
             },
-            onFinish: () => { importingFile.value = null; },
-        });
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onError: (errors) => {
+                    toast.error('Import failed', {
+                        description: Object.values(errors)[0] as string,
+                    });
+                },
+                onFinish: () => {
+                    importingFile.value = null;
+                },
+            },
+        );
     };
 
     return { importingGoogleDoc, importGoogleDoc, importingFile, importFile };

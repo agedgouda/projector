@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 it('redirects guests to the marketing site on any host other than the local Herd domain', function () {
     $response = $this->get('https://projecthq.app/');
 
@@ -13,7 +15,7 @@ it('redirects guests straight to the login form on the local Herd domain, which 
 });
 
 it('redirects authenticated users to the dashboard', function () {
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->actingAs($user);
 
     $response = $this->get('/');

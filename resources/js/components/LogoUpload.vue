@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { resizeImage } from '@/lib/resizeImage';
+import { useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     currentLogoUrl: string | null;
@@ -25,7 +25,9 @@ const deleteForm = useForm({});
 // widget's still-unsaved file.
 async function onFileChange(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) { return; }
+    if (!file) {
+        return;
+    }
 
     const resized = await resizeImage(file);
     uploadForm.logo = resized;
@@ -42,7 +44,9 @@ async function onFileChange(event: Event) {
             previewUrl.value = null;
         },
         onFinish: () => {
-            if (fileInput.value) { fileInput.value.value = ''; }
+            if (fileInput.value) {
+                fileInput.value.value = '';
+            }
         },
     });
 }
@@ -60,7 +64,7 @@ const displayUrl = computed(() => previewUrl.value ?? props.currentLogoUrl);
 
         <div class="flex items-center gap-4">
             <div
-                class="size-20 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0"
+                class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
                 :class="displayUrl ? 'bg-white' : 'bg-gray-50 dark:bg-gray-800'"
             >
                 <img
@@ -70,11 +74,15 @@ const displayUrl = computed(() => previewUrl.value ?? props.currentLogoUrl);
                     class="size-full object-contain"
                     :class="{ 'opacity-50': uploadForm.processing }"
                 />
-                <span v-else class="text-xs text-gray-400 dark:text-gray-500 text-center px-2">No logo</span>
+                <span
+                    v-else
+                    class="px-2 text-center text-xs text-gray-400 dark:text-gray-500"
+                    >No logo</span
+                >
             </div>
 
             <div class="space-y-2">
-                <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex flex-wrap items-center gap-2">
                     <Button
                         type="button"
                         variant="outline"
@@ -82,7 +90,13 @@ const displayUrl = computed(() => previewUrl.value ?? props.currentLogoUrl);
                         :disabled="uploadForm.processing"
                         @click="fileInput?.click()"
                     >
-                        {{ uploadForm.processing ? 'Uploading…' : (currentLogoUrl ? 'Change' : 'Upload') }}
+                        {{
+                            uploadForm.processing
+                                ? 'Uploading…'
+                                : currentLogoUrl
+                                  ? 'Change'
+                                  : 'Upload'
+                        }}
                     </Button>
 
                     <Button
@@ -98,9 +112,16 @@ const displayUrl = computed(() => previewUrl.value ?? props.currentLogoUrl);
                     </Button>
                 </div>
 
-                <p class="text-xs text-gray-500 dark:text-gray-400">JPEG, PNG, WebP or GIF · max 5 MB</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    JPEG, PNG, WebP or GIF · max 5 MB
+                </p>
 
-                <p v-if="uploadForm.errors.logo" class="text-xs text-destructive">{{ uploadForm.errors.logo }}</p>
+                <p
+                    v-if="uploadForm.errors.logo"
+                    class="text-xs text-destructive"
+                >
+                    {{ uploadForm.errors.logo }}
+                </p>
             </div>
         </div>
 

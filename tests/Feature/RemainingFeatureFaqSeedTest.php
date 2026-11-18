@@ -2,8 +2,9 @@
 
 use App\Models\Faq;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('seeds each new category, in order, with keywords', function (string $category, int $count) {
     $faqs = Faq::where('category', $category)->orderBy('order')->get();

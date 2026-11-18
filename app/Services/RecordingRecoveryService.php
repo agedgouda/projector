@@ -8,6 +8,7 @@ use App\Jobs\TranscribeRecording;
 use App\Models\Document;
 use App\Models\TusUpload;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -172,9 +173,9 @@ class RecordingRecoveryService
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, TusUpload>
+     * @return Collection<int, TusUpload>
      */
-    private function chunks(Document $recording): \Illuminate\Database\Eloquent\Collection
+    private function chunks(Document $recording): Collection
     {
         return TusUpload::inRecordingOrder(
             TusUpload::where('document_id', $recording->id)->whereNotNull('completed_at')->get()

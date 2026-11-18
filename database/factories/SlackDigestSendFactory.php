@@ -3,11 +3,12 @@
 namespace Database\Factories;
 
 use App\Models\Organization;
+use App\Models\SlackDigestSend;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SlackDigestSend>
+ * @extends Factory<SlackDigestSend>
  */
 class SlackDigestSendFactory extends Factory
 {

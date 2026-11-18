@@ -1,9 +1,11 @@
 import { ref } from 'vue';
 
-export function useResourceExpansion<T extends { id: string | number }>(items: T[]) {
+export function useResourceExpansion<T extends { id: string | number }>(
+    items: T[],
+) {
     // Initialize all items as collapsed (true)
     const collapsedStates = ref<Record<string | number, boolean>>(
-        Object.fromEntries(items.map(item => [item.id, true]))
+        Object.fromEntries(items.map((item) => [item.id, true])),
     );
 
     const toggle = (id: string | number) => {
@@ -12,12 +14,12 @@ export function useResourceExpansion<T extends { id: string | number }>(items: T
 
     const handleSearchExpand = (ids: (string | number)[]) => {
         // Reset all to collapsed (true)
-        Object.keys(collapsedStates.value).forEach(key => {
+        Object.keys(collapsedStates.value).forEach((key) => {
             collapsedStates.value[key] = true;
         });
 
         // Expand the matches (set to false)
-        ids.forEach(id => {
+        ids.forEach((id) => {
             collapsedStates.value[id] = false;
         });
     };
@@ -25,6 +27,6 @@ export function useResourceExpansion<T extends { id: string | number }>(items: T
     return {
         collapsedStates,
         toggle,
-        handleSearchExpand
+        handleSearchExpand,
     };
 }

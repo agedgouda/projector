@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Input } from '@/components/ui/input';
+import { computed } from 'vue';
 
 const props = defineProps<{
     modelValue: string | null | undefined;
@@ -22,7 +22,7 @@ const internalValue = computed({
         // Emit only the digits to the parent (clean data)
         const cleanDigits = val.replace(/\D/g, '').slice(0, 10);
         emit('update:modelValue', cleanDigits);
-    }
+    },
 });
 </script>
 

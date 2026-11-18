@@ -6,9 +6,11 @@ use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 /**
  * Reads every row (header first) of a streamed xlsx download.
@@ -20,7 +22,7 @@ function startDateExcelRows(string $xlsxBytes): array
     $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
     file_put_contents($tmpFile, $xlsxBytes);
 
-    $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmpFile)->getActiveSheet()->toArray();
+    $rows = IOFactory::load($tmpFile)->getActiveSheet()->toArray();
 
     unlink($tmpFile);
 

@@ -5,8 +5,9 @@ use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Services\Import\ForcedTypeMatcher;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'task', 'label' => 'Task', 'is_task' => true, 'order' => 1]);

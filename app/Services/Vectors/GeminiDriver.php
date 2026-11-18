@@ -3,9 +3,9 @@
 namespace App\Services\Vectors;
 
 use App\Contracts\VectorDriver;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class GeminiDriver implements VectorDriver
 {
@@ -21,13 +21,13 @@ class GeminiDriver implements VectorDriver
             $response = Http::post("{$baseUrl}?key={$apiKey}", [
                 'content' => [
                     'parts' => [
-                        ['text' => $text]
-                    ]
-                ]
+                        ['text' => $text],
+                    ],
+                ],
             ]);
 
             if ($response->failed()) {
-                throw new Exception('Gemini API Error: ' . $response->body());
+                throw new Exception('Gemini API Error: '.$response->body());
             }
 
             // Gemini returns the vector under 'values'
@@ -40,7 +40,7 @@ class GeminiDriver implements VectorDriver
             return $values;
 
         } catch (Exception $e) {
-            Log::error('Gemini Vector Generation Failed: ' . $e->getMessage());
+            Log::error('Gemini Vector Generation Failed: '.$e->getMessage());
             throw $e;
         }
     }

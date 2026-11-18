@@ -21,16 +21,19 @@ export async function resizeImage(file: File, maxSize = 800): Promise<File> {
             const ctx = canvas.getContext('2d')!;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            canvas.toBlob(
-                (blob) => {
-                    if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
-                    resolve(new File([blob], file.name, { type: file.type }));
-                },
-                file.type,
-            );
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Canvas toBlob failed'));
+                    return;
+                }
+                resolve(new File([blob], file.name, { type: file.type }));
+            }, file.type);
         };
 
-        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Image load failed')); };
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('Image load failed'));
+        };
         img.src = objectUrl;
     });
 }

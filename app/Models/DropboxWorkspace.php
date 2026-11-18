@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Database\Factories\DropboxWorkspaceFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * organization_id is unique — one Dropbox connection per org. Unlike SlackWorkspace, there's no
@@ -21,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $account_name
  * @property string $access_token
  * @property string $refresh_token
- * @property \Illuminate\Support\Carbon|null $access_token_expires_at
+ * @property Carbon|null $access_token_expires_at
  * @property string|null $cursor
  * @property int|null $installed_by_user_id
  * @property Organization $organization
@@ -29,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class DropboxWorkspace extends Model
 {
-    /** @use HasFactory<\Database\Factories\DropboxWorkspaceFactory> */
+    /** @use HasFactory<DropboxWorkspaceFactory> */
     use HasFactory, HasUuids;
 
     protected $fillable = [

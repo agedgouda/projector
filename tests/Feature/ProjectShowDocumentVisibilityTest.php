@@ -2,12 +2,15 @@
 
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
+use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -74,7 +77,7 @@ it('includes the pending invitation on a kanban task assigned to one', function 
     $orgAdmin = User::factory()->create();
     $this->org->users()->attach($orgAdmin->id, ['role' => 'org-admin']);
 
-    \App\Models\DocumentTypeDefinition::create([
+    DocumentTypeDefinition::create([
         'organization_id' => null,
         'key' => 'action_items',
         'label' => 'Action Items',
@@ -82,7 +85,7 @@ it('includes the pending invitation on a kanban task assigned to one', function 
         'order' => 1,
     ]);
 
-    $invitation = \App\Models\OrganizationInvitation::create([
+    $invitation = OrganizationInvitation::create([
         'organization_id' => $this->org->id,
         'email' => 'kanban-invited@example.com',
         'first_name' => 'Kanban',
@@ -115,7 +118,7 @@ it('includes the pending invitation on a document assigned to one', function () 
     $orgAdmin = User::factory()->create();
     $this->org->users()->attach($orgAdmin->id, ['role' => 'org-admin']);
 
-    $invitation = \App\Models\OrganizationInvitation::create([
+    $invitation = OrganizationInvitation::create([
         'organization_id' => $this->org->id,
         'email' => 'invited@example.com',
         'first_name' => 'Invited',

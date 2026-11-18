@@ -3,10 +3,9 @@ import type { useKanbanPermissions } from './useKanbanPermissions';
 
 export function useKanbanRules(
     props: KanbanProps,
-    permissions: ReturnType<typeof useKanbanPermissions>
+    permissions: ReturnType<typeof useKanbanPermissions>,
 ) {
     const { isCreator } = permissions;
-
 
     /**
      * Rules for where the "New Task" button appears

@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\SlackChannelBinding;
 use App\Models\SlackWorkspace;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SlackChannelBinding>
+ * @extends Factory<SlackChannelBinding>
  */
 class SlackChannelBindingFactory extends Factory
 {

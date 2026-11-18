@@ -4,12 +4,14 @@ use App\Enums\EmailDeliveryStatus;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Testing\TestResponse;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Symfony\Component\Mime\Message;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 const RESEND_TEST_SECRET = 'whsec_dGVzdC13ZWJob29rLXNlY3JldA==';
 
@@ -53,7 +55,7 @@ function useFakeResendTransport(string ...$emailIds): void
     config(['mail.mailers.fake-resend' => ['transport' => 'fake-resend'], 'mail.default' => 'fake-resend']);
 }
 
-function postResendEvent(array $payload, ?int $timestamp = null, ?string $secret = RESEND_TEST_SECRET): \Illuminate\Testing\TestResponse
+function postResendEvent(array $payload, ?int $timestamp = null, ?string $secret = RESEND_TEST_SECRET): TestResponse
 {
     $body = json_encode($payload, JSON_THROW_ON_ERROR);
     $id = 'msg_'.uniqid();

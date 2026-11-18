@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,7 +29,7 @@ class ProcessDocumentAI implements ShouldQueue
     public $timeout = 300;
 
     /**
-     * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     * @param  array{to_key: string, ai_template_id: int, single_output?: bool}|null  $overrideStep
      * @param  string|null  $oneOffInstructions  Free text entered on the Reprocess confirmation for this
      *                                           run only — never persisted, lives only in this job's
      *                                           own queued payload.
@@ -43,7 +44,7 @@ class ProcessDocumentAI implements ShouldQueue
      * first produced (children are deleted and recreated on every run) with a fresh — and not
      * necessarily equivalent — AI response.
      *
-     * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     * @param  array{to_key: string, ai_template_id: int, single_output?: bool}|null  $overrideStep
      */
     public static function dispatchUnlessProcessing(Document $document, ?array $overrideStep = null, ?string $oneOffInstructions = null): bool
     {
@@ -101,7 +102,6 @@ class ProcessDocumentAI implements ShouldQueue
 
         $outputType = $result['output_type'];
         $singleOutput = $result['single_output'] ?? false;
-        $lockedProjectTypeId = $result['locked_project_type_id'] ?? null;
 
         // $typeLabel is already set — the callback above always runs before process() can return
         // a non-null, non-error result. Same text as the first event, just a progress bump.
@@ -110,7 +110,7 @@ class ProcessDocumentAI implements ShouldQueue
         $childrenReplaced = false;
         $newDocumentCount = 0;
 
-        DB::transaction(function () use ($result, $outputType, $singleOutput, $lockedProjectTypeId, &$childrenReplaced, &$newDocumentCount) {
+        DB::transaction(function () use ($result, $outputType, $singleOutput, &$childrenReplaced, &$newDocumentCount) {
             $existingChildren = $this->document->project->documents()
                 ->where('parent_id', $this->document->id)
                 ->get();
@@ -159,7 +159,6 @@ class ProcessDocumentAI implements ShouldQueue
                     'type' => $outputType,
                     'name' => $doc['title'] ?? ($this->document->name.' — Requirements'),
                     'content' => $html,
-                    'locked_project_type_id' => $lockedProjectTypeId,
                 ])->save();
                 $newDocumentCount++;
             } else {
@@ -197,8 +196,8 @@ class ProcessDocumentAI implements ShouldQueue
                         $content .= '<p><img src="'.e($src).'" alt="'.e($alt).'"></p>';
                     }
 
-                    $dueAt = ! empty($data['due_date']) ? \Illuminate\Support\Carbon::parse($data['due_date'])->toDateString() : null;
-                    $startAt = ! empty($data['start_date']) ? \Illuminate\Support\Carbon::parse($data['start_date'])->toDateString() : null;
+                    $dueAt = ! empty($data['due_date']) ? Carbon::parse($data['due_date'])->toDateString() : null;
+                    $startAt = ! empty($data['start_date']) ? Carbon::parse($data['start_date'])->toDateString() : null;
 
                     // The AI is free to omit priority (e.g. templates that don't produce
                     // per-item tasks) or hallucinate an out-of-range value, so anything
@@ -217,7 +216,6 @@ class ProcessDocumentAI implements ShouldQueue
                         'priority' => $priority,
                         'assignee_id' => $data['assignee_id'] ?? null,
                         'pending_assignee_invitation_id' => $data['pending_assignee_invitation_id'] ?? null,
-                        'locked_project_type_id' => $lockedProjectTypeId,
                         'metadata' => [
                             'criteria' => $data['criteria'] ?? [],
                             'category' => $data['category'] ?? 'general',

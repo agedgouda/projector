@@ -5,8 +5,9 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectImportMapping;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $org = Organization::create(['name' => 'Test Org']);

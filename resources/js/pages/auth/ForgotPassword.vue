@@ -29,7 +29,11 @@ defineProps<{
         </div>
 
         <div class="space-y-6">
-            <Form action="/forgot-password" method="post" v-slot="{ errors, processing }">
+            <Form
+                action="/forgot-password"
+                method="post"
+                v-slot="{ errors, processing }"
+            >
                 <div class="grid gap-2">
                     <Label for="email">Email address</Label>
                     <Input

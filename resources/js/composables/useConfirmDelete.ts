@@ -1,10 +1,10 @@
+import { router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
 
 interface DeleteOptions {
     onSuccess?: () => void;
     onError?: (errors: any) => void; // Added this
-    onFinish?: () => void;           // Added this
+    onFinish?: () => void; // Added this
     redirectRoute?: string;
 }
 
@@ -47,7 +47,7 @@ export function useConfirmDelete() {
             },
             onFinish: () => {
                 if (options.onFinish) options.onFinish();
-            }
+            },
         });
     };
 

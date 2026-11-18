@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 use Laravel\Fortify\Features;
 
 class LoginController extends Controller
@@ -14,7 +15,7 @@ class LoginController extends Controller
      * a different screen, not a different auth mechanism, so session auth, 2FA, and the
      * "intended URL" redirect (back to /app) all work exactly as they do on the web.
      */
-    public function create(Request $request): \Inertia\Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Mobile/Login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),

@@ -8,10 +8,11 @@ use App\Models\SlackUserIdentity;
 use App\Models\SlackWorkspace;
 use App\Models\User;
 use App\Services\Import\ImportNotifier;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->org = Organization::create(['name' => 'Test Org']);

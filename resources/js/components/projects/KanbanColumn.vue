@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import draggable from 'vuedraggable';
-import { Plus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import KanbanCard from './KanbanCard.vue';
-import { KANBAN_UI } from '@/lib/kanban-theme';
-import type { AssigneeOption } from '@/lib/assignees';
 import { useKanbanPermissions } from '@/composables/kanban/useKanbanPermissions';
+import type { AssigneeOption } from '@/lib/assignees';
+import { KANBAN_UI } from '@/lib/kanban-theme';
+import { Plus } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
+import draggable from 'vuedraggable';
+import KanbanCard from './KanbanCard.vue';
 
 const { isCreator } = useKanbanPermissions();
 
@@ -34,7 +34,13 @@ const props = withDefaults(
     },
 );
 
-const emit = defineEmits(['drag', 'open', 'create', 'update-attribute', 'update-tags']);
+const emit = defineEmits([
+    'drag',
+    'open',
+    'create',
+    'update-attribute',
+    'update-tags',
+]);
 
 // Every card mounts several child components (two Selects, a Popover), and mounting all of
 // them for every task at once is the real cost of a big initial page load — v-show (see
@@ -50,7 +56,10 @@ const revealedCount = ref(Math.min(INITIAL_BATCH, initialLength));
 
 const revealMore = () => {
     if (revealedCount.value >= initialLength) return;
-    revealedCount.value = Math.min(revealedCount.value + BATCH_SIZE, initialLength);
+    revealedCount.value = Math.min(
+        revealedCount.value + BATCH_SIZE,
+        initialLength,
+    );
     if (revealedCount.value < initialLength) {
         requestAnimationFrame(revealMore);
     }
@@ -80,14 +89,13 @@ const revealedTasks = computed(() => props.tasks.slice(0, revealedCount.value));
             :model-value="revealedTasks"
             :group="{ name: `tasks-${rowLabel}` }"
             item-key="id"
-            class="flex-1 space-y-4 min-h-[100px]"
+            class="min-h-[100px] flex-1 space-y-4"
             :ghost-class="KANBAN_UI.ghostCard"
             @change="emit('drag', $event)"
-
             :component-data="{
                 tag: 'div',
                 type: 'transition-group',
-                name: 'kanban-list'
+                name: 'kanban-list',
             }"
         >
             <template #item="{ element: doc }">
@@ -95,11 +103,23 @@ const revealedTasks = computed(() => props.tasks.slice(0, revealedCount.value));
                     <KanbanCard
                         :doc="doc"
                         :column="column"
-                        :document-project="projectsById.get(doc.project_id) ?? currentProject ?? null"
-                        :assignee-options="assigneeOptionsByProjectId.get(doc.project_id) ?? []"
+                        :document-project="
+                            projectsById.get(doc.project_id) ??
+                            currentProject ??
+                            null
+                        "
+                        :assignee-options="
+                            assigneeOptionsByProjectId.get(doc.project_id) ?? []
+                        "
                         @open="emit('open', doc)"
-                        @update-attribute="(field, val) => emit('update-attribute', doc.id, field, val)"
-                        @update-tags="(categories) => emit('update-tags', doc.id, categories)"
+                        @update-attribute="
+                            (field, val) =>
+                                emit('update-attribute', doc.id, field, val)
+                        "
+                        @update-tags="
+                            (categories) =>
+                                emit('update-tags', doc.id, categories)
+                        "
                     />
                 </div>
             </template>
@@ -110,11 +130,11 @@ const revealedTasks = computed(() => props.tasks.slice(0, revealedCount.value));
             variant="ghost"
             @click="emit('create')"
             :class="[
-                'w-full h-14 rounded-2xl transition-all bg-transparent shadow-none mt-auto hover:text-projector-primary-600 hover:bg-white',
-                KANBAN_UI.subtleLabel
+                'mt-auto h-14 w-full rounded-2xl bg-transparent shadow-none transition-all hover:bg-white hover:text-projector-primary-600',
+                KANBAN_UI.subtleLabel,
             ]"
         >
-            <Plus class="w-4 h-4 mr-2" /> New {{ rowLabel }}
+            <Plus class="mr-2 h-4 w-4" /> New {{ rowLabel }}
         </Button>
     </div>
 </template>

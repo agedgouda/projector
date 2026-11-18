@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Folders, FolderOpen, Plus, Star } from 'lucide-vue-next';
 import FlatSwitcherTrigger from '@/components/FlatSwitcherTrigger.vue';
 import IconTile from '@/components/IconTile.vue';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     toggleProjectFavorite,
     useFavoriteProjectIds,
 } from '@/composables/useFavoriteProject';
+import { FolderOpen, Folders, Plus, Star } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 // Import the form component
 import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
@@ -67,7 +67,8 @@ const emit = defineEmits<{
 
 // --- FAVORITE STATE ---
 const favoriteProjectIds = useFavoriteProjectIds();
-const isFavorited = (projectId: string) => favoriteProjectIds.value.has(projectId);
+const isFavorited = (projectId: string) =>
+    favoriteProjectIds.value.has(projectId);
 const toggleFavorite = (projectId: string) =>
     toggleProjectFavorite(projectId, isFavorited(projectId));
 
@@ -113,12 +114,19 @@ const handleSuccess = () => {
             >
                 <Star
                     class="h-4 w-4"
-                    :class="isFavorited(currentProject.id) ? 'fill-current' : ''"
+                    :class="
+                        isFavorited(currentProject.id) ? 'fill-current' : ''
+                    "
                 />
             </button>
 
-            <DropdownMenuContent align="start" class="w-72 rounded-2xl p-2 shadow-xl border-gray-100 dark:border-gray-800">
-                <div class="px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
+            <DropdownMenuContent
+                align="start"
+                class="w-72 rounded-2xl border-gray-100 p-2 shadow-xl dark:border-gray-800"
+            >
+                <div
+                    class="px-3 py-2 text-[9px] font-black tracking-[0.2em] text-gray-400 uppercase"
+                >
                     Your Portfolio
                 </div>
 
@@ -126,7 +134,7 @@ const handleSuccess = () => {
                     v-for="entry in groupedProjects"
                     :key="entry.project.id"
                     @click="emit('switch', entry.project.id)"
-                    class="p-3 cursor-pointer rounded-lg mb-1 flex items-center gap-3"
+                    class="mb-1 flex cursor-pointer items-center gap-3 rounded-lg p-3"
                     :class="{ 'pl-10': entry.isSubProject }"
                 >
                     <span
@@ -151,29 +159,58 @@ const handleSuccess = () => {
                     >
                         <Star
                             class="h-3.5 w-3.5"
-                            :class="isFavorited(entry.project.id) ? 'fill-current' : ''"
+                            :class="
+                                isFavorited(entry.project.id)
+                                    ? 'fill-current'
+                                    : ''
+                            "
                         />
                     </span>
-                    <IconTile :src="entry.project.logo_url" :alt="entry.project.name" :icon="FolderOpen" size="sm" tone="primary" />
-                    <span class="font-bold text-sm">{{ entry.project.name }}</span>
+                    <IconTile
+                        :src="entry.project.logo_url"
+                        :alt="entry.project.name"
+                        :icon="FolderOpen"
+                        size="sm"
+                        tone="primary"
+                    />
+                    <span class="text-sm font-bold">{{
+                        entry.project.name
+                    }}</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator class="my-2 bg-gray-100 dark:bg-gray-800" />
+                <DropdownMenuSeparator
+                    class="my-2 bg-gray-100 dark:bg-gray-800"
+                />
 
-                <DropdownMenuItem @click="isModalOpen = true" class="p-3 cursor-pointer rounded-lg text-projector-primary-600 hover:text-projector-primary-700 hover:bg-projector-primary-50 dark:hover:bg-projector-primary-950/30 flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-projector-primary-50 dark:bg-projector-primary-900/50 flex items-center justify-center">
-                        <Plus class="w-3.5 h-3.5" />
+                <DropdownMenuItem
+                    @click="isModalOpen = true"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-projector-primary-600 hover:bg-projector-primary-50 hover:text-projector-primary-700 dark:hover:bg-projector-primary-950/30"
+                >
+                    <div
+                        class="flex h-6 w-6 items-center justify-center rounded-md bg-projector-primary-50 dark:bg-projector-primary-900/50"
+                    >
+                        <Plus class="h-3.5 w-3.5" />
                     </div>
-                    <span class="font-black uppercase text-[10px] tracking-widest">New Project</span>
+                    <span
+                        class="text-[10px] font-black tracking-widest uppercase"
+                        >New Project</span
+                    >
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
 
         <Dialog v-model:open="isModalOpen">
-            <DialogContent class="sm:max-w-[500px] rounded-[2.5rem] border-none shadow-2xl bg-white dark:bg-gray-950">
-                <DialogHeader class="pt-4 px-2">
-                    <DialogTitle class="text-xl font-black uppercase tracking-tight">Initialize Project</DialogTitle>
-                    <DialogDescription class="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <DialogContent
+                class="rounded-[2.5rem] border-none bg-white shadow-2xl sm:max-w-[500px] dark:bg-gray-950"
+            >
+                <DialogHeader class="px-2 pt-4">
+                    <DialogTitle
+                        class="text-xl font-black tracking-tight uppercase"
+                        >Initialize Project</DialogTitle
+                    >
+                    <DialogDescription
+                        class="text-xs font-bold tracking-widest text-gray-400 uppercase"
+                    >
                         New Workspace Setup
                     </DialogDescription>
                 </DialogHeader>

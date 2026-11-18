@@ -1,8 +1,12 @@
-import type { KanbanProps, DocumentUpdatePayload } from './useKanbanBoard';
+import type { DocumentUpdatePayload, KanbanProps } from './useKanbanBoard';
 
 export function useKanbanDnD(
     props: KanbanProps,
-    updateAttribute: (id: string | number, data: DocumentUpdatePayload, msg?: string) => void
+    updateAttribute: (
+        id: string | number,
+        data: DocumentUpdatePayload,
+        msg?: string,
+    ) => void,
 ) {
     const onDragChange = (evt: any, column: KanbanColumnDef) => {
         if (!evt.added) return;
@@ -12,7 +16,7 @@ export function useKanbanDnD(
         updateAttribute(
             doc.id,
             { task_status: column.key },
-            `Moved "${doc.name}" to ${column.label}`
+            `Moved "${doc.name}" to ${column.label}`,
         );
     };
 

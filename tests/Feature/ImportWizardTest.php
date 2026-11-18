@@ -3,11 +3,13 @@
 use App\Models\Client;
 use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
+use App\Models\PendingImport;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -98,7 +100,7 @@ it('requires authentication', function () {
 });
 
 it('includes a pending import queued from a slack upload for a manageable project', function () {
-    $pending = \App\Models\PendingImport::create([
+    $pending = PendingImport::create([
         'project_id' => $this->project->id,
         'original_filename' => 'export.csv',
         'uploaded_by_user_id' => $this->admin->id,
@@ -118,7 +120,7 @@ it('includes a pending import queued from a slack upload for a manageable projec
 });
 
 it('excludes a pending import for a project the user can\'t manage', function () {
-    \App\Models\PendingImport::create([
+    PendingImport::create([
         'project_id' => $this->project->id,
         'original_filename' => 'export.csv',
     ]);

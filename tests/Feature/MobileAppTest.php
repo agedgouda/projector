@@ -2,12 +2,14 @@
 
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -243,14 +245,14 @@ it('resolves the top-level note id for a document\'s back link, even when deeply
 });
 
 it('shows the same task details on mobile that the desktop detail sheet shows', function () {
-    \App\Models\DocumentTypeDefinition::create([
+    DocumentTypeDefinition::create([
         'organization_id' => null,
         'key' => 'task',
         'label' => 'Task',
         'is_task' => true,
         'order' => 1,
     ]);
-    \App\Models\DocumentTypeDefinition::create([
+    DocumentTypeDefinition::create([
         'organization_id' => null,
         'key' => 'action_items',
         'label' => 'Action Items',

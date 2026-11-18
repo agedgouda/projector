@@ -8,14 +8,16 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\TusUpload;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Storage::fake('local');
@@ -83,7 +85,7 @@ function recoveryChunk(Document $recording, User $user, int $index, string $cont
     ]);
 }
 
-function showDocument(Project $project, Document $document): \Illuminate\Testing\TestResponse
+function showDocument(Project $project, Document $document): TestResponse
 {
     return test()->get(route('projects.documents.show', ['project' => $project, 'document' => $document]));
 }

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { Calendar as CalendarIcon } from 'lucide-vue-next';
-import { parseDate, type DateValue } from '@internationalized/date';
-import { computed, ref, watch } from 'vue';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn, formatDateMdy } from '@/lib/utils';
+import { parseDate, type DateValue } from '@internationalized/date';
+import { Calendar as CalendarIcon } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 
 // A single shared date-editing control, replacing the native `<input type="date">` used
 // (each with its own copy of the same shrink-the-icon or overlay-an-invisible-input
@@ -98,7 +102,9 @@ const commitText = () => {
     }
 };
 
-const displayValue = computed(() => formatDateMdy(props.modelValue) || props.placeholder);
+const displayValue = computed(
+    () => formatDateMdy(props.modelValue) || props.placeholder,
+);
 </script>
 
 <template>
@@ -109,12 +115,19 @@ const displayValue = computed(() => formatDateMdy(props.modelValue) || props.pla
                     type="button"
                     :id="id"
                     :disabled="disabled"
-                    :class="cn(
-                        'inline-flex items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50',
-                        triggerClass,
-                    )"
+                    :class="
+                        cn(
+                            'inline-flex items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50',
+                            triggerClass,
+                        )
+                    "
                 >
-                    <CalendarIcon v-if="showIcon" :class="cn('h-3.5 w-3.5 shrink-0 text-slate-400', iconClass)" />
+                    <CalendarIcon
+                        v-if="showIcon"
+                        :class="
+                            cn('h-3.5 w-3.5 shrink-0 text-slate-400', iconClass)
+                        "
+                    />
                     <span>{{ displayValue }}</span>
                 </button>
             </slot>
@@ -127,7 +140,10 @@ const displayValue = computed(() => formatDateMdy(props.modelValue) || props.pla
                 @keydown.enter="commitText"
                 @blur="commitText"
             />
-            <Calendar :model-value="calendarValue" @update:model-value="selectCalendarDate" />
+            <Calendar
+                :model-value="calendarValue"
+                @update:model-value="selectCalendarDate"
+            />
         </PopoverContent>
     </Popover>
 </template>

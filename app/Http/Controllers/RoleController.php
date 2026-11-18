@@ -7,11 +7,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Inertia\Response;
 use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
-    public function index(): \Inertia\Response
+    public function index(): Response
     {
         $orgId = getPermissionsTeamId();
 
@@ -44,7 +45,7 @@ class RoleController extends Controller
         return back()->with('success', 'Role created successfully.');
     }
 
-    public function edit(Role $role): \Inertia\Response
+    public function edit(Role $role): Response
     {
         abort_if($role->team_id !== getPermissionsTeamId(), 403);
 

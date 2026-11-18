@@ -2,10 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\DocumentTypeDefinition;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\DocumentTypeDefinition>
+ * @extends Factory<DocumentTypeDefinition>
  */
 class DocumentTypeDefinitionFactory extends Factory
 {

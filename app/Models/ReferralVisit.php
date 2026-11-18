@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\ReferralVisitFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -24,7 +25,7 @@ use Illuminate\Support\Carbon;
  */
 class ReferralVisit extends Model
 {
-    /** @use HasFactory<\Database\Factories\ReferralVisitFactory> */
+    /** @use HasFactory<ReferralVisitFactory> */
     use HasFactory;
 
     /** Session key holding the id of the visit recorded for the current session. */

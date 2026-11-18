@@ -4,11 +4,14 @@ use App\Jobs\ProcessOrgDocumentAI;
 use App\Models\Organization;
 use App\Models\OrgDocument;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Writer\Word2007;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 /**
  * Generates a real, minimal .docx file (not a committed binary fixture) so the upload
@@ -16,12 +19,12 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
  */
 function fakeOrgDocxFile(string $name = 'notes.docx'): UploadedFile
 {
-    $phpWord = new \PhpOffice\PhpWord\PhpWord;
+    $phpWord = new PhpWord;
     $section = $phpWord->addSection();
     $section->addText('Hello from a real docx file.');
 
     $tmpPath = tempnam(sys_get_temp_dir(), 'docx').'.docx';
-    (new \PhpOffice\PhpWord\Writer\Word2007($phpWord))->save($tmpPath);
+    (new Word2007($phpWord))->save($tmpPath);
 
     return new UploadedFile($tmpPath, $name, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', null, true);
 }

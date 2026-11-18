@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button, type ButtonVariants } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -7,10 +8,17 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button, type ButtonVariants } from '@/components/ui/button';
 
 // Using our strict props definition style
-const { open, title, description, loading, confirmLabel, confirmVariant, cancelLabel } = defineProps<{
+const {
+    open,
+    title,
+    description,
+    loading,
+    confirmLabel,
+    confirmVariant,
+    cancelLabel,
+} = defineProps<{
     open: boolean;
     title?: string;
     description?: string;
@@ -27,18 +35,35 @@ const emit = defineEmits(['close', 'confirm']);
     <Dialog :open="open" @update:open="emit('close')">
         <DialogContent class="sm:max-w-[425px]">
             <DialogHeader>
-                <DialogTitle>{{ title || 'Are you absolutely sure?' }}</DialogTitle>
+                <DialogTitle>{{
+                    title || 'Are you absolutely sure?'
+                }}</DialogTitle>
                 <DialogDescription>
-                    {{ description || 'This action cannot be undone. This will permanently delete the record from our servers.' }}
+                    {{
+                        description ||
+                        'This action cannot be undone. This will permanently delete the record from our servers.'
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
             <DialogFooter class="gap-2 sm:gap-4">
-                <Button variant="outline" @click="emit('close')" :disabled="loading">
+                <Button
+                    variant="outline"
+                    @click="emit('close')"
+                    :disabled="loading"
+                >
                     {{ cancelLabel ?? 'Cancel' }}
                 </Button>
-                <Button :variant="confirmVariant ?? 'destructive'" @click="emit('confirm')" :disabled="loading">
-                    {{ loading ? 'Please wait...' : (confirmLabel ?? 'Confirm Delete') }}
+                <Button
+                    :variant="confirmVariant ?? 'destructive'"
+                    @click="emit('confirm')"
+                    :disabled="loading"
+                >
+                    {{
+                        loading
+                            ? 'Please wait...'
+                            : (confirmLabel ?? 'Confirm Delete')
+                    }}
                 </Button>
             </DialogFooter>
         </DialogContent>

@@ -18,18 +18,26 @@ use App\Http\Controllers\ImportWizardController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\KanbanColumnController;
 use App\Http\Controllers\MeetingTranscriptController;
+use App\Http\Controllers\Mobile\LoginController;
+use App\Http\Controllers\Mobile\NoteController;
+use App\Http\Controllers\Mobile\RecordController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\OrganizationDropboxController;
+use App\Http\Controllers\OrganizationDropboxFoldersController;
 use App\Http\Controllers\OrganizationLoginController;
 use App\Http\Controllers\OrganizationLogoController;
 use App\Http\Controllers\OrganizationPdfBrandingController;
 use App\Http\Controllers\OrganizationRegistrationController;
 use App\Http\Controllers\OrganizationSetupController;
+use App\Http\Controllers\OrganizationSlackChannelsController;
+use App\Http\Controllers\OrganizationSlackController;
+use App\Http\Controllers\OrgDocumentController;
+use App\Http\Controllers\OrgDocumentImportController;
 use App\Http\Controllers\PendingImportController;
 use App\Http\Controllers\ProcessingStatusController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFavoriteController;
 use App\Http\Controllers\ProjectLogoController;
-use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\RecordingCaptureController;
 use App\Http\Controllers\RecordingRecoveryController;
 use App\Http\Controllers\ReportController;
@@ -38,6 +46,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskListImportController;
 use App\Http\Controllers\TusUploadController;
 use App\Http\Controllers\UserController;
+use App\Services\Logging\RecordSaveLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Route;
@@ -77,7 +86,7 @@ Route::post('/client-logs/create-sheet-blocked', function (Request $request) {
 // the failures the server can never log itself, because the request never reached it (network
 // down, cancelled, session expired and redirected to login). Like stale-asset above it isn't behind
 // `auth` or CSRF: an expired session is one of the things being reported.
-Route::post('/client-logs/record-save', function (Request $request, \App\Services\Logging\RecordSaveLogger $log) {
+Route::post('/client-logs/record-save', function (Request $request, RecordSaveLogger $log) {
     $reportedSaveId = $request->input('save_id');
 
     $log->warning('client-reported: '.Str::limit((string) $request->input('event', 'unknown'), 40, ''), array_filter([
@@ -221,9 +230,6 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/roles/{role}/users/{user}', [RoleController::class, 'unassignUser'])
             ->name('roles.users.destroy');
 
-        Route::resource('project-types', ProjectTypeController::class);
-        Route::post('/project-types/{projectType}/duplicate', [ProjectTypeController::class, 'duplicate'])
-            ->name('project-types.duplicate');
         Route::resource('transformation-library', AiTemplateController::class)
             ->parameters(['transformation-library' => 'aiTemplate']);
         Route::post('/transformation-library/{aiTemplate}/duplicate', [AiTemplateController::class, 'duplicate'])
@@ -266,7 +272,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('organizations.invitations.resend');
 
     // Status Meetings (org-level, org resolved from cookie/query like Organizations)
-    Route::get('/status-meetings', [\App\Http\Controllers\OrgDocumentController::class, 'index'])
+    Route::get('/status-meetings', [OrgDocumentController::class, 'index'])
         ->name('status-meetings.index');
 
     // Import Wizard (project-level, org resolved from cookie/query like Projects/Index)
@@ -278,16 +284,16 @@ Route::middleware(['auth'])->group(function () {
         ->name('import.pending.destroy');
 
     // Org Documents (status meetings CRUD, nested under org for authorization)
-    Route::post('/organizations/{organization}/import-recording', [\App\Http\Controllers\OrgDocumentController::class, 'importFromRecording'])
+    Route::post('/organizations/{organization}/import-recording', [OrgDocumentController::class, 'importFromRecording'])
         ->name('organizations.import-recording');
-    Route::post('/organizations/{organization}/dismiss-recording', [\App\Http\Controllers\OrgDocumentController::class, 'dismissRecording'])
+    Route::post('/organizations/{organization}/dismiss-recording', [OrgDocumentController::class, 'dismissRecording'])
         ->name('organizations.dismiss-recording');
-    Route::get('/organizations/{organization}/google-picker-token', [\App\Http\Controllers\OrgDocumentImportController::class, 'googlePickerToken'])
+    Route::get('/organizations/{organization}/google-picker-token', [OrgDocumentImportController::class, 'googlePickerToken'])
         ->name('organizations.google-picker-token');
-    Route::post('/organizations/{organization}/import-google-doc', [\App\Http\Controllers\OrgDocumentImportController::class, 'importGoogleDoc'])
+    Route::post('/organizations/{organization}/import-google-doc', [OrgDocumentImportController::class, 'importGoogleDoc'])
         ->middleware('throttle:20,1')
         ->name('organizations.import-google-doc');
-    Route::post('/organizations/{organization}/import-file', [\App\Http\Controllers\OrgDocumentImportController::class, 'importFile'])
+    Route::post('/organizations/{organization}/import-file', [OrgDocumentImportController::class, 'importFile'])
         ->middleware('throttle:20,1')
         ->name('organizations.import-file');
 
@@ -296,42 +302,42 @@ Route::middleware(['auth'])->group(function () {
     // siblings — Slack requires an exact, pre-registered redirect_uri with no room for a
     // per-organization segment, so it has to be one fixed URL shared by every organization
     // (see OrganizationSlackController::connect()'s docblock).
-    Route::get('/organizations/{organization}/slack/connect', [\App\Http\Controllers\OrganizationSlackController::class, 'connect'])
+    Route::get('/organizations/{organization}/slack/connect', [OrganizationSlackController::class, 'connect'])
         ->name('organizations.slack.connect');
-    Route::get('/organizations/slack/callback', [\App\Http\Controllers\OrganizationSlackController::class, 'callback'])
+    Route::get('/organizations/slack/callback', [OrganizationSlackController::class, 'callback'])
         ->name('organizations.slack.callback');
-    Route::delete('/organizations/{organization}/slack', [\App\Http\Controllers\OrganizationSlackController::class, 'disconnect'])
+    Route::delete('/organizations/{organization}/slack', [OrganizationSlackController::class, 'disconnect'])
         ->name('organizations.slack.disconnect');
-    Route::post('/organizations/{organization}/slack/channels', [\App\Http\Controllers\OrganizationSlackChannelsController::class, 'store'])
+    Route::post('/organizations/{organization}/slack/channels', [OrganizationSlackChannelsController::class, 'store'])
         ->name('organizations.slack.channels.store');
-    Route::delete('/organizations/{organization}/slack/channels/{binding}', [\App\Http\Controllers\OrganizationSlackChannelsController::class, 'destroy'])
+    Route::delete('/organizations/{organization}/slack/channels/{binding}', [OrganizationSlackChannelsController::class, 'destroy'])
         ->name('organizations.slack.channels.destroy');
 
     // Mirrors the Slack block immediately above — same reason the callback isn't nested under
     // /organizations/{organization}/... (see OrganizationDropboxController::connect()'s docblock).
-    Route::get('/organizations/{organization}/dropbox/connect', [\App\Http\Controllers\OrganizationDropboxController::class, 'connect'])
+    Route::get('/organizations/{organization}/dropbox/connect', [OrganizationDropboxController::class, 'connect'])
         ->name('organizations.dropbox.connect');
-    Route::get('/organizations/dropbox/callback', [\App\Http\Controllers\OrganizationDropboxController::class, 'callback'])
+    Route::get('/organizations/dropbox/callback', [OrganizationDropboxController::class, 'callback'])
         ->name('organizations.dropbox.callback');
-    Route::delete('/organizations/{organization}/dropbox', [\App\Http\Controllers\OrganizationDropboxController::class, 'disconnect'])
+    Route::delete('/organizations/{organization}/dropbox', [OrganizationDropboxController::class, 'disconnect'])
         ->name('organizations.dropbox.disconnect');
-    Route::post('/organizations/{organization}/dropbox/folders', [\App\Http\Controllers\OrganizationDropboxFoldersController::class, 'store'])
+    Route::post('/organizations/{organization}/dropbox/folders', [OrganizationDropboxFoldersController::class, 'store'])
         ->name('organizations.dropbox.folders.store');
-    Route::delete('/organizations/{organization}/dropbox/folders/{binding}', [\App\Http\Controllers\OrganizationDropboxFoldersController::class, 'destroy'])
+    Route::delete('/organizations/{organization}/dropbox/folders/{binding}', [OrganizationDropboxFoldersController::class, 'destroy'])
         ->name('organizations.dropbox.folders.destroy');
 
     Route::prefix('organizations/{organization}/documents')->name('organizations.documents.')->group(function () {
-        Route::get('/create', [\App\Http\Controllers\OrgDocumentController::class, 'create'])->name('create');
-        Route::post('/', [\App\Http\Controllers\OrgDocumentController::class, 'store'])->name('store');
-        Route::get('/{orgDocument}', [\App\Http\Controllers\OrgDocumentController::class, 'show'])->name('show');
-        Route::patch('/{orgDocument}', [\App\Http\Controllers\OrgDocumentController::class, 'update'])->name('update');
-        Route::delete('/{orgDocument}', [\App\Http\Controllers\OrgDocumentController::class, 'destroy'])->name('destroy');
-        Route::post('/{orgDocument}/import-recording', [\App\Http\Controllers\OrgDocumentController::class, 'importRecording'])->name('import-recording');
-        Route::post('/{orgDocument}/process-draft', [\App\Http\Controllers\OrgDocumentController::class, 'processDraft'])->name('process-draft');
-        Route::patch('/{orgDocument}/save-draft', [\App\Http\Controllers\OrgDocumentController::class, 'saveDraft'])->name('save-draft');
-        Route::post('/{orgDocument}/commit-draft', [\App\Http\Controllers\OrgDocumentController::class, 'commitDraft'])->name('commit-draft');
-        Route::get('/{orgDocument}/draft/{groupId}', [\App\Http\Controllers\OrgDocumentController::class, 'showDraftGroup'])->name('draft.show');
-        Route::post('/{orgDocument}/draft/{groupId}/commit', [\App\Http\Controllers\OrgDocumentController::class, 'commitDraftGroup'])->name('draft.commit');
+        Route::get('/create', [OrgDocumentController::class, 'create'])->name('create');
+        Route::post('/', [OrgDocumentController::class, 'store'])->name('store');
+        Route::get('/{orgDocument}', [OrgDocumentController::class, 'show'])->name('show');
+        Route::patch('/{orgDocument}', [OrgDocumentController::class, 'update'])->name('update');
+        Route::delete('/{orgDocument}', [OrgDocumentController::class, 'destroy'])->name('destroy');
+        Route::post('/{orgDocument}/import-recording', [OrgDocumentController::class, 'importRecording'])->name('import-recording');
+        Route::post('/{orgDocument}/process-draft', [OrgDocumentController::class, 'processDraft'])->name('process-draft');
+        Route::patch('/{orgDocument}/save-draft', [OrgDocumentController::class, 'saveDraft'])->name('save-draft');
+        Route::post('/{orgDocument}/commit-draft', [OrgDocumentController::class, 'commitDraft'])->name('commit-draft');
+        Route::get('/{orgDocument}/draft/{groupId}', [OrgDocumentController::class, 'showDraftGroup'])->name('draft.show');
+        Route::post('/{orgDocument}/draft/{groupId}/commit', [OrgDocumentController::class, 'commitDraftGroup'])->name('draft.commit');
     });
 
     Route::post('/projects/evaluate-description', [ProjectController::class, 'evaluateDescription'])
@@ -531,34 +537,34 @@ Route::view('/about', 'about')->name('about');
  * web app. Login is a distinct screen but submits to Fortify's own POST /login; there's no
  * separate mobile auth mechanism.
  */
-Route::get('/app/login', [\App\Http\Controllers\Mobile\LoginController::class, 'create'])
+Route::get('/app/login', [LoginController::class, 'create'])
     ->name('mobile.login');
 
 Route::middleware(['auth'])->prefix('app')->name('mobile.')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Mobile\DashboardController::class, 'index'])
+    Route::get('/', [App\Http\Controllers\Mobile\DashboardController::class, 'index'])
         ->name('dashboard');
 
-    Route::get('/record', [\App\Http\Controllers\Mobile\RecordController::class, 'index'])
+    Route::get('/record', [RecordController::class, 'index'])
         ->name('record.index');
 
-    Route::get('/organizations', [\App\Http\Controllers\Mobile\OrganizationController::class, 'index'])
+    Route::get('/organizations', [App\Http\Controllers\Mobile\OrganizationController::class, 'index'])
         ->name('organizations.index');
-    Route::post('/organizations', [\App\Http\Controllers\Mobile\OrganizationController::class, 'store'])
+    Route::post('/organizations', [App\Http\Controllers\Mobile\OrganizationController::class, 'store'])
         ->name('organizations.store');
 
     Route::middleware(['client.access'])->group(function () {
-        Route::get('/projects/{project}', [\App\Http\Controllers\Mobile\ProjectController::class, 'show'])
+        Route::get('/projects/{project}', [App\Http\Controllers\Mobile\ProjectController::class, 'show'])
             ->name('projects.show');
-        Route::get('/projects/{project}/notes/{document}', [\App\Http\Controllers\Mobile\NoteController::class, 'show'])
+        Route::get('/projects/{project}/notes/{document}', [NoteController::class, 'show'])
             ->name('notes.show');
-        Route::get('/projects/{project}/documents/{document}', [\App\Http\Controllers\Mobile\DocumentController::class, 'show'])
+        Route::get('/projects/{project}/documents/{document}', [App\Http\Controllers\Mobile\DocumentController::class, 'show'])
             ->name('documents.show');
-        Route::get('/record/{project}', [\App\Http\Controllers\Mobile\RecordController::class, 'show'])
+        Route::get('/record/{project}', [RecordController::class, 'show'])
             ->name('record.show');
-        Route::post('/record/{project}', [\App\Http\Controllers\Mobile\RecordController::class, 'store'])
+        Route::post('/record/{project}', [RecordController::class, 'store'])
             ->middleware('throttle:20,1')
             ->name('record.store');
-        Route::get('/record/{project}/status/{document}', [\App\Http\Controllers\Mobile\RecordController::class, 'status'])
+        Route::get('/record/{project}/status/{document}', [RecordController::class, 'status'])
             ->name('record.status');
     });
 });

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\DocumentTypeDefinitionFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +20,7 @@ use Illuminate\Support\Str;
  */
 class DocumentTypeDefinition extends Model
 {
-    /** @use HasFactory<\Database\Factories\DocumentTypeDefinitionFactory> */
+    /** @use HasFactory<DocumentTypeDefinitionFactory> */
     use HasFactory;
 
     protected $fillable = ['organization_id', 'key', 'label', 'is_task', 'order'];

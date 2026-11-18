@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
 import MobileLayout from '@/layouts/MobileLayout.vue';
-import { Check, Building2 } from 'lucide-vue-next';
 import mobileRoutes from '@/routes/mobile';
 import mobileOrganizationRoutes from '@/routes/mobile/organizations';
+import { Head, router } from '@inertiajs/vue3';
+import { Building2, Check } from 'lucide-vue-next';
 
 defineProps<{
     organizations: Array<{ id: string; name: string }>;
@@ -11,7 +11,9 @@ defineProps<{
 }>();
 
 const choose = (organizationId: string) => {
-    router.post(mobileOrganizationRoutes.store().url, { organization_id: organizationId });
+    router.post(mobileOrganizationRoutes.store().url, {
+        organization_id: organizationId,
+    });
 };
 </script>
 
@@ -20,25 +22,38 @@ const choose = (organizationId: string) => {
 
     <MobileLayout
         title="Choose Organization"
-        :back-href="currentOrganizationId ? mobileRoutes.dashboard().url : undefined"
+        :back-href="
+            currentOrganizationId ? mobileRoutes.dashboard().url : undefined
+        "
     >
-        <div class="p-4 space-y-3">
-            <p class="text-[13px] text-slate-400 px-1 pb-1">Which organization's projects do you want to see?</p>
+        <div class="space-y-3 p-4">
+            <p class="px-1 pb-1 text-[13px] text-slate-400">
+                Which organization's projects do you want to see?
+            </p>
 
             <button
                 v-for="organization in organizations"
                 :key="organization.id"
                 type="button"
-                class="w-full flex items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-4 active:bg-slate-50 dark:active:bg-white/5"
+                class="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50 dark:border-white/10 dark:bg-slate-900 dark:active:bg-white/5"
                 @click="choose(organization.id)"
             >
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center shrink-0">
-                        <Building2 class="w-4 h-4 text-slate-400" />
+                <div class="flex min-w-0 items-center gap-3">
+                    <div
+                        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-white/10"
+                    >
+                        <Building2 class="h-4 w-4 text-slate-400" />
                     </div>
-                    <p class="font-bold text-slate-900 dark:text-white truncate">{{ organization.name }}</p>
+                    <p
+                        class="truncate font-bold text-slate-900 dark:text-white"
+                    >
+                        {{ organization.name }}
+                    </p>
                 </div>
-                <Check v-if="organization.id === currentOrganizationId" class="w-5 h-5 text-projector-primary-600 shrink-0" />
+                <Check
+                    v-if="organization.id === currentOrganizationId"
+                    class="h-5 w-5 shrink-0 text-projector-primary-600"
+                />
             </button>
         </div>
     </MobileLayout>

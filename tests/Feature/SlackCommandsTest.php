@@ -14,10 +14,12 @@ use App\Models\SlackChannelBinding;
 use App\Models\SlackUserIdentity;
 use App\Models\SlackWorkspace;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -102,7 +104,7 @@ function slackCommandPayload(array $overrides = []): array
  * faithfully exercises signature verification and the controller's $request->input() reads,
  * which are themselves encoding-agnostic.
  */
-function postSlackCommand(array $payload): \Illuminate\Testing\TestResponse
+function postSlackCommand(array $payload): TestResponse
 {
     return test()->withHeaders(signSlackCommandRequest(json_encode($payload)))
         ->postJson('/slack/commands', $payload);
@@ -410,7 +412,7 @@ it('posts an ephemeral error to response_url when the job fails', function () {
     Http::fake(['hooks.slack.com/*' => Http::response(['ok' => true], 200)]);
 
     $job = new CreateTaskFromSlackCommand($this->project, $this->user, 'follow up', 'https://hooks.slack.com/commands/fake');
-    $job->failed(new \Exception('something broke'));
+    $job->failed(new Exception('something broke'));
 
     Http::assertSent(function ($request) {
         return $request->url() === 'https://hooks.slack.com/commands/fake'
@@ -551,7 +553,7 @@ it('posts an ephemeral error to response_url when the event job fails', function
     Http::fake(['hooks.slack.com/*' => Http::response(['ok' => true], 200)]);
 
     $job = new CreateEventFromSlackCommand($this->project, $this->user, 'team offsite', 'https://hooks.slack.com/commands/fake');
-    $job->failed(new \Exception('something broke'));
+    $job->failed(new Exception('something broke'));
 
     Http::assertSent(function ($request) {
         return $request->url() === 'https://hooks.slack.com/commands/fake'

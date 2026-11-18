@@ -4,25 +4,29 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Collections\UserCollection;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
- * @property \Illuminate\Database\Eloquent\Collection<int, \App\Models\Organization> $organizations
+ * @property Collection<int, Organization> $organizations
  * @property string|null $avatar
- * @property \Illuminate\Support\Carbon|null $demo_expires_at
- * @property \App\Models\GoogleOauthToken|null $googleOauthToken
+ * @property Carbon|null $demo_expires_at
+ * @property GoogleOauthToken|null $googleOauthToken
  */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /**
@@ -99,7 +103,7 @@ class User extends Authenticatable
         return $this->belongsToMany(Client::class)->withTimestamps();
     }
 
-    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function tasks(): HasMany
     {
         return $this->hasMany(Document::class, 'assignee_id');
     }
@@ -171,7 +175,7 @@ class User extends Authenticatable
     public function roleInOrganization(string $organizationId): ?string
     {
         $org = $this->organizations()->where('organizations.id', $organizationId)->first();
-        /** @var \App\Models\OrganizationUser|null $pivot */
+        /** @var OrganizationUser|null $pivot */
         $pivot = $org?->pivot;
 
         return $pivot?->role;
@@ -212,8 +216,8 @@ class User extends Authenticatable
      * people an org-admin may pull into another organization via "Add User", so one tenant's
      * member list is never exposed to another tenant's admin.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<User>
+     * @param  Builder<User>  $query
+     * @return Builder<User>
      */
     public function scopeInOrganizationsAdministeredBy($query, User $admin)
     {

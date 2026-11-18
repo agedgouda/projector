@@ -10,6 +10,7 @@ use App\Services\Dropbox\DropboxApiClient;
 use App\Services\Import\FileImportProcessor;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -92,9 +93,9 @@ class EventsController extends Controller
 
     /**
      * @param  array<string, mixed>  $entry
-     * @param  \Illuminate\Support\Collection<int, DropboxFolderBinding>  $bindings
+     * @param  Collection<int, DropboxFolderBinding>  $bindings
      */
-    private function maybeDispatchImport(array $entry, \Illuminate\Support\Collection $bindings): void
+    private function maybeDispatchImport(array $entry, Collection $bindings): void
     {
         if (($entry['.tag'] ?? null) !== 'file') {
             // Folders and deleted entries don't have anything to import.

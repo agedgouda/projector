@@ -194,7 +194,6 @@ const handleReportTransition = (
         toKey?: string;
         aiTemplateId: number;
         singleOutput?: boolean;
-        projectTypeId?: string;
     },
 ) => {
     const task = selectedReportTask.value;

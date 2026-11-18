@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
 use App\Models\Project;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class NoteController extends Controller
 {
@@ -17,7 +19,7 @@ class NoteController extends Controller
      * straight to whichever one they actually want, instead of reading through the note's
      * full content first to reach a small child item buried at the bottom of the page.
      */
-    public function show(Project $project, Document $document): \Inertia\Response
+    public function show(Project $project, Document $document): Response
     {
         Gate::authorize('view', $document);
 
@@ -47,9 +49,9 @@ class NoteController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array{document: Document, depth: int}>
+     * @return Collection<int, array{document: Document, depth: int}>
      */
-    private function descendants(Document $document, int $depth): \Illuminate\Support\Collection
+    private function descendants(Document $document, int $depth): Collection
     {
         $children = Document::where('parent_id', $document->id)
             ->with('assignee')

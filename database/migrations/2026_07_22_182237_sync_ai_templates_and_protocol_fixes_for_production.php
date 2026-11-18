@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -59,8 +58,6 @@ return new class extends Migration
                 ->update(['workflow' => json_encode($workflow)]);
         }
 
-        // Regenerate document_type_definitions/workflow_steps from the corrected source above.
-        Artisan::call('app:backfill-normalized-project-type-schema');
     }
 
     /**

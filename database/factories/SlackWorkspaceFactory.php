@@ -3,10 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Organization;
+use App\Models\SlackWorkspace;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SlackWorkspace>
+ * @extends Factory<SlackWorkspace>
  */
 class SlackWorkspaceFactory extends Factory
 {

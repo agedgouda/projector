@@ -6,8 +6,8 @@ import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue';
 import Toaster from '@/components/ui/sonner/Sonner.vue';
 import { useGlobalImportActivity } from '@/composables/useGlobalImportActivity';
 import {
-    useGlobalProcessingBanner,
     BANNER_PRIORITY,
+    useGlobalProcessingBanner,
 } from '@/composables/useGlobalProcessingBanner';
 import AppLayout from '@/layouts/app/AppSidebarLayout.vue';
 import type { BreadcrumbItemType } from '@/types';

@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\Faq;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('seeds one Slack FAQ entry per usage topic, in order, with keywords', function () {
     $faqs = Faq::where('category', 'Slack')->orderBy('order')->get();
@@ -19,7 +21,7 @@ it('seeds one Slack FAQ entry per usage topic, in order, with keywords', functio
 });
 
 it('is visible on the FAQ page', function () {
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('faq.index'));
 

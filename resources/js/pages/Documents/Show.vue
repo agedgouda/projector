@@ -9,10 +9,10 @@ import { toast } from 'vue-sonner';
 // Layouts & Components
 import CommentSection from '@/components/comments/CommentSection.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
-import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import RecordingProblemPanel, {
     type RecordingProblem,
 } from '@/components/recordings/RecordingProblemPanel.vue';
+import ReprocessPromptModal from '@/components/ReprocessPromptModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { mergeMentionableUsers } from '@/lib/assignees';
 import DocumentContent from './Partials/DocumentContent.vue';
@@ -27,8 +27,8 @@ import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
 import {
-    useGlobalProcessingBanner,
     BANNER_PRIORITY,
+    useGlobalProcessingBanner,
 } from '@/composables/useGlobalProcessingBanner';
 import {
     INTAKE_KEY,
@@ -185,17 +185,14 @@ const mentionableUsers = computed(() =>
 
 // Derived from the live `props.item` (not a one-time snapshot) so it stays accurate across
 // saves within the same page visit — same visibility rule as the tree/detail-sheet Reprocess
-// button (see TraceabilityRow.vue's isReprocessable): an intake document, one locked to a
-// protocol that still has a next step, or any document that's already been run through a
-// template once before (see Document::lastAiTemplate()). Deliberately not staleness-gated —
+// button (see TraceabilityRow.vue's isReprocessable): an intake document, or any document
+// that's already been run through a template once before (see Document::lastAiTemplate()). Deliberately not staleness-gated —
 // unlike the old needsReprocess rule, this shows regardless of whether content has changed
 // since the last run, matching the tree exactly.
 const { reprocessableTypes } = useWorkflow();
-const isLocked = computed(() => !!props.item.locked_project_type_id);
 const isReprocessable = computed(
     () =>
         reprocessableTypes.value.has(props.item.type) ||
-        (isLocked.value && !!props.item.locked_next_workflow_step_exists) ||
         !!props.item.last_ai_template_id,
 );
 
@@ -215,15 +212,11 @@ const reprocessPromptTitle = computed(
 
 // Same visibility rule as the tree's Transform button (see TraceabilityRow.vue: rendered only
 // when `!isReadOnly && !isTask`, and only actually usable — not the invisible layout-alignment
-// placeholder that rule's tree-row version also has — when `!isLocked && !isNotes`). A locked
-// or Notes/intake document has no meaningful transform target to offer here.
+// placeholder that rule's tree-row version also has — when `!isNotes`). A Notes/intake
+// document has no meaningful transform target to offer here.
 const isNotes = computed(() => props.item.type === INTAKE_KEY);
 const canTransform = computed(
-    () =>
-        !props.project.inactive &&
-        !isTask(props.item.type) &&
-        !isLocked.value &&
-        !isNotes.value,
+    () => !props.project.inactive && !isTask(props.item.type) && !isNotes.value,
 );
 
 // Same intent as the tree's Transform button disabled rule (can't transform a document that's
@@ -241,7 +234,6 @@ const pendingTransitionPayload = ref<{
     toKey?: string;
     aiTemplateId: number;
     singleOutput?: boolean;
-    projectTypeId?: string;
 } | null>(null);
 
 // Mirrors DocumentManager.vue's handleTransition/executeTransition: skip the "this will
@@ -253,7 +245,6 @@ const handleTransformRequested = (payload: {
     toKey?: string;
     aiTemplateId: number;
     singleOutput?: boolean;
-    projectTypeId?: string;
 }) => {
     if (props.item.children_exists) {
         pendingTransitionPayload.value = payload;

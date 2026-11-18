@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,11 +7,12 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Form, Head } from '@inertiajs/vue3';
 import { CheckCircle2 } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 
 const selectedTier = ref<'free' | 'pro'>('free');
 
 const userCountOptions = Array.from({ length: 17 }, (_, i) => i + 3); // 3–19
-const selectedUserCount = ref<number | '20+'>( 3);
+const selectedUserCount = ref<number | '20+'>(3);
 const customUserCount = ref(20);
 
 const isCustomCount = computed(() => selectedUserCount.value === '20+');
@@ -20,7 +20,9 @@ const customUserCountError = ref('');
 const customUserCountInput = ref<InstanceType<typeof Input> | null>(null);
 
 const plannedUserCount = computed(() =>
-    isCustomCount.value ? customUserCount.value : Number(selectedUserCount.value)
+    isCustomCount.value
+        ? customUserCount.value
+        : Number(selectedUserCount.value),
 );
 
 const validateCustomUserCount = () => {
@@ -43,13 +45,23 @@ const tiers = [
         key: 'free' as const,
         label: 'Free',
         price: '$0 / month',
-        features: ['1 user', '1 client', '1 project', '10 AI documents / month'],
+        features: [
+            '1 user',
+            '1 client',
+            '1 project',
+            '10 AI documents / month',
+        ],
     },
     {
         key: 'pro' as const,
         label: 'Pro',
         price: '$25 / user / month',
-        features: ['Unlimited users', 'Unlimited clients', 'Unlimited projects', '100 AI documents / month'],
+        features: [
+            'Unlimited users',
+            'Unlimited clients',
+            'Unlimited projects',
+            '100 AI documents / month',
+        ],
     },
 ];
 </script>
@@ -92,38 +104,72 @@ const tiers = [
                             type="button"
                             @click="selectedTier = tier.key"
                             class="relative rounded-xl border-2 p-4 text-left transition-all focus:outline-none"
-                            :class="selectedTier === tier.key
-                                ? 'border-projector-primary-600 bg-projector-primary-50/60 dark:bg-projector-primary-900/20'
-                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'"
+                            :class="
+                                selectedTier === tier.key
+                                    ? 'border-projector-primary-600 bg-projector-primary-50/60 dark:bg-projector-primary-900/20'
+                                    : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
+                            "
                         >
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-black text-slate-900 dark:text-white">{{ tier.label }}</span>
+                            <div class="mb-2 flex items-center justify-between">
+                                <span
+                                    class="text-sm font-black text-slate-900 dark:text-white"
+                                    >{{ tier.label }}</span
+                                >
                                 <CheckCircle2
                                     v-if="selectedTier === tier.key"
                                     class="h-4 w-4 text-projector-primary-600"
                                 />
                             </div>
-                            <p class="text-xs font-semibold text-projector-primary-600 dark:text-projector-primary-400 mb-2">{{ tier.price }}</p>
+                            <p
+                                class="mb-2 text-xs font-semibold text-projector-primary-600 dark:text-projector-primary-400"
+                            >
+                                {{ tier.price }}
+                            </p>
                             <ul class="space-y-1">
-                                <li v-for="feature in tier.features" :key="feature" class="text-[11px] text-slate-500 dark:text-slate-400">
+                                <li
+                                    v-for="feature in tier.features"
+                                    :key="feature"
+                                    class="text-[11px] text-slate-500 dark:text-slate-400"
+                                >
                                     {{ feature }}
                                 </li>
                             </ul>
                         </button>
                     </div>
-                    <input type="hidden" name="membership_tier" :value="selectedTier" />
+                    <input
+                        type="hidden"
+                        name="membership_tier"
+                        :value="selectedTier"
+                    />
                     <InputError :message="errors.membership_tier" />
                 </div>
 
                 <div v-if="selectedTier === 'pro'" class="grid gap-2">
-                    <Label for="user_count">How many users will you be inviting?</Label>
+                    <Label for="user_count"
+                        >How many users will you be inviting?</Label
+                    >
                     <select
                         id="user_count"
                         :value="selectedUserCount"
-                        @change="selectedUserCount = ($event.target as HTMLSelectElement).value === '20+' ? '20+' : Number(($event.target as HTMLSelectElement).value)"
-                        class="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-projector-primary-500/10 outline-none transition-all"
+                        @change="
+                            selectedUserCount =
+                                ($event.target as HTMLSelectElement).value ===
+                                '20+'
+                                    ? '20+'
+                                    : Number(
+                                          ($event.target as HTMLSelectElement)
+                                              .value,
+                                      )
+                        "
+                        class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 transition-all outline-none focus:ring-4 focus:ring-projector-primary-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     >
-                        <option v-for="n in userCountOptions" :key="n" :value="n">{{ n }}</option>
+                        <option
+                            v-for="n in userCountOptions"
+                            :key="n"
+                            :value="n"
+                        >
+                            {{ n }}
+                        </option>
                         <option value="20+">20+</option>
                     </select>
 
@@ -137,10 +183,17 @@ const tiers = [
                             class="h-11 rounded-xl"
                             @blur="validateCustomUserCount"
                         />
-                        <InputError :message="customUserCountError" class="mt-1" />
+                        <InputError
+                            :message="customUserCountError"
+                            class="mt-1"
+                        />
                     </div>
 
-                    <input type="hidden" name="planned_user_count" :value="plannedUserCount" />
+                    <input
+                        type="hidden"
+                        name="planned_user_count"
+                        :value="plannedUserCount"
+                    />
                     <InputError :message="errors.planned_user_count" />
                 </div>
 

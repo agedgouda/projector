@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\CustomPromptMode;
+use App\Models\Document;
 use App\Rules\StartDateFollowsPredecessor;
 use App\Rules\StartDateNotAfterDueDate;
 use App\Rules\ValidKanbanColumn;
@@ -63,7 +64,7 @@ class StoreDocumentRequest extends FormRequest
         $isUpdate = $this->isMethod('PUT') || $this->isMethod('PATCH');
         $project = $this->route('project');
         $document = $this->route('document');
-        $document = $document instanceof \App\Models\Document ? $document : null;
+        $document = $document instanceof Document ? $document : null;
         $type = $this->input('type', $document?->type);
         $type = is_string($type) ? $type : null;
         $dateOrder = new StartDateNotAfterDueDate($project, $type, $document);

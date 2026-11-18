@@ -469,11 +469,11 @@ class TaskReportBuilder
      * mapping, same "nulls always sort last regardless of direction" rule) so a Details
      * export always matches what was on screen when the user clicked the button.
      *
-     * @param  \Illuminate\Support\Collection<int, Document>  $tasks
+     * @param  Collection<int, Document>  $tasks
      * @param  array<string, string>  $projectNames
-     * @return \Illuminate\Support\Collection<int, Document>
+     * @return Collection<int, Document>
      */
-    private function sortTasksForExport(\Illuminate\Support\Collection $tasks, Project $project, string $sortBy, string $sortDir, array $projectNames = []): \Illuminate\Support\Collection
+    private function sortTasksForExport(Collection $tasks, Project $project, string $sortBy, string $sortDir, array $projectNames = []): Collection
     {
         $direction = $sortDir === 'desc' ? -1 : 1;
         $priorityWeight = ['low' => 1, 'medium' => 2, 'high' => 3];

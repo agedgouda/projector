@@ -9,12 +9,11 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
-use App\Models\WorkflowStep;
 use App\Services\Ai\ProjectAiService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 function createReprocessableDocument(): Document
 {
@@ -63,7 +62,6 @@ it('applies the universal intake -> action_items step when no override is given,
     $result = app(ProjectAiService::class)->process($document);
 
     expect($result['output_type'])->toBe(config('workflow.action_items_key'));
-    expect($result['locked_project_type_id'])->toBeNull();
 });
 
 it('deletes all previously generated children before creating new ones, even when the output type has changed', function () {
@@ -458,16 +456,11 @@ function createActionItemsDocumentWithTemplates(): array
         'user_prompt' => '{{input}}',
     ]);
 
-    $projectType = ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Notes', 'key' => 'intake', 'is_task' => false],
-            ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
-            ['label' => 'Task', 'key' => 'task', 'is_task' => true],
-            ['label' => 'Follow-up', 'key' => 'followup', 'is_task' => false],
-        ],
-        'workflow' => [
-            ['from_key' => 'action_items', 'to_key' => 'task', 'ai_template_id' => $templateA->id],
-        ],
+    seedDocumentTypes([
+        ['label' => 'Notes', 'key' => 'intake', 'is_task' => false],
+        ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
+        ['label' => 'Task', 'key' => 'task', 'is_task' => true],
+        ['label' => 'Follow-up', 'key' => 'followup', 'is_task' => false],
     ]);
 
     $project = Project::create([
@@ -483,10 +476,10 @@ function createActionItemsDocumentWithTemplates(): array
         'processed_at' => now(),
     ]);
 
-    return [$document, $templateA, $templateB, $projectType];
+    return [$document, $templateA, $templateB];
 }
 
-it('runs an explicit override step instead of the project type workflow, for any target type/template', function () {
+it('runs an explicit override step, for any target type/template', function () {
     [$document, , $templateB] = createActionItemsDocumentWithTemplates();
 
     $this->mock(LlmDriver::class)
@@ -656,40 +649,12 @@ it('clears last_ai_template_id when a run produces no ai_template_id (e.g. a cus
     expect($document->last_output_key)->toBeNull();
 });
 
-it('returns null when no override is given and the document is not locked to a protocol', function () {
+it('returns null when no override is given and the document is not an intake document', function () {
     [$document] = createActionItemsDocumentWithTemplates();
 
     $result = app(ProjectAiService::class)->process($document);
 
     expect($result)->toBeNull();
-});
-
-it('uses the locked protocol\'s own workflow step when no override is given, and propagates the lock', function () {
-    [$document, $templateA, , $projectType] = createActionItemsDocumentWithTemplates();
-
-    WorkflowStep::create([
-        'project_type_id' => $projectType->id,
-        'from_key' => 'action_items',
-        'to_key' => 'task',
-        'ai_template_id' => $templateA->id,
-        'order' => 1,
-    ]);
-    $document->update(['locked_project_type_id' => $projectType->id]);
-
-    $this->mock(LlmDriver::class)
-        ->shouldReceive('call')
-        ->once()
-        ->andReturn([
-            'status' => 'success',
-            'content' => [
-                ['title' => 'Item', 'task' => 'Do it', 'criteria' => []],
-            ],
-        ]);
-
-    $result = app(ProjectAiService::class)->process($document);
-
-    expect($result['output_type'])->toBe('task');
-    expect($result['locked_project_type_id'])->toBe($projectType->id);
 });
 
 it('resolves an @-mentioned assignee from the source document into the generated task\'s assignee_id', function () {

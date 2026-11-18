@@ -4,9 +4,11 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -23,7 +25,7 @@ beforeEach(function () {
     $this->projectB = Project::create(['name' => 'B Project', 'client_id' => $this->clientB->id]);
 });
 
-function visitFromOrgA(User $user, string $url): \Illuminate\Testing\TestResponse
+function visitFromOrgA(User $user, string $url): TestResponse
 {
     $orgAId = test()->orgA->id;
 

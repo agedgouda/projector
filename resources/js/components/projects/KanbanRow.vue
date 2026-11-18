@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import KanbanColumn from './KanbanColumn.vue';
-import KanbanHeader from './KanbanHeader.vue';
-import { KANBAN_UI } from '@/lib/kanban-theme';
-import { kanbanDotClasses } from '@/lib/constants';
 import type { AssigneeOption } from '@/lib/assignees';
+import { kanbanDotClasses } from '@/lib/constants';
+import { KANBAN_UI } from '@/lib/kanban-theme';
+import projectRoutes from '@/routes/projects/index';
 import { Link } from '@inertiajs/vue3';
 import { ExternalLink } from 'lucide-vue-next';
 import { computed } from 'vue';
-import projectRoutes from '@/routes/projects/index';
+import KanbanColumn from './KanbanColumn.vue';
+import KanbanHeader from './KanbanHeader.vue';
 
 const props = defineProps<{
     row: any;
@@ -17,7 +17,11 @@ const props = defineProps<{
     onDrag: (evt: any, column: KanbanColumnDef) => void;
     onOpen: (doc: ProjectDocument) => void;
     onCreate: (rowKey: string) => void;
-    onUpdateAttribute: (docId: string | number, field: string, value: string | number | null) => void;
+    onUpdateAttribute: (
+        docId: string | number,
+        field: string,
+        value: string | number | null,
+    ) => void;
     onUpdateTags: (docId: string | number, categories: CategoryDef[]) => void;
     canViewProjectDetails?: boolean;
     currentProject?: Project | null;
@@ -34,12 +38,15 @@ const props = defineProps<{
     onToggleTag?: (tagId: string) => void;
 }>();
 
-const getRowCount = (status: TaskStatus) => props.getTaskCount(props.row.key, status);
+const getRowCount = (status: TaskStatus) =>
+    props.getTaskCount(props.row.key, status);
 
 // row.key is this project's id (see Dashboard/Index.vue's workflowRows) — tags are per-project
 // records, so even two identically-named tags from different projects have distinct ids here.
 const rowTags = computed(() =>
-    (props.availableTags ?? []).filter((tag) => tag.project_id === props.row.key),
+    (props.availableTags ?? []).filter(
+        (tag) => tag.project_id === props.row.key,
+    ),
 );
 </script>
 
@@ -53,13 +60,15 @@ const rowTags = computed(() =>
                  specifically is the whole point of the click. -->
             <Link
                 v-if="canViewProjectDetails"
-                :href="projectRoutes.show.url(row.key, { query: { tab: 'tasks' } })"
+                :href="
+                    projectRoutes.show.url(row.key, { query: { tab: 'tasks' } })
+                "
                 class="contents"
             >
                 <h3
                     :class="[
                         KANBAN_UI.label,
-                        'text-projector-primary-900 bg-projector-primary-50/80 px-2 py-1 rounded-md border border-projector-primary-100/50 hover:bg-projector-primary-100/80 hover:border-projector-primary-200 transition-colors cursor-pointer',
+                        'cursor-pointer rounded-md border border-projector-primary-100/50 bg-projector-primary-50/80 px-2 py-1 text-projector-primary-900 transition-colors hover:border-projector-primary-200 hover:bg-projector-primary-100/80',
                     ]"
                 >
                     {{ row.label }}
@@ -67,17 +76,24 @@ const rowTags = computed(() =>
             </Link>
             <h3
                 v-else
-                :class="[KANBAN_UI.label, 'text-projector-primary-900 bg-projector-primary-50/80 px-2 py-1 rounded-md border border-projector-primary-100/50']"
+                :class="[
+                    KANBAN_UI.label,
+                    'rounded-md border border-projector-primary-100/50 bg-projector-primary-50/80 px-2 py-1 text-projector-primary-900',
+                ]"
             >
                 {{ row.label }}
             </h3>
-            <div class="h-px flex-1 bg-gradient-to-r from-projector-primary-100/50 to-transparent"></div>
+            <div
+                class="h-px flex-1 bg-gradient-to-r from-projector-primary-100/50 to-transparent"
+            ></div>
             <Link
                 v-if="canViewProjectDetails"
-                :href="projectRoutes.show.url(row.key, { query: { tab: 'tasks' } })"
-                class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-projector-primary-600 hover:text-projector-primary-800 transition-colors shrink-0"
+                :href="
+                    projectRoutes.show.url(row.key, { query: { tab: 'tasks' } })
+                "
+                class="flex shrink-0 items-center gap-1.5 text-[10px] font-black tracking-widest text-projector-primary-600 uppercase transition-colors hover:text-projector-primary-800"
             >
-                <ExternalLink class="w-3 h-3" />
+                <ExternalLink class="h-3 w-3" />
                 View Details
             </Link>
         </div>
@@ -122,14 +138,19 @@ const rowTags = computed(() =>
                     :can-manage="canManage"
                 />
 
-                <div class="grid gap-8" :style="KANBAN_UI.gridContainer(columns.length)">
+                <div
+                    class="grid gap-8"
+                    :style="KANBAN_UI.gridContainer(columns.length)"
+                >
                     <template v-for="column in columns" :key="column.key">
                         <KanbanColumn
                             :column="column"
                             :tasks="getTasks(row.key, column.key)"
                             :row-label="row.label"
                             :projects-by-id="projectsById"
-                            :assignee-options-by-project-id="assigneeOptionsByProjectId"
+                            :assignee-options-by-project-id="
+                                assigneeOptionsByProjectId
+                            "
                             :current-project="currentProject"
                             :matches-filters="matchesFilters"
                             @drag="(evt) => onDrag(evt, column)"

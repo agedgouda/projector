@@ -327,9 +327,9 @@ class Project extends Model implements HasMedia
      * The effective document-type catalog for this project's organization — the source of truth
      * for whether a document's type is a task, independent of which protocol produced it.
      *
-     * @return \Illuminate\Support\Collection<string, DocumentTypeDefinition>
+     * @return Collection<string, DocumentTypeDefinition>
      */
-    public function documentTypeCatalog(): \Illuminate\Support\Collection
+    public function documentTypeCatalog(): Collection
     {
         return DocumentTypeDefinition::catalogForOrganization($this->organization_id);
     }
@@ -347,9 +347,9 @@ class Project extends Model implements HasMedia
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
+     * @param  Collection<string, DocumentTypeDefinition>  $catalog
      */
-    private function isTaskType(\Illuminate\Support\Collection $catalog, string $type): bool
+    private function isTaskType(Collection $catalog, string $type): bool
     {
         $definition = $catalog->get($type);
 
@@ -357,9 +357,9 @@ class Project extends Model implements HasMedia
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
+     * @param  Collection<string, DocumentTypeDefinition>  $catalog
      */
-    private function labelForType(\Illuminate\Support\Collection $catalog, string $type): string
+    private function labelForType(Collection $catalog, string $type): string
     {
         $definition = $catalog->get($type);
 
@@ -396,7 +396,7 @@ class Project extends Model implements HasMedia
     /**
      * Get this project's own task documents enriched with type_label from the catalog.
      */
-    public function getKanbanDocuments(): \Illuminate\Support\Collection
+    public function getKanbanDocuments(): Collection
     {
         $catalog = $this->documentTypeCatalog();
 
@@ -414,17 +414,16 @@ class Project extends Model implements HasMedia
      */
     public function kanbanDocument(Document $document): array
     {
-        $document->refresh()->unsetRelation('project')->load(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'categories', 'comments.user'])
-            ->loadExists('lockedNextWorkflowStep');
+        $document->refresh()->unsetRelation('project')->load(['creator', 'editor', 'assignee', 'pendingAssignee', 'lastAiTemplate:id,name', 'categories', 'comments.user']);
 
         return $this->boardRecord($document, $this->documentTypeCatalog());
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
+     * @param  Collection<string, DocumentTypeDefinition>  $catalog
      * @return array<string, mixed>
      */
-    private function boardRecord(Document $document, \Illuminate\Support\Collection $catalog): array
+    private function boardRecord(Document $document, Collection $catalog): array
     {
         return array_merge($document->toArray(), [
             'type_label' => $this->labelForType($catalog, $document->type),
@@ -438,7 +437,7 @@ class Project extends Model implements HasMedia
      * flags is_task (see Project::isTaskType()) — mirrors getKanbanDocuments()'s own task
      * filter rather than hardcoding a literal 'task' type — that have a due date set.
      *
-     * @return \Illuminate\Support\Collection<int, array{
+     * @return Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null,
@@ -446,7 +445,7 @@ class Project extends Model implements HasMedia
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
-    public function calendarItems(): \Illuminate\Support\Collection
+    public function calendarItems(): Collection
     {
         $catalog = $this->documentTypeCatalog();
         $usesTaskStartDates = (bool) $this->client?->organization?->uses_task_start_dates;

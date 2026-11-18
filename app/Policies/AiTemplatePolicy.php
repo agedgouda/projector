@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\AiTemplate;
-use App\Models\ProjectType;
 use App\Models\User;
 
 class AiTemplatePolicy
@@ -48,14 +47,6 @@ class AiTemplatePolicy
 
     public function delete(User $user, AiTemplate $template): bool
     {
-        if (! $this->isOrgAdmin($user) || $template->organization_id !== getPermissionsTeamId()) {
-            return false;
-        }
-
-        $isInUse = ProjectType::query()
-            ->whereJsonContains('workflow', ['ai_template_id' => $template->id])
-            ->exists();
-
-        return ! $isInUse;
+        return $this->isOrgAdmin($user) && $template->organization_id === getPermissionsTeamId();
     }
 }

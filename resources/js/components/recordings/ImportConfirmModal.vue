@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -7,11 +8,14 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { CUSTOM_PROMPT_MODES, type CustomPrompt, type CustomPromptMode } from '@/lib/constants';
+import {
+    CUSTOM_PROMPT_MODES,
+    type CustomPrompt,
+    type CustomPromptMode,
+} from '@/lib/constants';
 import { ref, watch } from 'vue';
 
 // Shared by every import source (Google Doc, uploaded file, picked meeting recording) whenever
@@ -65,7 +69,9 @@ const save = () => {
             </DialogHeader>
 
             <div class="space-y-2">
-                <Label class="text-[10px] font-black tracking-widest text-gray-400 uppercase">
+                <Label
+                    class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
                     Additional Information (optional)
                 </Label>
                 <Textarea
@@ -77,19 +83,44 @@ const save = () => {
                     "
                     class="min-h-24 text-sm"
                 />
-                <RadioGroup v-if="additionalInfo.trim()" v-model="mode" class="gap-2 pt-1">
-                    <div v-for="option in CUSTOM_PROMPT_MODES" :key="option.value" class="flex items-start gap-2">
-                        <RadioGroupItem :id="`import-prompt-mode-${option.value}`" :value="option.value" class="mt-0.5" />
-                        <Label :for="`import-prompt-mode-${option.value}`" class="flex flex-col items-start gap-0.5">
-                            <span class="text-[13px] font-medium text-slate-600 dark:text-slate-300">{{ option.label }}</span>
-                            <span class="text-xs font-normal text-muted-foreground">{{ option.description }}</span>
+                <RadioGroup
+                    v-if="additionalInfo.trim()"
+                    v-model="mode"
+                    class="gap-2 pt-1"
+                >
+                    <div
+                        v-for="option in CUSTOM_PROMPT_MODES"
+                        :key="option.value"
+                        class="flex items-start gap-2"
+                    >
+                        <RadioGroupItem
+                            :id="`import-prompt-mode-${option.value}`"
+                            :value="option.value"
+                            class="mt-0.5"
+                        />
+                        <Label
+                            :for="`import-prompt-mode-${option.value}`"
+                            class="flex flex-col items-start gap-0.5"
+                        >
+                            <span
+                                class="text-[13px] font-medium text-slate-600 dark:text-slate-300"
+                                >{{ option.label }}</span
+                            >
+                            <span
+                                class="text-xs font-normal text-muted-foreground"
+                                >{{ option.description }}</span
+                            >
                         </Label>
                     </div>
                 </RadioGroup>
             </div>
 
             <DialogFooter class="gap-2 sm:gap-4">
-                <Button variant="outline" @click="emit('close')" :disabled="loading">
+                <Button
+                    variant="outline"
+                    @click="emit('close')"
+                    :disabled="loading"
+                >
                     Cancel
                 </Button>
                 <Button @click="save" :disabled="loading">

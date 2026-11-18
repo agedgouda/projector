@@ -4,8 +4,8 @@ import {
     exportPdf,
     exportWord,
 } from '@/actions/App/Http/Controllers/DocumentController';
-import TransformPicker from '@/components/documents/TransformPicker.vue';
 import DateField from '@/components/DateField.vue';
+import TransformPicker from '@/components/documents/TransformPicker.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -75,7 +75,6 @@ const emit = defineEmits<{
             toKey?: string;
             aiTemplateId: number;
             singleOutput?: boolean;
-            projectTypeId?: string;
         },
     ): void;
     (e: 'move', targetProjectId: string): void;
@@ -86,7 +85,6 @@ const handleRunTransform = (payload: {
     toKey?: string;
     aiTemplateId: number;
     singleOutput?: boolean;
-    projectTypeId?: string;
 }) => {
     isTransformOpen.value = false;
     emit('run-transform', payload);
@@ -177,7 +175,6 @@ onMounted(() => {
         void exportToGoogleDoc();
     }
 });
-
 </script>
 
 <template>
@@ -307,12 +304,14 @@ onMounted(() => {
                                 <DateField
                                     :model-value="startAtProxy"
                                     :disabled="
-                                        project.inactive || !!item.predecessor_id
+                                        project.inactive ||
+                                        !!item.predecessor_id
                                     "
                                     placeholder="MM/DD/YYYY"
                                     align="end"
                                     @update:model-value="
-                                        (val) => $emit('update:startAtProxy', val)
+                                        (val) =>
+                                            $emit('update:startAtProxy', val)
                                     "
                                 >
                                     <template #default="{ display }">
@@ -392,7 +391,10 @@ onMounted(() => {
                                 <DateField
                                     :model-value="
                                         item.external_due_at
-                                            ? item.external_due_at.substring(0, 10)
+                                            ? item.external_due_at.substring(
+                                                  0,
+                                                  10,
+                                              )
                                             : ''
                                     "
                                     :disabled="project.inactive"
@@ -400,7 +402,11 @@ onMounted(() => {
                                     align="end"
                                     @update:model-value="
                                         (val) =>
-                                            $emit('change', 'external_due_at', val)
+                                            $emit(
+                                                'change',
+                                                'external_due_at',
+                                                val,
+                                            )
                                     "
                                 >
                                     <template #default="{ display }">
@@ -571,7 +577,8 @@ onMounted(() => {
                                     placeholder="MM/DD/YYYY"
                                     align="end"
                                     @update:model-value="
-                                        (val) => $emit('update:startAtProxy', val)
+                                        (val) =>
+                                            $emit('update:startAtProxy', val)
                                     "
                                 >
                                     <template #default="{ display }">

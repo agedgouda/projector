@@ -6,9 +6,10 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // friends_family tier avoids the project limit unrelated to what this file tests.
@@ -82,7 +83,7 @@ it('does not update quality when the LLM call fails', function () {
 it('dispatches the job when a project with a description is created via controller', function () {
     Queue::fake();
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->org->users()->attach($user->id, ['role' => 'org-admin']);
     setPermissionsTeamId($this->org->id);
 
@@ -99,7 +100,7 @@ it('dispatches the job when a project with a description is created via controll
 it('does not dispatch the job when a project is created without a description via controller', function () {
     Queue::fake();
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->org->users()->attach($user->id, ['role' => 'org-admin']);
     setPermissionsTeamId($this->org->id);
 
@@ -117,7 +118,7 @@ it('resets description_quality to null and dispatches job when description chang
 
     $this->project->update(['description_quality' => 'good']);
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->org->users()->attach($user->id, ['role' => 'org-admin']);
     setPermissionsTeamId($this->org->id);
 
@@ -137,7 +138,7 @@ it('does not reset description_quality when description is unchanged on update',
 
     $this->project->update(['description_quality' => 'good']);
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->org->users()->attach($user->id, ['role' => 'org-admin']);
     setPermissionsTeamId($this->org->id);
 
@@ -153,7 +154,7 @@ it('does not reset description_quality when description is unchanged on update',
 it('uses the frontend-provided description_quality immediately and skips the async job on create', function () {
     Queue::fake();
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->org->users()->attach($user->id, ['role' => 'org-admin']);
     setPermissionsTeamId($this->org->id);
 
@@ -174,7 +175,7 @@ it('uses the frontend-provided description_quality immediately and skips the asy
 it('uses the frontend-provided description_quality immediately and skips the async job on update', function () {
     Queue::fake();
 
-    $user = \App\Models\User::factory()->create();
+    $user = User::factory()->create();
     $this->org->users()->attach($user->id, ['role' => 'org-admin']);
     setPermissionsTeamId($this->org->id);
 

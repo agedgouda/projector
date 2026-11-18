@@ -1,13 +1,15 @@
-import { ref, onMounted } from 'vue';
+import { useProcessingReconciler } from '@/composables/useProcessingReconciler';
 import { echo } from '@laravel/echo-vue';
 import axios from 'axios';
+import { onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
-import { useProcessingReconciler } from '@/composables/useProcessingReconciler';
 
 const BAD_STATES = ['disconnected', 'failed', 'unavailable'];
 const TOAST_DELAY_MS = 5000;
 
-export function useEchoWatchdog(getProjectId: () => string | number | undefined) {
+export function useEchoWatchdog(
+    getProjectId: () => string | number | undefined,
+) {
     const connectionStatus = ref('initializing');
     let toastTimer: ReturnType<typeof setTimeout> | null = null;
     let wasBad = false;
@@ -36,9 +38,12 @@ export function useEchoWatchdog(getProjectId: () => string | number | undefined)
         wasBad = true;
 
         toastTimer = setTimeout(() => {
-            toast.warning('Live updates temporarily unavailable. Reconnecting…', {
-                duration: 8000,
-            });
+            toast.warning(
+                'Live updates temporarily unavailable. Reconnecting…',
+                {
+                    duration: 8000,
+                },
+            );
         }, TOAST_DELAY_MS);
 
         try {
@@ -64,10 +69,13 @@ export function useEchoWatchdog(getProjectId: () => string | number | undefined)
         const pusher = connector.pusher;
         connectionStatus.value = pusher.connection.state;
 
-        pusher.connection.bind('state_change', (states: { current: string }) => {
-            connectionStatus.value = states.current;
-            void handleStatusChange(states.current);
-        });
+        pusher.connection.bind(
+            'state_change',
+            (states: { current: string }) => {
+                connectionStatus.value = states.current;
+                void handleStatusChange(states.current);
+            },
+        );
     });
 
     return { connectionStatus };

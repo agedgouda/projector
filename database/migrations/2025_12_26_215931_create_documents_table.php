@@ -2,11 +2,13 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function up(): void {
+return new class extends Migration
+{
+    public function up(): void
+    {
         Schema::create('documents', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->text('content');
@@ -19,7 +21,8 @@ return new class extends Migration {
         DB::statement('CREATE INDEX ON documents USING hnsw (embedding vector_cosine_ops)');
     }
 
-    public function down(): void {
+    public function down(): void
+    {
         Schema::dropIfExists('documents');
     }
 };

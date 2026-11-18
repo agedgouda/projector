@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\Client;
 use App\Models\Organization;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -32,7 +32,7 @@ class MultiTenantTestSeeder extends Seeder
 
         $orgAdminRole = Role::firstOrCreate([
             'name' => 'org-admin',
-            'team_id' => $org->id
+            'team_id' => $org->id,
         ]);
 
         // Lock Spatie context to this team
@@ -52,7 +52,9 @@ class MultiTenantTestSeeder extends Seeder
         $client = Client::find('019b5e1b-6799-70fe-827a-f68ab26e74be');
         if ($client) {
             $client->update(['organization_id' => $org->id]);
-            if ($adminUser) $client->users()->syncWithoutDetaching([$adminUser->id]);
+            if ($adminUser) {
+                $client->users()->syncWithoutDetaching([$adminUser->id]);
+            }
         }
     }
 }

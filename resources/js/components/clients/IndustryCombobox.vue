@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { Check, ChevronsUpDown } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Check, ChevronsUpDown } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 const INDUSTRIES = [
     'Advertising & Marketing',
@@ -44,12 +55,15 @@ const search = ref('');
 const filteredIndustries = computed(() => {
     const q = search.value.trim().toLowerCase();
     if (!q) return INDUSTRIES;
-    return INDUSTRIES.filter(i => i.toLowerCase().includes(q));
+    return INDUSTRIES.filter((i) => i.toLowerCase().includes(q));
 });
 
 const showAddCustom = computed(() => {
     const q = search.value.trim();
-    return q.length > 0 && !INDUSTRIES.some(i => i.toLowerCase() === q.toLowerCase());
+    return (
+        q.length > 0 &&
+        !INDUSTRIES.some((i) => i.toLowerCase() === q.toLowerCase())
+    );
 });
 
 const select = (value: string) => {
@@ -75,7 +89,7 @@ const addCustom = () => {
                 variant="outline"
                 role="combobox"
                 :aria-expanded="open"
-                class="w-full justify-between font-normal h-9 px-3 text-sm"
+                class="h-9 w-full justify-between px-3 text-sm font-normal"
                 :class="!modelValue && 'text-muted-foreground'"
                 type="button"
             >
@@ -84,14 +98,19 @@ const addCustom = () => {
             </Button>
         </PopoverTrigger>
 
-        <PopoverContent class="w-[--radix-popover-trigger-width] p-0" align="start">
+        <PopoverContent
+            class="w-[--radix-popover-trigger-width] p-0"
+            align="start"
+        >
             <Command :filter-function="() => true">
                 <CommandInput
                     v-model="search"
                     placeholder="Search or type a custom industry…"
                 />
                 <CommandList>
-                    <CommandEmpty v-if="!showAddCustom">No industry found.</CommandEmpty>
+                    <CommandEmpty v-if="!showAddCustom"
+                        >No industry found.</CommandEmpty
+                    >
 
                     <CommandGroup>
                         <CommandItem
@@ -102,7 +121,11 @@ const addCustom = () => {
                         >
                             <Check
                                 class="mr-2 h-4 w-4"
-                                :class="modelValue === industry ? 'opacity-100' : 'opacity-0'"
+                                :class="
+                                    modelValue === industry
+                                        ? 'opacity-100'
+                                        : 'opacity-0'
+                                "
                             />
                             {{ industry }}
                         </CommandItem>
@@ -110,7 +133,7 @@ const addCustom = () => {
                         <CommandItem
                             v-if="showAddCustom"
                             :value="search"
-                            class="text-projector-primary-600 dark:text-projector-primary-400 font-medium"
+                            class="font-medium text-projector-primary-600 dark:text-projector-primary-400"
                             @select="addCustom"
                         >
                             <span class="mr-2 text-sm">+</span>

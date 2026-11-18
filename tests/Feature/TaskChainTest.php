@@ -6,9 +6,12 @@ use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\Reports\TaskReportBuilder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -295,7 +298,7 @@ describe('exports', function () {
                 ->streamedContent();
             $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
             file_put_contents($tmp, $bytes);
-            $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmp)->getActiveSheet()->toArray();
+            $rows = IOFactory::load($tmp)->getActiveSheet()->toArray();
             unlink($tmp);
 
             return $rows;
@@ -329,7 +332,7 @@ describe('exports', function () {
             ->get(route('projects.reports.tasks.exportPdf', $this->project).'?sort_by=chain')
             ->assertOk();
 
-        [$tasks, $includeDetails, $projectNames, $mode] = app(\App\Services\Reports\TaskReportBuilder::class)
+        [$tasks, $includeDetails, $projectNames, $mode] = app(TaskReportBuilder::class)
             ->tasksForExport(['sort_by' => 'chain'], $this->project);
         $html = view('pdfs.task-report', [
             'project' => $this->project,
@@ -359,7 +362,7 @@ describe('exports', function () {
 
         $tmp = tempnam(sys_get_temp_dir(), 'docx');
         file_put_contents($tmp, $bytes);
-        $zip = new \ZipArchive;
+        $zip = new ZipArchive;
         $zip->open($tmp);
         $xml = (string) $zip->getFromName('word/document.xml');
         $zip->close();

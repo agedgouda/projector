@@ -49,8 +49,9 @@ export function useGooglePicker() {
         try {
             await loadPickerApi();
 
-            const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
-                .setMimeTypes('application/vnd.google-apps.document');
+            const view = new window.google.picker.DocsView(
+                window.google.picker.ViewId.DOCS,
+            ).setMimeTypes('application/vnd.google-apps.document');
 
             const picker = new window.google.picker.PickerBuilder()
                 .addView(view)

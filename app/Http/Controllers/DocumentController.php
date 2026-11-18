@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreDocumentRequest;
+use App\Jobs\ProcessDocumentAI;
+use App\Models\AiTemplate;
 use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
+use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
@@ -13,6 +17,7 @@ use App\Rules\ValidKanbanColumn;
 use App\Rules\ValidPredecessor;
 use App\Services\Google\GoogleExportService;
 use App\Services\Logging\RecordSaveLogger;
+use App\Services\MembershipGuard;
 use App\Services\RecordingRecoveryService;
 use App\Services\Tasks\TaskChainScheduler;
 use App\Services\VectorService;
@@ -20,6 +25,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -58,9 +64,9 @@ class DocumentController extends Controller
         // A new Transcription runs AI on its own as soon as it's saved (DocumentObserver), so
         // a demo sandbox's AI budget has to be checked here too, not only on reprocess/transform.
         $organization = $project->client?->organization;
-        if ($organization?->membership_tier === \App\Models\Organization::TIER_DEMO
+        if ($organization?->membership_tier === Organization::TIER_DEMO
             && ($validated['type'] ?? null) === config('workflow.intake_key')
-            && ($block = \App\Services\MembershipGuard::check($organization, 'ai_docs'))) {
+            && ($block = MembershipGuard::check($organization, 'ai_docs'))) {
             return $block;
         }
 
@@ -88,7 +94,7 @@ class DocumentController extends Controller
         }
 
         $definition = $project->documentTypeCatalog()->get($document->type);
-        $isTask = $definition instanceof \App\Models\DocumentTypeDefinition && $definition->is_task;
+        $isTask = $definition instanceof DocumentTypeDefinition && $definition->is_task;
 
         // "Save and New" (Documents/Create.vue) sends `redirect` back to its own create form
         // for any document type, not just tasks — honored here regardless of type, falling
@@ -154,14 +160,14 @@ class DocumentController extends Controller
                 // Document's HasUuids trait generates time-ordered UUIDs, giving a tiebreaker
                 // with far finer precision than the timestamp column.
                 'children' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id')->with(['assignee', 'pendingAssignee']),
-            ])->loadExists(['lockedNextWorkflowStep', 'children']),
+            ])->loadExists(['children']),
         ]);
     }
 
     /**
      * Export the specified document as a branded PDF, suitable for sending to a client.
      */
-    public function exportPdf(Project $project, Document $document): \Illuminate\Http\Response
+    public function exportPdf(Project $project, Document $document): Response
     {
         Gate::authorize('view', $project);
 
@@ -172,7 +178,7 @@ class DocumentController extends Controller
         $project->loadMissing('client.organization');
 
         $catalogEntry = $project->documentTypeCatalog()->get($document->type);
-        $typeLabel = $catalogEntry instanceof \App\Models\DocumentTypeDefinition ? $catalogEntry->label : $document->type;
+        $typeLabel = $catalogEntry instanceof DocumentTypeDefinition ? $catalogEntry->label : $document->type;
 
         $organization = $project->client?->organization;
 
@@ -203,7 +209,7 @@ class DocumentController extends Controller
         }
 
         $catalogEntry = $project->documentTypeCatalog()->get($document->type);
-        $typeLabel = $catalogEntry instanceof \App\Models\DocumentTypeDefinition ? $catalogEntry->label : $document->type;
+        $typeLabel = $catalogEntry instanceof DocumentTypeDefinition ? $catalogEntry->label : $document->type;
 
         $documentName = is_string($document->name) ? $document->name : 'Untitled';
 
@@ -248,7 +254,7 @@ class DocumentController extends Controller
         }
 
         $catalogEntry = $project->documentTypeCatalog()->get($document->type);
-        $typeLabel = $catalogEntry instanceof \App\Models\DocumentTypeDefinition ? $catalogEntry->label : $document->type;
+        $typeLabel = $catalogEntry instanceof DocumentTypeDefinition ? $catalogEntry->label : $document->type;
 
         $documentName = is_string($document->name) ? $document->name : 'Untitled';
         $content = trim((string) $document->content) !== '' ? $document->content : '<p>No content provided.</p>';
@@ -696,8 +702,8 @@ class DocumentController extends Controller
         $user = $request->user();
 
         $orgId = $project->client?->organization_id;
-        $org = $orgId ? \App\Models\Organization::find($orgId) : null;
-        if ($org && ($block = \App\Services\MembershipGuard::check($org, 'ai_docs'))) {
+        $org = $orgId ? Organization::find($orgId) : null;
+        if ($org && ($block = MembershipGuard::check($org, 'ai_docs'))) {
             return $block;
         }
 
@@ -705,25 +711,23 @@ class DocumentController extends Controller
             'one_off_instructions' => 'nullable|string',
         ]);
 
-        // ProjectAiService::process() only auto-resolves a transition for an intake document or
-        // one locked to a protocol — anything else has no single, unambiguous next step of its
-        // own (see its final else-branch) unless it's already been run through one before, in
-        // which case re-running that exact same template is the only sensible meaning of
-        // "reprocess" for it (see Document::lastAiTemplate()).
+        // ProjectAiService::process() only auto-resolves a transition for an intake document —
+        // anything else has no single, unambiguous next step of its own (see its final
+        // else-branch) unless it's already been run through one before, in which case re-running
+        // that exact same template is the only sensible meaning of "reprocess" for it (see
+        // Document::lastAiTemplate()).
         $overrideStep = null;
         if ($document->type !== config('workflow.intake_key')
-            && ! $document->locked_project_type_id
             && $document->last_ai_template_id
             && $document->last_output_key) {
             $overrideStep = [
                 'to_key' => $document->last_output_key,
                 'ai_template_id' => $document->last_ai_template_id,
                 'single_output' => false,
-                'project_type_id' => null,
             ];
         }
 
-        if (! \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document, $overrideStep, $validated['one_off_instructions'] ?? null)) {
+        if (! ProcessDocumentAI::dispatchUnlessProcessing($document, $overrideStep, $validated['one_off_instructions'] ?? null)) {
             return response()->json(['message' => 'This document is already being processed.'], 409);
         }
 
@@ -736,15 +740,9 @@ class DocumentController extends Controller
     }
 
     /**
-     * Run a specific, user-chosen transition on a document, replacing any children it previously
-     * produced. Two ways to call this, matching the either/or processing choice:
-     *  (a) protocol-driven: pass to_key + ai_template_id + project_type_id, resolved client-side
-     *      from a chosen protocol's own workflow_steps row for this document's type — locks the
-     *      resulting document's whole downstream lineage to that protocol, so further processing
-     *      auto-continues via that protocol with no further choice offered;
-     *  (b) direct: pass only ai_template_id — to_key comes from the template's own output_key
-     *      (falling back to a slug of its name if that's unset), never from workflow_steps, and
-     *      nothing gets locked.
+     * Run a user-chosen AI template on a document, replacing any children it previously produced.
+     * to_key comes from the template's own output_key (falling back to a slug of its name if
+     * that's unset) unless the caller passes one explicitly.
      */
     public function transition(Request $request, Project $project, Document $document)
     {
@@ -772,18 +770,10 @@ class DocumentController extends Controller
                 }),
             ],
             'single_output' => ['sometimes', 'boolean'],
-            'project_type_id' => [
-                'sometimes',
-                'nullable',
-                'uuid',
-                Rule::exists('project_types', 'id')->where(
-                    fn ($query) => $query->whereNull('organization_id')->when($orgId, fn ($query) => $query->orWhere('organization_id', $orgId))
-                ),
-            ],
         ]);
 
-        $org = $orgId ? \App\Models\Organization::find($orgId) : null;
-        if ($org && ($block = \App\Services\MembershipGuard::check($org, 'ai_docs'))) {
+        $org = $orgId ? Organization::find($orgId) : null;
+        if ($org && ($block = MembershipGuard::check($org, 'ai_docs'))) {
             return $block;
         }
 
@@ -792,29 +782,23 @@ class DocumentController extends Controller
             abort(422, 'Invalid ai_template_id.');
         }
 
-        // A direct pick (path b) must be one the organization hasn't turned off; a protocol's own
-        // step (path a) still runs it, like any other protocol step.
-        if (empty($validated['project_type_id']) && \App\Models\AiTemplate::findOrFail($aiTemplateId)->isDisabledFor($orgId)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (AiTemplate::findOrFail($aiTemplateId)->isDisabledFor($orgId)) {
+            throw ValidationException::withMessages([
                 'ai_template_id' => 'Your organization has turned this transformation off.',
             ]);
         }
 
         $toKey = $validated['to_key'] ?? null;
         if (! is_string($toKey) || $toKey === '') {
-            // Direct pick, no protocol involved: the template's own output_key is
-            // authoritative here. Never consult workflow_steps/project_type for this —
-            // a template's output type must not depend on which protocols happen to
-            // reference it.
-            $template = \App\Models\AiTemplate::findOrFail($aiTemplateId);
-            $toKey = $template->output_key ?: \Illuminate\Support\Str::slug($template->name, '_');
+            // The template's own output_key is authoritative here.
+            $template = AiTemplate::findOrFail($aiTemplateId);
+            $toKey = $template->output_key ?: Str::slug($template->name, '_');
         }
 
-        $dispatched = \App\Jobs\ProcessDocumentAI::dispatchUnlessProcessing($document, [
+        $dispatched = ProcessDocumentAI::dispatchUnlessProcessing($document, [
             'to_key' => $toKey,
             'ai_template_id' => $aiTemplateId,
             'single_output' => $validated['single_output'] ?? false,
-            'project_type_id' => $validated['project_type_id'] ?? null,
         ]);
 
         if (! $dispatched) {
@@ -830,11 +814,8 @@ class DocumentController extends Controller
     }
 
     /**
-     * Options for the either/or processing picker:
-     *  - protocolOptions: protocols visible to this org that define their own next step from this
-     *    document's current type (path a — run that protocol's own recipe);
-     *  - aiTemplates: every workflow-capable AI template the organization hasn't turned off (path
-     *    b — run any template directly).
+     * Options for the processing picker: every workflow-capable AI template the organization
+     * hasn't turned off.
      */
     public function transitionOptions(Project $project, Document $document)
     {
@@ -846,30 +827,9 @@ class DocumentController extends Controller
 
         $orgId = $project->client?->organization_id;
 
-        $protocolOptions = \App\Models\ProjectType::where(function ($q) use ($orgId) {
-            $q->whereNull('organization_id')->orWhere('organization_id', $orgId);
-        })
-            ->whereHas('workflowSteps', fn ($q) => $q->where('from_key', $document->type)->whereNotNull('ai_template_id'))
-            ->with(['workflowSteps' => fn ($q) => $q->where('from_key', $document->type)->whereNotNull('ai_template_id')])
-            ->orderBy('name')
-            ->get()
-            ->map(function ($projectType) {
-                $step = $projectType->workflowSteps->first();
-
-                return [
-                    'projectTypeId' => $projectType->id,
-                    'name' => $projectType->name,
-                    'toKey' => $step?->to_key,
-                    'aiTemplateId' => $step?->ai_template_id,
-                    'singleOutput' => $step?->single_output,
-                ];
-            })
-            ->filter(fn (array $option) => $option['toKey'] !== null && $option['aiTemplateId'] !== null)
-            ->values();
-
         // The universal Notes -> Action Items template runs automatically for every intake
         // document (see ProjectAiService::process()) and is never a manual choice.
-        $aiTemplates = \App\Models\AiTemplate::where('type', 'workflow')
+        $aiTemplates = AiTemplate::where('type', 'workflow')
             ->availableToOrganization($orgId)
             ->enabledForOrganization($orgId)
             ->where('id', '!=', config('workflow.intake_to_action_items_ai_template_id'))
@@ -877,7 +837,6 @@ class DocumentController extends Controller
             ->get(['id', 'name']);
 
         return response()->json([
-            'protocolOptions' => $protocolOptions,
             'aiTemplates' => $aiTemplates,
         ]);
     }

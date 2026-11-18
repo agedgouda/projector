@@ -411,7 +411,7 @@ class Organization extends Model implements HasMedia
 
     public function currentProjectCount(): int
     {
-        return \App\Models\Project::whereHas('client', fn ($q) => $q->where('organization_id', $this->id))->count();
+        return Project::whereHas('client', fn ($q) => $q->where('organization_id', $this->id))->count();
     }
 
     /**
@@ -492,11 +492,6 @@ class Organization extends Model implements HasMedia
     public function clients(): HasMany
     {
         return $this->hasMany(Client::class);
-    }
-
-    public function projectTypes(): HasMany
-    {
-        return $this->hasMany(ProjectType::class);
     }
 
     /**

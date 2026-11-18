@@ -12,8 +12,8 @@ import InlineDocumentForm from '@/components/documents/InlineDocumentForm.vue';
 import { Button } from '@/components/ui/button';
 import { useDocumentNavigation } from '@/composables/documents/useDocumentNavigation';
 import { useDocumentPresenter } from '@/composables/useDocumentPresenter';
-import { mergeMentionableUsers } from '@/lib/assignees';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { mergeMentionableUsers } from '@/lib/assignees';
 import DocumentHeader from './Partials/DocumentHeader.vue';
 import DocumentLayoutWrapper from './Partials/DocumentLayoutWrapper.vue';
 import DocumentSidebar from './Partials/DocumentSidebar.vue';
@@ -34,7 +34,9 @@ const props = defineProps<{
 /* ---------------------------
    3. Form Setup (Draft Mode)
 ---------------------------- */
-const form = useForm<DocumentForm & { project_id: string; category_ids: string[] }>({
+const form = useForm<
+    DocumentForm & { project_id: string; category_ids: string[] }
+>({
     name: '',
     content: '',
     type: props.defaultType ?? '',
@@ -88,7 +90,10 @@ const saveLabel = computed(
 // Lets an @-mention resolve to a pending invitee (not just a registered user with a
 // password) — see DocumentContent.vue's identical wiring for the document detail page.
 const mentionableUsers = computed(() =>
-    mergeMentionableUsers(props.project.client?.organization?.users, props.project.client?.organization?.invitations),
+    mergeMentionableUsers(
+        props.project.client?.organization?.users,
+        props.project.client?.organization?.invitations,
+    ),
 );
 
 // Set by InlineDocumentForm while a pasted/dropped/attached file's upload is still in
@@ -101,10 +106,14 @@ const isUploading = ref(false);
 // addTag/removeTag, which PATCH to an existing document's updateAttributes endpoint
 // immediately.
 const selectedCategories = computed(() =>
-    (props.project.categories ?? []).filter((c) => form.category_ids.includes(c.id)),
+    (props.project.categories ?? []).filter((c) =>
+        form.category_ids.includes(c.id),
+    ),
 );
 const availableTagsToAdd = computed(() =>
-    (props.project.categories ?? []).filter((c) => !form.category_ids.includes(c.id)),
+    (props.project.categories ?? []).filter(
+        (c) => !form.category_ids.includes(c.id),
+    ),
 );
 
 // An Event marks a single occurrence on the calendar, so only one tag makes sense — unlike

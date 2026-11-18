@@ -3,16 +3,29 @@ name: tests
 on:
   push:
     branches:
-      - develop
-      - main
+      - master
   pull_request:
     branches:
-      - develop
-      - main
+      - master
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.0-pg16
+        env:
+          POSTGRES_USER: jeffkaufman
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: projector_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jeffkaufman"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -23,7 +36,8 @@ jobs:
         with:
           php-version: 8.4
           tools: composer:v2
-          coverage: xdebug
+          coverage: none
+          ini-values: memory_limit=1G
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -45,6 +59,9 @@ jobs:
 
       - name: Build Assets
         run: npm run build
+
+      - name: Enable pgvector Extension
+        run: psql -h 127.0.0.1 -U jeffkaufman -d projector_test -c 'CREATE EXTENSION IF NOT EXISTS vector'
 
       - name: Tests
         run: ./vendor/bin/pest

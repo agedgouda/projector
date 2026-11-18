@@ -1,8 +1,9 @@
 <?php
 
 use App\Models\Faq;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('adds the start date and task linking questions after the existing Tasks & Events ones', function () {
     $questions = Faq::where('category', 'Tasks & Events')->orderBy('order')->pluck('question')->all();

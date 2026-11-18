@@ -2,10 +2,11 @@
 
 namespace App\Collections;
 
+use App\Models\Project;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * @extends Collection<int|string, \App\Models\Project>
+ * @extends Collection<int|string, Project>
  */
 class ProjectCollection extends Collection
 {
@@ -36,7 +37,7 @@ class ProjectCollection extends Collection
                 'creator', 'editor', 'assignee', 'categories',
                 'tasks' => fn ($t) => $t->with(['assignee', 'comments.user'])->orderBy('created_at', 'asc'),
             ])->orderBy('created_at', 'desc'),
-        ])->each(fn (\App\Models\Project $p) => $p->withResolvedFamilyCategories());
+        ])->each(fn (Project $p) => $p->withResolvedFamilyCategories());
     }
 
     /**
@@ -55,9 +56,9 @@ class ProjectCollection extends Collection
             'categories',
             'parent.categories',
             'documents' => function ($q) {
-                $q->with(['assignee', 'creator', 'categories', 'comments.user'])->withExists('lockedNextWorkflowStep')->latest();
+                $q->with(['assignee', 'creator', 'categories', 'comments.user'])->latest();
             },
-        ])->each(fn (\App\Models\Project $p) => $p->withResolvedFamilyCategories());
+        ])->each(fn (Project $p) => $p->withResolvedFamilyCategories());
     }
 
     public function findCurrent(?string $id)
@@ -83,7 +84,7 @@ class ProjectCollection extends Collection
      */
     public function asKanbanData(): array
     {
-        return $this->mapWithKeys(fn (\App\Models\Project $project) => [
+        return $this->mapWithKeys(fn (Project $project) => [
             (string) $project->id => $project->getKanbanDocuments(),
         ])->toArray();
     }

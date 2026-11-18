@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Download } from 'lucide-vue-next';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import RecordingsList from '@/components/recordings/RecordingsList.vue';
 import { useOrgTranscriptActions } from '@/composables/transcripts/useOrgTranscriptActions';
+import { Download } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 const props = defineProps<{
     organizationId: string;
@@ -31,7 +31,8 @@ const actions = computed<RecordingAction[]>(() => [
         icon: Download,
         variant: 'primary',
         loading: (recording) => importing.value === recording.id,
-        onClick: (recording, customPrompt) => importRecording(recording, customPrompt),
+        onClick: (recording, customPrompt) =>
+            importRecording(recording, customPrompt),
     },
 ]);
 </script>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDateMdy } from '@/lib/utils';
+import projectRoutes from '@/routes/projects/index';
 import { usePage } from '@inertiajs/vue3';
 import { Coffee } from 'lucide-vue-next';
-import AppLayout from '@/layouts/AppLayout.vue';
-import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard.vue';
-import projectRoutes from '@/routes/projects/index';
-import { formatDateMdy } from '@/lib/utils';
+import { computed } from 'vue';
 
 // Demo of dashboard redesign "option 2", now iterated to: one card per project/subproject
 // family, each starting collapsed to just its combined pie chart of not-done tasks — expanding
@@ -21,7 +21,9 @@ const props = defineProps<{
     canViewProjectDetails: boolean;
 }>();
 
-const currentUserId = usePage<{ auth: { user: { id: number } | null } }>().props.auth.user?.id ?? null;
+const currentUserId =
+    usePage<{ auth: { user: { id: number } | null } }>().props.auth.user?.id ??
+    null;
 
 const breadcrumbs = computed(() => [
     {
@@ -59,7 +61,9 @@ interface Family {
 // (shouldn't normally happen) is treated as its own top-level family rather than dropped.
 const families = computed<Family[]>(() => {
     const byId = new Map(props.projects.map((p) => [p.id, p]));
-    const tops = props.projects.filter((p) => !p.parent_id || !byId.has(p.parent_id));
+    const tops = props.projects.filter(
+        (p) => !p.parent_id || !byId.has(p.parent_id),
+    );
 
     return tops.map((top) => ({
         key: top.id,
@@ -73,13 +77,20 @@ const families = computed<Family[]>(() => {
 // Segments are keyed by column key so two subprojects with matching columns (the normal case —
 // see Project::hasMatchingKanbanColumns()) merge into one slice instead of duplicating.
 function statusBreakdown(members: Project[]) {
-    const byKey = new Map<string, { label: string; color: string; count: number }>();
+    const byKey = new Map<
+        string,
+        { label: string; color: string; count: number }
+    >();
 
     for (const member of members) {
         for (const column of member.kanban_columns ?? []) {
             if (column.key === 'done') continue;
             if (!byKey.has(column.key)) {
-                byKey.set(column.key, { label: column.label, color: COLUMN_HEX[column.color ?? 'slate'] ?? '#94a3b8', count: 0 });
+                byKey.set(column.key, {
+                    label: column.label,
+                    color: COLUMN_HEX[column.color ?? 'slate'] ?? '#94a3b8',
+                    count: 0,
+                });
             }
         }
     }
@@ -91,7 +102,11 @@ function statusBreakdown(members: Project[]) {
             if (entry) {
                 entry.count += 1;
             } else {
-                byKey.set(task.task_status, { label: task.task_status, color: '#94a3b8', count: 1 });
+                byKey.set(task.task_status, {
+                    label: task.task_status,
+                    color: '#94a3b8',
+                    count: 1,
+                });
             }
         }
     }
@@ -110,17 +125,32 @@ function formatDate(value: string | null) {
 function upcomingDeliverables(members: Project[], limit = 6) {
     return allDeliverables(members)
         .filter((task) => task.due_at && task.task_status !== 'done')
-        .sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime())
+        .sort(
+            (a, b) =>
+                new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime(),
+        )
         .slice(0, limit)
-        .map((task) => ({ id: task.id, name: task.name, dueLabel: formatDate(task.due_at) }));
+        .map((task) => ({
+            id: task.id,
+            name: task.name,
+            dueLabel: formatDate(task.due_at),
+        }));
 }
 
 // Not-done tasks assigned to the logged-in user, across a family — replaces a flat "every
 // task" list, which was more of a raw data dump than something actually useful to look at.
 function yourDeliverables(members: Project[]) {
     return allDeliverables(members)
-        .filter((task) => task.assignee_id === currentUserId && task.task_status !== 'done')
-        .map((task) => ({ id: task.id, name: task.name, dueLabel: formatDate(task.due_at) }));
+        .filter(
+            (task) =>
+                task.assignee_id === currentUserId &&
+                task.task_status !== 'done',
+        )
+        .map((task) => ({
+            id: task.id,
+            name: task.name,
+            dueLabel: formatDate(task.due_at),
+        }));
 }
 </script>
 
@@ -130,12 +160,16 @@ function yourDeliverables(members: Project[]) {
             <div
                 class="rounded-xl border border-dashed border-projector-primary-300 bg-projector-primary-50/50 px-4 py-2 text-[11px] font-bold text-projector-primary-700 dark:border-projector-primary-800 dark:bg-projector-primary-950/30 dark:text-projector-primary-300"
             >
-                Demo page — one section per project/subproject family: a combined pie chart of
-                not-done tasks, one broken out per subproject, then upcoming and full deliverable
-                lists. Not linked from navigation.
+                Demo page — one section per project/subproject family: a
+                combined pie chart of not-done tasks, one broken out per
+                subproject, then upcoming and full deliverable lists. Not linked
+                from navigation.
             </div>
 
-            <div v-if="!projects.length" class="flex min-h-[40vh] flex-col items-center justify-center">
+            <div
+                v-if="!projects.length"
+                class="flex min-h-[40vh] flex-col items-center justify-center"
+            >
                 <div class="mb-4 rounded-full bg-gray-100 p-4">
                     <Coffee class="h-12 w-12 text-gray-400" />
                 </div>
@@ -152,17 +186,28 @@ function yourDeliverables(members: Project[]) {
                  gets the extra width its deliverable list needs without permanently widening
                  every other still-collapsed card. items-start keeps a row's shorter cards from
                  stretching to match a row-mate that's expanded taller. -->
-            <div class="grid grid-cols-1 items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div
+                class="grid grid-cols-1 items-start gap-6 md:grid-cols-2 xl:grid-cols-3"
+            >
                 <ProjectSummaryCard
                     v-for="family in families"
                     :key="family.key"
                     :label="family.label"
-                    :view-project-url="canViewProjectDetails ? projectRoutes.show.url(family.key, { query: { tab: 'tasks' } }) : null"
+                    :view-project-url="
+                        canViewProjectDetails
+                            ? projectRoutes.show.url(family.key, {
+                                  query: { tab: 'tasks' },
+                              })
+                            : null
+                    "
                     :all-title="family.members.length > 1 ? 'All' : undefined"
                     :all-segments="statusBreakdown(family.members)"
                     :member-breakdowns="
                         family.members.length > 1
-                            ? family.members.map((member) => ({ title: member.name, segments: statusBreakdown([member]) }))
+                            ? family.members.map((member) => ({
+                                  title: member.name,
+                                  segments: statusBreakdown([member]),
+                              }))
                             : []
                     "
                     :upcoming="upcomingDeliverables(family.members)"

@@ -13,10 +13,17 @@ import BrowserAudioCapture from '@/pages/Projects/Partials/BrowserAudioCapture.v
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
 import { Deferred, router, usePage } from '@inertiajs/vue3';
-import axios from 'axios';
 import { onKeyStroke, useDebounceFn, useEventListener } from '@vueuse/core';
+import axios from 'axios';
 import { PlusIcon, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import {
+    computed,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    useTemplateRef,
+    watch,
+} from 'vue';
 import { toast } from 'vue-sonner';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -26,11 +33,11 @@ import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
 import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useEchoWatchdog } from '@/composables/useEchoWatchdog';
-import { useTaskListImportProgress } from '@/composables/useTaskListImportProgress';
 import {
-    useGlobalProcessingBanner,
     BANNER_PRIORITY,
+    useGlobalProcessingBanner,
 } from '@/composables/useGlobalProcessingBanner';
+import { useTaskListImportProgress } from '@/composables/useTaskListImportProgress';
 import {
     ACTION_ITEMS_KEY,
     INTAKE_KEY,
@@ -316,7 +323,11 @@ const unreadDocumentIds = computed(() => {
     const ids = new Set<string>();
     docs.forEach((d: ProjectDocument) => {
         if (parentIdsWithChildren.has(String(d.id))) return;
-        if (isAsyncImportedDocument(d) && d.processed_at != null && !readIds.has(String(d.id))) {
+        if (
+            isAsyncImportedDocument(d) &&
+            d.processed_at != null &&
+            !readIds.has(String(d.id))
+        ) {
             ids.add(String(d.id));
         }
     });
@@ -367,7 +378,6 @@ const handleTransition = (
         toKey?: string;
         aiTemplateId: number;
         singleOutput?: boolean;
-        projectTypeId?: string;
     },
 ) => {
     const stringId = id.toString();
@@ -704,7 +714,6 @@ watch(
         </div>
 
         <div v-else class="w-full space-y-8 p-6">
-
             <div
                 class="flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"
             >
@@ -985,7 +994,10 @@ watch(
                      for any call the user has open in a tab (or, on Windows, anywhere on
                      screen), so it's shown regardless of whether one is configured below. -->
                 <div class="mb-6">
-                    <BrowserAudioCapture :project-id="currentProject.id" :can-manage="canManageTranscripts" />
+                    <BrowserAudioCapture
+                        :project-id="currentProject.id"
+                        :can-manage="canManageTranscripts"
+                    />
                 </div>
 
                 <div class="mb-4">

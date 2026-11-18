@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\Project;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class ProjectController extends Controller
 {
@@ -15,7 +16,7 @@ class ProjectController extends Controller
      * type (intake notes, tasks, requirements docs, etc). Nested documents are reached by
      * drilling into a parent via the document detail screen.
      */
-    public function show(Project $project): \Inertia\Response
+    public function show(Project $project): Response
     {
         Gate::authorize('view', $project);
 

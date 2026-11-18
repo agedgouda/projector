@@ -9,11 +9,9 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrgDocument;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Observers\DocumentObserver;
 use App\Observers\OrgDocumentObserver;
 use App\Observers\ProjectObserver;
-use App\Observers\ProjectTypeObserver;
 use App\Observers\TaskChainObserver;
 use App\Services\Ai\Drivers\GeminiLlmDriver;
 use App\Services\Ai\Drivers\OllamaLlmDriver;
@@ -138,7 +136,6 @@ class AppServiceProvider extends ServiceProvider
         Document::observe(DocumentObserver::class);
         Document::observe(TaskChainObserver::class);
         OrgDocument::observe(OrgDocumentObserver::class);
-        ProjectType::observe(ProjectTypeObserver::class);
         Project::observe(ProjectObserver::class);
     }
 }

@@ -7,9 +7,11 @@ use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // Fixtures are pinned to September 2026, and the export drops months before the current one
@@ -43,8 +45,7 @@ beforeEach(function () {
 
     setPermissionsTeamId($this->org->id);
 
-    // Registers 'task' as a task type in this org's document-type catalog, the same way a
-    // real protocol's document_schema would (see ProjectTypeObserver) — Project::calendarItems()
+    // Registers 'task' as a task type in this org's document-type catalog — Project::calendarItems()
     // now includes tasks via the catalog's is_task flag, not a hardcoded 'task' string.
     DocumentTypeDefinition::create([
         'organization_id' => $this->org->id,
@@ -387,7 +388,7 @@ it('lays out the calendar excel workbook as flat Date/Title/Tags rows', function
 
     $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
     file_put_contents($tmpFile, $xlsxBytes);
-    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmpFile)->getActiveSheet();
+    $sheet = IOFactory::load($tmpFile)->getActiveSheet();
     unlink($tmpFile);
 
     expect($sheet->getCell('A2')->getValue())->toBe('Date')
@@ -526,7 +527,7 @@ it('excludes an item due last month from the calendar excel export', function ()
 
     $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
     file_put_contents($tmpFile, $xlsxBytes);
-    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmpFile)->getActiveSheet();
+    $sheet = IOFactory::load($tmpFile)->getActiveSheet();
     unlink($tmpFile);
 
     $titles = [];

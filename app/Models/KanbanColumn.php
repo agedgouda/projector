@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\KanbanColumnFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class KanbanColumn extends Model
 {
-    /** @use HasFactory<\Database\Factories\KanbanColumnFactory> */
+    /** @use HasFactory<KanbanColumnFactory> */
     use HasFactory;
 
     protected $fillable = ['project_id', 'key', 'label', 'color', 'order'];

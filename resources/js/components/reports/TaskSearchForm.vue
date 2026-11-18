@@ -194,7 +194,7 @@ const reset = () => {
             <div class="flex items-center gap-1">
                 <Select v-model="filters.mode">
                     <SelectTrigger
-                        class="h-auto w-auto gap-1 border-none bg-transparent p-0 text-[11px] leading-none font-black tracking-widest text-slate-500 uppercase shadow-none data-[size=default]:h-auto [&_svg]:hidden hover:text-slate-700 dark:hover:text-slate-300"
+                        class="h-auto w-auto gap-1 border-none bg-transparent p-0 text-[11px] leading-none font-black tracking-widest text-slate-500 uppercase shadow-none hover:text-slate-700 data-[size=default]:h-auto dark:hover:text-slate-300 [&_svg]:hidden"
                     >
                         {{ filters.mode === 'done' ? 'Done' : 'Due' }}
                         <ChevronDown class="!block size-3 text-slate-400" />

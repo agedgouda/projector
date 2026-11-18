@@ -4,9 +4,9 @@ use App\Models\Client;
 use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 function createProjectForCatalogGrouping(): Project
 {
@@ -17,14 +17,12 @@ function createProjectForCatalogGrouping(): Project
         'contact_name' => 'Jane Doe',
         'contact_phone' => '555-1234',
     ]);
-    // Seeds the global document type catalog (via ProjectTypeObserver) with the types this
+    // Seeds the global document type catalog with the types this
     // test exercises - unrelated to any specific project's protocol, since projects no longer
     // have one.
-    ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Notes', 'key' => 'intake', 'is_task' => false],
-            ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
-        ],
+    seedDocumentTypes([
+        ['label' => 'Notes', 'key' => 'intake', 'is_task' => false],
+        ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
     ]);
 
     return Project::create([

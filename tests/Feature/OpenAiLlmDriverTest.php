@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Ai\Drivers\OpenAiLlmDriver;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
 it('requires priority in the auto-generated structured output schema, so the model is not blocked from returning it', function () {
@@ -17,7 +18,7 @@ it('requires priority in the auto-generated structured output schema, so the mod
 
     $result = (new OpenAiLlmDriver)->call('System prompt', 'Extract "title", "task", and "criteria" fields.');
 
-    Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+    Http::assertSent(function (Request $request) {
         $itemSchema = $request->data()['response_format']['json_schema']['schema']['properties']['items']['items'];
 
         expect($itemSchema['properties'])->toHaveKey('priority');
@@ -44,7 +45,7 @@ it('adds image_ids to the structured output schema when the prompt asks for it, 
 
     $result = (new OpenAiLlmDriver)->call('System prompt', 'Extract "title", "task", and "criteria" fields. Also include "image_ids": ...');
 
-    Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+    Http::assertSent(function (Request $request) {
         $itemSchema = $request->data()['response_format']['json_schema']['schema']['properties']['items']['items'];
 
         expect($itemSchema['properties'])->toHaveKey('image_ids');
@@ -72,7 +73,7 @@ it('does not add image_ids to the structured output schema when the prompt never
 
     (new OpenAiLlmDriver)->call('System prompt', 'Extract "title", "task", and "criteria" fields.');
 
-    Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+    Http::assertSent(function (Request $request) {
         $itemSchema = $request->data()['response_format']['json_schema']['schema']['properties']['items']['items'];
 
         expect($itemSchema['properties'])->not->toHaveKey('image_ids');

@@ -3,9 +3,9 @@
 namespace App\Services\Vectors;
 
 use App\Contracts\VectorDriver;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class OllamaDriver implements VectorDriver
 {
@@ -20,12 +20,12 @@ class OllamaDriver implements VectorDriver
             ]);
 
             if ($response->failed()) {
-                throw new Exception('Ollama API Error: ' . $response->body());
+                throw new Exception('Ollama API Error: '.$response->body());
             }
 
             return $response->json('embedding');
         } catch (Exception $e) {
-            Log::error('Ollama Vector Generation Failed: ' . $e->getMessage());
+            Log::error('Ollama Vector Generation Failed: '.$e->getMessage());
             throw $e;
         }
     }

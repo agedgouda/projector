@@ -9,11 +9,11 @@ import { toast } from 'vue-sonner';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 import { useKanbanBoard } from '@/composables/kanban/useKanbanBoard';
-import { useOrgAiProcessing } from '@/composables/useOrgAiProcessing';
 import {
-    useGlobalProcessingBanner,
     BANNER_PRIORITY,
+    useGlobalProcessingBanner,
 } from '@/composables/useGlobalProcessingBanner';
+import { useOrgAiProcessing } from '@/composables/useOrgAiProcessing';
 import { useWorkflow } from '@/composables/useWorkflow';
 import {
     redirectIfLoggedOut,
@@ -188,7 +188,6 @@ const handleTransition = async (
         toKey?: string;
         aiTemplateId: number;
         singleOutput?: boolean;
-        projectTypeId?: string;
     },
 ) => {
     const doc = allDocs.value.find((d) => d.id.toString() === id.toString());
@@ -203,7 +202,6 @@ const handleTransition = async (
                 to_key: payload.toKey,
                 ai_template_id: payload.aiTemplateId,
                 single_output: payload.singleOutput,
-                project_type_id: payload.projectTypeId,
             },
         );
         if (redirectIfLoggedOut(response)) return;

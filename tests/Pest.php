@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\DocumentTypeDefinition;
+use Illuminate\Http\UploadedFile;
+use Tests\TestCase;
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -11,7 +15,7 @@
 |
 */
 
-pest()->extend(Tests\TestCase::class)
+pest()->extend(TestCase::class)
  // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->in('Feature');
 
@@ -51,12 +55,30 @@ function something()
  * file genuinely empty, which MediaLibrary's real content-based mime detection rejects. A
  * minimal valid WAV header gives it real bytes to actually detect as audio.
  */
-function fakeWavFile(string $name = 'meeting.wav'): \Illuminate\Http\UploadedFile
+function fakeWavFile(string $name = 'meeting.wav'): UploadedFile
 {
     $dataSize = 100;
     $header = 'RIFF'.pack('V', 36 + $dataSize).'WAVE'.'fmt '.pack('V', 16).pack('v', 1).pack('v', 1)
         .pack('V', 8000).pack('V', 8000).pack('v', 1).pack('v', 8).'data'.pack('V', $dataSize)
         .str_repeat("\x00", $dataSize);
 
-    return \Illuminate\Http\UploadedFile::fake()->createWithContent($name, $header);
+    return UploadedFile::fake()->createWithContent($name, $header);
+}
+
+/**
+ * Adds document types to the shared catalog (global when $organizationId is null), leaving any
+ * key already defined at that scope untouched.
+ *
+ * @param  array<int, array{label: string, key: string, is_task: bool}>  $types
+ */
+function seedDocumentTypes(array $types, ?string $organizationId = null): void
+{
+    $order = (int) DocumentTypeDefinition::query()->where('organization_id', $organizationId)->max('order') + 1;
+
+    foreach ($types as $type) {
+        DocumentTypeDefinition::query()->firstOrCreate(
+            ['organization_id' => $organizationId, 'key' => $type['key']],
+            ['label' => $type['label'], 'is_task' => $type['is_task'], 'order' => $order++],
+        );
+    }
 }

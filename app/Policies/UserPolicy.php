@@ -17,7 +17,9 @@ class UserPolicy
     {
         // Still allow Org Admins to manage users,
         // but keep the specific "don't edit yourself" rule
-        if ($user->id === $targetUser->id) return false;
+        if ($user->id === $targetUser->id) {
+            return false;
+        }
 
         return $this->isOrgAdmin($user);
     }

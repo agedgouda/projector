@@ -5,12 +5,12 @@ use App\Models\Document;
 use App\Models\GoogleOauthToken;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -20,10 +20,8 @@ beforeEach(function () {
     $this->admin = User::factory()->create();
     $this->admin->assignRole('super-admin');
 
-    ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
-        ],
+    seedDocumentTypes([
+        ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
     ]);
 
     $this->client = Client::create([

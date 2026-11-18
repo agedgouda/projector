@@ -66,7 +66,7 @@ const user = page.props.auth.user;
                     class="space-y-6"
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div class="grid gap-2">
                             <Label for="first_name">First name</Label>
                             <Input
@@ -78,7 +78,10 @@ const user = page.props.auth.user;
                                 autocomplete="given-name"
                                 placeholder="First name"
                             />
-                            <InputError class="mt-2" :message="errors.first_name" />
+                            <InputError
+                                class="mt-2"
+                                :message="errors.first_name"
+                            />
                         </div>
 
                         <div class="grid gap-2">
@@ -92,7 +95,10 @@ const user = page.props.auth.user;
                                 autocomplete="family-name"
                                 placeholder="Last name"
                             />
-                            <InputError class="mt-2" :message="errors.last_name" />
+                            <InputError
+                                class="mt-2"
+                                :message="errors.last_name"
+                            />
                         </div>
                     </div>
 
@@ -128,7 +134,8 @@ const user = page.props.auth.user;
                             </option>
                         </select>
                         <p class="text-sm text-muted-foreground">
-                            Used to send you things like the Slack daily digest at your own local morning.
+                            Used to send you things like the Slack daily digest
+                            at your own local morning.
                         </p>
                         <InputError class="mt-2" :message="errors.timezone" />
                     </div>
@@ -158,7 +165,8 @@ const user = page.props.auth.user;
                         <Button
                             :disabled="processing"
                             data-test="update-profile-button"
-                        >Save</Button>
+                            >Save</Button
+                        >
 
                         <Transition
                             enter-active-class="transition ease-in-out"

@@ -8,11 +8,14 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
+use App\Services\Transcription\Drivers\AssemblyAiTranscriptionDriver;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 function createPlaceholderRecording(bool $withMedia = true): Document
 {
@@ -273,8 +276,8 @@ it('logs nothing while the transcript is still processing or when the vendor rep
 ]);
 
 it('reads audio length and model from the AssemblyAI transcript', function () {
-    \Illuminate\Support\Facades\Http::fake([
-        'api.assemblyai.com/*' => \Illuminate\Support\Facades\Http::response([
+    Http::fake([
+        'api.assemblyai.com/*' => Http::response([
             'status' => 'completed',
             'text' => 'Hello.',
             'audio_duration' => 3125.4,
@@ -282,7 +285,7 @@ it('reads audio length and model from the AssemblyAI transcript', function () {
         ]),
     ]);
 
-    $result = app(\App\Services\Transcription\Drivers\AssemblyAiTranscriptionDriver::class)->poll('transcript-123');
+    $result = app(AssemblyAiTranscriptionDriver::class)->poll('transcript-123');
 
     expect($result['usage'])->toBe(['driver' => 'assemblyai', 'model' => 'universal-3-5-pro', 'audio_seconds' => 3126]);
 });

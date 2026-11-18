@@ -21,7 +21,7 @@ class RecordReferralVisit
     private const MAX_REF_LENGTH = 255;
 
     /**
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {

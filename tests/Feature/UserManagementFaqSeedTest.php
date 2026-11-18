@@ -2,8 +2,9 @@
 
 use App\Models\Faq;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('seeds the User Management and Your Account FAQ entries, in order, with keywords', function (string $category, int $count) {
     $faqs = Faq::where('category', $category)->orderBy('order')->get();

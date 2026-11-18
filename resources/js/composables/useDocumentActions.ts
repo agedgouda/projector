@@ -210,7 +210,6 @@ export function useDocumentActions(
             toKey?: string;
             aiTemplateId: number;
             singleOutput?: boolean;
-            projectTypeId?: string;
         },
     ) => {
         if (!doc) return;
@@ -228,7 +227,6 @@ export function useDocumentActions(
                     to_key: payload.toKey,
                     ai_template_id: payload.aiTemplateId,
                     single_output: payload.singleOutput,
-                    project_type_id: payload.projectTypeId,
                 },
             );
             if (redirectIfLoggedOut(response)) return;

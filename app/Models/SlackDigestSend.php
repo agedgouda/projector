@@ -2,21 +2,23 @@
 
 namespace App\Models;
 
+use Database\Factories\SlackDigestSendFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $organization_id
  * @property int $user_id
- * @property \Illuminate\Support\Carbon $sent_date
+ * @property Carbon $sent_date
  * @property Organization $organization
  * @property User $user
  */
 class SlackDigestSend extends Model
 {
-    /** @use HasFactory<\Database\Factories\SlackDigestSendFactory> */
+    /** @use HasFactory<SlackDigestSendFactory> */
     use HasFactory;
 
     protected $fillable = [

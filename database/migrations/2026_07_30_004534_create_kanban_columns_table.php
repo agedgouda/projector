@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\KanbanColumn;
+use App\Models\Project;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -26,9 +28,9 @@ return new class extends Migration
         // Backfill every pre-existing project with the same 4 default columns its board
         // already implies (todo/in_progress/review/done), so existing task_status/status
         // data lines up automatically with no changes to those values.
-        \App\Models\Project::query()->doesntHave('kanbanColumns')->chunkById(100, function ($projects) {
+        Project::query()->doesntHave('kanbanColumns')->chunkById(100, function ($projects) {
             foreach ($projects as $project) {
-                \App\Models\KanbanColumn::seedDefaultsFor($project);
+                KanbanColumn::seedDefaultsFor($project);
             }
         });
     }

@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import {
-    FileText, ChevronDown, ChevronRight, Pencil,
-    Trash2, RefreshCw, Clock
-} from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
-    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+    ChevronDown,
+    ChevronRight,
+    Clock,
+    FileText,
+    Pencil,
+    RefreshCw,
+    Trash2,
+} from 'lucide-vue-next';
+import { computed } from 'vue';
 
 const props = defineProps<{
     doc: any; // Using any here to match your ProjectDocument type
@@ -34,28 +42,51 @@ const isProcessed = computed(() => props.doc.processed_at !== null);
 <template>
     <div
         class="group relative flex flex-col rounded-xl border border-transparent transition-all hover:border-slate-200 hover:bg-slate-50/50 dark:hover:border-slate-700 dark:hover:bg-slate-800/50"
-        :class="{ 'bg-slate-50 border-slate-200 shadow-sm': isExpanded }"
+        :class="{ 'border-slate-200 bg-slate-50 shadow-sm': isExpanded }"
     >
         <div class="flex items-center justify-between p-3">
             <div class="flex flex-1 items-center gap-3 overflow-hidden">
-                <button @click="onToggle" type="button" class="flex h-6 w-6 items-center justify-center rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
-                    <component :is="isExpanded ? ChevronDown : ChevronRight" class="h-4 w-4 text-slate-500" />
+                <button
+                    @click="onToggle"
+                    type="button"
+                    class="flex h-6 w-6 items-center justify-center rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+                >
+                    <component
+                        :is="isExpanded ? ChevronDown : ChevronRight"
+                        class="h-4 w-4 text-slate-500"
+                    />
                 </button>
                 <FileText class="h-4 w-4 shrink-0 text-projector-primary-500" />
                 <div class="flex flex-col overflow-hidden">
-                    <span class="truncate text-sm font-black text-slate-900 dark:text-slate-100">{{ doc.name }}</span>
+                    <span
+                        class="truncate text-sm font-black text-slate-900 dark:text-slate-100"
+                        >{{ doc.name }}</span
+                    >
                     <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest">{{ doc.type.replace('_', ' ') }}</span>
+                        <span
+                            class="text-[10px] font-black tracking-widest text-slate-500 uppercase dark:text-slate-400"
+                            >{{ doc.type.replace('_', ' ') }}</span
+                        >
 
-                        <div v-if="!isProcessed" class="flex items-center gap-1">
-                            <Clock class="h-3 w-3 text-amber-500 animate-pulse" />
-                            <span class="text-[10px] text-amber-600 font-bold uppercase">Processing</span>
+                        <div
+                            v-if="!isProcessed"
+                            class="flex items-center gap-1"
+                        >
+                            <Clock
+                                class="h-3 w-3 animate-pulse text-amber-500"
+                            />
+                            <span
+                                class="text-[10px] font-bold text-amber-600 uppercase"
+                                >Processing</span
+                            >
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+                class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+            >
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger as-child>
@@ -66,16 +97,38 @@ const isProcessed = computed(() => props.doc.processed_at !== null);
                                 :disabled="!isProcessed"
                                 @click.stop="onReprocess"
                             >
-                                <RefreshCw :class="['h-3.5 w-3.5', { 'animate-spin text-projector-primary-600': !isProcessed }]" />
+                                <RefreshCw
+                                    :class="[
+                                        'h-3.5 w-3.5',
+                                        {
+                                            'animate-spin text-projector-primary-600':
+                                                !isProcessed,
+                                        },
+                                    ]"
+                                />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>{{ isProcessed ? 'Reprocess with AI' : 'AI Engine Working...' }}</TooltipContent>
+                        <TooltipContent>{{
+                            isProcessed
+                                ? 'Reprocess with AI'
+                                : 'AI Engine Working...'
+                        }}</TooltipContent>
                     </Tooltip>
 
-                    <Button variant="ghost" size="icon" class="h-8 w-8 text-slate-400 hover:text-slate-900" @click.stop="onEdit">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-slate-400 hover:text-slate-900"
+                        @click.stop="onEdit"
+                    >
                         <Pencil class="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" class="h-8 w-8 text-slate-400 hover:text-red-600" @click.stop="onDelete">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-slate-400 hover:text-red-600"
+                        @click.stop="onDelete"
+                    >
                         <Trash2 class="h-3.5 w-3.5" />
                     </Button>
                 </TooltipProvider>
@@ -83,7 +136,9 @@ const isProcessed = computed(() => props.doc.processed_at !== null);
         </div>
 
         <div v-if="isExpanded" class="px-12 pb-4">
-            <div class="rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 text-xs text-slate-600 dark:text-slate-300 max-h-40 overflow-y-auto whitespace-pre-wrap">
+            <div
+                class="max-h-40 overflow-y-auto rounded-md border border-slate-200 bg-white p-3 text-xs whitespace-pre-wrap text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+            >
                 {{ doc.content || 'No content preview available.' }}
             </div>
         </div>

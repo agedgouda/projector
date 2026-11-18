@@ -1,55 +1,77 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import axios from 'axios';
-import { Loader2 } from 'lucide-vue-next';
-import { toast } from 'vue-sonner';
-import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
 import ImportConfirmModal from '@/components/recordings/ImportConfirmModal.vue';
 import ImportDocumentOptionsPanel from '@/components/recordings/ImportDocumentOptionsPanel.vue';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    useDocumentImportActions,
+    type ImportTypeChoice,
+} from '@/composables/transcripts/useDocumentImportActions';
 import { useGooglePicker } from '@/composables/transcripts/useGooglePicker';
-import { useDocumentImportActions, type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
 import { useRecordingFileUpload } from '@/composables/transcripts/useRecordingFileUpload';
-import { type CustomPrompt } from '@/lib/constants';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
-import { documentTypeLabel, visibleDocumentTypeKeys } from '@/lib/documentTypes';
+import { type CustomPrompt } from '@/lib/constants';
+import {
+    documentTypeLabel,
+    visibleDocumentTypeKeys,
+} from '@/lib/documentTypes';
+import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
 import transcriptRoutes from '@/routes/projects/transcripts/index';
+import axios from 'axios';
+import { Loader2 } from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 
 const NEW_TYPE_VALUE = '__new__';
 
-const props = withDefaults(defineProps<{
-    projectId: string;
-    canManage: boolean;
-    googlePickerConfigured: boolean;
-    googleApiKey: string | null;
-    googleAppId: string | null;
-    // The actual documents already in this project — not the org's curated
-    // document_type_definitions catalog — is what decides which types are offered below (see
-    // typeOptions). documentTypeCatalog is still consulted, but only for two narrower things:
-    // resolving a type key to a nicer label when it has one, and knowing which types are Tasks
-    // (excluded, same as Events — both belong to other tabs, not Documentation). Both optional
-    // (defaulted below) because Projects/Transcripts.vue, a separate older standalone page that
-    // reuses this same modal, doesn't pass either.
-    documents?: ProjectDocument[];
-    documentTypeCatalog?: DocumentSchemaItem[];
-    // Known synchronously (Show.vue already has the organization's own meeting_provider
-    // setting), unlike the recordings list itself — lets the heading show immediately when the
-    // modal opens instead of waiting on the async fetch below just to learn whether there's a
-    // provider at all.
-    meetingProvider?: string | null;
-}>(), {
-    documents: () => [],
-    documentTypeCatalog: () => [],
-    meetingProvider: null,
-});
+const props = withDefaults(
+    defineProps<{
+        projectId: string;
+        canManage: boolean;
+        googlePickerConfigured: boolean;
+        googleApiKey: string | null;
+        googleAppId: string | null;
+        // The actual documents already in this project — not the org's curated
+        // document_type_definitions catalog — is what decides which types are offered below (see
+        // typeOptions). documentTypeCatalog is still consulted, but only for two narrower things:
+        // resolving a type key to a nicer label when it has one, and knowing which types are Tasks
+        // (excluded, same as Events — both belong to other tabs, not Documentation). Both optional
+        // (defaulted below) because Projects/Transcripts.vue, a separate older standalone page that
+        // reuses this same modal, doesn't pass either.
+        documents?: ProjectDocument[];
+        documentTypeCatalog?: DocumentSchemaItem[];
+        // Known synchronously (Show.vue already has the organization's own meeting_provider
+        // setting), unlike the recordings list itself — lets the heading show immediately when the
+        // modal opens instead of waiting on the async fetch below just to learn whether there's a
+        // provider at all.
+        meetingProvider?: string | null;
+    }>(),
+    {
+        documents: () => [],
+        documentTypeCatalog: () => [],
+        meetingProvider: null,
+    },
+);
 
 const { isOpening, openPicker } = useGooglePicker();
-const { importingGoogleDoc, importGoogleDoc, importingFile, importFile } = useDocumentImportActions(props.projectId);
-const { uploadProgress: recordingUploadProgress, uploadRecordingFile } = useRecordingFileUpload(props.projectId);
+const { importingGoogleDoc, importGoogleDoc, importingFile, importFile } =
+    useDocumentImportActions(props.projectId);
+const { uploadProgress: recordingUploadProgress, uploadRecordingFile } =
+    useRecordingFileUpload(props.projectId);
 
 const modalOpen = ref(false);
 
@@ -73,14 +95,20 @@ defineExpose({
 // Applies identically to all three import sources below (Google Doc, file, recording) — see
 // handleItemPicked.
 const typeOptions = computed(() => {
-    const used = visibleDocumentTypeKeys(props.documents, props.documentTypeCatalog);
+    const used = visibleDocumentTypeKeys(
+        props.documents,
+        props.documentTypeCatalog,
+    );
     // Always offered even for a project with none currently visible (every existing one
     // already processed into something else, or none imported yet) — it's the baseline "this
     // needs cleanup" choice every import had before this picker existed, not something that
     // should disappear just because nothing is sitting unprocessed at this exact moment.
     const keys = used.includes(INTAKE_KEY) ? used : [INTAKE_KEY, ...used];
 
-    return keys.map((key) => ({ key, label: documentTypeLabel(key, props.documentTypeCatalog) }));
+    return keys.map((key) => ({
+        key,
+        label: documentTypeLabel(key, props.documentTypeCatalog),
+    }));
 });
 
 // A handful of pill-style radio buttons reads fine; once "Other" would make a sixth (or
@@ -96,11 +124,15 @@ const isAddingNewType = computed(() => selectedType.value === NEW_TYPE_VALUE);
 const skipProcessing = computed(() => selectedType.value !== INTAKE_KEY);
 
 const typeChoice = computed<ImportTypeChoice>(() =>
-    isAddingNewType.value ? { newTypeLabel: newTypeLabel.value.trim() } : { type: selectedType.value },
+    isAddingNewType.value
+        ? { newTypeLabel: newTypeLabel.value.trim() }
+        : { type: selectedType.value },
 );
 
 // Nothing valid to submit while "Other" is picked but not yet named.
-const typeChoiceIncomplete = computed(() => isAddingNewType.value && newTypeLabel.value.trim() === '');
+const typeChoiceIncomplete = computed(
+    () => isAddingNewType.value && newTypeLabel.value.trim() === '',
+);
 
 // Every source (Google Doc, file, recording) funnels through this once we actually know what's
 // being imported — the one place that decides whether the shared confirmation dialog below is
@@ -109,11 +141,19 @@ const typeChoiceIncomplete = computed(() => isAddingNewType.value && newTypeLabe
 // place); every other type imports immediately, identically across all three sources. A picked
 // recording follows this exact same rule too — see AvailableRecordings.vue's own copy of this
 // same gate, since a recording row's click can't route through this component's state directly.
-const pendingImport = ref<{ title: string; run: (prompt: CustomPrompt | null) => void } | null>(null);
+const pendingImport = ref<{
+    title: string;
+    run: (prompt: CustomPrompt | null) => void;
+} | null>(null);
 const isImportConfirmOpen = ref(false);
-const importConfirmLoading = computed(() => importingGoogleDoc.value || importingFile.value !== null);
+const importConfirmLoading = computed(
+    () => importingGoogleDoc.value || importingFile.value !== null,
+);
 
-const handleItemPicked = (title: string, run: (prompt: CustomPrompt | null) => void) => {
+const handleItemPicked = (
+    title: string,
+    run: (prompt: CustomPrompt | null) => void,
+) => {
     if (skipProcessing.value) {
         run(null);
         return;
@@ -132,13 +172,18 @@ const confirmImport = (additionalInfo: CustomPrompt | null) => {
 };
 
 const handleFilePicked = (file: File, kind: 'docx' | 'txt') => {
-    handleItemPicked(file.name, (prompt) => importFile(file, kind, prompt, typeChoice.value));
+    handleItemPicked(file.name, (prompt) =>
+        importFile(file, kind, prompt, typeChoice.value),
+    );
 };
 
 // Always Transcription regardless of "Import As" (the panel disables the row otherwise), so
 // this goes straight to the confirmation dialog rather than through handleItemPicked's gate.
 const handleRecordingPicked = (file: File) => {
-    pendingImport.value = { title: file.name, run: (prompt) => void uploadRecordingFile(file, prompt) };
+    pendingImport.value = {
+        title: file.name,
+        run: (prompt) => void uploadRecordingFile(file, prompt),
+    };
     isImportConfirmOpen.value = true;
 };
 
@@ -149,22 +194,32 @@ const handleRecordingPicked = (file: File) => {
 const startGoogleDocImport = async () => {
     try {
         const response = await axios.get<{ access_token: string }>(
-            transcriptRoutes.googlePickerToken.url(props.projectId)
+            transcriptRoutes.googlePickerToken.url(props.projectId),
         );
 
         await openPicker({
             accessToken: response.data.access_token,
             apiKey: props.googleApiKey ?? '',
             appId: props.googleAppId ?? '',
-            onPicked: (file) => handleItemPicked(file.name, (prompt) => importGoogleDoc(file, prompt, typeChoice.value)),
+            onPicked: (file) =>
+                handleItemPicked(file.name, (prompt) =>
+                    importGoogleDoc(file, prompt, typeChoice.value),
+                ),
         });
     } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.status === 428 && err.response.data?.connect_url) {
+        if (
+            axios.isAxiosError(err) &&
+            err.response?.status === 428 &&
+            err.response.data?.connect_url
+        ) {
             const returnUrl = new URL(window.location.href);
             returnUrl.searchParams.set('google_doc_import', '1');
 
             const connectUrl = new URL(err.response.data.connect_url);
-            connectUrl.searchParams.set('return_to', returnUrl.pathname + returnUrl.search);
+            connectUrl.searchParams.set(
+                'return_to',
+                returnUrl.pathname + returnUrl.search,
+            );
 
             window.location.href = connectUrl.toString();
             return;
@@ -174,7 +229,10 @@ const startGoogleDocImport = async () => {
 };
 
 onMounted(() => {
-    if (new URLSearchParams(window.location.search).get('google_doc_import') === '1') {
+    if (
+        new URLSearchParams(window.location.search).get('google_doc_import') ===
+        '1'
+    ) {
         const url = new URL(window.location.href);
         url.searchParams.delete('google_doc_import');
         window.history.replaceState(window.history.state, '', url);
@@ -189,21 +247,26 @@ onMounted(() => {
 // through, which was the actual cause of it sometimes just not showing. Fetched directly here
 // instead, every time the modal opens, so it's fully self-contained regardless of how long the
 // underlying page has been sitting open or which tab got clicked first.
-const recordingsState = ref<{
-    recordings: Recording[];
-    importedIds: string[];
-    crossProjectImportedIds: string[];
-    providerError: string | null;
-    provider: string | null;
-    canManageTranscripts: boolean;
-} | undefined>(undefined);
+const recordingsState = ref<
+    | {
+          recordings: Recording[];
+          importedIds: string[];
+          crossProjectImportedIds: string[];
+          providerError: string | null;
+          provider: string | null;
+          canManageTranscripts: boolean;
+      }
+    | undefined
+>(undefined);
 
 watch(modalOpen, async (open) => {
     if (!open) return;
 
     recordingsState.value = undefined;
     try {
-        const response = await axios.get(transcriptRoutes.available.url(props.projectId));
+        const response = await axios.get(
+            transcriptRoutes.available.url(props.projectId),
+        );
         recordingsState.value = response.data;
     } catch {
         toast.error('Could not load available recordings.');
@@ -219,32 +282,64 @@ watch(modalOpen, async (open) => {
             </DialogHeader>
 
             <div class="mb-5">
-                <Label class="mb-2 block text-[10px] font-black tracking-widest text-gray-400 uppercase">
+                <Label
+                    class="mb-2 block text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
                     Import As
                 </Label>
-                <RadioGroup v-if="!useDropdown" v-model="selectedType" class="flex flex-row flex-wrap gap-x-6 gap-y-2">
-                    <div v-for="option in typeOptions" :key="option.key" class="flex items-center gap-2">
-                        <RadioGroupItem :id="`import-type-${option.key}`" :value="option.key" />
-                        <Label :for="`import-type-${option.key}`" class="text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                <RadioGroup
+                    v-if="!useDropdown"
+                    v-model="selectedType"
+                    class="flex flex-row flex-wrap gap-x-6 gap-y-2"
+                >
+                    <div
+                        v-for="option in typeOptions"
+                        :key="option.key"
+                        class="flex items-center gap-2"
+                    >
+                        <RadioGroupItem
+                            :id="`import-type-${option.key}`"
+                            :value="option.key"
+                        />
+                        <Label
+                            :for="`import-type-${option.key}`"
+                            class="text-[13px] font-medium text-slate-600 dark:text-slate-300"
+                        >
                             {{ option.label }}
                         </Label>
                     </div>
                     <div class="flex items-center gap-2">
-                        <RadioGroupItem id="import-type-new" :value="NEW_TYPE_VALUE" />
-                        <Label for="import-type-new" class="text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                        <RadioGroupItem
+                            id="import-type-new"
+                            :value="NEW_TYPE_VALUE"
+                        />
+                        <Label
+                            for="import-type-new"
+                            class="text-[13px] font-medium text-slate-600 dark:text-slate-300"
+                        >
                             Other
                         </Label>
                     </div>
                 </RadioGroup>
-                <Select v-else :model-value="selectedType" @update:model-value="(v) => selectedType = (v as string)">
+                <Select
+                    v-else
+                    :model-value="selectedType"
+                    @update:model-value="(v) => (selectedType = v as string)"
+                >
                     <SelectTrigger class="h-9 w-full text-[13px]">
                         <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem v-for="option in typeOptions" :key="option.key" :value="option.key">
+                        <SelectItem
+                            v-for="option in typeOptions"
+                            :key="option.key"
+                            :value="option.key"
+                        >
                             {{ option.label }}
                         </SelectItem>
-                        <SelectItem :value="NEW_TYPE_VALUE">Other...</SelectItem>
+                        <SelectItem :value="NEW_TYPE_VALUE"
+                            >Other...</SelectItem
+                        >
                     </SelectContent>
                 </Select>
                 <Input
@@ -293,18 +388,27 @@ watch(modalOpen, async (open) => {
                      section. Reuses the exact same import flow the Transcripts tab itself uses
                      (AvailableRecordings.vue), nothing new to keep in sync. -->
                 <div v-if="meetingProvider" class="mt-0.5">
-                    <div v-if="recordingsState === undefined" class="flex flex-col items-center justify-center py-12">
-                        <p class="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">
+                    <div
+                        v-if="recordingsState === undefined"
+                        class="flex flex-col items-center justify-center py-12"
+                    >
+                        <p
+                            class="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300"
+                        >
                             Checking for Available Recordings
                         </p>
-                        <Loader2 class="h-8 w-8 animate-spin text-projector-primary-500" />
+                        <Loader2
+                            class="h-8 w-8 animate-spin text-projector-primary-500"
+                        />
                     </div>
                     <AvailableRecordings
                         v-else
                         :project-id="projectId"
                         :recordings="recordingsState.recordings"
                         :imported-ids="recordingsState.importedIds"
-                        :cross-project-imported-ids="recordingsState.crossProjectImportedIds"
+                        :cross-project-imported-ids="
+                            recordingsState.crossProjectImportedIds
+                        "
                         :can-manage="recordingsState.canManageTranscripts"
                         :provider-error="recordingsState.providerError"
                         :type-choice="typeChoice"

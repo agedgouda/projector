@@ -2,12 +2,11 @@
 
 namespace App\Events;
 
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Broadcasting\Channel;
 
 class TestEvent implements ShouldBroadcast
 {
@@ -17,7 +16,7 @@ class TestEvent implements ShouldBroadcast
 
     public function __construct()
     {
-        $this->message = "fired";
+        $this->message = 'fired';
     }
 
     public function broadcastOn(): Channel

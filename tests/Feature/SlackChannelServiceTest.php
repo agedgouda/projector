@@ -2,10 +2,11 @@
 
 use App\Models\SlackWorkspace;
 use App\Services\Slack\SlackChannelService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->workspace = SlackWorkspace::factory()->create();

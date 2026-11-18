@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Carbon;
 use Pgvector\Laravel\HasNeighbors;
 use Pgvector\Laravel\Vector;
 use Spatie\MediaLibrary\HasMedia;
@@ -21,15 +23,13 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property User|null $editor
  * @property User|null $assignee
  * @property OrganizationInvitation|null $pendingAssignee
- * @property string|null $locked_project_type_id
  * @property string|null $custom_prompt
- * @property \App\Enums\CustomPromptMode|null $custom_prompt_mode
+ * @property CustomPromptMode|null $custom_prompt_mode
  * @property int|null $last_ai_template_id
  * @property string|null $last_output_key
  * @property AiTemplate|null $lastAiTemplate
- * @property \Illuminate\Support\Carbon|null $content_updated_at
- * @property \Illuminate\Support\Carbon|null $status_changed_at
- * @property-read bool $locked_next_workflow_step_exists Only present after loadExists('lockedNextWorkflowStep').
+ * @property Carbon|null $content_updated_at
+ * @property Carbon|null $status_changed_at
  */
 class Document extends Model implements HasMedia
 {
@@ -80,7 +80,6 @@ class Document extends Model implements HasMedia
         'external_due_at',
         'start_at',
         'predecessor_id',
-        'locked_project_type_id',
         'custom_prompt',
         'custom_prompt_mode',
         'last_ai_template_id',
@@ -149,9 +148,9 @@ class Document extends Model implements HasMedia
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Document, $this>
+     * @return HasMany<Document, $this>
      */
-    public function children(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function children(): HasMany
     {
         return $this->hasMany(Document::class, 'parent_id');
     }
@@ -169,9 +168,9 @@ class Document extends Model implements HasMedia
     /**
      * The tasks that start the day this one ends.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Document, $this>
+     * @return HasMany<Document, $this>
      */
-    public function followers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function followers(): HasMany
     {
         return $this->hasMany(Document::class, 'predecessor_id');
     }
@@ -189,33 +188,6 @@ class Document extends Model implements HasMedia
         return $this->belongsTo(AiTemplate::class, 'last_ai_template_id');
     }
 
-    /**
-     * The protocol this document's downstream lineage is locked to, once processed via a
-     * user-chosen protocol (as opposed to a raw AI template, or the universal intake step).
-     *
-     * @return BelongsTo<ProjectType, $this>
-     */
-    public function lockedProjectType(): BelongsTo
-    {
-        return $this->belongsTo(ProjectType::class, 'locked_project_type_id');
-    }
-
-    /**
-     * The workflow step (if any) that the locked protocol defines for this document's own
-     * type. Its absence means this document is a terminal deliverable within its locked
-     * protocol — reprocessing it would never produce a new child.
-     *
-     * Relies on a correlated subquery (whereColumn against this table), so it only works
-     * through `withExists()`/`withCount()`/`has()` — never via `load()` or lazy access.
-     *
-     * @return HasOne<WorkflowStep, $this>
-     */
-    public function lockedNextWorkflowStep(): HasOne
-    {
-        return $this->hasOne(WorkflowStep::class, 'project_type_id', 'locked_project_type_id')
-            ->whereColumn('workflow_steps.from_key', 'documents.type');
-    }
-
     public function scopeVisibleTo(Builder $query, $user)
     {
         if ($user->hasRole('super-admin')) {
@@ -227,15 +199,15 @@ class Document extends Model implements HasMedia
         });
     }
 
-    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function tasks(): HasMany
     {
         return $this->hasMany(Task::class, 'document_id');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany<Comment, $this>
+     * @return MorphMany<Comment, $this>
      */
-    public function comments(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function comments(): MorphMany
     {
         return $this->morphMany(Comment::class, 'commentable')->oldest();
     }

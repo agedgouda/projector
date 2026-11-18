@@ -8,11 +8,12 @@ use App\Models\SlackChannelBinding;
 use App\Models\SlackUserIdentity;
 use App\Models\SlackWorkspace;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     config(['services.slack.signing_secret' => 'fake-signing-secret']);

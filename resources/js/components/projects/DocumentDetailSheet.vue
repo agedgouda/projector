@@ -88,7 +88,6 @@ const emit = defineEmits<{
             toKey?: string;
             aiTemplateId: number;
             singleOutput?: boolean;
-            projectTypeId?: string;
         },
     ): void;
 

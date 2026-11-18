@@ -7,13 +7,12 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
-use App\Models\WorkflowStep;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->app->bind(VectorDriver::class, fn () => new class implements VectorDriver
@@ -43,18 +42,9 @@ beforeEach(function () {
     $this->otherWorkflow = AiTemplate::create(['name' => 'Create Stories', 'type' => 'workflow', 'output_key' => 'story', 'system_prompt' => 's', 'user_prompt' => '{{input}}']);
     $this->otherOrgWorkflow = AiTemplate::create(['name' => 'Org B Only', 'type' => 'workflow', 'organization_id' => $this->otherOrg->id, 'system_prompt' => 's', 'user_prompt' => '{{input}}']);
 
-    $this->projectType = ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
-            ['label' => 'Task', 'key' => 'task', 'is_task' => true],
-        ],
-    ]);
-    WorkflowStep::create([
-        'project_type_id' => $this->projectType->id,
-        'from_key' => 'action_items',
-        'to_key' => 'task',
-        'ai_template_id' => $this->workflow->id,
-        'order' => 1,
+    seedDocumentTypes([
+        ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => true],
+        ['label' => 'Task', 'key' => 'task', 'is_task' => true],
     ]);
 
     $client = Client::create(['organization_id' => $this->org->id, 'company_name' => 'Client Co', 'contact_name' => 'Jane Doe', 'contact_phone' => '555-1234']);
@@ -170,21 +160,6 @@ it('rejects running a turned-off transformation directly', function () {
     Queue::assertNotPushed(ProcessDocumentAI::class);
 });
 
-it('still runs a turned-off transformation as a protocol step', function () {
-    Queue::fake([ProcessDocumentAI::class]);
-    turnOff($this->workflow, $this->org);
-
-    $this->actingAs($this->admin)
-        ->postJson(route('projects.documents.transition', [$this->project, $this->document]), [
-            'to_key' => 'task',
-            'ai_template_id' => $this->workflow->id,
-            'project_type_id' => $this->projectType->id,
-        ])
-        ->assertSuccessful();
-
-    Queue::assertPushed(ProcessDocumentAI::class);
-});
-
 it('still reprocesses a document whose last transformation was turned off', function () {
     Queue::fake([ProcessDocumentAI::class]);
     $this->document->update(['last_ai_template_id' => $this->workflow->id, 'last_output_key' => 'task']);
@@ -247,22 +222,4 @@ it('shows org admins and super admins a switch on the library cards', function (
     expect($superAdminTemplates['Create Tasks']['can_toggle'])->toBeTrue()
         ->and($superAdminTemplates['Create Tasks']['is_enabled'])->toBeFalse()
         ->and($superAdminTemplates['Org B Only']['can_toggle'])->toBeFalse();
-});
-
-it('only offers protocol steps global and the organization\'s own transformations, marking turned-off ones', function () {
-    turnOff($this->workflow, $this->org);
-
-    $options = collect($this->actingAs($this->admin)
-        ->get(route('project-types.create'))
-        ->viewData('page')['props']['aiTemplates'])->keyBy('name');
-
-    expect($options->keys()->all())->not->toContain('Org B Only')
-        ->and($options['Create Tasks']['disabled_organization_ids'])->toBe([$this->org->id])
-        ->and($options['Create Stories']['disabled_organization_ids'])->toBe([]);
-
-    $superAdminOptions = collect($this->actingAs($this->superAdmin)
-        ->get(route('project-types.create'))
-        ->viewData('page')['props']['aiTemplates'])->pluck('name');
-
-    expect($superAdminOptions->all())->toContain('Org B Only');
 });

@@ -2,22 +2,20 @@
 
 use App\Events\DocumentProcessingUpdate;
 use App\Events\DocumentVectorized;
-use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
-use App\Models\WorkflowStep;
 use Illuminate\Broadcasting\BroadcastException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -27,26 +25,9 @@ beforeEach(function () {
     $this->admin = User::factory()->create();
     $this->admin->assignRole('super-admin');
 
-    $this->projectType = ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => false],
-            ['label' => 'Task', 'key' => 'task', 'is_task' => true],
-        ],
-    ]);
-
-    $template = AiTemplate::create([
-        'name' => 'Action Items to Task',
-        'type' => 'workflow',
-        'system_prompt' => 'Extract tasks.',
-        'user_prompt' => '{{input}}',
-    ]);
-
-    WorkflowStep::create([
-        'project_type_id' => $this->projectType->id,
-        'from_key' => 'action_items',
-        'to_key' => 'task',
-        'ai_template_id' => $template->id,
-        'order' => 1,
+    seedDocumentTypes([
+        ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => false],
+        ['label' => 'Task', 'key' => 'task', 'is_task' => true],
     ]);
 
     $this->client = Client::create([
@@ -62,44 +43,6 @@ beforeEach(function () {
     ]);
 
     setPermissionsTeamId($this->org->id);
-});
-
-it('reports true when the locked protocol still has a next step for this document\'s type', function () {
-    $document = Document::create([
-        'project_id' => $this->project->id,
-        'name' => 'Action Items',
-        'type' => 'action_items',
-        'content' => 'Follow up',
-        'processed_at' => now(),
-        'locked_project_type_id' => $this->projectType->id,
-    ]);
-
-    $this->actingAs($this->admin)
-        ->get(route('projects.documents.show', [$this->project, $document]))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('Documents/Show')
-            ->where('item.locked_next_workflow_step_exists', true)
-        );
-});
-
-it('reports false when the locked protocol has no further step for this document\'s type', function () {
-    $document = Document::create([
-        'project_id' => $this->project->id,
-        'name' => 'Task 1',
-        'type' => 'task',
-        'content' => 'Do it',
-        'processed_at' => now(),
-        'locked_project_type_id' => $this->projectType->id,
-    ]);
-
-    $this->actingAs($this->admin)
-        ->get(route('projects.documents.show', [$this->project, $document]))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('Documents/Show')
-            ->where('item.locked_next_workflow_step_exists', false)
-        );
 });
 
 it('includes child document data, not just existence, so the detail page can link to them', function () {

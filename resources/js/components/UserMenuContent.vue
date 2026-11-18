@@ -11,12 +11,12 @@ import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import { Link, router } from '@inertiajs/vue3';
 import {
+    Building2,
     LogOut,
     Settings,
-    Building2,
-    Workflow,
-    User as UserIcon,
     Settings2,
+    User as UserIcon,
+    Workflow,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -53,13 +53,23 @@ const canSeeTransformations = computed(
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">
-            <Link class="block w-full cursor-pointer" :href="organizationRoutes.index()" prefetch as="button">
+            <Link
+                class="block w-full cursor-pointer"
+                :href="organizationRoutes.index()"
+                prefetch
+                as="button"
+            >
                 <Building2 class="mr-2 h-4 w-4" />
                 Organization
             </Link>
         </DropdownMenuItem>
         <DropdownMenuItem :as-child="true">
-            <Link class="block w-full cursor-pointer" :href="edit()" prefetch as="button">
+            <Link
+                class="block w-full cursor-pointer"
+                :href="edit()"
+                prefetch
+                as="button"
+            >
                 <Settings class="mr-2 h-4 w-4" />
                 Settings
             </Link>
@@ -69,25 +79,45 @@ const canSeeTransformations = computed(
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
             <DropdownMenuItem v-if="canSeeTransformations" :as-child="true">
-                <Link class="block w-full cursor-pointer" :href="transformationLibraryRoutes.index()" prefetch as="button">
+                <Link
+                    class="block w-full cursor-pointer"
+                    :href="transformationLibraryRoutes.index()"
+                    prefetch
+                    as="button"
+                >
                     <Workflow class="mr-2 h-4 w-4" />
                     Transformations
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem v-if="isSuperAdmin" :as-child="true">
-                <Link class="block w-full cursor-pointer" :href="userRoutes.index()" prefetch as="button">
+                <Link
+                    class="block w-full cursor-pointer"
+                    :href="userRoutes.index()"
+                    prefetch
+                    as="button"
+                >
                     <UserIcon class="mr-2 h-4 w-4" />
                     Users
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem v-if="isSuperAdmin" :as-child="true">
-                <Link class="block w-full cursor-pointer" :href="roleRoutes.index()" prefetch as="button">
+                <Link
+                    class="block w-full cursor-pointer"
+                    :href="roleRoutes.index()"
+                    prefetch
+                    as="button"
+                >
                     <Settings2 class="mr-2 h-4 w-4" />
                     Roles
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem v-if="isSuperAdmin" :as-child="true">
-                <Link class="block w-full cursor-pointer" :href="adminOrgRoutes.index()" prefetch as="button">
+                <Link
+                    class="block w-full cursor-pointer"
+                    :href="adminOrgRoutes.index()"
+                    prefetch
+                    as="button"
+                >
                     <Building2 class="mr-2 h-4 w-4" />
                     Org Admin
                 </Link>
@@ -97,7 +127,7 @@ const canSeeTransformations = computed(
     <DropdownMenuSeparator />
     <DropdownMenuItem :as-child="true">
         <Link
-            class="block w-full text-destructive focus:text-destructive cursor-pointer"
+            class="block w-full cursor-pointer text-destructive focus:text-destructive"
             :href="logout()"
             @click="handleLogout"
             as="button"

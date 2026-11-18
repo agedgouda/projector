@@ -1,18 +1,22 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import LogoFileInput from '@/components/LogoFileInput.vue';
+import LogoUpload from '@/components/LogoUpload.vue';
+import MeetingProviderSetupModal from '@/components/MeetingProviderSetupModal.vue';
 import { Button } from '@/components/ui/button';
-import { toast } from "vue-sonner";
-import { HelpCircle } from 'lucide-vue-next';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    LLM_DRIVERS,
+    MEETING_PROVIDERS,
+    VECTOR_DRIVERS,
+} from '@/lib/constants';
 import organizationRoutes from '@/routes/organizations/index';
 import organizationLogoRoutes from '@/routes/organizations/logo/index';
 import organizationPdfBrandingRoutes from '@/routes/organizations/pdf-branding/index';
-import { LLM_DRIVERS, VECTOR_DRIVERS, MEETING_PROVIDERS } from '@/lib/constants';
-import MeetingProviderSetupModal from '@/components/MeetingProviderSetupModal.vue';
-import LogoUpload from '@/components/LogoUpload.vue';
-import LogoFileInput from '@/components/LogoFileInput.vue';
+import { useForm } from '@inertiajs/vue3';
+import { HelpCircle } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 interface AiConfigForm {
     model: string;
@@ -55,33 +59,37 @@ const form = useForm({
     logo: null as File | null,
     llm_driver: props.organization?.llm_driver || '',
     llm_config: {
-        key:   '',
+        key: '',
         model: props.organization?.llm_config_form?.model || '',
-        host:  props.organization?.llm_config_form?.host  || '',
+        host: props.organization?.llm_config_form?.host || '',
     },
     vector_driver: props.organization?.vector_driver || '',
     vector_config: {
-        key:   '',
+        key: '',
         model: props.organization?.vector_config_form?.model || '',
-        host:  props.organization?.vector_config_form?.host  || '',
+        host: props.organization?.vector_config_form?.host || '',
     },
-    uses_external_due_dates: props.organization?.uses_external_due_dates ?? false,
+    uses_external_due_dates:
+        props.organization?.uses_external_due_dates ?? false,
     uses_task_start_dates: props.organization?.uses_task_start_dates ?? false,
     meeting_provider: props.organization?.meeting_provider || '',
     meeting_config: {
-        account_id:            props.organization?.meeting_config_form?.account_id            || '',
-        tenant_id:             props.organization?.meeting_config_form?.tenant_id             || '',
-        client_id:             props.organization?.meeting_config_form?.client_id             || '',
-        client_secret:         '',
-        service_account_email: props.organization?.meeting_config_form?.service_account_email || '',
-        impersonate_email:     props.organization?.meeting_config_form?.impersonate_email     || '',
-        private_key:           '',
-        bot_token:             '',
+        account_id: props.organization?.meeting_config_form?.account_id || '',
+        tenant_id: props.organization?.meeting_config_form?.tenant_id || '',
+        client_id: props.organization?.meeting_config_form?.client_id || '',
+        client_secret: '',
+        service_account_email:
+            props.organization?.meeting_config_form?.service_account_email ||
+            '',
+        impersonate_email:
+            props.organization?.meeting_config_form?.impersonate_email || '',
+        private_key: '',
+        bot_token: '',
     } as MeetingConfigForm,
 });
 
 const usesApiKey = computed(() =>
-    ['openai', 'gemini', 'claude'].includes(form.llm_driver)
+    ['openai', 'gemini', 'claude'].includes(form.llm_driver),
 );
 
 const usesHost = computed(() => form.llm_driver === 'ollama');
@@ -90,7 +98,8 @@ const usesHost = computed(() => form.llm_driver === 'ollama');
 // say, a saved OpenAI key for Gemini (see OrganizationRequest::needsOwnGeminiKey()).
 const keyPlaceholder = computed(() => {
     if (!form.llm_driver) return '';
-    return props.organization?.llm_config_form?.has_key && form.llm_driver === props.organization?.llm_driver
+    return props.organization?.llm_config_form?.has_key &&
+        form.llm_driver === props.organization?.llm_driver
         ? 'Leave blank to keep existing key'
         : 'Enter API key';
 });
@@ -106,23 +115,24 @@ const defaultModelPlaceholder = computed((): string => {
 });
 
 // Vector driver — "same" is only valid when the LLM driver is an embedding-capable provider
-const sameAsLlmDisabled = computed(() =>
-    !form.llm_driver || form.llm_driver === 'claude'
+const sameAsLlmDisabled = computed(
+    () => !form.llm_driver || form.llm_driver === 'claude',
 );
 
 const vectorUsesApiKey = computed(() =>
-    ['openai', 'gemini'].includes(form.vector_driver)
+    ['openai', 'gemini'].includes(form.vector_driver),
 );
 
 const vectorUsesHost = computed(() => form.vector_driver === 'ollama');
 
-const vectorShowsConfig = computed(() =>
-    !!form.vector_driver && form.vector_driver !== 'same'
+const vectorShowsConfig = computed(
+    () => !!form.vector_driver && form.vector_driver !== 'same',
 );
 
 const vectorKeyPlaceholder = computed(() => {
     if (!form.vector_driver) return '';
-    return props.organization?.vector_config_form?.has_key && form.vector_driver === props.organization?.vector_driver
+    return props.organization?.vector_config_form?.has_key &&
+        form.vector_driver === props.organization?.vector_driver
         ? 'Leave blank to keep existing key'
         : 'Enter API key';
 });
@@ -146,19 +156,19 @@ const isSlack = computed(() => form.meeting_provider === 'slack');
 const clientSecretPlaceholder = computed(() =>
     props.organization?.meeting_config_form?.has_client_secret
         ? 'Leave blank to keep existing secret'
-        : 'Enter client secret'
+        : 'Enter client secret',
 );
 
 const privateKeyPlaceholder = computed(() =>
     props.organization?.meeting_config_form?.has_private_key
         ? 'Leave blank to keep existing private key'
-        : 'Paste PEM private key here'
+        : 'Paste PEM private key here',
 );
 
 const botTokenPlaceholder = computed(() =>
     props.organization?.meeting_config_form?.has_bot_token
         ? 'Leave blank to keep existing bot token'
-        : 'xoxb-...'
+        : 'xoxb-...',
 );
 
 const submit = () => {
@@ -172,14 +182,16 @@ const submit = () => {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
-            toast.success(isEditing ? 'Organization updated' : 'Organization created');
+            toast.success(
+                isEditing ? 'Organization updated' : 'Organization created',
+            );
             emit('success');
         },
         onError: () => {
             toast.error('Submission failed', {
-                description: form.errors.name || 'Check required fields.'
+                description: form.errors.name || 'Check required fields.',
             });
-        }
+        },
     });
 };
 </script>
@@ -201,16 +213,22 @@ const submit = () => {
         />
 
         <div class="grid gap-2">
-            <Label for="name" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+            <Label
+                for="name"
+                class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+            >
                 Organization Name
             </Label>
             <Input
                 id="name"
                 v-model="form.name"
-                class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-bold"
+                class="h-12 rounded-xl border-gray-200 bg-white font-bold dark:border-gray-800 dark:bg-gray-950"
                 :class="{ 'border-red-500': form.errors.name }"
             />
-            <div v-if="form.errors.name" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
+            <div
+                v-if="form.errors.name"
+                class="px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase"
+            >
                 {{ form.errors.name }}
             </div>
         </div>
@@ -220,9 +238,12 @@ const submit = () => {
                 id="uses_external_due_dates"
                 type="checkbox"
                 v-model="form.uses_external_due_dates"
-                class="w-4 h-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
+                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
             />
-            <Label for="uses_external_due_dates" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+            <Label
+                for="uses_external_due_dates"
+                class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
                 Track separate internal and external due dates on tasks
             </Label>
         </div>
@@ -232,254 +253,342 @@ const submit = () => {
                 id="uses_task_start_dates"
                 type="checkbox"
                 v-model="form.uses_task_start_dates"
-                class="w-4 h-4 rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:bg-gray-900 dark:border-gray-700 cursor-pointer"
+                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-projector-primary-600 focus:ring-projector-primary-500 dark:border-gray-700 dark:bg-gray-900"
             />
-            <Label for="uses_task_start_dates" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+            <Label
+                for="uses_task_start_dates"
+                class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
                 Track start dates on tasks
             </Label>
         </div>
 
         <!-- AI Driver Overrides -->
-        <div class="pt-4 space-y-4">
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    AI Driver
-                </p>
+        <div class="space-y-4 pt-4">
+            <p
+                class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+            >
+                AI Driver
+            </p>
 
-                <div class="grid gap-2">
-                    <Label for="llm_driver" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                        LLM Driver
-                    </Label>
-                    <select
-                        id="llm_driver"
-                        v-model="form.llm_driver"
-                        class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500"
+            <div class="grid gap-2">
+                <Label
+                    for="llm_driver"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
+                    LLM Driver
+                </Label>
+                <select
+                    id="llm_driver"
+                    v-model="form.llm_driver"
+                    class="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 outline-none focus:border-projector-primary-500 focus:ring-2 focus:ring-projector-primary-500/30 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200"
+                >
+                    <option
+                        v-for="d in LLM_DRIVERS"
+                        :key="d.value"
+                        :value="d.value"
                     >
-                        <option v-for="d in LLM_DRIVERS" :key="d.value" :value="d.value">
-                            {{ d.label }}
-                        </option>
-                    </select>
-                    <p class="text-[10px] text-gray-400 px-1">
-                        Override the system-wide AI driver for this organization. Leave as "System Default" to use the platform setting.
-                    </p>
-                </div>
-
-                <template v-if="form.llm_driver">
-                    <!-- API key field (OpenAI / Gemini / Claude) -->
-                    <div v-if="usesApiKey" class="grid gap-2">
-                        <Label for="llm_key" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                            API Key
-                        </Label>
-                        <Input
-                            id="llm_key"
-                            v-model="form.llm_config.key"
-                            type="password"
-                            autocomplete="off"
-                            :placeholder="keyPlaceholder"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
-                            :class="{ 'border-red-500': form.errors['llm_config.key'] }"
-                        />
-                        <p v-if="form.llm_driver === 'gemini'" class="text-[10px] text-gray-400 px-1">
-                            Gemini requires your organization's own API key. Projector does not provide one.
-                        </p>
-                        <div v-if="form.errors['llm_config.key']" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
-                            {{ form.errors['llm_config.key'] }}
-                        </div>
-                    </div>
-
-                    <!-- Host field (Ollama) -->
-                    <div v-if="usesHost" class="grid gap-2">
-                        <Label for="llm_host" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                            Ollama Host URL
-                        </Label>
-                        <Input
-                            id="llm_host"
-                            v-model="form.llm_config.host"
-                            type="url"
-                            :placeholder="'http://localhost:11434'"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
-                        />
-                    </div>
-
-                    <!-- Model -->
-                    <div class="grid gap-2">
-                        <Label for="llm_model" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                            Model
-                        </Label>
-                        <Input
-                            id="llm_model"
-                            v-model="form.llm_config.model"
-                            :placeholder="defaultModelPlaceholder"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
-                        />
-                        <p class="text-[10px] text-gray-400 px-1">
-                            Leave blank to use the default model for this driver.
-                        </p>
-                    </div>
-                </template>
+                        {{ d.label }}
+                    </option>
+                </select>
+                <p class="px-1 text-[10px] text-gray-400">
+                    Override the system-wide AI driver for this organization.
+                    Leave as "System Default" to use the platform setting.
+                </p>
             </div>
 
-            <!-- Vector / Embeddings Driver -->
-            <div class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Embeddings Driver Override
-                </p>
-
-                <div class="grid gap-2">
-                    <Label for="vector_driver" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                        Vector Driver
-                    </Label>
-                    <select
-                        id="vector_driver"
-                        v-model="form.vector_driver"
-                        class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500"
+            <template v-if="form.llm_driver">
+                <!-- API key field (OpenAI / Gemini / Claude) -->
+                <div v-if="usesApiKey" class="grid gap-2">
+                    <Label
+                        for="llm_key"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
                     >
-                        <option
-                            v-for="d in VECTOR_DRIVERS"
-                            :key="d.value"
-                            :value="d.value"
-                            :disabled="d.value === 'same' && sameAsLlmDisabled"
-                        >
-                            {{ d.label }}{{ d.value === 'same' && sameAsLlmDisabled ? ' (requires embedding-capable LLM)' : '' }}
-                        </option>
-                    </select>
-                    <p class="text-[10px] text-gray-400 px-1">
-                        Override the embeddings provider. "Same as LLM Driver" reuses your LLM credentials — unavailable when LLM is Claude (no embeddings API) or System Default.
+                        API Key
+                    </Label>
+                    <Input
+                        id="llm_key"
+                        v-model="form.llm_config.key"
+                        type="password"
+                        autocomplete="off"
+                        :placeholder="keyPlaceholder"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
+                        :class="{
+                            'border-red-500': form.errors['llm_config.key'],
+                        }"
+                    />
+                    <p
+                        v-if="form.llm_driver === 'gemini'"
+                        class="px-1 text-[10px] text-gray-400"
+                    >
+                        Gemini requires your organization's own API key.
+                        Projector does not provide one.
                     </p>
+                    <div
+                        v-if="form.errors['llm_config.key']"
+                        class="px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase"
+                    >
+                        {{ form.errors['llm_config.key'] }}
+                    </div>
                 </div>
 
-                <template v-if="vectorShowsConfig">
-                    <!-- API key field (OpenAI / Gemini) -->
-                    <div v-if="vectorUsesApiKey" class="grid gap-2">
-                        <Label for="vector_key" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                            API Key
-                        </Label>
-                        <Input
-                            id="vector_key"
-                            v-model="form.vector_config.key"
-                            type="password"
-                            autocomplete="off"
-                            :placeholder="vectorKeyPlaceholder"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
-                            :class="{ 'border-red-500': form.errors['vector_config.key'] }"
-                        />
-                        <p v-if="form.vector_driver === 'gemini'" class="text-[10px] text-gray-400 px-1">
-                            Gemini requires your organization's own API key. Projector does not provide one.
-                        </p>
-                        <div v-if="form.errors['vector_config.key']" class="text-[10px] text-red-500 font-bold px-1 uppercase tracking-tight">
-                            {{ form.errors['vector_config.key'] }}
-                        </div>
-                    </div>
+                <!-- Host field (Ollama) -->
+                <div v-if="usesHost" class="grid gap-2">
+                    <Label
+                        for="llm_host"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >
+                        Ollama Host URL
+                    </Label>
+                    <Input
+                        id="llm_host"
+                        v-model="form.llm_config.host"
+                        type="url"
+                        :placeholder="'http://localhost:11434'"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
+                    />
+                </div>
 
-                    <!-- Host field (Ollama) -->
-                    <div v-if="vectorUsesHost" class="grid gap-2">
-                        <Label for="vector_host" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                            Ollama Host URL
-                        </Label>
-                        <Input
-                            id="vector_host"
-                            v-model="form.vector_config.host"
-                            type="url"
-                            placeholder="http://localhost:11434"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
-                        />
-                    </div>
+                <!-- Model -->
+                <div class="grid gap-2">
+                    <Label
+                        for="llm_model"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >
+                        Model
+                    </Label>
+                    <Input
+                        id="llm_model"
+                        v-model="form.llm_config.model"
+                        :placeholder="defaultModelPlaceholder"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
+                    />
+                    <p class="px-1 text-[10px] text-gray-400">
+                        Leave blank to use the default model for this driver.
+                    </p>
+                </div>
+            </template>
+        </div>
 
-                    <!-- Model -->
-                    <div class="grid gap-2">
-                        <Label for="vector_model" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-                            Embedding Model
-                        </Label>
-                        <Input
-                            id="vector_model"
-                            v-model="form.vector_config.model"
-                            :placeholder="vectorDefaultModelPlaceholder"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
-                        />
-                        <p class="text-[10px] text-gray-400 px-1">
-                            Leave blank to use the default embedding model for this driver.
-                        </p>
+        <!-- Vector / Embeddings Driver -->
+        <div
+            class="space-y-4 border-t border-gray-100 pt-4 dark:border-gray-800"
+        >
+            <p
+                class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+            >
+                Embeddings Driver Override
+            </p>
+
+            <div class="grid gap-2">
+                <Label
+                    for="vector_driver"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
+                    Vector Driver
+                </Label>
+                <select
+                    id="vector_driver"
+                    v-model="form.vector_driver"
+                    class="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 outline-none focus:border-projector-primary-500 focus:ring-2 focus:ring-projector-primary-500/30 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200"
+                >
+                    <option
+                        v-for="d in VECTOR_DRIVERS"
+                        :key="d.value"
+                        :value="d.value"
+                        :disabled="d.value === 'same' && sameAsLlmDisabled"
+                    >
+                        {{ d.label
+                        }}{{
+                            d.value === 'same' && sameAsLlmDisabled
+                                ? ' (requires embedding-capable LLM)'
+                                : ''
+                        }}
+                    </option>
+                </select>
+                <p class="px-1 text-[10px] text-gray-400">
+                    Override the embeddings provider. "Same as LLM Driver"
+                    reuses your LLM credentials — unavailable when LLM is Claude
+                    (no embeddings API) or System Default.
+                </p>
+            </div>
+
+            <template v-if="vectorShowsConfig">
+                <!-- API key field (OpenAI / Gemini) -->
+                <div v-if="vectorUsesApiKey" class="grid gap-2">
+                    <Label
+                        for="vector_key"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >
+                        API Key
+                    </Label>
+                    <Input
+                        id="vector_key"
+                        v-model="form.vector_config.key"
+                        type="password"
+                        autocomplete="off"
+                        :placeholder="vectorKeyPlaceholder"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
+                        :class="{
+                            'border-red-500': form.errors['vector_config.key'],
+                        }"
+                    />
+                    <p
+                        v-if="form.vector_driver === 'gemini'"
+                        class="px-1 text-[10px] text-gray-400"
+                    >
+                        Gemini requires your organization's own API key.
+                        Projector does not provide one.
+                    </p>
+                    <div
+                        v-if="form.errors['vector_config.key']"
+                        class="px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase"
+                    >
+                        {{ form.errors['vector_config.key'] }}
                     </div>
-                </template>
+                </div>
+
+                <!-- Host field (Ollama) -->
+                <div v-if="vectorUsesHost" class="grid gap-2">
+                    <Label
+                        for="vector_host"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >
+                        Ollama Host URL
+                    </Label>
+                    <Input
+                        id="vector_host"
+                        v-model="form.vector_config.host"
+                        type="url"
+                        placeholder="http://localhost:11434"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
+                    />
+                </div>
+
+                <!-- Model -->
+                <div class="grid gap-2">
+                    <Label
+                        for="vector_model"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >
+                        Embedding Model
+                    </Label>
+                    <Input
+                        id="vector_model"
+                        v-model="form.vector_config.model"
+                        :placeholder="vectorDefaultModelPlaceholder"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
+                    />
+                    <p class="px-1 text-[10px] text-gray-400">
+                        Leave blank to use the default embedding model for this
+                        driver.
+                    </p>
+                </div>
+            </template>
         </div>
 
         <!-- Meeting Provider -->
-        <div class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
+        <div
+            class="space-y-4 border-t border-gray-100 pt-4 dark:border-gray-800"
+        >
             <div class="flex items-center justify-between">
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                <p
+                    class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
                     Meeting Transcripts
                 </p>
                 <button
                     v-if="form.meeting_provider"
                     type="button"
                     @click="isSetupGuideOpen = true"
-                    class="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-projector-primary-500 hover:text-projector-primary-700 dark:hover:text-projector-primary-300 transition-colors"
+                    class="flex items-center gap-1 text-[10px] font-black tracking-widest text-projector-primary-500 uppercase transition-colors hover:text-projector-primary-700 dark:hover:text-projector-primary-300"
                 >
-                    <HelpCircle class="w-3.5 h-3.5" />
+                    <HelpCircle class="h-3.5 w-3.5" />
                     Setup Guide
                 </button>
             </div>
 
             <div class="grid gap-2">
-                <Label for="meeting_provider" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                <Label
+                    for="meeting_provider"
+                    class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
                     Meeting Provider
                 </Label>
                 <select
                     id="meeting_provider"
                     v-model="form.meeting_provider"
-                    class="h-12 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500"
+                    class="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 outline-none focus:border-projector-primary-500 focus:ring-2 focus:ring-projector-primary-500/30 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200"
                 >
-                    <option v-for="p in MEETING_PROVIDERS" :key="p.value" :value="p.value">
+                    <option
+                        v-for="p in MEETING_PROVIDERS"
+                        :key="p.value"
+                        :value="p.value"
+                    >
                         {{ p.label }}
                     </option>
                 </select>
-                <p class="text-[10px] text-gray-400 px-1">
-                    Select a video conferencing provider to enable meeting transcript capture.
+                <p class="px-1 text-[10px] text-gray-400">
+                    Select a video conferencing provider to enable meeting
+                    transcript capture.
                 </p>
             </div>
 
             <template v-if="meetingShowsConfig">
                 <!-- Zoom: Account ID -->
                 <div v-if="isZoom" class="grid gap-2">
-                    <Label for="meeting_account_id" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    <Label
+                        for="meeting_account_id"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >
                         Account ID
                     </Label>
                     <Input
                         id="meeting_account_id"
                         v-model="form.meeting_config.account_id"
                         placeholder="Your Zoom Account ID"
-                        class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
                     />
                 </div>
 
                 <!-- Teams: Tenant ID -->
                 <div v-if="isTeams" class="grid gap-2">
-                    <Label for="meeting_tenant_id" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    <Label
+                        for="meeting_tenant_id"
+                        class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                    >
                         Tenant ID
                     </Label>
                     <Input
                         id="meeting_tenant_id"
                         v-model="form.meeting_config.tenant_id"
                         placeholder="Your Azure Tenant ID"
-                        class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                        class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
                     />
                 </div>
 
                 <!-- Zoom / Teams: Client ID + Secret -->
                 <template v-if="!isGoogleMeet && !isSlack">
                     <div class="grid gap-2">
-                        <Label for="meeting_client_id" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        <Label
+                            for="meeting_client_id"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >
                             Client ID
                         </Label>
                         <Input
                             id="meeting_client_id"
                             v-model="form.meeting_config.client_id"
                             placeholder="OAuth Client ID"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                            class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
                         />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="meeting_client_secret" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        <Label
+                            for="meeting_client_secret"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >
                             Client Secret
                         </Label>
                         <Input
@@ -488,7 +597,7 @@ const submit = () => {
                             type="password"
                             autocomplete="off"
                             :placeholder="clientSecretPlaceholder"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                            class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
                         />
                     </div>
                 </template>
@@ -496,7 +605,10 @@ const submit = () => {
                 <!-- Google Meet: Service Account fields -->
                 <template v-if="isGoogleMeet">
                     <div class="grid gap-2">
-                        <Label for="meeting_service_account_email" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        <Label
+                            for="meeting_service_account_email"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >
                             Service Account Email
                         </Label>
                         <Input
@@ -504,12 +616,15 @@ const submit = () => {
                             v-model="form.meeting_config.service_account_email"
                             type="email"
                             placeholder="name@project.iam.gserviceaccount.com"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                            class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
                         />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="meeting_private_key" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        <Label
+                            for="meeting_private_key"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >
                             Private Key (PEM)
                         </Label>
                         <textarea
@@ -517,15 +632,19 @@ const submit = () => {
                             v-model="form.meeting_config.private_key"
                             rows="6"
                             :placeholder="privateKeyPlaceholder"
-                            class="w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-projector-primary-500/30 focus:border-projector-primary-500 resize-y"
+                            class="w-full resize-y rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-xs text-gray-700 outline-none focus:border-projector-primary-500 focus:ring-2 focus:ring-projector-primary-500/30 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200"
                         />
-                        <p class="text-[10px] text-gray-400 px-1">
-                            Paste the full PEM private key from your Google service account JSON file.
+                        <p class="px-1 text-[10px] text-gray-400">
+                            Paste the full PEM private key from your Google
+                            service account JSON file.
                         </p>
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="meeting_impersonate_email" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        <Label
+                            for="meeting_impersonate_email"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >
                             Impersonate Email
                         </Label>
                         <Input
@@ -533,10 +652,11 @@ const submit = () => {
                             v-model="form.meeting_config.impersonate_email"
                             type="email"
                             placeholder="user@yourworkspace.com"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                            class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
                         />
-                        <p class="text-[10px] text-gray-400 px-1">
-                            A Google Workspace user the service account will impersonate (requires domain-wide delegation).
+                        <p class="px-1 text-[10px] text-gray-400">
+                            A Google Workspace user the service account will
+                            impersonate (requires domain-wide delegation).
                         </p>
                     </div>
                 </template>
@@ -544,7 +664,10 @@ const submit = () => {
                 <!-- Slack: Bot Token -->
                 <template v-if="isSlack">
                     <div class="grid gap-2">
-                        <Label for="meeting_bot_token" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                        <Label
+                            for="meeting_bot_token"
+                            class="px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                        >
                             Bot User OAuth Token
                         </Label>
                         <Input
@@ -553,10 +676,12 @@ const submit = () => {
                             type="password"
                             autocomplete="off"
                             :placeholder="botTokenPlaceholder"
-                            class="h-12 rounded-xl bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 font-mono text-sm"
+                            class="h-12 rounded-xl border-gray-200 bg-white font-mono text-sm dark:border-gray-800 dark:bg-gray-950"
                         />
-                        <p class="text-[10px] text-gray-400 px-1">
-                            The Bot User OAuth Token (starts with <span class="font-mono">xoxb-</span>) from your Slack app's OAuth &amp; Permissions page.
+                        <p class="px-1 text-[10px] text-gray-400">
+                            The Bot User OAuth Token (starts with
+                            <span class="font-mono">xoxb-</span>) from your
+                            Slack app's OAuth &amp; Permissions page.
                         </p>
                     </div>
                 </template>
@@ -564,25 +689,51 @@ const submit = () => {
         </div>
 
         <!-- PDF Branding -->
-        <div v-if="isEditing && organization" class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
-            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+        <div
+            v-if="isEditing && organization"
+            class="space-y-4 border-t border-gray-100 pt-4 dark:border-gray-800"
+        >
+            <p
+                class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+            >
                 PDF Branding
             </p>
-            <p class="text-[10px] text-gray-400 px-1 -mt-2">
-                Custom header and footer images used when exporting documents as branded PDFs. Leave blank to use the default layout.
+            <p class="-mt-2 px-1 text-[10px] text-gray-400">
+                Custom header and footer images used when exporting documents as
+                branded PDFs. Leave blank to use the default layout.
             </p>
 
             <LogoUpload
                 :current-logo-url="organization.pdf_header_url ?? null"
-                :upload-url="organizationPdfBrandingRoutes.store.url({ organization: organization.id, type: 'header' })"
-                :delete-url="organizationPdfBrandingRoutes.destroy.url({ organization: organization.id, type: 'header' })"
+                :upload-url="
+                    organizationPdfBrandingRoutes.store.url({
+                        organization: organization.id,
+                        type: 'header',
+                    })
+                "
+                :delete-url="
+                    organizationPdfBrandingRoutes.destroy.url({
+                        organization: organization.id,
+                        type: 'header',
+                    })
+                "
                 label="PDF Header Image"
             />
 
             <LogoUpload
                 :current-logo-url="organization.pdf_footer_url ?? null"
-                :upload-url="organizationPdfBrandingRoutes.store.url({ organization: organization.id, type: 'footer' })"
-                :delete-url="organizationPdfBrandingRoutes.destroy.url({ organization: organization.id, type: 'footer' })"
+                :upload-url="
+                    organizationPdfBrandingRoutes.store.url({
+                        organization: organization.id,
+                        type: 'footer',
+                    })
+                "
+                :delete-url="
+                    organizationPdfBrandingRoutes.destroy.url({
+                        organization: organization.id,
+                        type: 'footer',
+                    })
+                "
                 label="PDF Footer Image"
             />
         </div>
@@ -593,14 +744,20 @@ const submit = () => {
             @close="isSetupGuideOpen = false"
         />
 
-        <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <Button type="button" @click="emit('cancel')" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">
+        <div
+            class="flex items-center justify-end gap-3 border-t border-gray-100 pt-6 dark:border-gray-800"
+        >
+            <Button
+                type="button"
+                @click="emit('cancel')"
+                class="h-12 rounded-xl border border-projector-primary-600 bg-white px-8 text-[10px] font-black tracking-widest text-projector-primary-600 uppercase hover:bg-projector-primary-50 dark:border-projector-primary-400 dark:bg-transparent dark:text-projector-primary-400 dark:hover:bg-projector-primary-950/30"
+            >
                 Cancel
             </Button>
             <Button
                 type="submit"
                 :disabled="form.processing"
-                class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-black uppercase text-[10px] tracking-widest px-8 h-12 rounded-xl shadow-lg"
+                class="h-12 rounded-xl bg-projector-primary-600 px-8 text-[10px] font-black tracking-widest text-white uppercase shadow-lg hover:bg-projector-primary-700"
             >
                 {{ isEditing ? 'Save Changes' : 'Create Organization' }}
             </Button>

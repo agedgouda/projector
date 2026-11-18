@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import DateField from '@/components/DateField.vue';
 import {
     Select,
@@ -7,8 +6,9 @@ import {
     SelectItem,
     SelectTrigger,
 } from '@/components/ui/select';
-import { Calendar } from 'lucide-vue-next';
 import { formatDateMdy } from '@/lib/utils';
+import { Calendar } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 const props = defineProps<{
     doc: ProjectDocument;
@@ -22,22 +22,36 @@ const emit = defineEmits<{
     (e: 'update', field: string, value: any): void;
 }>();
 
-const currentColumn = computed(() => props.columns.find((c) => c.key === (props.doc.task_status ?? 'todo')));
+const currentColumn = computed(() =>
+    props.columns.find((c) => c.key === (props.doc.task_status ?? 'todo')),
+);
 
 // Only one due-date field is shown here (unlike the full sidebar, which shows both internal
 // and external side by side) — a dense row only has room for one, so it edits whichever the
 // org actually uses.
-const dueField = computed(() => (props.usesExternalDueDates ? 'external_due_at' : 'due_at'));
+const dueField = computed(() =>
+    props.usesExternalDueDates ? 'external_due_at' : 'due_at',
+);
 const dueValue = computed(() => {
-    const raw = props.usesExternalDueDates ? props.doc.external_due_at : props.doc.due_at;
+    const raw = props.usesExternalDueDates
+        ? props.doc.external_due_at
+        : props.doc.due_at;
     return raw ? raw.slice(0, 10) : '';
 });
 
-const startValue = computed(() => (props.doc.start_at ? props.doc.start_at.slice(0, 10) : ''));
+const startValue = computed(() =>
+    props.doc.start_at ? props.doc.start_at.slice(0, 10) : '',
+);
 
 const handleUpdate = (field: string, value: any) => {
     let finalValue = value;
-    if ((field === 'due_at' || field === 'external_due_at' || field === 'start_at') && value === '') finalValue = null;
+    if (
+        (field === 'due_at' ||
+            field === 'external_due_at' ||
+            field === 'start_at') &&
+        value === ''
+    )
+        finalValue = null;
     emit('update', field, finalValue);
 };
 </script>
@@ -50,16 +64,34 @@ const handleUpdate = (field: string, value: any) => {
              icon — priority is the only per-row color indicator now). No @click.stop needed
              in here: the caller (TaskRowContent.vue) puts it on its whole <TaskRowFields>
              usage, since the row it renders inside navigates on any click. -->
-        <div v-if="readOnly" class="w-28 truncate text-right text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">
+        <div
+            v-if="readOnly"
+            class="w-28 truncate text-right text-[9px] font-bold tracking-wider text-slate-900 uppercase dark:text-slate-100"
+        >
             {{ currentColumn?.label ?? doc.task_status ?? 'todo' }}
         </div>
         <div v-else class="w-28">
-            <Select :model-value="doc.task_status ?? 'todo'" @update:model-value="(val) => handleUpdate('task_status', val)">
-                <SelectTrigger class="h-auto w-28 justify-end border-none bg-transparent p-0 shadow-none [&>svg]:hidden">
-                    <span class="truncate text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ currentColumn?.label ?? doc.task_status ?? 'todo' }}</span>
+            <Select
+                :model-value="doc.task_status ?? 'todo'"
+                @update:model-value="(val) => handleUpdate('task_status', val)"
+            >
+                <SelectTrigger
+                    class="h-auto w-28 justify-end border-none bg-transparent p-0 shadow-none [&>svg]:hidden"
+                >
+                    <span
+                        class="truncate text-[9px] font-bold tracking-wider text-slate-900 uppercase dark:text-slate-100"
+                        >{{
+                            currentColumn?.label ?? doc.task_status ?? 'todo'
+                        }}</span
+                    >
                 </SelectTrigger>
                 <SelectContent align="end">
-                    <SelectItem v-for="column in columns" :key="column.key" :value="column.key" class="text-[10px] font-black uppercase">
+                    <SelectItem
+                        v-for="column in columns"
+                        :key="column.key"
+                        :value="column.key"
+                        class="text-[10px] font-black uppercase"
+                    >
                         {{ column.label }}
                     </SelectItem>
                 </SelectContent>
@@ -69,11 +101,25 @@ const handleUpdate = (field: string, value: any) => {
         <!-- Start date — only for orgs that track task start dates; same fixed width as Due
              so the two date columns line up row to row. -->
         <template v-if="usesTaskStartDates">
-            <div v-if="readOnly" class="flex w-28 items-center justify-end gap-1">
-                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ formatDateMdy(startValue) || '--' }}</span>
+            <div
+                v-if="readOnly"
+                class="flex w-28 items-center justify-end gap-1"
+            >
+                <span
+                    class="text-[9px] font-bold tracking-wider text-slate-900 uppercase dark:text-slate-100"
+                    >{{ formatDateMdy(startValue) || '--' }}</span
+                >
                 <Calendar class="h-3 w-3 shrink-0 text-slate-400" />
             </div>
-            <div v-else class="flex w-28 items-center" :title="doc.predecessor_id ? 'Starts when the task it waits on ends' : undefined">
+            <div
+                v-else
+                class="flex w-28 items-center"
+                :title="
+                    doc.predecessor_id
+                        ? 'Starts when the task it waits on ends'
+                        : undefined
+                "
+            >
                 <DateField
                     :model-value="startValue"
                     :disabled="!!doc.predecessor_id"
@@ -87,7 +133,10 @@ const handleUpdate = (field: string, value: any) => {
 
         <!-- Due date — fixed width, right-justified read-only, a dash when empty. -->
         <div v-if="readOnly" class="flex w-28 items-center justify-end gap-1">
-            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">{{ formatDateMdy(dueValue) || '--' }}</span>
+            <span
+                class="text-[9px] font-bold tracking-wider text-slate-900 uppercase dark:text-slate-100"
+                >{{ formatDateMdy(dueValue) || '--' }}</span
+            >
             <Calendar class="h-3 w-3 shrink-0 text-slate-400" />
         </div>
         <div v-else class="flex w-28 items-center">

@@ -12,10 +12,13 @@ use App\Models\SlackChannelBinding;
 use App\Models\SlackUserIdentity;
 use App\Models\SlackWorkspace;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -72,7 +75,7 @@ beforeEach(function () {
 /**
  * @param  array<string, string>  $overrides
  */
-function postReportCommand(array $overrides = []): \Illuminate\Testing\TestResponse
+function postReportCommand(array $overrides = []): TestResponse
 {
     $payload = array_merge([
         'command' => '/report',
@@ -178,7 +181,7 @@ function uploadedTaskNames(): array
 {
     $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
     file_put_contents($tmp, uploadedReportBytes());
-    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmp)->getActiveSheet();
+    $sheet = IOFactory::load($tmp)->getActiveSheet();
     unlink($tmp);
 
     // A report spanning sub-projects has an extra leading Project column, so find the name column
@@ -321,7 +324,7 @@ it('uploads the full Excel report without calling the AI when there is no text',
 
     $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
     file_put_contents($tmp, uploadedReportBytes());
-    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmp)->getActiveSheet();
+    $sheet = IOFactory::load($tmp)->getActiveSheet();
     unlink($tmp);
 
     expect($sheet->getCell('A1')->getValue())->toBe('Name')

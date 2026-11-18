@@ -1,5 +1,5 @@
-import { computed, ref } from 'vue';
 import { mergeAssigneeOptions, type AssigneeOption } from '@/lib/assignees';
+import { computed, ref } from 'vue';
 import type { KanbanProps } from './useKanbanBoard';
 
 export const ALL_PRIORITIES = ['high', 'medium', 'low'] as const;
@@ -80,7 +80,9 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
     // is O(1) via this Map instead of a fresh linear .find() per card.
     const projectsById = computed<Map<string, Project>>(() => {
         const map = new Map<string, Project>();
-        (props.projects ?? []).forEach((project) => map.set(project.id, project));
+        (props.projects ?? []).forEach((project) =>
+            map.set(project.id, project),
+        );
         return map;
     });
 
@@ -88,19 +90,21 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
     // sorting an organization's users/invitations is real work — doing it once per project
     // here (instead of once per KanbanCard instance, as before) avoids redoing the same
     // merge dozens of times over when many cards from the same project are visible at once.
-    const assigneeOptionsByProjectId = computed<Map<string, AssigneeOption[]>>(() => {
-        const map = new Map<string, AssigneeOption[]>();
-        (props.projects ?? []).forEach((project) => {
-            map.set(
-                project.id,
-                mergeAssigneeOptions(
-                    project.client?.organization?.users,
-                    project.client?.organization?.invitations,
-                ),
-            );
-        });
-        return map;
-    });
+    const assigneeOptionsByProjectId = computed<Map<string, AssigneeOption[]>>(
+        () => {
+            const map = new Map<string, AssigneeOption[]>();
+            (props.projects ?? []).forEach((project) => {
+                map.set(
+                    project.id,
+                    mergeAssigneeOptions(
+                        project.client?.organization?.users,
+                        project.client?.organization?.invitations,
+                    ),
+                );
+            });
+            return map;
+        },
+    );
 
     /**
      * MEMOIZED TASK MAP
@@ -162,9 +166,7 @@ export function useKanbanQueries(props: KanbanProps, localKanbanData: any) {
             doc.assignee?.name.toLowerCase().includes(query);
         if (!matchesSearch) return false;
 
-        const docPriority = doc.priority?.toLowerCase() as
-            | Priority
-            | undefined;
+        const docPriority = doc.priority?.toLowerCase() as Priority | undefined;
         const matchesPriority =
             !docPriority || selectedPriorities.value.includes(docPriority);
         if (!matchesPriority) return false;

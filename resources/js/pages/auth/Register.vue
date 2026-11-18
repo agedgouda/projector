@@ -9,8 +9,8 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBrandLayout from '@/layouts/auth/AuthBrandLayout.vue';
 import { login } from '@/routes';
 import { Form, Head } from '@inertiajs/vue3';
-import { onMounted, ref } from 'vue';
 import { Check, Eye, EyeOff } from 'lucide-vue-next';
+import { onMounted, ref } from 'vue';
 
 const props = defineProps<{
     turnstileSiteKey?: string | null;
@@ -19,7 +19,8 @@ const props = defineProps<{
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
 
-const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+const TURNSTILE_SCRIPT_SRC =
+    'https://challenges.cloudflare.com/turnstile/v0/api.js';
 
 const turnstileContainer = ref<HTMLElement | null>(null);
 
@@ -28,7 +29,8 @@ type TurnstileApi = {
     reset: () => void;
 };
 
-const turnstileApi = (): TurnstileApi | undefined => (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+const turnstileApi = (): TurnstileApi | undefined =>
+    (window as unknown as { turnstile?: TurnstileApi }).turnstile;
 
 onMounted(() => {
     if (!props.turnstileSiteKey) {
@@ -40,8 +42,14 @@ onMounted(() => {
     if (document.querySelector(`script[src="${TURNSTILE_SCRIPT_SRC}"]`)) {
         const api = turnstileApi();
 
-        if (api && turnstileContainer.value && !turnstileContainer.value.hasChildNodes()) {
-            api.render(turnstileContainer.value, { sitekey: props.turnstileSiteKey });
+        if (
+            api &&
+            turnstileContainer.value &&
+            !turnstileContainer.value.hasChildNodes()
+        ) {
+            api.render(turnstileContainer.value, {
+                sitekey: props.turnstileSiteKey,
+            });
         }
 
         return;
@@ -66,35 +74,65 @@ const resetTurnstile = (): void => {
 </script>
 
 <template>
-    <AuthBrandLayout title="Create your account" description="Get started for free in seconds.">
+    <AuthBrandLayout
+        title="Create your account"
+        description="Get started for free in seconds."
+    >
         <Head title="Register" />
 
         <template #aside>
             <p class="text-sm leading-relaxed text-muted-foreground">
-                Set Up Your <strong class="font-bold text-projector-primary-500">Projector</strong>
+                Set Up Your
+                <strong class="font-bold text-projector-primary-500"
+                    >Projector</strong
+                >
             </p>
 
             <ul class="flex flex-col gap-3 text-sm text-muted-foreground">
                 <li class="flex gap-2.5">
                     <Check class="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span><strong class="font-semibold text-foreground">Free 6-week trial</strong> — No credit card required.</span>
+                    <span
+                        ><strong class="font-semibold text-foreground"
+                            >Free 6-week trial</strong
+                        >
+                        — No credit card required.</span
+                    >
                 </li>
                 <li class="flex gap-2.5">
                     <Check class="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span><strong class="font-semibold text-foreground">Instant setup</strong> — Get up and running in under 2 minutes.</span>
+                    <span
+                        ><strong class="font-semibold text-foreground"
+                            >Instant setup</strong
+                        >
+                        — Get up and running in under 2 minutes.</span
+                    >
                 </li>
                 <li class="flex gap-2.5">
                     <Check class="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span><strong class="font-semibold text-foreground">Client ready</strong> — Automatically generate custom status reports on demand.</span>
+                    <span
+                        ><strong class="font-semibold text-foreground"
+                            >Client ready</strong
+                        >
+                        — Automatically generate custom status reports on
+                        demand.</span
+                    >
                 </li>
             </ul>
 
-            <figure class="mt-2 flex flex-col gap-3 rounded-lg border border-l-4 border-border border-l-primary bg-white/60 p-5 dark:bg-zinc-800/60">
+            <figure
+                class="mt-2 flex flex-col gap-3 rounded-lg border border-l-4 border-border border-l-primary bg-white/60 p-5 dark:bg-zinc-800/60"
+            >
                 <blockquote class="text-sm leading-relaxed text-foreground">
-                    Projector has saved our team 5+ hours a week on client updates.
+                    Projector has saved our team 5+ hours a week on client
+                    updates.
                 </blockquote>
-                <figcaption class="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span class="flex size-6 items-center justify-center rounded-full bg-projector-primary-100 text-[0.65rem] font-semibold text-projector-primary-700">LJ</span>
+                <figcaption
+                    class="flex items-center gap-2 text-xs text-muted-foreground"
+                >
+                    <span
+                        class="flex size-6 items-center justify-center rounded-full bg-projector-primary-100 text-[0.65rem] font-semibold text-projector-primary-700"
+                        >LJ</span
+                    >
                     Lindsay J., Agency Founder
                 </figcaption>
             </figure>
@@ -112,9 +150,18 @@ const resetTurnstile = (): void => {
                 <!-- Honeypot: invisible and unreachable by keyboard/screen reader for a real
                      visitor, but a bot that blindly fills every field it finds will trip the
                      "prohibited" rule in CreateNewUser and fail like any other bad input. -->
-                <div class="absolute left-[-9999px] top-auto w-px h-px overflow-hidden" aria-hidden="true">
+                <div
+                    class="absolute top-auto left-[-9999px] h-px w-px overflow-hidden"
+                    aria-hidden="true"
+                >
                     <label for="website">Website</label>
-                    <input id="website" type="text" name="website" tabindex="-1" autocomplete="off" />
+                    <input
+                        id="website"
+                        type="text"
+                        name="website"
+                        tabindex="-1"
+                        autocomplete="off"
+                    />
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -177,7 +224,7 @@ const resetTurnstile = (): void => {
                         />
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             @click="showPassword = !showPassword"
                             tabindex="-1"
                         >
@@ -193,7 +240,9 @@ const resetTurnstile = (): void => {
                     <div class="relative">
                         <Input
                             id="password_confirmation"
-                            :type="showPasswordConfirmation ? 'text' : 'password'"
+                            :type="
+                                showPasswordConfirmation ? 'text' : 'password'
+                            "
                             required
                             :tabindex="5"
                             autocomplete="new-password"
@@ -203,23 +252,39 @@ const resetTurnstile = (): void => {
                         />
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            @click="showPasswordConfirmation = !showPasswordConfirmation"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            @click="
+                                showPasswordConfirmation =
+                                    !showPasswordConfirmation
+                            "
                             tabindex="-1"
                         >
-                            <Eye v-if="!showPasswordConfirmation" class="h-4 w-4" />
+                            <Eye
+                                v-if="!showPasswordConfirmation"
+                                class="h-4 w-4"
+                            />
                             <EyeOff v-else class="h-4 w-4" />
                         </button>
                     </div>
                     <InputError :message="errors.password_confirmation" />
                 </div>
 
-                <div v-if="turnstileSiteKey" class="grid justify-items-center gap-2">
-                    <div ref="turnstileContainer" class="cf-turnstile" :data-sitekey="turnstileSiteKey"></div>
+                <div
+                    v-if="turnstileSiteKey"
+                    class="grid justify-items-center gap-2"
+                >
+                    <div
+                        ref="turnstileContainer"
+                        class="cf-turnstile"
+                        :data-sitekey="turnstileSiteKey"
+                    ></div>
                     <InputError :message="errors['cf-turnstile-response']" />
                 </div>
 
-                <PrivacyPolicyConsent :error="errors.privacy_policy" :tabindex="6" />
+                <PrivacyPolicyConsent
+                    :error="errors.privacy_policy"
+                    :tabindex="6"
+                />
 
                 <div class="flex flex-col gap-2">
                     <Button
@@ -242,7 +307,7 @@ const resetTurnstile = (): void => {
                 Already have an account?
                 <TextLink
                     :href="login()"
-                    class="underline underline-offset-4 cursor-pointer"
+                    class="cursor-pointer underline underline-offset-4"
                     :tabindex="8"
                     >Log in</TextLink
                 >

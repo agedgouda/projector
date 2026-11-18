@@ -7,10 +7,13 @@
  * reasoning, though that endpoint doesn't need this specific check).
  */
 export function isProcessingMine(
-    doc: {
-        processing_triggered_by_user_id?: number | string | null;
-        creator_id?: number | string | null;
-    } | null | undefined,
+    doc:
+        | {
+              processing_triggered_by_user_id?: number | string | null;
+              creator_id?: number | string | null;
+          }
+        | null
+        | undefined,
     currentUserId: number,
 ): boolean {
     if (!doc) return false;

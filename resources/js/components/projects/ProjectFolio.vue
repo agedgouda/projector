@@ -18,9 +18,9 @@ import {
     toggleProjectFavorite,
     useFavoriteProjectIds,
 } from '@/composables/useFavoriteProject';
+import { usePermissions } from '@/composables/usePermissions';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import projectRoutes from '@/routes/projects/index';
-import { usePermissions } from '@/composables/usePermissions';
 import { router } from '@inertiajs/vue3';
 import {
     AlertTriangle,
@@ -45,7 +45,9 @@ const props = defineProps<{
 
 // --- FAVORITE STATE ---
 const favoriteProjectIds = useFavoriteProjectIds();
-const isFavorited = computed(() => favoriteProjectIds.value.has(props.project.id));
+const isFavorited = computed(() =>
+    favoriteProjectIds.value.has(props.project.id),
+);
 const isTogglingFavorite = ref(false);
 
 const toggleFavorite = () => {
@@ -59,8 +61,12 @@ const toggleFavorite = () => {
 // Mirrors ProjectPolicy: only org-admins may update or delete a project, while project-leads
 // may still manage its tags (manageCategories), which they do through a tags-only edit form.
 const { hasRole } = usePermissions();
-const canManageProject = computed(() => hasRole('super-admin') || hasRole('org-admin'));
-const canManageTags = computed(() => canManageProject.value || hasRole('project-lead'));
+const canManageProject = computed(
+    () => hasRole('super-admin') || hasRole('org-admin'),
+);
+const canManageTags = computed(
+    () => canManageProject.value || hasRole('project-lead'),
+);
 
 // --- EDIT STATE ---
 const isEditModalOpen = ref(false);

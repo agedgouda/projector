@@ -4,6 +4,8 @@ namespace App\Services\Reports;
 
 use App\Models\Project;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -37,19 +39,19 @@ class CalendarExportBuilder
      * @param  array<int, string>  $tags
      * @param  array<int, string>  $onlyProjects  When non-empty, keeps only items from these projects
      *                                            (the project itself and/or its sub-projects).
-     * @return \Illuminate\Support\Collection<int, array{
+     * @return Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
-    public function items(Project $project, array $hiddenSubprojects = [], array $tags = [], bool $showTasks = true, bool $showEvents = true, ?\Illuminate\Support\Carbon $from = null, ?\Illuminate\Support\Carbon $to = null, array $onlyProjects = []): \Illuminate\Support\Collection
+    public function items(Project $project, array $hiddenSubprojects = [], array $tags = [], bool $showTasks = true, bool $showEvents = true, ?Carbon $from = null, ?Carbon $to = null, array $onlyProjects = []): Collection
     {
         $usesExternalDueDates = $this->usesExternalDueDates($project);
         $project->load(['documents.categories', 'children.documents.categories']);
 
-        $floor = ($from ?? \Illuminate\Support\Carbon::now()->startOfMonth())->copy()->startOfDay();
+        $floor = ($from ?? Carbon::now()->startOfMonth())->copy()->startOfDay();
         $ceiling = $to?->copy()->endOfDay();
 
         return $project->calendarItems()
@@ -74,7 +76,7 @@ class CalendarExportBuilder
                     return false;
                 }
 
-                $parsed = \Illuminate\Support\Carbon::parse($date);
+                $parsed = Carbon::parse($date);
 
                 return $parsed->lt($floor) || ($ceiling !== null && $parsed->gt($ceiling));
             })
@@ -110,20 +112,20 @@ class CalendarExportBuilder
      * table has no natural place for a row with a blank date. The PDF grid doesn't need this:
      * such an item simply never gets a bar (see buildEventRanges()).
      *
-     * @param  \Illuminate\Support\Collection<int, array{
+     * @param  Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
-     * @return \Illuminate\Support\Collection<int, array{
+     * @return Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>
      */
-    public function excludeUndatedItems(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): \Illuminate\Support\Collection
+    public function excludeUndatedItems(Collection $items, bool $usesExternalDueDates): Collection
     {
         return $items->filter(fn (array $item) => $this->resolveEffectiveDueDate($item, $usesExternalDueDates) !== null)->values();
     }
@@ -137,7 +139,7 @@ class CalendarExportBuilder
      * month, so a single subproject/tag color assignment is shared consistently across every
      * month's grid.
      *
-     * @param  \Illuminate\Support\Collection<int, array{
+     * @param  Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
@@ -148,7 +150,7 @@ class CalendarExportBuilder
      *     startKey: string, endKey: string,
      * }>
      */
-    private function buildEventRanges(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
+    private function buildEventRanges(Collection $items, bool $usesExternalDueDates): array
     {
         $palette = ['slate', 'red', 'amber', 'emerald', 'blue', 'purple', 'pink', 'orange', 'indigo', 'teal', 'yellow', 'lime', 'green', 'cyan', 'sky', 'violet', 'fuchsia', 'rose'];
 
@@ -252,7 +254,7 @@ class CalendarExportBuilder
      * falls outside the clamped range simply won't get a bar, the same as any other date
      * with no grid built for it (see buildMonthGrid()).
      *
-     * @param  \Illuminate\Support\Collection<int, array{
+     * @param  Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
@@ -263,17 +265,17 @@ class CalendarExportBuilder
      *     laneRows: array<int, array<int, array{name: string, isSubproject: bool, projectName: string, color: string, span: int}|array{skip: true}|null>>,
      * }>}>
      */
-    public function buildCalendarMonths(\Illuminate\Support\Collection $items, bool $usesExternalDueDates): array
+    public function buildCalendarMonths(Collection $items, bool $usesExternalDueDates): array
     {
         $ranges = $this->buildEventRanges($items, $usesExternalDueDates);
 
         if ($ranges === []) {
-            return [$this->buildMonthGrid(\Illuminate\Support\Carbon::now()->startOfMonth(), $ranges)];
+            return [$this->buildMonthGrid(Carbon::now()->startOfMonth(), $ranges)];
         }
 
         $endKeys = array_column($ranges, 'endKey');
         sort($endKeys);
-        $dates = array_map(fn (string $key) => \Illuminate\Support\Carbon::parse($key), $endKeys);
+        $dates = array_map(fn (string $key) => Carbon::parse($key), $endKeys);
 
         $cursor = $dates[0]->copy()->startOfMonth();
         $end = $dates[count($dates) - 1]->copy()->startOfMonth();
@@ -312,7 +314,7 @@ class CalendarExportBuilder
      *     laneRows: array<int, array<int, array{name: string, isSubproject: bool, projectName: string, color: string, span: int}|array{skip: true}|null>>,
      * }>}
      */
-    private function buildMonthGrid(\Illuminate\Support\Carbon $monthStart, array $ranges): array
+    private function buildMonthGrid(Carbon $monthStart, array $ranges): array
     {
         $firstOfMonth = $monthStart->copy()->startOfMonth();
         $startOffset = $firstOfMonth->dayOfWeek;
@@ -422,7 +424,7 @@ class CalendarExportBuilder
     {
         $raw = $this->resolveEffectiveDueDate($item, $usesExternalDueDates);
 
-        return $raw !== null ? \Illuminate\Support\Carbon::parse(substr($raw, 0, 10))->format('m/d/Y') : '';
+        return $raw !== null ? Carbon::parse(substr($raw, 0, 10))->format('m/d/Y') : '';
     }
 
     /**
@@ -437,14 +439,14 @@ class CalendarExportBuilder
      * Build a Date/Title/Tags Excel worksheet from resolved export items — a bolded title
      * row, a bolded header row, then one row per item.
      *
-     * @param  \Illuminate\Support\Collection<int, array{
+     * @param  Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
      */
-    public function buildCalendarSpreadsheet(Project $project, \Illuminate\Support\Collection $items, bool $usesExternalDueDates): Spreadsheet
+    public function buildCalendarSpreadsheet(Project $project, Collection $items, bool $usesExternalDueDates): Spreadsheet
     {
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
@@ -484,14 +486,14 @@ class CalendarExportBuilder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, array{
+     * @param  Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
      */
-    public function pdfContents(Project $project, \Illuminate\Support\Collection $items): string
+    public function pdfContents(Project $project, Collection $items): string
     {
         $project->loadMissing('client.organization');
         $organization = $project->client?->organization;
@@ -511,14 +513,14 @@ class CalendarExportBuilder
     /**
      * A flat Date/Title/Tags table, one row per dated item.
      *
-     * @param  \Illuminate\Support\Collection<int, array{
+     * @param  Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
      */
-    public function csvContents(Project $project, \Illuminate\Support\Collection $items): string
+    public function csvContents(Project $project, Collection $items): string
     {
         $usesExternalDueDates = $this->usesExternalDueDates($project);
         $items = $this->excludeUndatedItems($items, $usesExternalDueDates);
@@ -547,14 +549,14 @@ class CalendarExportBuilder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, array{
+     * @param  Collection<int, array{
      *     id: string, name: string|null, content: string|null, type: string, is_task: bool,
      *     project_id: string, project_name: string, is_subproject: bool,
      *     due_at: string|null, external_due_at: string|null, start_at: string|null, task_status: string,
      *     categories: array<int, array{id: string, name: string, color: string}>
      * }>  $items
      */
-    public function excelContents(Project $project, \Illuminate\Support\Collection $items): string
+    public function excelContents(Project $project, Collection $items): string
     {
         $usesExternalDueDates = $this->usesExternalDueDates($project);
         $spreadsheet = $this->buildCalendarSpreadsheet($project, $this->excludeUndatedItems($items, $usesExternalDueDates), $usesExternalDueDates);

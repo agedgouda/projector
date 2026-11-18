@@ -83,7 +83,9 @@ export const formatDateMdy = (value: string | null | undefined): string => {
 // A real instant (created_at, updated_at, started_at) rendered as a local-timezone
 // MM/DD/YYYY — the counterpart to formatDateMdy for values whose time-of-day matters to
 // which calendar day they land on.
-export const formatTimestampMdy = (value: string | Date | null | undefined): string => {
+export const formatTimestampMdy = (
+    value: string | Date | null | undefined,
+): string => {
     if (!value) return '';
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '';
@@ -103,7 +105,9 @@ export const formatDateOnly = (
     const formatted = formatDateMdy(value);
     if (!options?.weekday) return formatted;
     const [year, month, day] = value.slice(0, 10).split('-').map(Number);
-    const weekday = new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'short' });
+    const weekday = new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        weekday: 'short',
+    });
     return `${weekday}, ${formatted}`;
 };
 

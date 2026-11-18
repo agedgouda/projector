@@ -8,10 +8,11 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Google\GoogleExportService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Socialite\Facades\Socialite;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -109,7 +110,7 @@ it('does not store an unsafe return_to (protocol-relative or absolute external u
 // ── Callback ────────────────────────────────────────────────────────────────
 
 it('stores a token when the google callback succeeds', function () {
-    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+    Socialite::fake('google', Laravel\Socialite\Two\User::fake([
         'email' => 'jeff@example.com',
         'token' => 'fake-access-token',
         'refreshToken' => 'fake-refresh-token',
@@ -135,7 +136,7 @@ it('does not store a token, and reports the missing scope, when google approves 
     // app access, or Google being stricter with an app still in Testing publishing status).
     // Storing a token in that state would just fail later, confusingly, the first time an
     // export tried to use it.
-    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+    Socialite::fake('google', Laravel\Socialite\Two\User::fake([
         'refreshToken' => 'fake-refresh-token',
         'approvedScopes' => ['openid', 'email', 'profile'],
     ]));
@@ -149,7 +150,7 @@ it('does not store a token, and reports the missing scope, when google approves 
 });
 
 it('does not store a token when google returns no refresh token', function () {
-    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+    Socialite::fake('google', Laravel\Socialite\Two\User::fake([
         'refreshToken' => null,
     ]));
 
@@ -161,7 +162,7 @@ it('does not store a token when google returns no refresh token', function () {
 });
 
 it('redirects back to the stored return_to on a successful callback instead of the settings page', function () {
-    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+    Socialite::fake('google', Laravel\Socialite\Two\User::fake([
         'refreshToken' => 'fake-refresh-token',
         'approvedScopes' => ['https://www.googleapis.com/auth/drive.file'],
     ]));
@@ -175,7 +176,7 @@ it('redirects back to the stored return_to on a successful callback instead of t
 });
 
 it('ignores the stored return_to and goes to the settings page when the callback fails', function () {
-    Socialite::fake('google', \Laravel\Socialite\Two\User::fake([
+    Socialite::fake('google', Laravel\Socialite\Two\User::fake([
         'refreshToken' => null,
     ]));
 

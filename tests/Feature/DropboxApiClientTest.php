@@ -2,9 +2,10 @@
 
 use App\Models\DropboxWorkspace;
 use App\Services\Dropbox\DropboxApiClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->workspace = DropboxWorkspace::factory()->create();

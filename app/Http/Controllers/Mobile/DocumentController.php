@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\DocumentTypeDefinition;
 use App\Models\Project;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class DocumentController extends Controller
 {
-    public function show(Project $project, Document $document): \Inertia\Response
+    public function show(Project $project, Document $document): Response
     {
         Gate::authorize('view', $document);
 
@@ -54,10 +56,10 @@ class DocumentController extends Controller
      * (Mobile\NoteController) so items are presented consistently rather than as a flat,
      * generically-labeled list.
      *
-     * @param  \Illuminate\Support\Collection<string, DocumentTypeDefinition>  $catalog
+     * @param  Collection<string, DocumentTypeDefinition>  $catalog
      * @return array<string, mixed>
      */
-    public static function present(Document $document, \Illuminate\Support\Collection $catalog): array
+    public static function present(Document $document, Collection $catalog): array
     {
         $definition = $catalog->get($document->type);
 

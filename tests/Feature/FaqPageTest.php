@@ -1,9 +1,10 @@
 <?php
 
 use App\Models\Faq;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('shows the FAQ to visitors who aren\'t logged in', function () {
     $this->get(route('faq.index'))

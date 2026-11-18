@@ -5,11 +5,11 @@ use App\Models\LifecycleStep;
 use App\Models\LifecycleTemplate;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -19,44 +19,6 @@ beforeEach(function () {
     $this->superAdmin->assignRole('super-admin');
 
     $this->org = Organization::create(['name' => 'Test Org']);
-});
-
-it('creates a matching LifecycleTemplate with steps when storing a project type', function () {
-    $this->actingAs($this->superAdmin)
-        ->post(route('project-types.store'), [
-            'name' => 'New Protocol',
-            'icon' => 'Briefcase',
-            'organization_id' => $this->org->id,
-            'document_schema' => [['label' => 'Notes', 'key' => 'intake', 'is_task' => false]],
-            'lifecycle_steps' => [
-                ['order' => 1, 'label' => 'Intake', 'color' => 'indigo'],
-                ['order' => 2, 'label' => 'Done', 'color' => 'green'],
-            ],
-        ])
-        ->assertRedirect();
-
-    $template = LifecycleTemplate::where('organization_id', $this->org->id)->where('name', 'New Protocol')->firstOrFail();
-
-    expect($template->lifecycleSteps)->toHaveCount(2)
-        ->and($template->lifecycleSteps->pluck('label')->toArray())->toBe(['Intake', 'Done']);
-});
-
-it('creates a matching LifecycleTemplate when duplicating a project type', function () {
-    $source = ProjectType::factory()->create(['organization_id' => $this->org->id, 'name' => 'Source Protocol']);
-    LifecycleStep::create(['project_type_id' => $source->id, 'order' => 1, 'label' => 'Backlog', 'color' => 'slate']);
-
-    $targetOrg = Organization::create(['name' => 'Target Org']);
-
-    $this->actingAs($this->superAdmin)
-        ->post(route('project-types.duplicate', $source), ['organization_id' => $targetOrg->id])
-        ->assertRedirect();
-
-    $copy = ProjectType::where('organization_id', $targetOrg->id)->where('name', 'Source Protocol')->firstOrFail();
-    $template = LifecycleTemplate::where('organization_id', $targetOrg->id)->where('name', 'Source Protocol')->firstOrFail();
-
-    expect($copy->lifecycleSteps)->toHaveCount(1);
-    expect($template->lifecycleSteps)->toHaveCount(1)
-        ->and($template->lifecycleSteps->first()->label)->toBe('Backlog');
 });
 
 it('nulls the project\'s current lifecycle step when that step is deleted', function () {

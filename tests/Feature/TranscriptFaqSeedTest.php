@@ -1,8 +1,9 @@
 <?php
 
 use App\Models\Faq;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('seeds the Transcripts & Meeting Notes FAQ entries, in order, with keywords', function () {
     $faqs = Faq::where('category', 'Transcripts & Meeting Notes')->orderBy('order')->get();

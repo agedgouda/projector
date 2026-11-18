@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
-import { toast } from 'vue-sonner';
-import { Plus, MoreVertical, Pencil, Trash2 } from 'lucide-vue-next';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import { Input } from '@/components/ui/input';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { kanbanDotClasses } from '@/lib/constants';
 import { KANBAN_UI } from '@/lib/kanban-theme';
 import projectRoutes from '@/routes/projects';
+import { router } from '@inertiajs/vue3';
+import { MoreVertical, Pencil, Plus, Trash2 } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 const props = defineProps<{
     columns: KanbanColumnDef[];
@@ -46,14 +50,19 @@ const submitRename = (column: KanbanColumnDef) => {
     }
 
     router.patch(
-        projectRoutes.kanbanColumns.update.url({ project: props.currentProject.id, kanbanColumn: column.id }),
+        projectRoutes.kanbanColumns.update.url({
+            project: props.currentProject.id,
+            kanbanColumn: column.id,
+        }),
         { label },
         {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () => { renamingId.value = null; },
+            onSuccess: () => {
+                renamingId.value = null;
+            },
             onError: () => toast.error('Failed to rename column.'),
-        }
+        },
     );
 };
 
@@ -65,7 +74,9 @@ const submitAdd = () => {
     }
 
     router.post(
-        projectRoutes.kanbanColumns.store.url({ project: props.currentProject.id }),
+        projectRoutes.kanbanColumns.store.url({
+            project: props.currentProject.id,
+        }),
         { label },
         {
             preserveScroll: true,
@@ -75,7 +86,7 @@ const submitAdd = () => {
                 newLabel.value = '';
             },
             onError: () => toast.error('Failed to add column.'),
-        }
+        },
     );
 };
 
@@ -97,33 +108,48 @@ const executeDeleteColumn = () => {
     isDeleting.value = true;
 
     router.delete(
-        projectRoutes.kanbanColumns.destroy.url({ project: props.currentProject.id, kanbanColumn: column.id }),
+        projectRoutes.kanbanColumns.destroy.url({
+            project: props.currentProject.id,
+            kanbanColumn: column.id,
+        }),
         {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () => { pendingDeleteColumn.value = null; },
-            onError: (errors) => toast.error(errors.kanban_column ?? 'Failed to delete column.'),
-            onFinish: () => { isDeleting.value = false; },
-        }
+            onSuccess: () => {
+                pendingDeleteColumn.value = null;
+            },
+            onError: (errors) =>
+                toast.error(errors.kanban_column ?? 'Failed to delete column.'),
+            onFinish: () => {
+                isDeleting.value = false;
+            },
+        },
     );
 };
 </script>
 
 <template>
-    <div class="sticky top-0 bg-light-background/90 backdrop-blur-md z-20 px-4 w-full relative">
+    <div
+        class="relative sticky top-0 z-20 w-full bg-light-background/90 px-4 backdrop-blur-md"
+    >
         <div class="w-full" :style="KANBAN_UI.gridContainer(columns.length)">
             <div
                 v-for="column in columns"
                 :key="column.key"
                 :class="[KANBAN_UI.columnHeader, 'group/header']"
             >
-                <div :class="['h-2 w-2 rounded-full shadow-sm shrink-0', kanbanDotClasses[column.color ?? 'slate']]"></div>
+                <div
+                    :class="[
+                        'h-2 w-2 shrink-0 rounded-full shadow-sm',
+                        kanbanDotClasses[column.color ?? 'slate'],
+                    ]"
+                ></div>
 
                 <template v-if="renamingId === column.id">
                     <Input
                         v-model="renameLabel"
                         autofocus
-                        class="h-6 w-32 text-[11px] font-black uppercase tracking-[0.15em]"
+                        class="h-6 w-32 text-[11px] font-black tracking-[0.15em] uppercase"
                         @keydown.enter="submitRename(column)"
                         @keydown.escape="cancelRename"
                         @blur="submitRename(column)"
@@ -135,24 +161,33 @@ const executeDeleteColumn = () => {
                             {{ column.label }}
                         </span>
 
-                        <span class="flex items-center justify-center bg-gray-100 text-gray-500 text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] border border-gray-200/50">
+                        <span
+                            class="flex min-w-[20px] items-center justify-center rounded-full border border-gray-200/50 bg-gray-100 px-1.5 py-0.5 text-[9px] font-black text-gray-500"
+                        >
                             {{ getCount(column.key) }}
                         </span>
                     </div>
 
                     <DropdownMenu v-if="canManage && currentProject">
                         <DropdownMenuTrigger as-child>
-                            <Button variant="ghost" size="icon" class="h-5 w-5 opacity-0 group-hover/header:opacity-100 transition-opacity">
-                                <MoreVertical class="w-3 h-3 text-gray-400" />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-5 w-5 opacity-0 transition-opacity group-hover/header:opacity-100"
+                            >
+                                <MoreVertical class="h-3 w-3 text-gray-400" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" class="w-36">
                             <DropdownMenuItem @click="startRename(column)">
-                                <Pencil class="w-3.5 h-3.5 mr-2" />
+                                <Pencil class="mr-2 h-3.5 w-3.5" />
                                 Rename
                             </DropdownMenuItem>
-                            <DropdownMenuItem @click="confirmDeleteColumn(column)" class="text-red-600 focus:text-red-600">
-                                <Trash2 class="w-3.5 h-3.5 mr-2" />
+                            <DropdownMenuItem
+                                @click="confirmDeleteColumn(column)"
+                                class="text-red-600 focus:text-red-600"
+                            >
+                                <Trash2 class="mr-2 h-3.5 w-3.5" />
                                 Delete
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -163,14 +198,28 @@ const executeDeleteColumn = () => {
 
         <Popover v-if="canManage && currentProject" v-model:open="isAdding">
             <PopoverTrigger as-child>
-                <Button variant="ghost" size="icon" class="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full text-gray-400 hover:text-projector-primary-600">
-                    <Plus class="w-4 h-4" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="absolute top-1/2 right-2 h-7 w-7 -translate-y-1/2 rounded-full text-gray-400 hover:text-projector-primary-600"
+                >
+                    <Plus class="h-4 w-4" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent class="w-56 p-2" align="end">
-                <form class="flex items-center gap-2" @submit.prevent="submitAdd">
-                    <Input v-model="newLabel" placeholder="Column name" autofocus class="h-8 text-xs" />
-                    <Button type="submit" size="sm" class="h-8 px-3">Add</Button>
+                <form
+                    class="flex items-center gap-2"
+                    @submit.prevent="submitAdd"
+                >
+                    <Input
+                        v-model="newLabel"
+                        placeholder="Column name"
+                        autofocus
+                        class="h-8 text-xs"
+                    />
+                    <Button type="submit" size="sm" class="h-8 px-3"
+                        >Add</Button
+                    >
                 </form>
             </PopoverContent>
         </Popover>

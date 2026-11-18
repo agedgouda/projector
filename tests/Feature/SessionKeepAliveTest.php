@@ -2,8 +2,9 @@
 
 use App\Models\Organization;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('returns no content for an authenticated user pinging the keep-alive route', function () {
     $user = User::factory()->create();

@@ -4,11 +4,12 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Storage::fake('public');
@@ -316,7 +317,7 @@ it('stores a logo when creating an organization', function () {
         ])
         ->assertRedirect();
 
-    $org = \App\Models\Organization::where('name', 'Logo Org')->firstOrFail();
+    $org = Organization::where('name', 'Logo Org')->firstOrFail();
     expect($org->getFirstMedia('logo'))->not->toBeNull();
 });
 
@@ -338,7 +339,7 @@ it('stores a logo when creating a client', function () {
         ])
         ->assertRedirect();
 
-    $client = \App\Models\Client::where('company_name', 'Logo Client')->firstOrFail();
+    $client = Client::where('company_name', 'Logo Client')->firstOrFail();
     expect($client->getFirstMedia('logo'))->not->toBeNull();
 });
 
@@ -348,7 +349,7 @@ it('stores a logo when creating a project', function () {
     $proOrg->users()->attach($this->admin->id, ['role' => 'org-admin']);
     setPermissionsTeamId($proOrg->id);
 
-    $proClient = \App\Models\Client::create([
+    $proClient = Client::create([
         'organization_id' => $proOrg->id,
         'company_name' => 'Pro Client',
         'contact_name' => 'Test',
@@ -365,6 +366,6 @@ it('stores a logo when creating a project', function () {
         ])
         ->assertRedirect();
 
-    $project = \App\Models\Project::where('name', 'Logo Project')->firstOrFail();
+    $project = Project::where('name', 'Logo Project')->firstOrFail();
     expect($project->getFirstMedia('logo'))->not->toBeNull();
 });

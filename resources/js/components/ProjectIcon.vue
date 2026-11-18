@@ -21,9 +21,5 @@ const iconComponent = computed(() => {
 </script>
 
 <template>
-    <component
-        :is="iconComponent"
-        :size="iconSize"
-        class="shrink-0"
-    />
+    <component :is="iconComponent" :size="iconSize" class="shrink-0" />
 </template>

@@ -21,7 +21,7 @@ class VerifyResendSignature
     private const MAX_REQUEST_AGE_SECONDS = 300;
 
     /**
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {

@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import {
-    Check,
-    Building2,
-    Plus
-} from "lucide-vue-next";
-import { cn } from "@/lib/utils";
-import FlatSwitcherTrigger from "@/components/FlatSwitcherTrigger.vue";
-import IconTile from "@/components/IconTile.vue";
+import FlatSwitcherTrigger from '@/components/FlatSwitcherTrigger.vue';
+import IconTile from '@/components/IconTile.vue';
 import {
     Command,
     CommandEmpty,
@@ -14,16 +8,18 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
-    CommandSeparator
-} from "@/components/ui/command";
+    CommandSeparator,
+} from '@/components/ui/command';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
-} from "@/components/ui/popover";
-import { ref, computed } from "vue";
-import { Link } from "@inertiajs/vue3";
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import organizationRoutes from '@/routes/organizations/index';
+import { Link } from '@inertiajs/vue3';
+import { Building2, Check, Plus } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     organizations: any[];
@@ -34,7 +30,7 @@ const emit = defineEmits(['switch']);
 const open = ref(false);
 
 const sortedOrganizations = computed(() =>
-    [...props.organizations].sort((a, b) => a.name.localeCompare(b.name))
+    [...props.organizations].sort((a, b) => a.name.localeCompare(b.name)),
 );
 
 const handleSelect = (orgId: string | number) => {
@@ -54,7 +50,9 @@ const handleSelect = (orgId: string | number) => {
                 :title="currentOrg?.name ?? 'Select Organization'"
             />
         </PopoverTrigger>
-        <PopoverContent class="w-[300px] p-0 rounded-xl overflow-hidden border-gray-200 dark:border-zinc-800">
+        <PopoverContent
+            class="w-[300px] overflow-hidden rounded-xl border-gray-200 p-0 dark:border-zinc-800"
+        >
             <Command>
                 <CommandInput placeholder="Search organizations..." />
                 <CommandList>
@@ -64,9 +62,12 @@ const handleSelect = (orgId: string | number) => {
                         <CommandItem
                             value="create-new-organization"
                             as-child
-                            class="flex items-center gap-2 py-3 cursor-pointer text-projector-primary-600 dark:text-projector-primary-400 font-black uppercase text-[10px] tracking-widest"
+                            class="flex cursor-pointer items-center gap-2 py-3 text-[10px] font-black tracking-widest text-projector-primary-600 uppercase dark:text-projector-primary-400"
                         >
-                            <Link :href="organizationRoutes.create.url()" @click="open = false">
+                            <Link
+                                :href="organizationRoutes.create.url()"
+                                @click="open = false"
+                            >
                                 <Plus class="h-4 w-4" />
                                 Create New Organization
                             </Link>
@@ -81,17 +82,33 @@ const handleSelect = (orgId: string | number) => {
                             :key="org.id"
                             :value="org.name"
                             @select="handleSelect(org.id)"
-                            :class="cn(
-                                'flex items-center justify-between gap-2 py-3 cursor-pointer transition-colors',
-                                org.id === currentOrg?.id ? 'bg-projector-primary-50/50 dark:bg-projector-primary-500/5' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
-                            )"
+                            :class="
+                                cn(
+                                    'flex cursor-pointer items-center justify-between gap-2 py-3 transition-colors',
+                                    org.id === currentOrg?.id
+                                        ? 'bg-projector-primary-50/50 dark:bg-projector-primary-500/5'
+                                        : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50',
+                                )
+                            "
                         >
-                            <div class="flex items-center gap-2 min-w-0">
-                                <IconTile :src="org.logo_url" :alt="org.name" :icon="Building2" size="sm" tone="muted" />
-                                <span :class="cn(
-                                    'font-medium truncate transition-colors',
-                                    org.id === currentOrg?.id ? 'text-projector-primary-600 dark:text-projector-primary-400' : 'text-gray-700 dark:text-zinc-300'
-                                )">
+                            <div class="flex min-w-0 items-center gap-2">
+                                <IconTile
+                                    :src="org.logo_url"
+                                    :alt="org.name"
+                                    :icon="Building2"
+                                    size="sm"
+                                    tone="muted"
+                                />
+                                <span
+                                    :class="
+                                        cn(
+                                            'truncate font-medium transition-colors',
+                                            org.id === currentOrg?.id
+                                                ? 'text-projector-primary-600 dark:text-projector-primary-400'
+                                                : 'text-gray-700 dark:text-zinc-300',
+                                        )
+                                    "
+                                >
                                     {{ org.name }}
                                 </span>
                             </div>

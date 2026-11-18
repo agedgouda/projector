@@ -11,13 +11,35 @@ defineProps<{
 
 <template>
     <div class="grid gap-1.5">
-        <label for="privacy_policy" class="flex items-start gap-2.5 text-sm text-muted-foreground">
-            <Checkbox id="privacy_policy" name="privacy_policy" value="1" required :tabindex="tabindex" class="mt-0.5" />
+        <label
+            for="privacy_policy"
+            class="flex items-start gap-2.5 text-sm text-muted-foreground"
+        >
+            <Checkbox
+                id="privacy_policy"
+                name="privacy_policy"
+                value="1"
+                required
+                :tabindex="tabindex"
+                class="mt-0.5"
+            />
             <span>
                 I agree to the
-                <a :href="terms.url()" target="_blank" rel="noopener" class="text-foreground underline underline-offset-4">Terms of Service</a>
+                <a
+                    :href="terms.url()"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-foreground underline underline-offset-4"
+                    >Terms of Service</a
+                >
                 and
-                <a :href="privacy.url()" target="_blank" rel="noopener" class="text-foreground underline underline-offset-4">Privacy Policy</a>
+                <a
+                    :href="privacy.url()"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-foreground underline underline-offset-4"
+                    >Privacy Policy</a
+                >
             </span>
         </label>
         <InputError :message="error" />

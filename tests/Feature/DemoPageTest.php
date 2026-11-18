@@ -11,12 +11,13 @@ use App\Models\User;
 use App\Services\Ai\AiUsageLogger;
 use App\Services\Demo\DemoSamples;
 use App\Services\Demo\DemoSandbox;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->withoutVite();

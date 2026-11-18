@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\KanbanColumn;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\KanbanColumn>
+ * @extends Factory<KanbanColumn>
  */
 class KanbanColumnFactory extends Factory
 {

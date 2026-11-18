@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Organization;
 use App\Models\SlackWorkspace;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -92,7 +93,7 @@ class OrganizationSlackController extends Controller
             return $this->redirectToOrganization($organization)->with('status', 'slack-connect-failed');
         }
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         SlackWorkspace::updateOrCreate(

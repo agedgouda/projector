@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\OrganizationUser;
 use Closure;
 use Illuminate\Http\Request;
 use Spatie\Permission\Exceptions\UnauthorizedException;
@@ -34,7 +35,7 @@ class CheckOrgRole
         }
 
         $org = $user->organizations()->where('organizations.id', $activeOrgId)->first();
-        /** @var \App\Models\OrganizationUser|null $pivot */
+        /** @var OrganizationUser|null $pivot */
         $pivot = $org?->pivot;
         $orgRole = $pivot?->role;
 

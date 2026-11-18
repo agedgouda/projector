@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
-import { usePage } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -11,8 +9,9 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { register } from '@/routes';
 import { request } from '@/routes/password';
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, usePage } from '@inertiajs/vue3';
 import { Eye, EyeOff } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 const showPassword = ref(false);
 
@@ -94,7 +93,7 @@ const displayStatus = computed(() => {
                         />
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             @click="showPassword = !showPassword"
                             tabindex="-1"
                         >

@@ -11,14 +11,19 @@ use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 function csvUpload(string $csv, string $name = 'tasks.csv'): UploadedFile
 {
@@ -35,15 +40,15 @@ function csvUpload(string $csv, string $name = 'tasks.csv'): UploadedFile
  */
 function xlsxUploadWithDateCell(): UploadedFile
 {
-    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+    $spreadsheet = new Spreadsheet;
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->fromArray(['Name', 'Due Date'], null, 'A1');
     $sheet->setCellValue('A2', 'Write report');
-    $sheet->setCellValue('B2', \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(new DateTime('2026-09-01')));
-    $sheet->getStyle('B2')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_DATE_XLSX14_ACTUAL);
+    $sheet->setCellValue('B2', Date::PHPToExcel(new DateTime('2026-09-01')));
+    $sheet->getStyle('B2')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_XLSX14_ACTUAL);
 
     $path = tempnam(sys_get_temp_dir(), 'tasklist').'.xlsx';
-    (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
+    (new Xlsx($spreadsheet))->save($path);
 
     return new UploadedFile($path, 'tasks.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
 }
@@ -181,7 +186,7 @@ it('reads a genuine Excel date cell as a real date string, not its raw numeric s
     $response->assertSuccessful();
     $cell = $response->json('rows.0.1');
     expect($cell)->not->toBeNumeric()
-        ->and(\Illuminate\Support\Carbon::parse($cell)->toDateString())->toBe('2026-09-01');
+        ->and(Carbon::parse($cell)->toDateString())->toBe('2026-09-01');
 });
 
 it('forbids an outsider from analyzing a spreadsheet', function () {

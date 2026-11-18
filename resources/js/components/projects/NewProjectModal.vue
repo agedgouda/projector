@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { PlusIcon } from 'lucide-vue-next';
+import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -9,10 +8,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import ProjectEntryForm from '@/components/projects/ProjectEntryForm.vue';
 import UpgradeModal from '@/components/UpgradeModal.vue';
-import { toast } from 'vue-sonner';
 import { usePage } from '@inertiajs/vue3';
+import { PlusIcon } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 defineProps<{
     clients: Client[];
@@ -28,7 +28,9 @@ const isOpen = ref(false);
 const showUpgradeModal = ref(false);
 
 const page = usePage<AppPageProps>();
-const atLimit = computed(() => (page.props as any).orgMembership?.at_limit ?? {});
+const atLimit = computed(
+    () => (page.props as any).orgMembership?.at_limit ?? {},
+);
 
 const handleTriggerClick = (e: MouseEvent) => {
     if (atLimit.value.projects) {
@@ -51,8 +53,8 @@ const handleSuccess = (clientId: string) => {
     <div>
         <div @click.capture="handleTriggerClick">
             <slot name="trigger">
-                <Button class="font-bold h-11 px-6">
-                    <PlusIcon class="w-5 h-5 mr-2" />
+                <Button class="h-11 px-6 font-bold">
+                    <PlusIcon class="mr-2 h-5 w-5" />
                     {{ triggerLabel ?? 'New Project' }}
                 </Button>
             </slot>

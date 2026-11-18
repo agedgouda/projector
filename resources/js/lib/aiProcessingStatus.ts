@@ -12,12 +12,16 @@ export interface ProcessingStatus {
  * matching on "error"/"failed"/"success", since that's all the broadcast payload gives us)
  * can't drift between the two.
  */
-export function parseProcessingStatus(payload: { statusMessage?: unknown; progress?: unknown }): ProcessingStatus {
+export function parseProcessingStatus(payload: {
+    statusMessage?: unknown;
+    progress?: unknown;
+}): ProcessingStatus {
     const message = String(payload.statusMessage);
     const msg = message.toLowerCase();
     const newProgress = Number(payload.progress || 0);
     const isError = msg.includes('error') || msg.includes('failed');
-    const isSuccess = (msg.includes('success') || newProgress === 100) && !isError;
+    const isSuccess =
+        (msg.includes('success') || newProgress === 100) && !isError;
 
     return { message, newProgress, isError, isSuccess };
 }

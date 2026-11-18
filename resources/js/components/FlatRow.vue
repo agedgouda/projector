@@ -1,28 +1,35 @@
 <script setup lang="ts">
+import {
+    FLAT_ROW_ACCENT_BAR,
+    FLAT_ROW_HOVER,
+    FLAT_ROW_SELECTED,
+} from '@/lib/flat-ui';
 import { computed } from 'vue';
-import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED, FLAT_ROW_ACCENT_BAR } from '@/lib/flat-ui';
 
-const props = withDefaults(defineProps<{
-    selected?: boolean;
-    clickable?: boolean;
-    height?: 'sm' | 'md';
-    // Position within its list, for an alternating-stripe background — matches
-    // OrgUserTable.vue's rule. Omitted by callers that don't want striping.
-    rowIndex?: number;
-    // Opts out of the row hover background — for callers that decided against it
-    // (Roles, Project Portfolio, Transformations, Project Types, Team tab, Clients tab).
-    // Other callers keep the hover by default.
-    noHover?: boolean;
-    // Keeps the #actions slot visible at all times instead of only on row hover/focus —
-    // same opt-in set as noHover above.
-    alwaysShowActions?: boolean;
-}>(), {
-    selected: false,
-    clickable: false,
-    height: 'sm',
-    noHover: false,
-    alwaysShowActions: false,
-});
+const props = withDefaults(
+    defineProps<{
+        selected?: boolean;
+        clickable?: boolean;
+        height?: 'sm' | 'md';
+        // Position within its list, for an alternating-stripe background — matches
+        // OrgUserTable.vue's rule. Omitted by callers that don't want striping.
+        rowIndex?: number;
+        // Opts out of the row hover background — for callers that decided against it
+        // (Roles, Project Portfolio, Transformations, Project Types, Team tab, Clients tab).
+        // Other callers keep the hover by default.
+        noHover?: boolean;
+        // Keeps the #actions slot visible at all times instead of only on row hover/focus —
+        // same opt-in set as noHover above.
+        alwaysShowActions?: boolean;
+    }>(),
+    {
+        selected: false,
+        clickable: false,
+        height: 'sm',
+        noHover: false,
+        alwaysShowActions: false,
+    },
+);
 
 defineEmits<{
     (e: 'click', event: MouseEvent): void;
@@ -37,7 +44,7 @@ const rowClasses = computed(() => [
     'group relative flex items-center px-2 rounded-md transition-colors',
     heightClasses[props.height],
     props.clickable ? 'cursor-pointer' : '',
-    props.selected ? FLAT_ROW_SELECTED : (props.noHover ? '' : FLAT_ROW_HOVER),
+    props.selected ? FLAT_ROW_SELECTED : props.noHover ? '' : FLAT_ROW_HOVER,
     !props.selected && props.rowIndex !== undefined && props.rowIndex % 2 === 1
         ? 'bg-projector-primary-100/70 dark:bg-projector-primary-950/25'
         : '',
@@ -45,7 +52,9 @@ const rowClasses = computed(() => [
 
 const actionsClasses = computed(() => [
     'flex items-center gap-1 shrink-0 ml-2',
-    props.alwaysShowActions ? '' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity',
+    props.alwaysShowActions
+        ? ''
+        : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity',
 ]);
 </script>
 
@@ -55,11 +64,14 @@ const actionsClasses = computed(() => [
 
         <slot name="leading" />
 
-        <div class="flex-1 flex items-center gap-2.5 min-w-0">
+        <div class="flex min-w-0 flex-1 items-center gap-2.5">
             <slot />
         </div>
 
-        <div v-if="$slots.trailing" class="hidden md:flex items-center gap-3 shrink-0 ml-3">
+        <div
+            v-if="$slots.trailing"
+            class="ml-3 hidden shrink-0 items-center gap-3 md:flex"
+        >
             <slot name="trailing" />
         </div>
 

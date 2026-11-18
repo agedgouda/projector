@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { create as organizationLogin } from '@/actions/App/Http/Controllers/OrganizationLoginController';
+import { store } from '@/actions/App/Http/Controllers/OrganizationRegistrationController';
 import InputError from '@/components/InputError.vue';
 import PrivacyPolicyConsent from '@/components/PrivacyPolicyConsent.vue';
 import TextLink from '@/components/TextLink.vue';
@@ -7,11 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
-import { create as organizationLogin } from '@/actions/App/Http/Controllers/OrganizationLoginController';
-import { store } from '@/actions/App/Http/Controllers/OrganizationRegistrationController';
 import { Form, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
 import { Eye, EyeOff } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 defineProps<{
     organization: { id: string; name: string };
@@ -39,7 +39,12 @@ const showPasswordConfirmation = ref(false);
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"
         >
-            <input v-if="invitationToken" type="hidden" name="invitation_token" :value="invitationToken" />
+            <input
+                v-if="invitationToken"
+                type="hidden"
+                name="invitation_token"
+                :value="invitationToken"
+            />
 
             <div class="grid gap-6">
                 <div class="grid grid-cols-2 gap-4">
@@ -87,7 +92,9 @@ const showPasswordConfirmation = ref(false);
                         placeholder="email@example.com"
                         :model-value="invitedEmail ?? undefined"
                         :readonly="!!invitedEmail"
-                        :class="{ 'bg-slate-50 text-slate-500': !!invitedEmail }"
+                        :class="{
+                            'bg-slate-50 text-slate-500': !!invitedEmail,
+                        }"
                     />
                     <InputError :message="errors.email" />
                 </div>
@@ -107,7 +114,7 @@ const showPasswordConfirmation = ref(false);
                         />
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             @click="showPassword = !showPassword"
                             tabindex="-1"
                         >
@@ -123,7 +130,9 @@ const showPasswordConfirmation = ref(false);
                     <div class="relative">
                         <Input
                             id="password_confirmation"
-                            :type="showPasswordConfirmation ? 'text' : 'password'"
+                            :type="
+                                showPasswordConfirmation ? 'text' : 'password'
+                            "
                             required
                             :tabindex="5"
                             autocomplete="new-password"
@@ -133,18 +142,27 @@ const showPasswordConfirmation = ref(false);
                         />
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            @click="showPasswordConfirmation = !showPasswordConfirmation"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            @click="
+                                showPasswordConfirmation =
+                                    !showPasswordConfirmation
+                            "
                             tabindex="-1"
                         >
-                            <Eye v-if="!showPasswordConfirmation" class="h-4 w-4" />
+                            <Eye
+                                v-if="!showPasswordConfirmation"
+                                class="h-4 w-4"
+                            />
                             <EyeOff v-else class="h-4 w-4" />
                         </button>
                     </div>
                     <InputError :message="errors.password_confirmation" />
                 </div>
 
-                <PrivacyPolicyConsent :error="errors.privacy_policy" :tabindex="6" />
+                <PrivacyPolicyConsent
+                    :error="errors.privacy_policy"
+                    :tabindex="6"
+                />
 
                 <Button
                     type="submit"
@@ -160,8 +178,12 @@ const showPasswordConfirmation = ref(false);
             <div class="text-center text-sm text-muted-foreground">
                 Already have an account?
                 <TextLink
-                    :href="organizationLogin(organization, { query: { invitation: invitationToken } }).url"
-                    class="underline underline-offset-4 cursor-pointer"
+                    :href="
+                        organizationLogin(organization, {
+                            query: { invitation: invitationToken },
+                        }).url
+                    "
+                    class="cursor-pointer underline underline-offset-4"
                     :tabindex="8"
                     >Log in</TextLink
                 >

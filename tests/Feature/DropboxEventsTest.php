@@ -7,9 +7,10 @@ use App\Models\DropboxWorkspace;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Services\Dropbox\DropboxApiClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     config(['services.dropbox.client_secret' => 'fake-app-secret']);
@@ -213,7 +214,7 @@ it('uses list_folder/continue with the stored cursor instead of a fresh list_fol
     $this->mock(DropboxApiClient::class)
         ->shouldReceive('listFolderContinue')
         ->once()
-        ->with(\Mockery::on(fn ($workspace) => $workspace->is($fixture['workspace'])), 'existing-cursor')
+        ->with(Mockery::on(fn ($workspace) => $workspace->is($fixture['workspace'])), 'existing-cursor')
         ->andReturn(['entries' => [], 'cursor' => 'existing-cursor', 'has_more' => false]);
 
     $payload = ['list_folder' => ['accounts' => ['dbid:acct123']]];

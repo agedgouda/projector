@@ -15,12 +15,16 @@ use App\Models\SlackChannelBinding;
 use App\Models\SlackWorkspace;
 use App\Models\User;
 use App\Services\Dropbox\DropboxApiClient;
+use App\Services\MembershipGuard;
 use App\Services\Slack\SlackChannelService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class OrganizationController extends Controller
 {
@@ -201,7 +205,7 @@ class OrganizationController extends Controller
      * channel list — with the org's existing bindings still shown — rather than a 500 on the
      * whole organization dashboard.
      *
-     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     * @return array{0: Collection, 1: Collection}
      */
     private function slackChannelData(?SlackWorkspace $workspace, User $user, Organization $organization): array
     {
@@ -239,7 +243,7 @@ class OrganizationController extends Controller
      * an empty folder list — with the org's existing bindings still shown — rather than a 500 on
      * the whole organization dashboard, mirroring slackChannelData() exactly.
      *
-     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     * @return array{0: Collection, 1: Collection}
      */
     private function dropboxFolderData(?DropboxWorkspace $workspace, Organization $organization): array
     {
@@ -376,7 +380,7 @@ class OrganizationController extends Controller
     /**
      * Add a user to the specified organization. Super-admins only.
      */
-    public function addUser(Request $request, Organization $organization): \Illuminate\Http\RedirectResponse
+    public function addUser(Request $request, Organization $organization): RedirectResponse
     {
         Gate::authorize('manageUsers', $organization);
 
@@ -395,7 +399,7 @@ class OrganizationController extends Controller
             return back()->withErrors(['user_id' => 'You can only add people who belong to another organization you administer. Use "Invite User" instead.']);
         }
 
-        if ($block = \App\Services\MembershipGuard::check($organization, 'users')) {
+        if ($block = MembershipGuard::check($organization, 'users')) {
             return $block;
         }
 
@@ -420,7 +424,7 @@ class OrganizationController extends Controller
         return redirect()->route('organizations.index')->with('success', 'Organization removed.');
     }
 
-    public function adminIndex(): \Inertia\Response
+    public function adminIndex(): Response
     {
         $orgs = Organization::withCount(['users', 'clients', 'invitations'])
             ->get()
@@ -454,7 +458,7 @@ class OrganizationController extends Controller
         ]);
     }
 
-    public function updateTier(UpdateOrganizationTierRequest $request, Organization $organization): \Illuminate\Http\RedirectResponse
+    public function updateTier(UpdateOrganizationTierRequest $request, Organization $organization): RedirectResponse
     {
         $organization->update(['membership_tier' => $request->membership_tier]);
 

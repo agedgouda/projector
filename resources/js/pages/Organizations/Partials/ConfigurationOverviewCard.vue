@@ -1360,13 +1360,17 @@ const meetingNeedsSetup = computed(() => {
                         autocomplete="off"
                         :placeholder="llmKeyPlaceholder"
                         class="h-10 font-mono text-sm"
-                        :class="{ 'border-red-500': llmDriverForm.errors['llm_config.key'] }"
+                        :class="{
+                            'border-red-500':
+                                llmDriverForm.errors['llm_config.key'],
+                        }"
                     />
                     <p
                         v-if="llmDriverForm.llm_driver === 'gemini'"
                         class="px-1 text-[10px] text-gray-400"
                     >
-                        Gemini requires your organization's own API key. Projector does not provide one.
+                        Gemini requires your organization's own API key.
+                        Projector does not provide one.
                     </p>
                     <p
                         v-if="llmDriverForm.errors['llm_config.key']"
@@ -1545,13 +1549,17 @@ const meetingNeedsSetup = computed(() => {
                         autocomplete="off"
                         :placeholder="vectorKeyPlaceholder"
                         class="h-10 font-mono text-sm"
-                        :class="{ 'border-red-500': vectorDriverForm.errors['vector_config.key'] }"
+                        :class="{
+                            'border-red-500':
+                                vectorDriverForm.errors['vector_config.key'],
+                        }"
                     />
                     <p
                         v-if="vectorDriverForm.vector_driver === 'gemini'"
                         class="px-1 text-[10px] text-gray-400"
                     >
-                        Gemini requires your organization's own API key. Projector does not provide one.
+                        Gemini requires your organization's own API key.
+                        Projector does not provide one.
                     </p>
                     <p
                         v-if="vectorDriverForm.errors['vector_config.key']"

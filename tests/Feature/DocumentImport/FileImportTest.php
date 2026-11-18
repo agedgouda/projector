@@ -2,16 +2,21 @@
 
 use App\Enums\CustomPromptMode;
 use App\Jobs\ProcessDocumentAI;
+use App\Models\AiTemplate;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Writer\Word2007;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 /**
  * Generates a real, minimal .docx file (not a committed binary fixture) so the upload
@@ -19,12 +24,12 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
  */
 function fakeDocxFile(string $name = 'notes.docx'): UploadedFile
 {
-    $phpWord = new \PhpOffice\PhpWord\PhpWord;
+    $phpWord = new PhpWord;
     $section = $phpWord->addSection();
     $section->addText('Hello from a real docx file.');
 
     $tmpPath = tempnam(sys_get_temp_dir(), 'docx').'.docx';
-    (new \PhpOffice\PhpWord\Writer\Word2007($phpWord))->save($tmpPath);
+    (new Word2007($phpWord))->save($tmpPath);
 
     return new UploadedFile($tmpPath, $name, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', null, true);
 }
@@ -184,7 +189,7 @@ it('rejects an unknown custom_prompt_mode on a file-based import', function () {
 it('redirects to a pre-created blank Meeting Notes document, same as a picked recording, when imported as Transcription', function () {
     Queue::fake();
 
-    $template = \App\Models\AiTemplate::create([
+    $template = AiTemplate::create([
         'name' => 'Transcript to Meeting Notes',
         'type' => 'workflow',
         'system_prompt' => 'x',
@@ -260,7 +265,7 @@ it('creates a new org-scoped document type and uses it when new_type_label is gi
         ])
         ->assertRedirect();
 
-    $definition = \App\Models\DocumentTypeDefinition::where('organization_id', $this->org->id)
+    $definition = DocumentTypeDefinition::where('organization_id', $this->org->id)
         ->where('key', 'design_brief')
         ->first();
 
@@ -277,7 +282,7 @@ it('creates a new org-scoped document type and uses it when new_type_label is gi
 });
 
 it('reuses an existing document type definition when new_type_label matches one already created', function () {
-    $existing = \App\Models\DocumentTypeDefinition::create([
+    $existing = DocumentTypeDefinition::create([
         'organization_id' => $this->org->id,
         'key' => 'design_brief',
         'label' => 'Design Brief',
@@ -294,7 +299,7 @@ it('reuses an existing document type definition when new_type_label matches one 
         ])
         ->assertRedirect();
 
-    expect(\App\Models\DocumentTypeDefinition::where('organization_id', $this->org->id)->where('key', 'design_brief')->count())->toBe(1);
+    expect(DocumentTypeDefinition::where('organization_id', $this->org->id)->where('key', 'design_brief')->count())->toBe(1);
 
     $document = $this->project->documents()->where('type', 'design_brief')->first();
     expect($document)->not->toBeNull();

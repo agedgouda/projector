@@ -139,7 +139,9 @@ onMounted(() => {
 // Each tag in a family must have a distinct color (enforced server-side too, via a unique
 // index on categories(project_id, color)) — this just keeps the swatch pickers from letting
 // the user pick a color that's guaranteed to be rejected.
-const usedColors = computed(() => new Set(categories.value.map((c) => c.color)));
+const usedColors = computed(
+    () => new Set(categories.value.map((c) => c.color)),
+);
 
 const isAddingCategory = ref(false);
 const newCategoryName = ref('');
@@ -413,7 +415,6 @@ const submit = async () => {
                 </p>
             </div>
 
-
             <div v-if="!tagsOnly" class="grid gap-2">
                 <Label
                     for="name"
@@ -473,7 +474,11 @@ const submit = async () => {
                                     :key="color"
                                     type="button"
                                     :disabled="usedColors.has(color)"
-                                    :title="usedColors.has(color) ? 'Already used by another tag' : undefined"
+                                    :title="
+                                        usedColors.has(color)
+                                            ? 'Already used by another tag'
+                                            : undefined
+                                    "
                                     :class="[
                                         'h-5 w-5 rounded-full',
                                         kanbanDotClasses[color],
@@ -523,7 +528,10 @@ const submit = async () => {
                     </template>
 
                     <template v-else>
-                        <Popover v-for="category in categories" :key="category.id">
+                        <Popover
+                            v-for="category in categories"
+                            :key="category.id"
+                        >
                             <PopoverTrigger as-child>
                                 <button
                                     type="button"
@@ -539,12 +547,17 @@ const submit = async () => {
                                     {{ category.name }}
                                 </button>
                             </PopoverTrigger>
-                            <PopoverContent class="w-64 space-y-3 p-3" align="start">
+                            <PopoverContent
+                                class="w-64 space-y-3 p-3"
+                                align="start"
+                            >
                                 <Input
                                     v-model="renameCategoryName"
                                     autofocus
                                     class="h-8 text-xs"
-                                    @keydown.enter="submitRenameCategory(category)"
+                                    @keydown.enter="
+                                        submitRenameCategory(category)
+                                    "
                                 />
                                 <div class="flex flex-wrap gap-1.5">
                                     <button
@@ -572,7 +585,9 @@ const submit = async () => {
                                                 ? 'cursor-not-allowed opacity-30'
                                                 : '',
                                         ]"
-                                        @click="recolorCategory(category, color)"
+                                        @click="
+                                            recolorCategory(category, color)
+                                        "
                                     />
                                 </div>
                                 <div class="flex gap-2">
@@ -589,7 +604,9 @@ const submit = async () => {
                                         size="sm"
                                         variant="outline"
                                         class="h-8 flex-1 text-red-600 hover:text-red-600"
-                                        @click="pendingDeleteCategory = category"
+                                        @click="
+                                            pendingDeleteCategory = category
+                                        "
                                     >
                                         <Trash2 class="h-3.5 w-3.5" />
                                         Delete
@@ -673,7 +690,10 @@ const submit = async () => {
                 </div>
             </div>
 
-            <div v-if="isEditing && !tagsOnly" class="flex items-center gap-2 pt-2">
+            <div
+                v-if="isEditing && !tagsOnly"
+                class="flex items-center gap-2 pt-2"
+            >
                 <input
                     id="project-inactive"
                     v-model="form.inactive"

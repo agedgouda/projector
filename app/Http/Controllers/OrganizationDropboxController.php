@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DropboxWorkspace;
 use App\Models\Organization;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -130,7 +131,7 @@ class OrganizationDropboxController extends Controller
             return $this->redirectToOrganization($organization)->with('status', 'dropbox-connect-failed');
         }
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $expiresIn = $response->json('expires_in');

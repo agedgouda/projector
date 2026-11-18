@@ -1,6 +1,9 @@
 <?php
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 test('registration screen can be rendered', function () {
     $response = $this->get(route('register'));
@@ -34,8 +37,8 @@ test('registration records when the privacy policy was accepted', function () {
         'privacy_policy' => '1',
     ]);
 
-    expect(\App\Models\User::sole()->privacy_policy_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString())
-        ->and(\App\Models\User::sole()->terms_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString());
+    expect(User::sole()->privacy_policy_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString())
+        ->and(User::sole()->terms_accepted_at?->toDateTimeString())->toBe(now()->toDateTimeString());
 });
 
 test('registration requires accepting the privacy policy', function (array $consent) {
@@ -49,7 +52,7 @@ test('registration requires accepting the privacy policy', function (array $cons
     ])->assertSessionHasErrors(['privacy_policy' => 'You must accept the Terms of Service and Privacy Policy to create an account.']);
 
     $this->assertGuest();
-    expect(\App\Models\User::count())->toBe(0);
+    expect(User::count())->toBe(0);
 })->with([
     'missing' => [[]],
     'unchecked' => [['privacy_policy' => '0']],

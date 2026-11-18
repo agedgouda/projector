@@ -9,12 +9,13 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\TusUpload;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 /**
  * Uploads one chunk end to end (create -> single PATCH covering the whole body) and returns the

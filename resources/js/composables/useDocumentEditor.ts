@@ -7,7 +7,16 @@ import StarterKit from '@tiptap/starter-kit';
 import { useEditor } from '@tiptap/vue-3';
 import axios, { type AxiosError } from 'axios';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
-import { computed, createApp, h, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
+import {
+    computed,
+    createApp,
+    h,
+    onBeforeUnmount,
+    reactive,
+    ref,
+    watch,
+    type Ref,
+} from 'vue';
 import { toast } from 'vue-sonner';
 
 // Kept in sync with the production server's own hard upload cap (its web server/PHP config
@@ -171,7 +180,11 @@ export function useDocumentEditor(
     const getProjectId = () =>
         typeof projectId === 'function' ? projectId() : projectId;
 
-    const extensions: any[] = [StarterKit, Image.configure({ inline: true }), FileAttachment];
+    const extensions: any[] = [
+        StarterKit,
+        Image.configure({ inline: true }),
+        FileAttachment,
+    ];
 
     if (users) {
         extensions.push(
@@ -238,7 +251,9 @@ export function useDocumentEditor(
 
         if (file.size > MAX_UPLOAD_BYTES) {
             const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-            toast.error(`${file.name} is too large (${sizeMb}MB) — the maximum upload size is 2MB.`);
+            toast.error(
+                `${file.name} is too large (${sizeMb}MB) — the maximum upload size is 2MB.`,
+            );
             return;
         }
 
@@ -248,7 +263,10 @@ export function useDocumentEditor(
         pendingUploads.value++;
 
         const upload = axios
-            .post(contentUploads.store.url({ project: currentProjectId }), formData)
+            .post(
+                contentUploads.store.url({ project: currentProjectId }),
+                formData,
+            )
             .then(({ data }: { data: { url: string; name: string } }) => {
                 if (!editor.value) {
                     return;

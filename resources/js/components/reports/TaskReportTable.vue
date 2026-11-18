@@ -46,8 +46,6 @@ export interface TaskReportRow {
     content: string | null;
     type: string;
     custom_prompt: string | null;
-    locked_project_type_id: string | null;
-    locked_next_workflow_step_exists: boolean;
     last_ai_template_id: number | null;
     processed_at: string | null;
     updated_at: string;

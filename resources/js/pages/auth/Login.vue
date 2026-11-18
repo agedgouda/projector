@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import axios from 'axios';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
-import { usePage, useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -12,8 +9,10 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/auth/AuthBrandLayout.vue';
 import { register } from '@/routes';
 import { request } from '@/routes/password';
-import { Head } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import { Eye, EyeOff } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 const showPassword = ref(false);
 
@@ -110,7 +109,7 @@ const submit = async () => {
                         />
                         <button
                             type="button"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             @click="showPassword = !showPassword"
                             tabindex="-1"
                         >
@@ -123,7 +122,11 @@ const submit = async () => {
 
                 <div class="flex items-center justify-between">
                     <Label for="remember" class="flex items-center space-x-3">
-                        <Checkbox id="remember" v-model="form.remember" :tabindex="3" />
+                        <Checkbox
+                            id="remember"
+                            v-model="form.remember"
+                            :tabindex="3"
+                        />
                         <span>Remember me</span>
                     </Label>
                 </div>

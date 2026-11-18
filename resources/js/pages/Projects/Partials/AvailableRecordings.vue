@@ -1,29 +1,32 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Download } from 'lucide-vue-next';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import ImportConfirmModal from '@/components/recordings/ImportConfirmModal.vue';
 import RecordingsList from '@/components/recordings/RecordingsList.vue';
-import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
 import { type ImportTypeChoice } from '@/composables/transcripts/useDocumentImportActions';
-import { type CustomPrompt } from '@/lib/constants';
+import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
+import { type CustomPrompt } from '@/lib/constants';
+import { Download } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
-const props = withDefaults(defineProps<{
-    projectId: string;
-    recordings: Recording[];
-    importedIds: string[];
-    crossProjectImportedIds: string[];
-    canManage: boolean;
-    providerError?: string | null;
-    // Which type a picked recording becomes — resolved the same way a Google Doc/file's is
-    // (see DocumentTypeResolver). Defaults to the intake type for the two contexts that don't
-    // offer a type picker at all (the standalone Transcripts tab, Show.vue's old Recordings
-    // tab) — only the Import a Document modal ever passes something else.
-    typeChoice?: ImportTypeChoice;
-}>(), {
-    typeChoice: () => ({ type: INTAKE_KEY }),
-});
+const props = withDefaults(
+    defineProps<{
+        projectId: string;
+        recordings: Recording[];
+        importedIds: string[];
+        crossProjectImportedIds: string[];
+        canManage: boolean;
+        providerError?: string | null;
+        // Which type a picked recording becomes — resolved the same way a Google Doc/file's is
+        // (see DocumentTypeResolver). Defaults to the intake type for the two contexts that don't
+        // offer a type picker at all (the standalone Transcripts tab, Show.vue's old Recordings
+        // tab) — only the Import a Document modal ever passes something else.
+        typeChoice?: ImportTypeChoice;
+    }>(),
+    {
+        typeChoice: () => ({ type: INTAKE_KEY }),
+    },
+);
 
 // Whether the picked type is Transcription — decides both whether the row's inline AI-prompt
 // popover makes sense (see RecordingsList's showAiPrompt prop) and whether importing needs a
@@ -31,9 +34,14 @@ const props = withDefaults(defineProps<{
 // "generate Meeting Notes via AI" step, so it has nothing to confirm for any other type — a
 // non-Transcription pick imports immediately, exactly like a Google Doc/file picked as that
 // same type does.
-const isTranscription = computed(() => 'type' in props.typeChoice && props.typeChoice.type === INTAKE_KEY);
+const isTranscription = computed(
+    () => 'type' in props.typeChoice && props.typeChoice.type === INTAKE_KEY,
+);
 
-const excludedIds = computed(() => [...props.importedIds, ...props.crossProjectImportedIds]);
+const excludedIds = computed(() => [
+    ...props.importedIds,
+    ...props.crossProjectImportedIds,
+]);
 
 const emit = defineEmits<{
     importQueued: [];
@@ -71,7 +79,11 @@ const closeImportConfirm = () => {
 
 const confirmImport = (additionalInfo: CustomPrompt | null) => {
     if (!pendingImportRecording.value) return;
-    importRecording(pendingImportRecording.value, additionalInfo, props.typeChoice);
+    importRecording(
+        pendingImportRecording.value,
+        additionalInfo,
+        props.typeChoice,
+    );
     isImportConfirmOpen.value = false;
 };
 

@@ -8,10 +8,10 @@ use App\Models\AiTemplate;
 use App\Models\Category;
 use App\Models\Document;
 use App\Models\Project;
-use App\Models\WorkflowStep;
 use App\Services\Ai\Strategies\DynamicWorkflowStrategy;
 use App\Services\Tasks\TaskLinker;
 use App\Services\VectorService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class ProjectAiService
@@ -23,21 +23,15 @@ class ProjectAiService
     ) {}
 
     /**
-     * When $overrideStep is given, runs that exact transition — a user-chosen protocol step, or a
-     * raw AI template pick — instead of looking one up automatically. A protocol-driven override
-     * (project_type_id set) locks the document's whole downstream lineage to that protocol; a
-     * template-only override (project_type_id omitted) locks nothing, so its own children still
-     * need an explicit choice.
+     * When $overrideStep is given, runs that exact transition — a user-chosen AI template — instead
+     * of looking one up automatically.
      *
-     * Without an override, this either runs the universal, protocol-independent Notes -> Action
-     * Items step (the only transition that's ever automatic — see DocumentObserver::created(),
-     * which relies on this same detection for reprocessing to stay consistent with creation), or,
-     * for a document already locked to a protocol from an earlier transform, that protocol's own
-     * workflow_steps row for this document's current type — propagating the lock to whatever gets
-     * created next. A document that's neither intake, nor locked, nor given an override has
-     * nothing to reprocess into.
+     * Without an override, this runs the universal Notes -> Action Items step (the only transition
+     * that's ever automatic — see DocumentObserver::created(), which relies on this same detection
+     * for reprocessing to stay consistent with creation). A document that's neither intake nor
+     * given an override has nothing to reprocess into.
      *
-     * @param  array{to_key: string, ai_template_id: int, single_output?: bool, project_type_id?: string|null}|null  $overrideStep
+     * @param  array{to_key: string, ai_template_id: int, single_output?: bool}|null  $overrideStep
      * @param  string|null  $oneOffInstructions  Free text typed at the moment of dispatch (e.g. on the
      *                                           Reprocess confirmation) — appended to whichever system
      *                                           prompt this run resolves to, for this run only. Never
@@ -67,7 +61,6 @@ class ProjectAiService
 
         if ($overrideStep) {
             $step = $overrideStep + ['from_key' => $document->type];
-            $lockedProjectTypeId = $overrideStep['project_type_id'] ?? null;
         } elseif (! empty($document->custom_prompt) && ! $addsToStandardInstructions && $project instanceof Project) {
             return $this->processCustomPrompt($project, $document, $oneOffInstructions, $onOutputTypeResolved);
         } elseif ($document->type === config('workflow.intake_key')) {
@@ -86,28 +79,8 @@ class ProjectAiService
                 'ai_template_id' => $templateId,
                 'single_output' => false,
             ];
-            $lockedProjectTypeId = null;
-        } elseif ($document->locked_project_type_id) {
-            $workflowStep = WorkflowStep::query()
-                ->where('project_type_id', $document->locked_project_type_id)
-                ->where('from_key', $document->type)
-                ->first();
-
-            if (! $workflowStep) {
-                Log::warning("No further workflow step defined for the locked protocol on type: {$document->type}. Skipping.");
-
-                return null;
-            }
-
-            $step = [
-                'from_key' => $workflowStep->from_key,
-                'to_key' => $workflowStep->to_key,
-                'ai_template_id' => $workflowStep->ai_template_id,
-                'single_output' => $workflowStep->single_output,
-            ];
-            $lockedProjectTypeId = $document->locked_project_type_id;
         } else {
-            Log::warning("Document type {$document->type} is not locked to a protocol and no override step was given. Skipping.");
+            Log::warning("Document type {$document->type} is not an intake document and no override step was given. Skipping.");
 
             return null;
         }
@@ -130,7 +103,7 @@ class ProjectAiService
         $strategy = new DynamicWorkflowStrategy($template, $step['from_key'], $outputKey);
         // Whether this produces one cohesive document vs a list of items is a property of the
         // template's own prompt design, not of how it was invoked — the template's own flag is
-        // authoritative regardless of whether this came from a protocol step or a direct pick.
+        // authoritative regardless of how it was invoked.
         $singleOutput = (bool) $template->single_output;
 
         if ($onOutputTypeResolved) {
@@ -144,7 +117,6 @@ class ProjectAiService
         if (($result['status'] ?? '') === 'success') {
             $result['output_type'] = $strategy->getOutputDocumentType();
             $result['single_output'] = $singleOutput;
-            $result['locked_project_type_id'] = $lockedProjectTypeId;
             $result['ai_template_id'] = $template->id;
         }
 
@@ -168,7 +140,7 @@ class ProjectAiService
      * Every other transition still goes through callLlm()/callLlmSingleDocument() and the normal
      * schema-constrained call() unchanged.
      *
-     * @return array{project_name: string, mock_response: array{title: string, content: string}, status: string, output_type: string|null, single_output: bool, locked_project_type_id: null}
+     * @return array{project_name: string, mock_response: array{title: string, content: string}, status: string, output_type: string|null, single_output: bool}
      */
     protected function processCustomPrompt(Project $project, Document $document, ?string $oneOffInstructions = null, ?callable $onOutputTypeResolved = null): array
     {
@@ -217,7 +189,6 @@ class ProjectAiService
             'status' => 'success',
             'output_type' => is_string($actionItemsKey) ? $actionItemsKey : null,
             'single_output' => true,
-            'locked_project_type_id' => null,
             'images' => array_values($images),
         ];
     }
@@ -268,7 +239,7 @@ class ProjectAiService
         $replacements = [
             '{{project}}' => $project->name,
             '{{document_name}}' => $currentDoc?->name ?? 'Document',
-            '{{today}}' => \Illuminate\Support\Carbon::today()->toDateString(),
+            '{{today}}' => Carbon::today()->toDateString(),
             '{{client_industry}}' => $industry ? "Client Industry: {$industry}" : '',
             // The client this project is being delivered for.
             '{{client_name}}' => $clientName ?? 'TBD',

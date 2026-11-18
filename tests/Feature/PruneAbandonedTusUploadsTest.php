@@ -7,17 +7,20 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\TusUpload;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 /**
  * One chunk row and its file, last touched at $lastActivity.
  *
  * @param  array<string, mixed>  $attributes
  */
-function createTusUpload(\Carbon\Carbon $lastActivity, string $kind = 'partial', array $attributes = [], ?Project $project = null, ?User $user = null): TusUpload
+function createTusUpload(Carbon $lastActivity, string $kind = 'partial', array $attributes = [], ?Project $project = null, ?User $user = null): TusUpload
 {
     if ($project === null) {
         $org = Organization::create(['name' => 'Acme Inc']);
@@ -30,7 +33,7 @@ function createTusUpload(\Carbon\Carbon $lastActivity, string $kind = 'partial',
         $project = Project::create(['name' => 'Test Project', 'client_id' => $client->id]);
     }
 
-    $path = 'tus-uploads/'.\Illuminate\Support\Str::uuid().'.partial';
+    $path = 'tus-uploads/'.Str::uuid().'.partial';
     Storage::disk('local')->put($path, 'some bytes');
 
     $upload = TusUpload::create(array_merge([
@@ -52,7 +55,7 @@ function createTusUpload(\Carbon\Carbon $lastActivity, string $kind = 'partial',
 /**
  * @param  array<string, mixed>  $attributes
  */
-function createCompleteChunk(\Carbon\Carbon $lastActivity, int $index, Project $project, User $user, array $attributes = []): TusUpload
+function createCompleteChunk(Carbon $lastActivity, int $index, Project $project, User $user, array $attributes = []): TusUpload
 {
     return createTusUpload($lastActivity, 'partial', array_merge([
         'upload_offset' => 10,

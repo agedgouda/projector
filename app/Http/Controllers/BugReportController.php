@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreBugReportRequest;
 use App\Models\BugReport;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,7 +36,7 @@ class BugReportController extends Controller
         return Inertia::render('BugReports/Create');
     }
 
-    public function store(StoreBugReportRequest $request): \Illuminate\Http\RedirectResponse
+    public function store(StoreBugReportRequest $request): RedirectResponse
     {
         BugReport::create([
             'user_id' => $request->user()->id,
@@ -47,7 +48,7 @@ class BugReportController extends Controller
         return back()->with('success', 'Bug report submitted. Thank you!');
     }
 
-    public function update(BugReport $bugReport): \Illuminate\Http\RedirectResponse
+    public function update(BugReport $bugReport): RedirectResponse
     {
         $bugReport->update([
             'status' => $bugReport->status === 'open' ? 'resolved' : 'open',

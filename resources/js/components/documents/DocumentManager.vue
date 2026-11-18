@@ -1,31 +1,33 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, nextTick } from 'vue';
-import { toast } from 'vue-sonner';
-import { usePage } from '@inertiajs/vue3';
-import { Search } from 'lucide-vue-next';
+import { useAiProcessing } from '@/composables/useAiProcessing';
 import { useDocumentActions } from '@/composables/useDocumentActions';
 import { useProjectState } from '@/composables/useProjectState';
-import { useAiProcessing } from '@/composables/useAiProcessing';
 import { mergeAssigneeOptions } from '@/lib/assignees';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
+import { usePage } from '@inertiajs/vue3';
+import { Search } from 'lucide-vue-next';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 
 // UI Components
 import { Input } from '@/components/ui/input';
 import TraceabilityRow from './TraceabilityRow.vue';
 
-const props = withDefaults(defineProps<{
-    project: Project;
-    liveDocuments?: ProjectDocument[]; // The '?' makes it optional
-    documentTypeCatalog?: DocumentSchemaItem[];
-    isGenerating: boolean;
-    unreadDocumentIds?: Set<string>;
-}>(), {
-    liveDocuments: () => [], // Provides a default empty array
-    documentTypeCatalog: () => [],
-    isGenerating: false,
-    unreadDocumentIds: () => new Set(),
-});
-
+const props = withDefaults(
+    defineProps<{
+        project: Project;
+        liveDocuments?: ProjectDocument[]; // The '?' makes it optional
+        documentTypeCatalog?: DocumentSchemaItem[];
+        isGenerating: boolean;
+        unreadDocumentIds?: Set<string>;
+    }>(),
+    {
+        liveDocuments: () => [], // Provides a default empty array
+        documentTypeCatalog: () => [],
+        isGenerating: false,
+        unreadDocumentIds: () => new Set(),
+    },
+);
 
 const emit = defineEmits(['confirmDelete', 'generate']);
 
@@ -38,18 +40,19 @@ const emit = defineEmits(['confirmDelete', 'generate']);
 const schema = computed(() => props.documentTypeCatalog);
 
 const {
-    documentsMap,
     allDocs,
     searchQuery,
     expandedRootIds,
     documentTree,
     toggleRoot,
     updateDocument,
-    removeDocuments
+    removeDocuments,
 } = useProjectState(() => props.liveDocuments, schema);
 
 const isTaskType = (typeKey: string): boolean => {
-    return schema.value.find((item: any) => item.key === typeKey)?.is_task ?? false;
+    return (
+        schema.value.find((item: any) => item.key === typeKey)?.is_task ?? false
+    );
 };
 
 // --- 2. ACTION LOGIC ---
@@ -58,7 +61,7 @@ const aiStatusMessageRef = ref('');
 const { updateField, targetBeingCreated } = useDocumentActions(
     props,
     aiStatusMessageRef,
-    updateDocument
+    updateDocument,
 );
 
 // Same merged users+invitations list the document assignee picker itself uses (see
@@ -66,12 +69,19 @@ const { updateField, targetBeingCreated } = useDocumentActions(
 // invitee, not just registered users. project.client.organization.{users,invitations} are
 // already eager-loaded for this page (see ProjectController::show()).
 const assigneeOptions = computed(() =>
-    mergeAssigneeOptions(props.project.client?.organization?.users, props.project.client?.organization?.invitations)
+    mergeAssigneeOptions(
+        props.project.client?.organization?.users,
+        props.project.client?.organization?.invitations,
+    ),
 );
 
 const page = usePage();
-const usesExternalDueDates = computed(() => (page.props as any).orgMembership?.uses_external_due_dates ?? false);
-const usesTaskStartDates = computed(() => (page.props as any).orgMembership?.uses_task_start_dates ?? false);
+const usesExternalDueDates = computed(
+    () => (page.props as any).orgMembership?.uses_external_due_dates ?? false,
+);
+const usesTaskStartDates = computed(
+    () => (page.props as any).orgMembership?.uses_task_start_dates ?? false,
+);
 
 // --- 3. ENCAPSULATED AI & REAL-TIME ---
 const { aiStatusMessage } = useAiProcessing(
@@ -85,16 +95,18 @@ const { aiStatusMessage } = useAiProcessing(
         }
     },
     () => {
-        toast.success('Processing Complete', { description: 'Document has been successfully analyzed.' });
+        toast.success('Processing Complete', {
+            description: 'Document has been successfully analyzed.',
+        });
     },
     (errorMessage) => {
         toast.error('AI Processing Failed', { description: errorMessage });
         targetBeingCreated.value = null;
     },
-    removeDocuments
+    removeDocuments,
 );
 
-watch(aiStatusMessage, (val) => aiStatusMessageRef.value = val);
+watch(aiStatusMessage, (val) => (aiStatusMessageRef.value = val));
 
 // --- 4. UI LOCAL STATE & METHODS ---
 const onDeleteRequested = (doc: any) => {
@@ -107,9 +119,13 @@ const knownGroupsKey = `doc_known_groups_${props.project.id}`;
 const scrollKey = `doc_scroll_${props.project.id}`;
 
 // Save expanded IDs to sessionStorage on every change.
-watch(expandedRootIds, (newSet) => {
-    sessionStorage.setItem(expandedKey, JSON.stringify(Array.from(newSet)));
-}, { deep: true });
+watch(
+    expandedRootIds,
+    (newSet) => {
+        sessionStorage.setItem(expandedKey, JSON.stringify(Array.from(newSet)));
+    },
+    { deep: true },
+);
 
 // A folder row defaults to expanded the first time it's ever seen (initial load, or a
 // brand-new document type showing up later) — collapsing it is then a deliberate action that
@@ -120,19 +136,26 @@ watch(expandedRootIds, (newSet) => {
 const knownGroupIds = new Set<string>(
     JSON.parse(sessionStorage.getItem(knownGroupsKey) || '[]'),
 );
-watch(documentTree, (groups) => {
-    const next = new Set(expandedRootIds.value);
-    let changed = false;
-    groups.forEach((g) => {
-        if (!knownGroupIds.has(g.id)) {
-            knownGroupIds.add(g.id);
-            next.add(g.id);
-            changed = true;
-        }
-    });
-    if (changed) expandedRootIds.value = next;
-    sessionStorage.setItem(knownGroupsKey, JSON.stringify(Array.from(knownGroupIds)));
-}, { immediate: true });
+watch(
+    documentTree,
+    (groups) => {
+        const next = new Set(expandedRootIds.value);
+        let changed = false;
+        groups.forEach((g) => {
+            if (!knownGroupIds.has(g.id)) {
+                knownGroupIds.add(g.id);
+                next.add(g.id);
+                changed = true;
+            }
+        });
+        if (changed) expandedRootIds.value = next;
+        sessionStorage.setItem(
+            knownGroupsKey,
+            JSON.stringify(Array.from(knownGroupIds)),
+        );
+    },
+    { immediate: true },
+);
 
 onMounted(() => {
     // Restore expanded IDs.
@@ -140,7 +163,7 @@ onMounted(() => {
     if (savedExpanded) {
         try {
             const ids: string[] = JSON.parse(savedExpanded);
-            ids.forEach(id => expandedRootIds.value.add(id));
+            ids.forEach((id) => expandedRootIds.value.add(id));
         } catch {}
     }
 
@@ -154,13 +177,11 @@ onMounted(() => {
         }
     }
 });
-
 </script>
 
 <template>
     <div class="space-y-6">
-
-        <div class="relative w-full md:w-80 lg:w-96 group">
+        <div class="group relative w-full md:w-80 lg:w-96">
             <Search :class="FLAT_SEARCH_ICON" />
             <Input
                 v-model="searchQuery"
@@ -187,7 +208,9 @@ onMounted(() => {
                 :unread-document-ids="unreadDocumentIds"
                 @toggle-root="toggleRoot"
                 @on-delete-requested="onDeleteRequested"
-                @update-task="(id, field, val) => updateField(String(id), field, val)"
+                @update-task="
+                    (id, field, val) => updateField(String(id), field, val)
+                "
             />
         </div>
     </div>

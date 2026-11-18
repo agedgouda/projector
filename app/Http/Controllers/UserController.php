@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Organization;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -43,7 +44,7 @@ class UserController extends Controller
      * UserCollection::forInertia(), which already assumes a super-admin can still be a
      * genuine member of a specific organization).
      */
-    public function promote(User $user): \Illuminate\Http\RedirectResponse
+    public function promote(User $user): RedirectResponse
     {
         setPermissionsTeamId(null);
 

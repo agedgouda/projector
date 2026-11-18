@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { router, usePage } from '@inertiajs/vue3';
 import { addUser } from '@/actions/App/Http/Controllers/OrganizationController';
-import UserInfo from '@/components/UserInfo.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import UpgradeModal from '@/components/UpgradeModal.vue';
-import { FLAT_ROW_HOVER, FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
+import UserInfo from '@/components/UserInfo.vue';
+import {
+    FLAT_ROW_HOVER,
+    FLAT_SEARCH_ICON,
+    FLAT_SEARCH_INPUT,
+} from '@/lib/flat-ui';
+import { router, usePage } from '@inertiajs/vue3';
+import { ChevronLeft, ChevronRight, Search, X } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 
 const PER_PAGE = 8;
 const ROW_HEIGHT_REM = 2.25; // h-9
@@ -29,7 +33,7 @@ const pageNum = ref(1);
 const eligible = computed(() =>
     [...props.users]
         .filter((user) => !user.roles?.includes('super-admin'))
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => a.name.localeCompare(b.name)),
 );
 
 const filtered = computed(() => {
@@ -48,7 +52,9 @@ watch(filtered, () => {
     pageNum.value = 1;
 });
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PER_PAGE)));
+const totalPages = computed(() =>
+    Math.max(1, Math.ceil(filtered.value.length / PER_PAGE)),
+);
 
 const paginated = computed(() => {
     const start = (pageNum.value - 1) * PER_PAGE;
@@ -56,7 +62,9 @@ const paginated = computed(() => {
 });
 
 const inertiaPage = usePage<AppPageProps>();
-const atLimit = computed(() => (inertiaPage.props as any).orgMembership?.at_limit ?? {});
+const atLimit = computed(
+    () => (inertiaPage.props as any).orgMembership?.at_limit ?? {},
+);
 
 const showUpgradeModal = ref(false);
 
@@ -65,16 +73,20 @@ const add = (user: User) => {
         showUpgradeModal.value = true;
         return;
     }
-    router.post(addUser(props.organizationId).url, { user_id: user.id }, {
-        preserveScroll: true,
-        onSuccess: () => emit('userAdded'),
-    });
+    router.post(
+        addUser(props.organizationId).url,
+        { user_id: user.id },
+        {
+            preserveScroll: true,
+            onSuccess: () => emit('userAdded'),
+        },
+    );
 };
 </script>
 
 <template>
     <div class="flex flex-col gap-4">
-        <div class="relative w-full md:w-80 lg:w-96 group">
+        <div class="group relative w-full md:w-80 lg:w-96">
             <Search :class="FLAT_SEARCH_ICON" />
             <Input
                 v-model="query"
@@ -85,25 +97,36 @@ const add = (user: User) => {
             <button
                 v-if="query"
                 @click="query = ''"
-                class="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+                class="absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-0.5 transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
             >
                 <X class="h-3 w-3 text-slate-500" />
             </button>
         </div>
 
         <div :style="{ minHeight: LIST_MIN_HEIGHT }" class="flex flex-col">
-            <div v-if="filtered.length === 0" class="flex flex-1 items-center justify-center">
-                <p class="text-[13px] italic text-slate-400">No users found.</p>
+            <div
+                v-if="filtered.length === 0"
+                class="flex flex-1 items-center justify-center"
+            >
+                <p class="text-[13px] text-slate-400 italic">No users found.</p>
             </div>
 
-            <div v-else class="grid gap-0.5 content-start">
+            <div v-else class="grid content-start gap-0.5">
                 <div
                     v-for="user in paginated"
                     :key="user.id"
-                    :class="['flex items-center justify-between gap-3 h-9 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
+                    :class="[
+                        'flex h-9 items-center justify-between gap-3 rounded-md px-2 transition-colors',
+                        FLAT_ROW_HOVER,
+                    ]"
                 >
                     <UserInfo :user="user" :show-email="true" compact />
-                    <Button size="sm" variant="outline" class="h-6 px-2 text-xs shrink-0" @click="add(user)">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="h-6 shrink-0 px-2 text-xs"
+                        @click="add(user)"
+                    >
                         Add
                     </Button>
                 </div>

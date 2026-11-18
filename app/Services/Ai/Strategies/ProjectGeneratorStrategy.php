@@ -25,6 +25,5 @@ interface ProjectGeneratorStrategy
     /**
      * Define what type of document the output creates
      */
-
     public function getOutputDocumentType(): string;
 }

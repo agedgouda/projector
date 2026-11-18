@@ -4,10 +4,11 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 // QUEUE_CONNECTION=sync in testing means creating an intake document without this would let
 // DocumentObserver's real dispatched AI job run synchronously and touch processed_at itself —

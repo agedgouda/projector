@@ -18,17 +18,22 @@
 
 <style scoped>
 /* All your specific document UI CSS moved here */
-:deep(.custom-scrollbar::-webkit-scrollbar) { width: 6px; }
-:deep(.custom-scrollbar::-webkit-scrollbar-thumb) { background: #e2e8f0; border-radius: 10px; }
+:deep(.custom-scrollbar::-webkit-scrollbar) {
+    width: 6px;
+}
+:deep(.custom-scrollbar::-webkit-scrollbar-thumb) {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
 
 :deep([data-radix-collection-item]),
-:deep(button[role="combobox"]) {
+:deep(button[role='combobox']) {
     outline: none !important;
     box-shadow: none !important;
     border-color: transparent !important;
 }
 
-:deep(button[role="combobox"]:focus) {
+:deep(button[role='combobox']:focus) {
     background-color: rgb(241 245 249);
 }
 </style>

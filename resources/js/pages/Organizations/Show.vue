@@ -62,10 +62,17 @@ const props = defineProps<{
     allRoles: string[];
     invitations: OrganizationInvitation[];
     clients: Client[];
-    usageTotals: { documents_processed: number; audio_seconds: number; cost_usd: number };
+    usageTotals: {
+        documents_processed: number;
+        audio_seconds: number;
+        cost_usd: number;
+    };
     // This month's pooled recording transcription (hours per user × members); limit_seconds is
     // null on a tier with no limit.
-    transcriptionAllowance: { used_seconds: number; limit_seconds: number | null } | null;
+    transcriptionAllowance: {
+        used_seconds: number;
+        limit_seconds: number | null;
+    } | null;
     usageByClient: Record<
         string,
         {
@@ -155,19 +162,25 @@ const transcriptionAllowanceLabel = computed(() => {
     const allowance = props.transcriptionAllowance;
     if (!allowance) return null;
     const used = Math.ceil(allowance.used_seconds / 60).toLocaleString();
-    if (allowance.limit_seconds === null) return `${used} minutes used this month`;
+    if (allowance.limit_seconds === null)
+        return `${used} minutes used this month`;
     const available = Math.floor(allowance.limit_seconds / 60).toLocaleString();
     return `${used} of ${available} available minutes used this month`;
 });
 
 // Documents processed by the LLM, plus minutes of recordings transcribed (billed separately,
 // per hour of audio) — either part left out when it's zero.
-const formatUsage = (usage: { documents_processed: number; audio_seconds: number }) => {
+const formatUsage = (usage: {
+    documents_processed: number;
+    audio_seconds: number;
+}) => {
     const parts: string[] = [];
     if (usage.documents_processed > 0 || usage.audio_seconds === 0)
         parts.push(formatDocs(usage.documents_processed));
     if (usage.audio_seconds > 0)
-        parts.push(`${Math.ceil(usage.audio_seconds / 60).toLocaleString()} min transcribed`);
+        parts.push(
+            `${Math.ceil(usage.audio_seconds / 60).toLocaleString()} min transcribed`,
+        );
     return parts.join(' · ');
 };
 
@@ -617,7 +630,10 @@ const submitInvite = (orgId: string) => {
                 </div>
 
                 <!-- AI Usage Tab -->
-                <div v-if="canConfigure && activeTab === 'usage'" class="space-y-6 pt-6">
+                <div
+                    v-if="canConfigure && activeTab === 'usage'"
+                    class="space-y-6 pt-6"
+                >
                     <!-- Empty state -->
                     <div
                         v-if="clientUsageRows.length === 0"
@@ -686,9 +702,7 @@ const submitInvite = (orgId: string) => {
                         >
                         <span
                             class="text-sm font-black text-slate-800 dark:text-slate-100"
-                            >{{
-                                formatUsage(usageTotals)
-                            }}</span
+                            >{{ formatUsage(usageTotals) }}</span
                         >
                     </div>
 
@@ -696,12 +710,14 @@ const submitInvite = (orgId: string) => {
                         v-if="transcriptionAllowanceLabel"
                         class="flex h-10 items-center rounded-md border border-slate-200 px-3 dark:border-slate-800"
                     >
-                        <span class="flex-1 text-[13px] font-semibold text-slate-800 dark:text-slate-100"
+                        <span
+                            class="flex-1 text-[13px] font-semibold text-slate-800 dark:text-slate-100"
                             >Transcription Generation</span
                         >
-                        <span class="text-xs text-slate-500 dark:text-slate-400">{{
-                            transcriptionAllowanceLabel
-                        }}</span>
+                        <span
+                            class="text-xs text-slate-500 dark:text-slate-400"
+                            >{{ transcriptionAllowanceLabel }}</span
+                        >
                     </div>
                 </div>
             </div>

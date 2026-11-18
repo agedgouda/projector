@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { store } from '@/actions/App/Http/Controllers/OrganizationLoginController';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
-import { usePage } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -10,8 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { request } from '@/routes/password';
-import { store } from '@/actions/App/Http/Controllers/OrganizationLoginController';
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps<{
     organization: { id: string; name: string };
@@ -52,7 +51,12 @@ const displayStatus = computed(() => {
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"
         >
-            <input v-if="invitationToken" type="hidden" name="invitation_token" :value="invitationToken" />
+            <input
+                v-if="invitationToken"
+                type="hidden"
+                name="invitation_token"
+                :value="invitationToken"
+            />
 
             <div class="grid gap-6">
                 <div class="grid gap-2">
@@ -68,7 +72,9 @@ const displayStatus = computed(() => {
                         placeholder="email@example.com"
                         :model-value="invitedEmail ?? undefined"
                         :readonly="!!invitedEmail"
-                        :class="{ 'bg-slate-50 text-slate-500': !!invitedEmail }"
+                        :class="{
+                            'bg-slate-50 text-slate-500': !!invitedEmail,
+                        }"
                     />
                     <InputError :message="errors.email" />
                 </div>

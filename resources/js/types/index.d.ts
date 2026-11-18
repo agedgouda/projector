@@ -58,7 +58,6 @@ declare global {
 
     export interface LifecycleStep {
         id?: number;
-        project_type_id?: string;
         lifecycle_template_id?: string;
         order: number;
         label: string;
@@ -71,20 +70,6 @@ declare global {
         name: string;
         organization_id?: string | null;
         lifecycle_steps?: LifecycleStep[];
-        created_at: string;
-        updated_at: string;
-    }
-
-    export interface ProjectType {
-        id: string; // UUID
-        name: string;
-        icon: string;
-        workflow?: any[];
-        document_schema?: DocumentSchemaItem[];
-        lifecycle_steps?: LifecycleStep[];
-        organization_id?: string | null;
-        organization?: { id: string; name: string } | null;
-        projects_count?: number;
         created_at: string;
         updated_at: string;
     }
@@ -170,7 +155,11 @@ declare global {
         error?: string;
         failed_at?: string;
         recording_id?: string | null;
-        recording_source?: 'mobile_recording' | 'browser_capture' | 'recording_upload' | 'provider_audio';
+        recording_source?:
+            | 'mobile_recording'
+            | 'browser_capture'
+            | 'recording_upload'
+            | 'provider_audio';
         [key: string]: any;
     }
 
@@ -200,8 +189,6 @@ declare global {
         external_due_at: string | null;
         start_at: string | null;
         predecessor_id?: string | null;
-        locked_project_type_id?: string | null;
-        locked_next_workflow_step_exists?: boolean;
         children_exists?: boolean;
         content_updated_at?: string | null;
         custom_prompt?: string | null;
@@ -536,12 +523,6 @@ declare global {
         [key: string]: unknown;
     };
 
-    export interface WorkflowStep {
-        step: number;
-        from_key: string;
-        to_key: string;
-        ai_template_id: string | null;
-    }
     export interface AiTemplate {
         id: number;
         name: string;
@@ -563,14 +544,6 @@ export interface BreadcrumbItem {
     href: string;
 }
 export type BreadcrumbItemType = BreadcrumbItem;
-
-// A transformation a protocol step can use (see ProjectTypeController::stepTemplateOptions()).
-export interface StepTemplateOption {
-    id: number;
-    name: string;
-    organization_id: string | null;
-    disabled_organization_ids: string[];
-}
 
 export interface NavItem {
     title: string;

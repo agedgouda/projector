@@ -6,10 +6,13 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\TusUpload;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Storage::fake('local');
@@ -32,7 +35,7 @@ beforeEach(function () {
     $this->actingAs($this->user)->withSession(['active_org_id' => $this->org->id]);
 });
 
-function logTranscribedSeconds(Organization $org, int $seconds, string $type = 'transcription', ?\Carbon\Carbon $at = null): void
+function logTranscribedSeconds(Organization $org, int $seconds, string $type = 'transcription', ?Carbon $at = null): void
 {
     AiUsageLog::create([
         'organization_id' => $org->id,
@@ -44,7 +47,7 @@ function logTranscribedSeconds(Organization $org, int $seconds, string $type = '
     ]);
 }
 
-function startRecordingUpload(Project $project, bool $startsRecording = true): \Illuminate\Testing\TestResponse
+function startRecordingUpload(Project $project, bool $startsRecording = true): TestResponse
 {
     $metadata = 'filename '.base64_encode('meeting.mp4').',filetype '.base64_encode('video/mp4');
 

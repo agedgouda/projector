@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ClientRequest;
 use App\Models\Client;
 use App\Models\Organization;
+use App\Services\MembershipGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -83,8 +84,8 @@ class ClientController extends Controller
 
         Gate::authorize('create', Client::class);
 
-        $org = \App\Models\Organization::find($orgId);
-        if ($org && ($block = \App\Services\MembershipGuard::check($org, 'clients'))) {
+        $org = Organization::find($orgId);
+        if ($org && ($block = MembershipGuard::check($org, 'clients'))) {
             return $block;
         }
 

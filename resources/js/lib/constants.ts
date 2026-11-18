@@ -114,7 +114,8 @@ export const LLM_DRIVERS: AiDriverOption[] = [
 ];
 
 export const llmDriverLabel = (driver: string | null): string =>
-    LLM_DRIVERS.find((d) => d.value === (driver ?? ''))?.label ?? 'System Default';
+    LLM_DRIVERS.find((d) => d.value === (driver ?? ''))?.label ??
+    'System Default';
 
 export const MEETING_PROVIDERS: { value: string; label: string }[] = [
     { value: '', label: 'None' },
@@ -133,7 +134,11 @@ export const meetingProviderLabel = (provider: string | null): string | null =>
  */
 export type CustomPromptMode = 'add' | 'replace';
 
-export const CUSTOM_PROMPT_MODES: { value: CustomPromptMode; label: string; description: string }[] = [
+export const CUSTOM_PROMPT_MODES: {
+    value: CustomPromptMode;
+    label: string;
+    description: string;
+}[] = [
     {
         value: 'add',
         label: 'Add to the standard instructions',
@@ -142,7 +147,8 @@ export const CUSTOM_PROMPT_MODES: { value: CustomPromptMode; label: string; desc
     {
         value: 'replace',
         label: 'Replace the standard instructions',
-        description: 'Your text is the whole instruction — for creating something new.',
+        description:
+            'Your text is the whole instruction — for creating something new.',
     },
 ];
 
@@ -158,4 +164,5 @@ export const VECTOR_DRIVERS: AiDriverOption[] = [
 ];
 
 export const vectorDriverLabel = (driver: string | null): string =>
-    VECTOR_DRIVERS.find((d) => d.value === (driver ?? ''))?.label ?? 'System Default';
+    VECTOR_DRIVERS.find((d) => d.value === (driver ?? ''))?.label ??
+    'System Default';

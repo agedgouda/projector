@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Organization;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +17,7 @@ return new class extends Migration
         });
 
         // Grandfather existing orgs
-        \App\Models\Organization::query()->update(['membership_tier' => 'friends_family']);
+        Organization::query()->update(['membership_tier' => 'friends_family']);
     }
 
     public function down(): void

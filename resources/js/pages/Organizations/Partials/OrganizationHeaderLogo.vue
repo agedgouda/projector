@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
-import { Building2, Pencil, X } from 'lucide-vue-next';
 import { resizeImage } from '@/lib/resizeImage';
 import organizationLogoRoutes from '@/routes/organizations/logo/index';
+import { useForm } from '@inertiajs/vue3';
+import { Building2, Pencil, X } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 interface Props {
     organization: Organization & { logo_url?: string | null };
@@ -16,11 +16,15 @@ const previewUrl = ref<string | null>(null);
 const uploadForm = useForm({ logo: null as File | null });
 const deleteForm = useForm({});
 
-const displayUrl = computed(() => previewUrl.value ?? props.organization.logo_url ?? null);
+const displayUrl = computed(
+    () => previewUrl.value ?? props.organization.logo_url ?? null,
+);
 
 async function onFileChange(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) { return; }
+    if (!file) {
+        return;
+    }
 
     const resized = await resizeImage(file);
     uploadForm.logo = resized;
@@ -37,13 +41,18 @@ async function onFileChange(event: Event) {
             previewUrl.value = null;
         },
         onFinish: () => {
-            if (fileInput.value) { fileInput.value.value = ''; }
+            if (fileInput.value) {
+                fileInput.value.value = '';
+            }
         },
     });
 }
 
 function removeLogo() {
-    deleteForm.delete(organizationLogoRoutes.destroy.url(props.organization.id), { preserveScroll: true });
+    deleteForm.delete(
+        organizationLogoRoutes.destroy.url(props.organization.id),
+        { preserveScroll: true },
+    );
 }
 </script>
 

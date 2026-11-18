@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\OrgDocument;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
@@ -11,7 +12,7 @@ class StoreOrgDocumentRequest extends FormRequest
     {
         $organization = $this->route('organization');
 
-        return $organization && Gate::check('create', [\App\Models\OrgDocument::class, $organization]);
+        return $organization && Gate::check('create', [OrgDocument::class, $organization]);
     }
 
     public function rules(): array

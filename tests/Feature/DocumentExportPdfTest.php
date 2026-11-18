@@ -4,13 +4,13 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -20,13 +20,11 @@ beforeEach(function () {
     $this->admin = User::factory()->create();
     $this->admin->assignRole('super-admin');
 
-    // Seeds the global document type catalog (via ProjectTypeObserver) with the type this
+    // Seeds the global document type catalog with the type this
     // test exercises - unrelated to any specific project's protocol, since projects no longer
     // have one.
-    ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => false],
-        ],
+    seedDocumentTypes([
+        ['label' => 'Action Items', 'key' => 'action_items', 'is_task' => false],
     ]);
 
     $this->client = Client::create([

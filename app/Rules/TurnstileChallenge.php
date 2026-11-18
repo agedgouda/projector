@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 class TurnstileChallenge implements ValidationRule
 {
@@ -16,7 +17,7 @@ class TurnstileChallenge implements ValidationRule
      * siteverify endpoint. No-ops when TURNSTILE_SECRET_KEY isn't configured, so local
      * development works without needing Cloudflare credentials.
      *
-     * @param  \Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {

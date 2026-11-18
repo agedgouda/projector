@@ -8,10 +8,13 @@ use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 /**
  * Reads a column's values from row 2 through row (1 + $count) of a streamed xlsx
@@ -24,7 +27,7 @@ function readExcelColumn(string $xlsxBytes, string $column, int $count): array
     $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
     file_put_contents($tmpFile, $xlsxBytes);
 
-    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmpFile)->getActiveSheet();
+    $sheet = IOFactory::load($tmpFile)->getActiveSheet();
 
     $values = [];
     for ($row = 2; $row < 2 + $count; $row++) {
@@ -328,7 +331,7 @@ it('reflects Done mode in the Excel export header and date column', function () 
         ->get(route('projects.reports.tasks.exportExcel', $this->project).'?mode=done&due_from=2026-02-01&due_to=2026-02-28')
         ->assertOk();
 
-    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load(
+    $sheet = IOFactory::load(
         tap(tempnam(sys_get_temp_dir(), 'xlsx'), fn ($path) => file_put_contents($path, $response->streamedContent()))
     )->getActiveSheet();
 
@@ -641,10 +644,10 @@ it('exports a valid word document when a task name contains an unescaped ampersa
 
     // Throws if word/document.xml isn't well-formed XML - proves the file is valid,
     // not just that a response was returned.
-    $loaded = \PhpOffice\PhpWord\IOFactory::load($tmpFile);
+    $loaded = PhpOffice\PhpWord\IOFactory::load($tmpFile);
     unlink($tmpFile);
 
-    expect($loaded)->toBeInstanceOf(\PhpOffice\PhpWord\PhpWord::class);
+    expect($loaded)->toBeInstanceOf(PhpWord::class);
 });
 
 it('exports the filtered tasks as an excel workbook, with the details column only when requested', function () {

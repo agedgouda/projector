@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -321,7 +322,7 @@ class ImportTaskList implements ShouldQueue
     private function matchKey(string $name, ?string $date): string
     {
         $normalizedDate = $date !== null && $date !== ''
-            ? \Illuminate\Support\Carbon::parse($date)->toDateString()
+            ? Carbon::parse($date)->toDateString()
             : '';
 
         return mb_strtolower(trim($name)).'|'.$normalizedDate;

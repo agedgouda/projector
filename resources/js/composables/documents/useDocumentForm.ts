@@ -1,6 +1,6 @@
-import { INTAKE_KEY, useWorkflow } from '@/composables/useWorkflow';
 import { useProcessingReconciler } from '@/composables/useProcessingReconciler';
 import { useProgressCreep } from '@/composables/useProgressCreep';
+import { INTAKE_KEY, useWorkflow } from '@/composables/useWorkflow';
 import { parseProcessingStatus } from '@/lib/aiProcessingStatus';
 import { isProcessingMine } from '@/lib/isProcessingMine';
 import {
@@ -137,7 +137,8 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     watch(
         isProcessingLive,
         (live) => {
-            if (live) startReconciling(); else stopReconciling();
+            if (live) startReconciling();
+            else stopReconciling();
         },
         { immediate: true },
     );
@@ -240,7 +241,10 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
             // The first broadcast that's actually about this page is what tells us otherwise —
             // gated the same way as the initial check above, so this still only shows to
             // whoever triggered item's run.
-            if (!isProcessingLive.value && isProcessingMine(item, currentUserId)) {
+            if (
+                !isProcessingLive.value &&
+                isProcessingMine(item, currentUserId)
+            ) {
                 isProcessingLive.value = true;
             }
 
@@ -285,16 +289,8 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
     const { reprocessableTypes } = useWorkflow();
 
     // Mirrors the same "does this document have anything to reprocess" rule used by the
-    // tree/detail-sheet Reprocess button — a locked document only has something to
-    // reprocess if its locked protocol still defines a further step for its own type.
-    const canOfferReprocess = () => {
-        const isLocked = !!item.locked_project_type_id;
-
-        return (
-            reprocessableTypes.value.has(item.type) ||
-            (isLocked && !!item.locked_next_workflow_step_exists)
-        );
-    };
+    // tree/detail-sheet Reprocess button.
+    const canOfferReprocess = () => reprocessableTypes.value.has(item.type);
 
     // Tab detection logic
     const getCurrentTab = () => {
@@ -332,7 +328,8 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         custom_prompt: item.custom_prompt ?? null,
         // A stored prompt with no mode predates the choice and has always replaced the
         // standard processing, so it's shown that way; with no prompt yet, Add is the default.
-        custom_prompt_mode: item.custom_prompt_mode ?? (item.custom_prompt ? 'replace' : 'add'),
+        custom_prompt_mode:
+            item.custom_prompt_mode ?? (item.custom_prompt ? 'replace' : 'add'),
     });
 
     const syncSidebarFields = (newItem: ExtendedDocument) => {
@@ -444,7 +441,6 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
         toKey?: string;
         aiTemplateId: number;
         singleOutput?: boolean;
-        projectTypeId?: string;
     }) => {
         isTransitioning.value = true;
 
@@ -462,7 +458,6 @@ export function useDocumentForm(project: Project, item: ExtendedDocument) {
                 to_key: payload.toKey,
                 ai_template_id: payload.aiTemplateId,
                 single_output: payload.singleOutput,
-                project_type_id: payload.projectTypeId,
             });
             if (redirectIfLoggedOut(response)) return;
         } catch (error) {

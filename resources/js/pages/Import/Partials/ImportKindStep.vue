@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import IconTile from '@/components/IconTile.vue';
-import { useTaskListImportProgress } from '@/composables/useTaskListImportProgress';
 import {
-    useGlobalProcessingBanner,
     BANNER_PRIORITY,
+    useGlobalProcessingBanner,
 } from '@/composables/useGlobalProcessingBanner';
+import { useTaskListImportProgress } from '@/composables/useTaskListImportProgress';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptions.vue';
@@ -17,7 +17,14 @@ import {
     Loader2,
     Sparkles,
 } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import {
+    computed,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    useTemplateRef,
+    watch,
+} from 'vue';
 import { toast } from 'vue-sonner';
 
 interface WizardProject {

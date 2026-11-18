@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import {
     Select,
     SelectContent,
@@ -8,6 +7,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
     ALL_PRIORITIES,
     SORT_OPTIONS,
@@ -15,10 +15,10 @@ import {
     type Priority,
     type SortOption,
 } from '@/composables/kanban/useKanbanQueries';
+import type { AssigneeOption } from '@/lib/assignees';
+import { kanbanDotClasses } from '@/lib/constants';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { getPriorityStyles } from '@/lib/kanban-theme';
-import { kanbanDotClasses } from '@/lib/constants';
-import type { AssigneeOption } from '@/lib/assignees';
 import { ListFilter, Search } from 'lucide-vue-next';
 import KanbanRow from './KanbanRow.vue';
 
@@ -37,7 +37,11 @@ defineProps<{
     onDragChange: (event: any, column: KanbanColumnDef, rowKey: string) => void;
     openDetail: (doc: ProjectDocument) => void;
     handleCreateNew: (rowKey: string) => void;
-    updateAttribute: (docId: string | number, field: string, value: string | number | null) => void;
+    updateAttribute: (
+        docId: string | number,
+        field: string,
+        value: string | number | null,
+    ) => void;
     updateTags: (docId: string | number, categories: CategoryDef[]) => void;
     canViewProjectDetails?: boolean;
     canManageColumns?: boolean;
@@ -263,7 +267,9 @@ const toggleTagFilter = (value: string) => {
                     :can-manage="canManageColumns"
                     :projects-by-id="projectsById"
                     :assignee-options-by-project-id="assigneeOptionsByProjectId"
-                    :available-tags="tagsShownPerRow ? availableTags : undefined"
+                    :available-tags="
+                        tagsShownPerRow ? availableTags : undefined
+                    "
                     :selected-tag-ids="selectedTagIds"
                     :on-toggle-tag="toggleTagFilter"
                 />

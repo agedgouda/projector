@@ -6,12 +6,13 @@ use App\Enums\EmailDeliveryStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
- * @property \Illuminate\Support\Carbon $expires_at
+ * @property Carbon $expires_at
  * @property string|null $resend_email_id
  * @property EmailDeliveryStatus|null $email_status
- * @property \Illuminate\Support\Carbon|null $email_status_at
+ * @property Carbon|null $email_status_at
  * @property string|null $email_status_detail
  */
 class OrganizationInvitation extends Model

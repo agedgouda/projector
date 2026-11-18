@@ -82,7 +82,8 @@ export function useAiProcessingCore(
     const isAiProcessing = computed(() => {
         const isTargeting = !!targetBeingCreated.value;
         const pendingDoc = allDocs.value.find(
-            (d) => d.processed_at === null && isProcessingMine(d, currentUserId),
+            (d) =>
+                d.processed_at === null && isProcessingMine(d, currentUserId),
         );
 
         return isTargeting || !!pendingDoc;
@@ -107,8 +108,11 @@ export function useAiProcessingCore(
     // set does that count as a genuinely missed broadcast worth reloading for. A target with no
     // document row yet (targetBeingCreated set, nothing in allDocs to check) has nothing to
     // reconcile against and relies on the live broadcast alone between poll ticks.
-    const { processingDocumentIds, start: startReconciling, stop: stopReconciling } =
-        useProcessingReconciler();
+    const {
+        processingDocumentIds,
+        start: startReconciling,
+        stop: stopReconciling,
+    } = useProcessingReconciler();
 
     watch(
         isAiProcessing,
@@ -134,7 +138,9 @@ export function useAiProcessingCore(
         const pending = allDocs.value.filter((d) => d.processed_at === null);
         if (!pending.length) return;
 
-        const stillPendingServerSide = pending.some((d) => ids.has(String(d.id)));
+        const stillPendingServerSide = pending.some((d) =>
+            ids.has(String(d.id)),
+        );
         if (!stillPendingServerSide) {
             router.reload(
                 reloadPropsOnNewDocuments?.length

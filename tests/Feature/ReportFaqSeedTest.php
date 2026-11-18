@@ -1,8 +1,9 @@
 <?php
 
 use App\Models\Faq;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('seeds the Reports FAQ entries, in order, with keywords, and moves the Slack /report entry in last', function () {
     $faqs = Faq::where('category', 'Reports')->orderBy('order')->get();

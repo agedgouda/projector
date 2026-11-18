@@ -1,13 +1,28 @@
 <?php
 
+use App\Http\Middleware\CheckOrgRole;
+use App\Http\Middleware\EnsureUserCanAccessClient;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LogRecordSaves;
+use App\Http\Middleware\RecordReferralVisit;
+use App\Http\Middleware\RestrictDemoUsers;
 use App\Http\Middleware\SetOrganizationContext;
+use App\Http\Middleware\VerifyDropboxSignature;
+use App\Http\Middleware\VerifyResendSignature;
+use App\Http\Middleware\VerifySlackSignature;
+use App\Http\Middleware\VerifyTeamsToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Spatie\Permission\Exceptions\UnauthorizedException;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,15 +43,15 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $middleware->alias([
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'client.access' => \App\Http\Middleware\EnsureUserCanAccessClient::class,
-            'org-role' => \App\Http\Middleware\CheckOrgRole::class,
-            'slack.signature' => \App\Http\Middleware\VerifySlackSignature::class,
-            'teams.token' => \App\Http\Middleware\VerifyTeamsToken::class,
-            'dropbox.signature' => \App\Http\Middleware\VerifyDropboxSignature::class,
-            'resend.signature' => \App\Http\Middleware\VerifyResendSignature::class,
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'client.access' => EnsureUserCanAccessClient::class,
+            'org-role' => CheckOrgRole::class,
+            'slack.signature' => VerifySlackSignature::class,
+            'teams.token' => VerifyTeamsToken::class,
+            'dropbox.signature' => VerifyDropboxSignature::class,
+            'resend.signature' => VerifyResendSignature::class,
         ]);
 
         // Slack's/Dropbox's/Resend's webhooks are verified via their own HMAC signature
@@ -60,13 +75,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // those are exactly the failed saves that otherwise leave no trace. It only acts on the
         // document-save routes (see LogRecordSaves::ROUTES).
         $middleware->web(prepend: [
-            \App\Http\Middleware\LogRecordSaves::class,
+            LogRecordSaves::class,
         ]);
 
         $middleware->web(append: [
             HandleAppearance::class,
-            \App\Http\Middleware\RestrictDemoUsers::class,
-            \App\Http\Middleware\RecordReferralVisit::class,
+            RestrictDemoUsers::class,
+            RecordReferralVisit::class,
             SetOrganizationContext::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
@@ -82,19 +97,19 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // 1. Handle Spatie Role/Permission failures
         $exceptions->render(function (UnauthorizedException $e, $request) {
-            throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+            throw new NotFoundHttpException;
         });
 
         // 2. Handle Laravel Policy/Gate failures (AccessDenied)
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e, $request) {
-            throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+        $exceptions->render(function (AccessDeniedHttpException $e, $request) {
+            throw new NotFoundHttpException;
         });
 
         // 3. Catch CSRF/Session timeouts. Flashed under 'status' (not e.g. 'message') because
         // that's the key auth/Login.vue actually reads (see FortifyServiceProvider's
         // loginView) — flashing the wrong key silently dropped this message entirely, so a
         // stale-token login attempt just looked like the page blanking out for no reason.
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+        $exceptions->render(function (HttpException $e, $request) {
             if ($e->getStatusCode() === 419) {
                 return redirect()->route('login')->with([
                     'status' => 'Your session expired. Please log in again.',

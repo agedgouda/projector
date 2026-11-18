@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Covers AppServiceProvider::boot()'s JobProcessing listener — the fix for Slack messages,
@@ -14,14 +16,14 @@ use Illuminate\Queue\Events\JobProcessing;
 it('re-forces the root URL from the current APP_URL every time a queued job starts processing', function () {
     // Simulates a worker that booted a while ago with a since-changed APP_URL — exactly the
     // scenario the original bug report was about.
-    Illuminate\Support\Facades\URL::forceRootUrl('http://stale-worker-boot-host.test');
+    URL::forceRootUrl('http://stale-worker-boot-host.test');
     expect(url('/foo'))->toStartWith('http://stale-worker-boot-host.test');
 
     config(['app.url' => 'http://projecthq.app']);
     expect(url('/foo'))
         ->toStartWith('http://stale-worker-boot-host.test');
 
-    $job = Mockery::mock(\Illuminate\Contracts\Queue\Job::class);
+    $job = Mockery::mock(Job::class);
     $job->shouldReceive('payload')->andReturn([]);
 
     event(new JobProcessing('redis', $job));

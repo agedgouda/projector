@@ -1,13 +1,29 @@
 <?php
 
+use App\Jobs\CreateEventFromSlackCommand;
+use App\Jobs\CreateTaskFromSlackCommand;
+use App\Jobs\ExtractTextRecords;
+use App\Jobs\GenerateDocumentEmbedding;
 use App\Jobs\GenerateOrgDocumentEmbedding;
+use App\Jobs\GenerateReportFromSlackCommand;
+use App\Jobs\ProcessDocumentAI;
 use App\Jobs\ProcessOrgDocumentAI;
+use App\Models\AiTemplate;
+use App\Models\Client;
+use App\Models\Document;
+use App\Models\DocumentTypeDefinition;
 use App\Models\Organization;
 use App\Models\OrgDocument;
+use App\Models\Project;
+use App\Models\SlackWorkspace;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 /*
  * A queue worker (Horizon) runs many jobs in one long-lived process, resetting scoped container
@@ -100,7 +116,7 @@ it('restores the system defaults before a job that never applies an organization
 
     expect(config('services.openai.key'))->toBe('org-a-openai-key');
 
-    event(new \Illuminate\Queue\Events\JobProcessing('sync', new \Illuminate\Queue\Jobs\SyncJob(app(), json_encode(['job' => 'probe', 'data' => []]), 'sync', 'default')));
+    event(new JobProcessing('sync', new SyncJob(app(), json_encode(['job' => 'probe', 'data' => []]), 'sync', 'default')));
 
     expect(config('services.openai.key'))->toBe('system-openai-key')
         ->and(config('services.openai.model'))->toBe('gpt-system');
@@ -109,29 +125,29 @@ it('restores the system defaults before a job that never applies an organization
 it('leaves config alone before a job when no organization has overridden it', function () {
     config(['services.openai.model' => 'set-by-something-else']);
 
-    event(new \Illuminate\Queue\Events\JobProcessing('sync', new \Illuminate\Queue\Jobs\SyncJob(app(), json_encode(['job' => 'probe', 'data' => []]), 'sync', 'default')));
+    event(new JobProcessing('sync', new SyncJob(app(), json_encode(['job' => 'probe', 'data' => []]), 'sync', 'default')));
 
     expect(config('services.openai.model'))->toBe('set-by-something-else');
 });
 
 describe('jobs that act for an organization use its own AI provider', function () {
     beforeEach(function () {
-        \App\Models\DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'task', 'label' => 'Task', 'is_task' => true, 'order' => 1]);
-        \App\Models\DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'event', 'label' => 'Event', 'is_task' => false, 'order' => 2]);
+        DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'task', 'label' => 'Task', 'is_task' => true, 'order' => 1]);
+        DocumentTypeDefinition::create(['organization_id' => null, 'key' => 'event', 'label' => 'Event', 'is_task' => false, 'order' => 2]);
 
         $this->org = Organization::factory()->create([
             'llm_driver' => 'ollama',
             'llm_config' => ['host' => 'http://org-ollama:11434', 'model' => 'llama3'],
             'vector_driver' => 'same',
         ]);
-        $this->client = \App\Models\Client::create([
+        $this->client = Client::create([
             'organization_id' => $this->org->id,
             'company_name' => 'Test Client',
             'contact_name' => 'Jane Doe',
             'contact_phone' => '555-1234',
         ]);
-        $this->project = \App\Models\Project::create(['name' => 'Test Project', 'client_id' => $this->client->id]);
-        $this->user = \App\Models\User::factory()->create();
+        $this->project = Project::create(['name' => 'Test Project', 'client_id' => $this->client->id]);
+        $this->user = User::factory()->create();
         $this->org->users()->attach($this->user->id, ['role' => 'org-admin']);
 
         // Every outbound call fails fast; only where it was sent matters here.
@@ -147,54 +163,54 @@ describe('jobs that act for an organization use its own AI provider', function (
     $runIgnoringFailure = function (callable $run): void {
         try {
             $run();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // The faked provider errors; some jobs rethrow. Irrelevant to where the call went.
         }
     };
 
     it('uses it for Slack /task', function () use ($sentToOrgOllama, $sentToOpenAi, $runIgnoringFailure) {
-        $runIgnoringFailure(fn () => \App\Jobs\CreateTaskFromSlackCommand::dispatchSync($this->project, $this->user, 'Draft the brief', 'https://hooks.slack.com/commands/fake'));
+        $runIgnoringFailure(fn () => CreateTaskFromSlackCommand::dispatchSync($this->project, $this->user, 'Draft the brief', 'https://hooks.slack.com/commands/fake'));
 
         expect($sentToOrgOllama())->toBeTrue()->and($sentToOpenAi())->toBeFalse();
     });
 
     it('uses it for Slack /events', function () use ($sentToOrgOllama, $sentToOpenAi, $runIgnoringFailure) {
-        $runIgnoringFailure(fn () => \App\Jobs\CreateEventFromSlackCommand::dispatchSync($this->project, $this->user, 'Kickoff next Tuesday', 'https://hooks.slack.com/commands/fake'));
+        $runIgnoringFailure(fn () => CreateEventFromSlackCommand::dispatchSync($this->project, $this->user, 'Kickoff next Tuesday', 'https://hooks.slack.com/commands/fake'));
 
         expect($sentToOrgOllama())->toBeTrue()->and($sentToOpenAi())->toBeFalse();
     });
 
     it('uses it for Slack /report', function () use ($sentToOrgOllama, $sentToOpenAi, $runIgnoringFailure) {
-        \App\Models\AiTemplate::create([
+        AiTemplate::create([
             'name' => 'Slack report request',
             'type' => 'slack_report_request',
             'system_prompt' => 'Parse the request.',
             'user_prompt' => '{{request}}',
         ]);
-        $workspace = \App\Models\SlackWorkspace::factory()->create(['organization_id' => $this->org->id]);
+        $workspace = SlackWorkspace::factory()->create(['organization_id' => $this->org->id]);
 
-        $runIgnoringFailure(fn () => \App\Jobs\GenerateReportFromSlackCommand::dispatchSync($this->project, $this->user, $workspace, 'C123', 'high priority tasks', 'https://hooks.slack.com/commands/fake'));
+        $runIgnoringFailure(fn () => GenerateReportFromSlackCommand::dispatchSync($this->project, $this->user, $workspace, 'C123', 'high priority tasks', 'https://hooks.slack.com/commands/fake'));
 
         expect($sentToOrgOllama())->toBeTrue()->and($sentToOpenAi())->toBeFalse();
     });
 
     it('uses it for text imports', function () use ($sentToOrgOllama, $sentToOpenAi, $runIgnoringFailure) {
-        Queue::fake([GenerateOrgDocumentEmbedding::class, ProcessOrgDocumentAI::class, \App\Jobs\GenerateDocumentEmbedding::class, \App\Jobs\ProcessDocumentAI::class]);
+        Queue::fake([GenerateOrgDocumentEmbedding::class, ProcessOrgDocumentAI::class, GenerateDocumentEmbedding::class, ProcessDocumentAI::class]);
 
-        $import = \App\Models\Document::create([
+        $import = Document::create([
             'project_id' => $this->project->id,
             'name' => 'Imported list',
             'type' => 'task',
             'content' => 'source text',
         ]);
 
-        $runIgnoringFailure(fn () => \App\Jobs\ExtractTextRecords::dispatchSync($import, 'task', 'source text', 'every bullet is a task'));
+        $runIgnoringFailure(fn () => ExtractTextRecords::dispatchSync($import, 'task', 'source text', 'every bullet is a task'));
 
         expect($sentToOrgOllama())->toBeTrue()->and($sentToOpenAi())->toBeFalse();
     });
 
     it('uses it for status meeting extraction', function () use ($sentToOrgOllama, $sentToOpenAi, $runIgnoringFailure) {
-        \App\Models\AiTemplate::create([
+        AiTemplate::create([
             'name' => 'Org extraction',
             'type' => 'org_extraction',
             'system_prompt' => 'Extract.',

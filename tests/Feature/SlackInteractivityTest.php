@@ -10,10 +10,12 @@ use App\Models\SlackChannelBinding;
 use App\Models\SlackUserIdentity;
 use App\Models\SlackWorkspace;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -85,7 +87,7 @@ function signSlackInteractivityRequest(string $body, ?int $timestamp = null): ar
 /**
  * @param  array<string, mixed>  $payload
  */
-function postSlackInteractivity(array $payload): \Illuminate\Testing\TestResponse
+function postSlackInteractivity(array $payload): TestResponse
 {
     $body = 'payload='.urlencode(json_encode($payload));
     $headers = signSlackInteractivityRequest($body);

@@ -30,7 +30,7 @@ export function useWorkflow() {
 
     return {
         reprocessableTypes,
-        canReprocess
+        canReprocess,
     };
 }
 
@@ -39,7 +39,12 @@ export function useWorkflow() {
  * re-run once a document has one on record (see Document::lastAiTemplate()), falling back to
  * the older generic wording for documents that predate that tracking or were never processed.
  */
-export function reprocessDescription(doc: { name?: string; last_ai_template?: { name: string } | null } | null | undefined): string {
+export function reprocessDescription(
+    doc:
+        | { name?: string; last_ai_template?: { name: string } | null }
+        | null
+        | undefined,
+): string {
     if (!doc) return '';
 
     if (doc.last_ai_template?.name) {

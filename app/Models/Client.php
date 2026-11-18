@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +16,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string $organization_id
  * @property bool $inactive
  * @property string|null $industry
- * @property \Illuminate\Database\Eloquent\Collection<int, Project> $projects
+ * @property Collection<int, Project> $projects
  */
 class Client extends Model implements HasMedia
 {

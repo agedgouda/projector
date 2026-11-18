@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
-import { toast } from 'vue-sonner';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-vue-next';
-import { type BreadcrumbItem } from '@/types';
+import AppLayout from '@/layouts/AppLayout.vue';
 import adminOrgRoutes from '@/routes/admin/organizations/index';
 import organizationRoutes from '@/routes/organizations/index';
-import { ref, computed } from 'vue';
+import { type BreadcrumbItem } from '@/types';
+import { Head, router } from '@inertiajs/vue3';
+import { Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 interface OrgRow {
     id: string;
@@ -38,27 +38,40 @@ const TIERS = [
     { value: 'free', label: 'Free' },
 ];
 
-const TIER_ORDER: Record<string, number> = { pro: 0, friends_family: 1, free: 2 };
+const TIER_ORDER: Record<string, number> = {
+    pro: 0,
+    friends_family: 1,
+    free: 2,
+};
 
 const query = ref('');
 
 const filtered = computed(() => {
     const q = query.value.toLowerCase().trim();
     const rows = q
-        ? props.organizations.filter(o => o.name.toLowerCase().includes(q))
+        ? props.organizations.filter((o) => o.name.toLowerCase().includes(q))
         : props.organizations;
 
     return [...rows].sort((a, b) => {
-        const tierDiff = (TIER_ORDER[a.membership_tier] ?? 99) - (TIER_ORDER[b.membership_tier] ?? 99);
+        const tierDiff =
+            (TIER_ORDER[a.membership_tier] ?? 99) -
+            (TIER_ORDER[b.membership_tier] ?? 99);
         return tierDiff !== 0 ? tierDiff : a.name.localeCompare(b.name);
     });
 });
 
 const updateTier = (org: OrgRow, tier: string) => {
-    router.patch(adminOrgRoutes.updateTier({ organization: org.id }).url, { membership_tier: tier }, {
-        preserveScroll: true,
-        onSuccess: () => toast.success(`${org.name} updated to ${TIERS.find(t => t.value === tier)?.label}.`),
-    });
+    router.patch(
+        adminOrgRoutes.updateTier({ organization: org.id }).url,
+        { membership_tier: tier },
+        {
+            preserveScroll: true,
+            onSuccess: () =>
+                toast.success(
+                    `${org.name} updated to ${TIERS.find((t) => t.value === tier)?.label}.`,
+                ),
+        },
+    );
 };
 
 const goToOrg = (orgId: string) => {
@@ -70,80 +83,171 @@ const goToOrg = (orgId: string) => {
     <Head title="Org Admin" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="w-full px-6 py-6 space-y-4">
+        <div class="w-full space-y-4 px-6 py-6">
             <div class="flex items-end justify-between gap-4">
                 <div>
-                    <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white">Organizations</h1>
-                    <p class="text-sm text-slate-500 mt-0.5">{{ filtered.length }} of {{ organizations.length }}</p>
+                    <h1
+                        class="text-xl font-black tracking-tight text-slate-900 dark:text-white"
+                    >
+                        Organizations
+                    </h1>
+                    <p class="mt-0.5 text-sm text-slate-500">
+                        {{ filtered.length }} of {{ organizations.length }}
+                    </p>
                 </div>
                 <div class="relative w-64">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                    <Input v-model="query" placeholder="Search organizations..." class="pl-9 h-9" />
+                    <Search
+                        class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    />
+                    <Input
+                        v-model="query"
+                        placeholder="Search organizations..."
+                        class="h-9 pl-9"
+                    />
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+            <div
+                class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+            >
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-slate-100 dark:border-zinc-800">
-                            <th class="text-left px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Organization</th>
-                            <th class="text-left px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Tier</th>
-                            <th class="text-center px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Users</th>
-                            <th class="text-center px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Clients</th>
-                            <th class="text-center px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Projects</th>
-                            <th class="text-center px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">AI Docs (mo.)</th>
-                            <th class="text-left px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Created</th>
+                        <tr
+                            class="border-b border-slate-100 dark:border-zinc-800"
+                        >
+                            <th
+                                class="px-5 py-3 text-left text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                Organization
+                            </th>
+                            <th
+                                class="px-5 py-3 text-left text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                Tier
+                            </th>
+                            <th
+                                class="px-5 py-3 text-center text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                Users
+                            </th>
+                            <th
+                                class="px-5 py-3 text-center text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                Clients
+                            </th>
+                            <th
+                                class="px-5 py-3 text-center text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                Projects
+                            </th>
+                            <th
+                                class="px-5 py-3 text-center text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                AI Docs (mo.)
+                            </th>
+                            <th
+                                class="px-5 py-3 text-left text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                            >
+                                Created
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr
                             v-for="org in filtered"
                             :key="org.id"
-                            class="border-b border-slate-50 dark:border-zinc-800/50 last:border-0 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors"
+                            class="border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50/50 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
                         >
                             <td class="px-5 py-3.5">
                                 <button
                                     type="button"
                                     @click="goToOrg(org.id)"
-                                    class="font-semibold text-projector-primary-600 dark:text-projector-primary-400 hover:underline text-left"
-                                >{{ org.name }}</button>
+                                    class="text-left font-semibold text-projector-primary-600 hover:underline dark:text-projector-primary-400"
+                                >
+                                    {{ org.name }}
+                                </button>
                             </td>
 
                             <td class="px-5 py-3.5">
                                 <select
                                     :value="org.membership_tier"
-                                    @change="updateTier(org, ($event.target as HTMLSelectElement).value)"
-                                    class="text-[11px] font-black uppercase tracking-widest rounded-lg border border-slate-200 dark:border-zinc-700 bg-transparent px-2 py-1 focus:outline-none focus:ring-2 focus:ring-projector-primary-500 cursor-pointer"
+                                    @change="
+                                        updateTier(
+                                            org,
+                                            ($event.target as HTMLSelectElement)
+                                                .value,
+                                        )
+                                    "
+                                    class="cursor-pointer rounded-lg border border-slate-200 bg-transparent px-2 py-1 text-[11px] font-black tracking-widest uppercase focus:ring-2 focus:ring-projector-primary-500 focus:outline-none dark:border-zinc-700"
                                     :class="{
-                                        'text-projector-primary-600': org.membership_tier === 'pro',
-                                        'text-emerald-600': org.membership_tier === 'friends_family',
-                                        'text-slate-500': org.membership_tier === 'free',
+                                        'text-projector-primary-600':
+                                            org.membership_tier === 'pro',
+                                        'text-emerald-600':
+                                            org.membership_tier ===
+                                            'friends_family',
+                                        'text-slate-500':
+                                            org.membership_tier === 'free',
                                     }"
                                 >
-                                    <option v-for="tier in TIERS" :key="tier.value" :value="tier.value">{{ tier.label }}</option>
+                                    <option
+                                        v-for="tier in TIERS"
+                                        :key="tier.value"
+                                        :value="tier.value"
+                                    >
+                                        {{ tier.label }}
+                                    </option>
                                 </select>
                             </td>
 
-                            <td class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300">
+                            <td
+                                class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300"
+                            >
                                 <span>{{ org.users_count }}</span>
-                                <span v-if="org.users_denominator !== null" class="text-slate-400 text-xs"> / {{ org.users_denominator }}</span>
+                                <span
+                                    v-if="org.users_denominator !== null"
+                                    class="text-xs text-slate-400"
+                                >
+                                    / {{ org.users_denominator }}</span
+                                >
                             </td>
-                            <td class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300">{{ org.clients_count }}</td>
-                            <td class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300">{{ org.projects_count }}</td>
+                            <td
+                                class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300"
+                            >
+                                {{ org.clients_count }}
+                            </td>
+                            <td
+                                class="px-5 py-3.5 text-center text-slate-700 dark:text-slate-300"
+                            >
+                                {{ org.projects_count }}
+                            </td>
 
                             <td class="px-5 py-3.5 text-center">
                                 <span
                                     class="font-semibold"
                                     :class="{
-                                        'text-red-600': org.ai_docs_limit !== null && org.ai_docs_this_month >= org.ai_docs_limit,
-                                        'text-amber-600': org.ai_docs_limit !== null && org.ai_docs_this_month >= org.ai_docs_limit * 0.8,
-                                        'text-slate-700 dark:text-slate-300': org.ai_docs_limit === null || org.ai_docs_this_month < org.ai_docs_limit * 0.8,
+                                        'text-red-600':
+                                            org.ai_docs_limit !== null &&
+                                            org.ai_docs_this_month >=
+                                                org.ai_docs_limit,
+                                        'text-amber-600':
+                                            org.ai_docs_limit !== null &&
+                                            org.ai_docs_this_month >=
+                                                org.ai_docs_limit * 0.8,
+                                        'text-slate-700 dark:text-slate-300':
+                                            org.ai_docs_limit === null ||
+                                            org.ai_docs_this_month <
+                                                org.ai_docs_limit * 0.8,
                                     }"
-                                >{{ org.ai_docs_this_month }}</span>
-                                <span class="text-slate-400 text-xs"> / {{ org.ai_docs_limit ?? '∞' }}</span>
+                                    >{{ org.ai_docs_this_month }}</span
+                                >
+                                <span class="text-xs text-slate-400">
+                                    / {{ org.ai_docs_limit ?? '∞' }}</span
+                                >
                             </td>
 
-                            <td class="px-5 py-3.5 text-slate-400 text-xs">{{ org.created_at }}</td>
+                            <td class="px-5 py-3.5 text-xs text-slate-400">
+                                {{ org.created_at }}
+                            </td>
                         </tr>
                     </tbody>
                 </table>

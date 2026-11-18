@@ -1,34 +1,37 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
-import { AlertCircle, Loader2, Trash2, Video } from 'lucide-vue-next';
 import AiInstructionsPopover from '@/components/transcripts/AiInstructionsPopover.vue';
 import { Button } from '@/components/ui/button';
-import { formatDate } from '@/lib/utils';
-import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import { useTranscriptionLimit } from '@/composables/useTranscriptionLimit';
+import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
+import { formatDate } from '@/lib/utils';
+import { AlertCircle, Loader2, Trash2, Video } from 'lucide-vue-next';
+import { computed, reactive } from 'vue';
 
-const props = withDefaults(defineProps<{
-    recordings: Recording[];
-    // Caller-computed union of every reason a recording shouldn't be offered again (already
-    // imported here, imported elsewhere, etc.) — keeps this component itself agnostic to
-    // what "already spoken for" means in a given context.
-    excludedIds: string[];
-    canManage: boolean;
-    providerError?: string | null;
-    actions: RecordingAction[];
-    onDismiss?: (recording: Recording) => void;
-    // The org-level status-meeting import (AvailableOrgRecordings.vue) has no confirm-before-
-    // import step at all, so this inline popover is its only way to attach a custom instruction
-    // before clicking Import. The project-level Import a Document modal instead collects that
-    // same kind of note in its own shared confirmation dialog (see ImportConfirmModal.vue) —
-    // one place to enter it, not two — so it opts out here.
-    showAiPrompt?: boolean;
-}>(), {
-    showAiPrompt: true,
-});
+const props = withDefaults(
+    defineProps<{
+        recordings: Recording[];
+        // Caller-computed union of every reason a recording shouldn't be offered again (already
+        // imported here, imported elsewhere, etc.) — keeps this component itself agnostic to
+        // what "already spoken for" means in a given context.
+        excludedIds: string[];
+        canManage: boolean;
+        providerError?: string | null;
+        actions: RecordingAction[];
+        onDismiss?: (recording: Recording) => void;
+        // The org-level status-meeting import (AvailableOrgRecordings.vue) has no confirm-before-
+        // import step at all, so this inline popover is its only way to attach a custom instruction
+        // before clicking Import. The project-level Import a Document modal instead collects that
+        // same kind of note in its own shared confirmation dialog (see ImportConfirmModal.vue) —
+        // one place to enter it, not two — so it opts out here.
+        showAiPrompt?: boolean;
+    }>(),
+    {
+        showAiPrompt: true,
+    },
+);
 
 const pendingRecordings = computed(() =>
-    props.recordings.filter((r) => !props.excludedIds.includes(r.id))
+    props.recordings.filter((r) => !props.excludedIds.includes(r.id)),
 );
 
 // Optional per-recording AI instructions, entered via the popover below — keyed by
@@ -39,7 +42,8 @@ const customPrompts = reactive<Record<string, string>>({});
 // transcription allowance — one with the provider's own transcript doesn't.
 const transcriptionLimitMessage = useTranscriptionLimit();
 const isBlockedByLimit = (recording: Recording) =>
-    recording.has_transcript === false && transcriptionLimitMessage.value !== null;
+    recording.has_transcript === false &&
+    transcriptionLimitMessage.value !== null;
 </script>
 
 <template>
@@ -52,7 +56,9 @@ const isBlockedByLimit = (recording: Recording) =>
             <p class="text-sm font-bold text-red-800 dark:text-red-300">
                 Failed to connect to meeting provider
             </p>
-            <p class="mt-1 font-mono text-sm break-all text-red-700 dark:text-red-400">
+            <p
+                class="mt-1 font-mono text-sm break-all text-red-700 dark:text-red-400"
+            >
                 {{ providerError }}
             </p>
         </div>
@@ -64,9 +70,12 @@ const isBlockedByLimit = (recording: Recording) =>
             class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 py-16 dark:border-gray-700 dark:bg-gray-900/30"
         >
             <Video class="mb-3 h-8 w-8 text-gray-300" />
-            <p class="text-sm font-bold text-gray-500">No new recordings found</p>
+            <p class="text-sm font-bold text-gray-500">
+                No new recordings found
+            </p>
             <p class="mt-1 text-xs text-gray-400">
-                All recent recordings have already been imported, or none exist yet.
+                All recent recordings have already been imported, or none exist
+                yet.
             </p>
         </div>
 
@@ -74,19 +83,28 @@ const isBlockedByLimit = (recording: Recording) =>
             <div
                 v-for="recording in pendingRecordings"
                 :key="recording.id"
-                :class="['group relative flex items-center gap-3 h-12 px-2 rounded-md transition-colors', FLAT_ROW_HOVER]"
+                :class="[
+                    'group relative flex h-12 items-center gap-3 rounded-md px-2 transition-colors',
+                    FLAT_ROW_HOVER,
+                ]"
             >
-                <div class="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400">
+                <div
+                    class="flex h-4 w-4 shrink-0 items-center justify-center text-slate-400"
+                >
                     <Video class="h-3.5 w-3.5" />
                 </div>
 
                 <div class="flex min-w-0 flex-1 items-center gap-2.5">
-                    <span class="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">
+                    <span
+                        class="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100"
+                    >
                         {{ recording.title }}
                     </span>
                     <span class="shrink-0 text-[11px] text-slate-400">
                         {{ formatDate(recording.started_at) }}
-                        <template v-if="recording.duration_minutes">· {{ recording.duration_minutes }} min</template>
+                        <template v-if="recording.duration_minutes"
+                            >· {{ recording.duration_minutes }} min</template
+                        >
                     </span>
                     <!-- No provider transcript — Projector transcribes the recording itself on
                          import (see App\Contracts\ProvidesRecordingAudio), which takes longer. -->
@@ -108,25 +126,50 @@ const isBlockedByLimit = (recording: Recording) =>
                         Monthly transcription limit reached
                     </span>
 
-                    <AiInstructionsPopover v-if="showAiPrompt && !isBlockedByLimit(recording)" v-model="customPrompts[recording.id]" />
+                    <AiInstructionsPopover
+                        v-if="showAiPrompt && !isBlockedByLimit(recording)"
+                        v-model="customPrompts[recording.id]"
+                    />
 
                     <Button
-                        v-for="action in isBlockedByLimit(recording) ? [] : actions"
+                        v-for="action in isBlockedByLimit(recording)
+                            ? []
+                            : actions"
                         :key="action.label"
                         size="sm"
-                        :variant="action.variant === 'outline' ? 'outline' : undefined"
-                        :disabled="(action.disabled ?? action.loading)(recording)"
+                        :variant="
+                            action.variant === 'outline' ? 'outline' : undefined
+                        "
+                        :disabled="
+                            (action.disabled ?? action.loading)(recording)
+                        "
                         :class="[
-                            'w-28 shrink-0 rounded-md px-3 h-8 text-[10px] font-black uppercase tracking-widest',
+                            'h-8 w-28 shrink-0 rounded-md px-3 text-[10px] font-black tracking-widest uppercase',
                             action.variant === 'outline'
                                 ? 'text-slate-600 dark:text-slate-300'
-                                : 'bg-projector-primary-600 hover:bg-projector-primary-700 text-white',
+                                : 'bg-projector-primary-600 text-white hover:bg-projector-primary-700',
                         ]"
-                        @click="action.onClick(recording, customPrompts[recording.id] ?? '')"
+                        @click="
+                            action.onClick(
+                                recording,
+                                customPrompts[recording.id] ?? '',
+                            )
+                        "
                     >
-                        <Loader2 v-if="action.loading(recording)" class="w-3 h-3 mr-1.5 animate-spin" />
-                        <component v-else :is="action.icon" class="w-3 h-3 mr-1.5" />
-                        {{ action.loading(recording) ? 'Importing...' : action.label }}
+                        <Loader2
+                            v-if="action.loading(recording)"
+                            class="mr-1.5 h-3 w-3 animate-spin"
+                        />
+                        <component
+                            v-else
+                            :is="action.icon"
+                            class="mr-1.5 h-3 w-3"
+                        />
+                        {{
+                            action.loading(recording)
+                                ? 'Importing...'
+                                : action.label
+                        }}
                     </Button>
 
                     <button

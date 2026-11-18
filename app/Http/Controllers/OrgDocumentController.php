@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreOrgDocumentRequest;
 use App\Jobs\ImportOrgMeetingTranscript;
 use App\Jobs\ProcessOrgDocumentAI;
+use App\Models\Client;
 use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrgDocument;
@@ -398,7 +399,7 @@ class OrgDocumentController extends Controller
             ->get(['id', 'name', 'client_id'])
             ->map(fn (Project $p) => ['id' => $p->id, 'name' => $p->name, 'client_name' => $p->client->company_name ?? '']);
 
-        $clients = \App\Models\Client::where('organization_id', $organization->id)
+        $clients = Client::where('organization_id', $organization->id)
             ->where('inactive', false)
             ->get(['id', 'company_name']);
 

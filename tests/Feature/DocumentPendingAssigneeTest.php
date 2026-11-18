@@ -5,10 +5,10 @@ use App\Models\Document;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\Project;
-use App\Models\ProjectType;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->org = Organization::create(['name' => 'Acme Inc']);
@@ -22,10 +22,8 @@ beforeEach(function () {
         'contact_phone' => '555-1234',
     ]);
 
-    ProjectType::factory()->create([
-        'document_schema' => [
-            ['label' => 'Task', 'key' => 'task', 'is_task' => true],
-        ],
+    seedDocumentTypes([
+        ['label' => 'Task', 'key' => 'task', 'is_task' => true],
     ]);
 
     $this->project = Project::create([

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -7,7 +8,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ref, watch } from 'vue';
@@ -46,26 +46,36 @@ const confirm = () => {
             <DialogHeader>
                 <DialogTitle>{{ title || 'Reprocess Document?' }}</DialogTitle>
                 <DialogDescription>
-                    {{ description || "Reprocessing will regenerate this document's output, overwriting anything previously generated." }}
+                    {{
+                        description ||
+                        "Reprocessing will regenerate this document's output, overwriting anything previously generated."
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
             <div class="space-y-2">
-                <Label class="text-[10px] font-black tracking-widest text-gray-400 uppercase">
+                <Label
+                    class="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                >
                     Instructions for this run only (optional)
                 </Label>
                 <Textarea
                     v-model="oneOffInstructions"
-                    placeholder="e.g. Only extract from the section labeled &quot;Action Items&quot; this time."
+                    placeholder='e.g. Only extract from the section labeled "Action Items" this time.'
                     class="min-h-24 text-sm"
                 />
                 <p class="text-[11px] text-gray-400">
-                    Applied to this reprocess only — not saved anywhere, and won't affect future runs.
+                    Applied to this reprocess only — not saved anywhere, and
+                    won't affect future runs.
                 </p>
             </div>
 
             <DialogFooter class="gap-2 sm:gap-4">
-                <Button variant="outline" @click="emit('close')" :disabled="loading">
+                <Button
+                    variant="outline"
+                    @click="emit('close')"
+                    :disabled="loading"
+                >
                     No
                 </Button>
                 <Button @click="confirm" :disabled="loading">

@@ -20,12 +20,12 @@ import { watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Select,
     SelectContent,
@@ -369,7 +369,9 @@ const updateCriterion = (index: number, value: string) =>
             <RadioGroup
                 v-if="form.custom_prompt"
                 :model-value="form.custom_prompt_mode"
-                @update:model-value="(v) => updateField('custom_prompt_mode', v)"
+                @update:model-value="
+                    (v) => updateField('custom_prompt_mode', v)
+                "
                 class="gap-2 pt-1"
             >
                 <div
@@ -386,8 +388,13 @@ const updateCriterion = (index: number, value: string) =>
                         :for="`document-prompt-mode-${option.value}`"
                         class="flex flex-col items-start gap-0.5"
                     >
-                        <span class="text-[13px] font-medium text-slate-600 dark:text-slate-300">{{ option.label }}</span>
-                        <span class="text-[10px] font-medium text-slate-400">{{ option.description }}</span>
+                        <span
+                            class="text-[13px] font-medium text-slate-600 dark:text-slate-300"
+                            >{{ option.label }}</span
+                        >
+                        <span class="text-[10px] font-medium text-slate-400">{{
+                            option.description
+                        }}</span>
                     </Label>
                 </div>
             </RadioGroup>

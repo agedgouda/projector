@@ -1,10 +1,12 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
-function attemptRegistrationWithEmail(string $email): \Illuminate\Testing\TestResponse
+function attemptRegistrationWithEmail(string $email): TestResponse
 {
     return \Pest\Laravel\post(route('register.store'), [
         'first_name' => 'Test',

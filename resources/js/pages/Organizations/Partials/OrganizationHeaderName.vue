@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue';
+import organizationRoutes from '@/routes/organizations/index';
 import { useForm } from '@inertiajs/vue3';
 import { Pencil } from 'lucide-vue-next';
+import { nextTick, ref } from 'vue';
 import { toast } from 'vue-sonner';
-import organizationRoutes from '@/routes/organizations/index';
 
 interface Props {
     organization: Organization;
@@ -29,7 +29,9 @@ function cancel() {
 }
 
 function save() {
-    if (form.processing) { return; }
+    if (form.processing) {
+        return;
+    }
 
     if (form.name === props.organization.name) {
         isEditing.value = false;
@@ -54,12 +56,14 @@ function save() {
             v-model="form.name"
             type="text"
             :disabled="form.processing"
-            class="bg-transparent text-3xl font-black tracking-tighter text-gray-900 uppercase outline-none dark:text-white border-b-2 border-projector-primary-500"
+            class="border-b-2 border-projector-primary-500 bg-transparent text-3xl font-black tracking-tighter text-gray-900 uppercase outline-none dark:text-white"
             @keyup.enter="save"
             @keyup.esc="cancel"
             @blur="save"
         />
-        <p v-if="form.errors.name" class="text-xs font-bold text-red-500">{{ form.errors.name }}</p>
+        <p v-if="form.errors.name" class="text-xs font-bold text-red-500">
+            {{ form.errors.name }}
+        </p>
     </div>
     <button
         v-else
@@ -67,9 +71,13 @@ function save() {
         class="group flex items-center gap-2 text-left"
         @click="startEditing"
     >
-        <h2 class="text-3xl font-black tracking-tighter text-gray-900 uppercase dark:text-white">
+        <h2
+            class="text-3xl font-black tracking-tighter text-gray-900 uppercase dark:text-white"
+        >
             {{ organization.name }}
         </h2>
-        <Pencil class="h-4 w-4 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-600" />
+        <Pencil
+            class="h-4 w-4 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-600"
+        />
     </button>
 </template>

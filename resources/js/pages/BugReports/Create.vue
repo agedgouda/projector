@@ -1,14 +1,12 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
+import bugReportsRoutes from '@/routes/bug-reports/index';
+import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
-import { type BreadcrumbItem } from '@/types';
-import bugReportsRoutes from '@/routes/bug-reports/index';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Get In Touch', href: '' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Get In Touch', href: '' }];
 
 const form = useForm({
     title: '',
@@ -33,44 +31,75 @@ const handleSubmit = () => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="w-full px-6 py-6">
             <div class="grid grid-cols-12 gap-12">
-                <div class="col-span-12 lg:col-span-8 space-y-6">
-                    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 space-y-6 shadow-sm">
+                <div class="col-span-12 space-y-6 lg:col-span-8">
+                    <div
+                        class="space-y-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                    >
                         <div class="space-y-1">
-                            <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white">Get In Touch</h1>
-                            <p class="text-sm text-slate-500">Found something that isn't working? Let us know and we'll look into it.</p>
+                            <h1
+                                class="text-xl font-black tracking-tight text-slate-900 dark:text-white"
+                            >
+                                Get In Touch
+                            </h1>
+                            <p class="text-sm text-slate-500">
+                                Found something that isn't working? Let us know
+                                and we'll look into it.
+                            </p>
                         </div>
 
                         <form @submit.prevent="handleSubmit" class="space-y-5">
                             <div class="space-y-1.5">
-                                <label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Summary</label>
+                                <label
+                                    class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
+                                    >Summary</label
+                                >
                                 <input
                                     v-model="form.title"
                                     type="text"
                                     placeholder="e.g. Clicking Save on the project page shows an error"
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
+                                    class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-projector-primary-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                 />
-                                <p v-if="form.errors.title" class="text-xs text-red-500">{{ form.errors.title }}</p>
+                                <p
+                                    v-if="form.errors.title"
+                                    class="text-xs text-red-500"
+                                >
+                                    {{ form.errors.title }}
+                                </p>
                             </div>
 
                             <div class="space-y-1.5">
-                                <label class="text-[11px] font-black uppercase tracking-widest text-slate-500">What happened?</label>
+                                <label
+                                    class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
+                                    >What happened?</label
+                                >
                                 <textarea
                                     v-model="form.description"
                                     rows="8"
                                     placeholder="Describe what you did, what you expected to happen, and what actually happened..."
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500 resize-y leading-relaxed"
+                                    class="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-900 focus:ring-2 focus:ring-projector-primary-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                 />
-                                <p v-if="form.errors.description" class="text-xs text-red-500">{{ form.errors.description }}</p>
+                                <p
+                                    v-if="form.errors.description"
+                                    class="text-xs text-red-500"
+                                >
+                                    {{ form.errors.description }}
+                                </p>
                             </div>
 
                             <div class="space-y-1.5">
-                                <label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Page URL</label>
+                                <label
+                                    class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
+                                    >Page URL</label
+                                >
                                 <input
                                     v-model="form.page_url"
                                     type="text"
-                                    class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
+                                    class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-projector-primary-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                 />
-                                <p class="text-[11px] text-slate-400">Pre-filled with the page you came from. Update if different.</p>
+                                <p class="text-[11px] text-slate-400">
+                                    Pre-filled with the page you came from.
+                                    Update if different.
+                                </p>
                             </div>
 
                             <div class="flex justify-end pt-2">
@@ -79,7 +108,11 @@ const handleSubmit = () => {
                                     :disabled="form.processing"
                                     class="h-11 rounded-xl bg-projector-primary-600 px-6 font-bold whitespace-nowrap text-white hover:bg-projector-primary-700"
                                 >
-                                    {{ form.processing ? 'Submitting...' : 'Submit' }}
+                                    {{
+                                        form.processing
+                                            ? 'Submitting...'
+                                            : 'Submit'
+                                    }}
                                 </Button>
                             </div>
                         </form>

@@ -11,9 +11,12 @@ use App\Models\PendingImport;
 use App\Models\Project;
 use App\Models\ProjectImportMapping;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -88,14 +91,14 @@ const EMPTY_MAPPING = ['name' => null, 'priority' => null, 'task_status' => null
  */
 function createTestDocxBytes(array $lines): string
 {
-    $phpWord = new \PhpOffice\PhpWord\PhpWord;
+    $phpWord = new PhpWord;
     $section = $phpWord->addSection();
     foreach ($lines as $line) {
         $section->addText($line);
     }
 
     $tmpPath = tempnam(sys_get_temp_dir(), 'test_docx').'.docx';
-    \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007')->save($tmpPath);
+    IOFactory::createWriter($phpWord, 'Word2007')->save($tmpPath);
     $bytes = (string) file_get_contents($tmpPath);
     unlink($tmpPath);
 

@@ -11,10 +11,12 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Ai\ProjectAiService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     setPermissionsTeamId(null);
@@ -129,7 +131,7 @@ describe('spreadsheet import', function () {
 
         $this->actingAs($this->admin)
             ->post(route('projects.task-lists.analyze', $this->project), [
-                'file' => new \Illuminate\Http\UploadedFile($path, 'plan.csv', 'text/csv', null, true),
+                'file' => new UploadedFile($path, 'plan.csv', 'text/csv', null, true),
             ])
             ->assertSuccessful()
             ->assertJsonPath('suggested_mapping.predecessor', 'Predecessor');

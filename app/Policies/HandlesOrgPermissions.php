@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Organization;
 use App\Models\User;
 
 trait HandlesOrgPermissions
@@ -77,7 +78,7 @@ trait HandlesOrgPermissions
         }
 
         return match (true) {
-            $model instanceof \App\Models\Organization => $model->id,
+            $model instanceof Organization => $model->id,
             default => $model->organization_id ?? getPermissionsTeamId(),
         };
     }

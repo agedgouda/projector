@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { Head, useForm, usePage, router, Deferred } from '@inertiajs/vue3';
-import { toast } from 'vue-sonner';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
 import AvailableOrgRecordings from '@/pages/Organizations/Partials/AvailableOrgRecordings.vue';
-import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
-import DOMPurify from 'dompurify';
 import orgDocumentsRoutes from '@/routes/organizations/documents/index';
 import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import { type BreadcrumbItem } from '@/types';
+import { Deferred, Head, router, useForm, usePage } from '@inertiajs/vue3';
+import DOMPurify from 'dompurify';
+import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
+import { ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 
 interface OrgDocument {
     id: string;
@@ -56,30 +56,57 @@ const form = useForm({
 });
 
 const toggleEdit = () => {
-    if (isEditing.value) { form.reset(); }
+    if (isEditing.value) {
+        form.reset();
+    }
     isEditing.value = !isEditing.value;
 };
 
 const handleSubmit = () => {
-    form.patch(orgDocumentsRoutes.update({ organization: props.organization.id, orgDocument: props.item.id }).url, {
-        onSuccess: () => { toast.success('Status meeting updated.'); isEditing.value = false; },
-        onError: () => toast.error('Please correct the errors.'),
-    });
+    form.patch(
+        orgDocumentsRoutes.update({
+            organization: props.organization.id,
+            orgDocument: props.item.id,
+        }).url,
+        {
+            onSuccess: () => {
+                toast.success('Status meeting updated.');
+                isEditing.value = false;
+            },
+            onError: () => toast.error('Please correct the errors.'),
+        },
+    );
 };
 
 const handleDelete = () => {
     isDeleting.value = true;
-    router.delete(orgDocumentsRoutes.destroy({ organization: props.organization.id, orgDocument: props.item.id }).url, {
-        onSuccess: () => toast.success('Status meeting deleted.'),
-        onFinish: () => { isDeleting.value = false; },
-    });
+    router.delete(
+        orgDocumentsRoutes.destroy({
+            organization: props.organization.id,
+            orgDocument: props.item.id,
+        }).url,
+        {
+            onSuccess: () => toast.success('Status meeting deleted.'),
+            onFinish: () => {
+                isDeleting.value = false;
+            },
+        },
+    );
 };
 
 const page = usePage<{ flash?: { success?: string; error?: string } }>();
-watch(() => page.props.flash, (flash) => {
-    if (flash?.success) { toast.success(flash.success); }
-    if (flash?.error) { toast.error(flash.error); }
-}, { deep: true, immediate: true });
+watch(
+    () => page.props.flash,
+    (flash) => {
+        if (flash?.success) {
+            toast.success(flash.success);
+        }
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    },
+    { deep: true, immediate: true },
+);
 
 const sanitize = (html: string) => DOMPurify.sanitize(html);
 </script>
@@ -88,14 +115,14 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
     <Head :title="item.name ?? 'Status Meeting'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 space-y-8 w-full">
+        <div class="w-full space-y-8 p-6">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <button
                     @click="router.visit(statusMeetingsRoutes.index.url())"
-                    class="flex items-center gap-2 text-sm text-slate-500 hover:text-projector-primary-600 transition-colors"
+                    class="flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-projector-primary-600"
                 >
-                    <ArrowLeft class="w-3 h-3" />
+                    <ArrowLeft class="h-3 w-3" />
                     Status Meetings
                 </button>
 
@@ -104,19 +131,26 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
                         variant="outline"
                         size="sm"
                         @click="toggleEdit"
-                        class="relative h-8 w-24 text-[10px] font-black uppercase tracking-widest flex items-center justify-center"
+                        class="relative flex h-8 w-24 items-center justify-center text-[10px] font-black tracking-widest uppercase"
                     >
-                        <div class="absolute left-3 flex items-center justify-center">
-                            <component :is="isEditing ? X : Edit2" class="h-3 w-3" />
+                        <div
+                            class="absolute left-3 flex items-center justify-center"
+                        >
+                            <component
+                                :is="isEditing ? X : Edit2"
+                                class="h-3 w-3"
+                            />
                         </div>
-                        <span class="ml-4">{{ isEditing ? 'Cancel' : 'Edit' }}</span>
+                        <span class="ml-4">{{
+                            isEditing ? 'Cancel' : 'Edit'
+                        }}</span>
                     </Button>
 
                     <Button
                         variant="ghost"
                         size="icon"
                         @click="isDeleteModalOpen = true"
-                        class="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        class="h-8 w-8 text-slate-400 hover:bg-red-50 hover:text-red-600"
                     >
                         <Trash2 class="h-4 w-4" />
                     </Button>
@@ -124,56 +158,115 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
             </div>
 
             <!-- Tabs -->
-            <div class="flex items-center border-b border-gray-200 dark:border-gray-700">
-                <button v-for="tab in ['documentation', 'recordings']" :key="tab"
+            <div
+                class="flex items-center border-b border-gray-200 dark:border-gray-700"
+            >
+                <button
+                    v-for="tab in ['documentation', 'recordings']"
+                    :key="tab"
                     @click="activeTab = tab as 'documentation' | 'recordings'"
-                    :class="['px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-b-2 -mb-[1px]',
-                        activeTab === tab ? 'border-projector-primary-500 text-projector-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600']">
-                    {{ tab === 'documentation' ? 'Documentation' : 'Recordings' }}
+                    :class="[
+                        '-mb-[1px] border-b-2 px-8 py-4 text-[10px] font-black tracking-[0.2em] uppercase transition-all',
+                        activeTab === tab
+                            ? 'border-projector-primary-500 text-projector-primary-600'
+                            : 'border-transparent text-gray-400 hover:text-gray-600',
+                    ]"
+                >
+                    {{
+                        tab === 'documentation' ? 'Documentation' : 'Recordings'
+                    }}
                 </button>
             </div>
 
             <!-- Documentation Tab -->
             <div v-show="activeTab === 'documentation'">
-                <div v-if="isEditing" class="max-w-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 space-y-5 shadow-sm">
+                <div
+                    v-if="isEditing"
+                    class="max-w-3xl space-y-5 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                >
                     <form @submit.prevent="handleSubmit" class="space-y-5">
                         <div class="space-y-1.5">
-                            <label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Title</label>
+                            <label
+                                class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
+                                >Title</label
+                            >
                             <input
                                 v-model="form.name"
                                 type="text"
-                                class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-projector-primary-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                             />
-                            <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
+                            <p
+                                v-if="form.errors.name"
+                                class="text-xs text-red-500"
+                            >
+                                {{ form.errors.name }}
+                            </p>
                         </div>
 
                         <div class="space-y-1.5">
-                            <label class="text-[11px] font-black uppercase tracking-widest text-slate-500">Notes / Transcript</label>
+                            <label
+                                class="text-[11px] font-black tracking-widest text-slate-500 uppercase"
+                                >Notes / Transcript</label
+                            >
                             <textarea
                                 v-model="form.content"
                                 rows="16"
-                                class="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-projector-primary-500 resize-y font-mono leading-relaxed"
+                                class="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm leading-relaxed text-slate-900 focus:ring-2 focus:ring-projector-primary-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                             />
-                            <p v-if="form.errors.content" class="text-xs text-red-500">{{ form.errors.content }}</p>
+                            <p
+                                v-if="form.errors.content"
+                                class="text-xs text-red-500"
+                            >
+                                {{ form.errors.content }}
+                            </p>
                         </div>
 
                         <div class="flex justify-end gap-3 pt-2">
-                            <Button type="button" @click="toggleEdit" class="bg-white text-projector-primary-600 border border-projector-primary-600 font-bold px-6 rounded-xl hover:bg-projector-primary-50 dark:bg-transparent dark:text-projector-primary-400 dark:border-projector-primary-400 dark:hover:bg-projector-primary-950/30">Cancel</Button>
-                            <Button type="submit" :disabled="form.processing" class="bg-projector-primary-600 hover:bg-projector-primary-700 text-white font-bold px-6 rounded-xl">
-                                {{ form.processing ? 'Saving...' : 'Save Changes' }}
+                            <Button
+                                type="button"
+                                @click="toggleEdit"
+                                class="rounded-xl border border-projector-primary-600 bg-white px-6 font-bold text-projector-primary-600 hover:bg-projector-primary-50 dark:border-projector-primary-400 dark:bg-transparent dark:text-projector-primary-400 dark:hover:bg-projector-primary-950/30"
+                                >Cancel</Button
+                            >
+                            <Button
+                                type="submit"
+                                :disabled="form.processing"
+                                class="rounded-xl bg-projector-primary-600 px-6 font-bold text-white hover:bg-projector-primary-700"
+                            >
+                                {{
+                                    form.processing
+                                        ? 'Saving...'
+                                        : 'Save Changes'
+                                }}
                             </Button>
                         </div>
                     </form>
                 </div>
 
-                <div v-else class="max-w-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-8 shadow-sm space-y-4">
+                <div
+                    v-else
+                    class="max-w-3xl space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                >
                     <div>
-                        <p class="text-[10px] font-black uppercase tracking-widest text-projector-primary-500 mb-1">Status Meeting</p>
-                        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">{{ item.name }}</h1>
-                        <p v-if="item.creator" class="text-xs text-slate-400 mt-1">Created by {{ item.creator.name }}</p>
+                        <p
+                            class="mb-1 text-[10px] font-black tracking-widest text-projector-primary-500 uppercase"
+                        >
+                            Status Meeting
+                        </p>
+                        <h1
+                            class="text-2xl font-black tracking-tight text-slate-900 dark:text-white"
+                        >
+                            {{ item.name }}
+                        </h1>
+                        <p
+                            v-if="item.creator"
+                            class="mt-1 text-xs text-slate-400"
+                        >
+                            Created by {{ item.creator.name }}
+                        </p>
                     </div>
                     <div
-                        class="text-[15px] text-slate-900 dark:text-slate-400 leading-relaxed prose prose-slate dark:prose-invert max-w-none whitespace-pre-wrap"
+                        class="prose prose-slate dark:prose-invert max-w-none text-[15px] leading-relaxed whitespace-pre-wrap text-slate-900 dark:text-slate-400"
                         v-html="sanitize(item.content)"
                     />
                 </div>
@@ -181,21 +274,41 @@ const sanitize = (html: string) => DOMPurify.sanitize(html);
 
             <!-- Recordings Tab -->
             <div v-show="activeTab === 'recordings'">
-                <div v-if="!meetingProvider" class="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-                    <p class="text-sm font-bold text-gray-500">No meeting provider configured</p>
-                    <p class="text-xs text-gray-400 mt-1">Configure a provider in Organization Settings to import recordings.</p>
+                <div
+                    v-if="!meetingProvider"
+                    class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 py-16 dark:border-gray-700"
+                >
+                    <p class="text-sm font-bold text-gray-500">
+                        No meeting provider configured
+                    </p>
+                    <p class="mt-1 text-xs text-gray-400">
+                        Configure a provider in Organization Settings to import
+                        recordings.
+                    </p>
                 </div>
 
                 <Deferred v-else data="recordingsData">
                     <template #fallback>
                         <div class="grid gap-0.5">
-                            <div v-for="i in 4" :key="i" class="flex items-center gap-3 h-12 px-2 animate-pulse">
-                                <div class="w-3.5 h-3.5 rounded bg-gray-100 dark:bg-gray-800 shrink-0" />
-                                <div class="flex-1 flex items-center gap-3">
-                                    <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded w-40" />
-                                    <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-24" />
+                            <div
+                                v-for="i in 4"
+                                :key="i"
+                                class="flex h-12 animate-pulse items-center gap-3 px-2"
+                            >
+                                <div
+                                    class="h-3.5 w-3.5 shrink-0 rounded bg-gray-100 dark:bg-gray-800"
+                                />
+                                <div class="flex flex-1 items-center gap-3">
+                                    <div
+                                        class="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800"
+                                    />
+                                    <div
+                                        class="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800"
+                                    />
                                 </div>
-                                <div class="h-8 w-20 bg-gray-100 dark:bg-gray-800 rounded-md" />
+                                <div
+                                    class="h-8 w-20 rounded-md bg-gray-100 dark:bg-gray-800"
+                                />
                             </div>
                         </div>
                     </template>

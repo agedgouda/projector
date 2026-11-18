@@ -6,11 +6,13 @@ use App\Models\Client;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\MeetingTranscriptService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -178,7 +180,7 @@ it('job fetches slack transcript and updates the placeholder document', function
     ]);
 
     $job = new ImportMeetingTranscript($document, 'F123');
-    $job->handle(app(\App\Services\MeetingTranscriptService::class));
+    $job->handle(app(MeetingTranscriptService::class));
 
     $document->refresh();
 
@@ -205,7 +207,7 @@ it('job marks placeholder as processed when slack transcript is empty', function
     ]);
 
     $job = new ImportMeetingTranscript($document, 'F999');
-    $job->handle(app(\App\Services\MeetingTranscriptService::class));
+    $job->handle(app(MeetingTranscriptService::class));
 
     $document->refresh();
     expect($document->processed_at)->not->toBeNull();

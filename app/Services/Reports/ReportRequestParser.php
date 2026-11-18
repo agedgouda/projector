@@ -6,6 +6,7 @@ use App\Contracts\LlmDriver;
 use App\Models\AiTemplate;
 use App\Models\Category;
 use App\Models\KanbanColumn;
+use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Ai\AiUsageLogger;
@@ -329,7 +330,7 @@ class ReportRequestParser
      * uses.
      *
      * @param  Collection<int, User>  $users
-     * @param  Collection<int, \App\Models\OrganizationInvitation>  $invitations
+     * @param  Collection<int, OrganizationInvitation>  $invitations
      * @return array<string, array{value: string, name: string}>
      */
     private function peopleByName(Collection $users, Collection $invitations): array

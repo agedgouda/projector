@@ -37,9 +37,10 @@ const currentOrg = computed(
 // ?org=/session/cookie chain as everywhere else (OrganizationController::index) — so reloading
 // it after a switch just shows the newly selected org, which is exactly what the picker implies.
 const handleOrgSwitch = (orgId: string | number) => {
-    const destination = window.location.pathname === organizationsIndex().url
-        ? organizationsIndex().url
-        : dashboard().url;
+    const destination =
+        window.location.pathname === organizationsIndex().url
+            ? organizationsIndex().url
+            : dashboard().url;
 
     router.get(
         destination,

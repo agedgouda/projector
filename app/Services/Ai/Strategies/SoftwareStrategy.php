@@ -18,12 +18,12 @@ class SoftwareStrategy implements ProjectGeneratorStrategy
 
     public function getVectorSearchQuery(Project $project): string
     {
-        return "User requirements, feature requests, and project goals from meeting notes for: " . $project->name;
+        return 'User requirements, feature requests, and project goals from meeting notes for: '.$project->name;
     }
 
     public function getTaskExtractionPrompt(): string
     {
-        return <<<PROMPT
+        return <<<'PROMPT'
             You are an expert Agile Product Owner.
             Your task is to analyze raw meeting notes (Intake) and extract discrete User Stories.
 
