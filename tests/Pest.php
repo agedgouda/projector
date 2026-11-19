@@ -5,6 +5,14 @@ use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 /*
+| A fresh random encryption key for every test run, so no key is ever committed to the repo.
+| Set before the app boots, so it also wins over any APP_KEY in .env.
+*/
+$testAppKey = 'base64:'.base64_encode(random_bytes(32));
+putenv('APP_KEY='.$testAppKey);
+$_ENV['APP_KEY'] = $_SERVER['APP_KEY'] = $testAppKey;
+
+/*
 |--------------------------------------------------------------------------
 | Test Case
 |--------------------------------------------------------------------------
