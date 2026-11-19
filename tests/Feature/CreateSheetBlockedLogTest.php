@@ -1,7 +1,10 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+
+uses(RefreshDatabase::class);
 
 it('redirects guests attempting to log a blocked create sheet', function () {
     $this->post('/client-logs/create-sheet-blocked', ['selected_document_id' => '1'])

@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\Organization;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('applies org llm driver to config', function () {
     $org = Organization::factory()->create([

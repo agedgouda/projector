@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 it('redirects guests to the marketing site on any host other than the local Herd domain', function () {
     $response = $this->get('https://projecthq.app/');

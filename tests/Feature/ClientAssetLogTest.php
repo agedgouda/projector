@@ -1,7 +1,10 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+
+uses(RefreshDatabase::class);
 
 it('accepts a stale asset chunk report without requiring auth', function () {
     Log::spy();
