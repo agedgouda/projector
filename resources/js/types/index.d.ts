@@ -424,11 +424,7 @@ declare global {
         creator?: { id: number; name: string } | null;
         processing_triggered_by_user_id: number | null;
         ai_draft_status:
-            | 'processing'
-            | 'pending_review'
-            | 'committed'
-            | 'failed'
-            | null;
+            'processing' | 'pending_review' | 'committed' | 'failed' | null;
         ai_draft_error?: string | null;
         ai_draft_groups: StatusMeetingDraftGroup[];
         linked_documents: StatusMeetingLinkedDocument[];

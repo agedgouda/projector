@@ -138,7 +138,7 @@ const breadcrumbs = [{ title: 'Roles', href: roleRoutes.index().url }];
 
                     <div v-if="!collapsedRoles[role.id]" class="mt-2 ml-10">
                         <ResourceCard
-                            v-for="(user, userIndex) in role.users"
+                            v-for="(user, userIndex) in role.users as any[]"
                             :key="user.id"
                             :row-index="userIndex"
                             :title="user.name"

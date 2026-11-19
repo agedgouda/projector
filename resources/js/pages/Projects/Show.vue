@@ -346,8 +346,7 @@ const reprocessConfirmDoc = ref<UIProjectDocument | null>(null);
 const handleReprocess = (id: string | number) => {
     const stringId = id.toString();
     const doc = allDocs.value.find((d) => d.id.toString() === stringId) as
-        | UIProjectDocument
-        | undefined;
+        UIProjectDocument | undefined;
 
     if (!doc) return;
 
@@ -382,8 +381,7 @@ const handleTransition = (
 ) => {
     const stringId = id.toString();
     const doc = allDocs.value.find((d) => d.id.toString() === stringId) as
-        | UIProjectDocument
-        | undefined;
+        UIProjectDocument | undefined;
 
     if (!doc) return;
 
@@ -417,6 +415,10 @@ watch(
         if (data !== undefined) isRefreshingRecordings.value = false;
     },
 );
+
+const switchProject = (projectId: number | string) => {
+    router.get('/projects/' + projectId);
+};
 
 const updateTab = (tab: string) => {
     activeTab.value = tab;
@@ -722,7 +724,7 @@ watch(
                         :projects="projects"
                         :current-project="currentProject"
                         :clients="clients"
-                        @switch="(id) => router.get('/projects/' + id)"
+                        @switch="switchProject"
                     />
                 </div>
 

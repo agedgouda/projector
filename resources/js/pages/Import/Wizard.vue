@@ -110,8 +110,7 @@ interface PendingImportTextAnalysis {
 }
 
 type PendingImportAnalysis =
-    | PendingImportSpreadsheetAnalysis
-    | PendingImportTextAnalysis;
+    PendingImportSpreadsheetAnalysis | PendingImportTextAnalysis;
 
 const reviewOpen = ref(false);
 const reviewLoading = ref<string | null>(null);

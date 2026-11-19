@@ -138,7 +138,6 @@ const {
 const handleDelete = () => {
     if (!itemToDelete.value) return;
 
-    // @ts-expect-error useConfirmDelete types every id as a string; AI template ids are numbers.
     executeDelete(aiTemplateRoutes.destroy.url(itemToDelete.value.id), {
         onSuccess: () => {
             itemToDelete.value = null;

@@ -251,7 +251,7 @@ const handleRowClick = () => {
                 class="absolute top-0 bottom-0 left-[14px] w-px bg-slate-200 dark:bg-slate-800"
             ></div>
             <TraceabilityRow
-                v-for="(child, childIndex) in item.children"
+                v-for="(child, childIndex) in item.children as any[]"
                 :key="'doc-' + child.id"
                 :item="child"
                 :index="childIndex"

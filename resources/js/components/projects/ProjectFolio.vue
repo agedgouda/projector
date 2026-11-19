@@ -241,13 +241,11 @@ const goToProject = () => {
                     }}</DialogTitle>
                     <DialogDescription v-if="canManageProject">
                         Update the name and description for
-                        <strong>{{ project.name }}</strong
-                        >.
+                        <strong>{{ project.name }}</strong>.
                     </DialogDescription>
                     <DialogDescription v-else>
                         Manage the tags for
-                        <strong>{{ project.name }}</strong
-                        >.
+                        <strong>{{ project.name }}</strong>.
                     </DialogDescription>
                 </DialogHeader>
 
