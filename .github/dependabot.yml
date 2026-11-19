@@ -7,6 +7,10 @@ updates:
       interval: daily
     open-pull-requests-limit: 10
     groups:
+      composer-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       composer-minor-and-patch:
         update-types:
           - minor
@@ -19,6 +23,10 @@ updates:
       interval: daily
     open-pull-requests-limit: 10
     groups:
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       npm-minor-and-patch:
         update-types:
           - minor
@@ -29,3 +37,8 @@ updates:
     target-branch: master
     schedule:
       interval: weekly
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
