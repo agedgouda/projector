@@ -121,7 +121,7 @@ Route::get('/', function (Request $request) {
     // staging, etc.) keeps redirecting to the marketing site.
     return $request->getHost() === 'projector.test'
         ? redirect()->route('login')
-        : redirect()->away('https://about.projecthq.app/');
+        : redirect()->away('https://about.projecthq.app/', 301);
 })->name('home');
 
 Route::post('/log-connection-issue', function (Request $request) {

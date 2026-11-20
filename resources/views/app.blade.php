@@ -39,6 +39,13 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        {{-- Rendered server-side so crawlers see it without running JS; collapses ?ref=... variants. --}}
+        @if (request()->routeIs('register'))
+            <link rel="canonical" href="https://projecthq.app/register" />
+        @elseif (request()->routeIs('login'))
+            <link rel="canonical" href="https://projecthq.app/login" />
+        @endif
+
         <link rel="icon" href="/icon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
