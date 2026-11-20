@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\DemoSession;
 use App\Rules\TurnstileChallenge;
+use App\Services\Demo\DemoTracker;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -37,5 +40,15 @@ class StartDemoRequest extends FormRequest
         return [
             'cf-turnstile-response.required' => 'Please complete the verification check.',
         ];
+    }
+
+    /**
+     * A failed verification check is a visitor turned away, so it's counted on their demo session.
+     */
+    protected function failedValidation(Validator $validator): void
+    {
+        app(DemoTracker::class)->rejected(DemoSession::REJECTED_VERIFICATION);
+
+        parent::failedValidation($validator);
     }
 }

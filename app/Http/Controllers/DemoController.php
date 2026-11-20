@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StartDemoRequest;
+use App\Models\DemoSession;
+use App\Models\ReferralVisit;
 use App\Models\User;
 use App\Services\Demo\DemoSamples;
 use App\Services\Demo\DemoSandbox;
+use App\Services\Demo\DemoTracker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -20,6 +23,8 @@ use Inertia\Response;
  */
 class DemoController extends Controller
 {
+    public function __construct(private readonly DemoTracker $tracker) {}
+
     public function show(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
@@ -27,6 +32,8 @@ class DemoController extends Controller
         if ($user instanceof User && $user->isDemo()) {
             return $this->redirectIntoSandbox($user);
         }
+
+        $this->tracker->landed($request);
 
         return Inertia::render('Demo/Index', [
             'projects' => array_values(array_map(fn (array $sample): array => [
@@ -43,6 +50,8 @@ class DemoController extends Controller
     public function start(StartDemoRequest $request, DemoSandbox $sandbox): RedirectResponse
     {
         if (! $this->claimSandbox()) {
+            $this->tracker->rejected(DemoSession::REJECTED_BUSY);
+
             return back()->withErrors(['demo' => 'The demo is busy right now. Please try again tomorrow, or start a free trial.']);
         }
 
@@ -55,6 +64,8 @@ class DemoController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
+        $this->tracker->started();
+
         return $this->redirectIntoSandbox($user);
     }
 
@@ -66,9 +77,17 @@ class DemoController extends Controller
         $user = $request->user();
 
         if ($user instanceof User && $user->isDemo()) {
+            $this->tracker->exited();
+
+            // Carried across the session reset so registering afterwards still counts as this
+            // visitor's conversion (MarkDemoSessionRegistered, MarkReferralVisitConverted).
+            $trackingIds = $request->session()->only([DemoSession::SESSION_KEY, ReferralVisit::SESSION_KEY]);
+
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
+
+            $request->session()->put($trackingIds);
         }
 
         return redirect()->route('register');

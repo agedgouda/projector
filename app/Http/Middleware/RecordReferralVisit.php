@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\ReferralVisit;
+use App\Services\VisitorContext;
 use Closure;
-use DeviceDetector\DeviceDetector;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,6 +19,8 @@ class RecordReferralVisit
     private const ROUTES = ['login', 'register'];
 
     private const MAX_REF_LENGTH = 255;
+
+    public function __construct(private readonly VisitorContext $visitorContext) {}
 
     /**
      * @param  Closure(Request): (Response)  $next
@@ -49,54 +51,18 @@ class RecordReferralVisit
 
     private function record(Request $request, string $ref): void
     {
-        $userAgent = (string) $request->userAgent();
+        $visitor = $this->visitorContext->forHuman($request);
 
-        if ($userAgent === '') {
+        if ($visitor === null) {
             return;
         }
-
-        $detector = new DeviceDetector($userAgent);
-        $detector->parse();
-
-        // HTTP libraries (curl, python-requests, Go-http-client) aren't flagged as bots by the
-        // detector, but they're scripts, not people.
-        if ($detector->isBot() || $detector->getClient('type') === 'library') {
-            return;
-        }
-
-        $browser = $detector->getClient('name');
-        $deviceType = $detector->getDeviceName();
 
         $visit = ReferralVisit::create([
             'ref' => $ref,
             'landing_path' => '/'.ltrim($request->path(), '/'),
-            'country' => $this->country($request),
-            'device_type' => $deviceType !== '' ? $deviceType : null,
-            'browser' => is_string($browser) && $browser !== '' && $browser !== DeviceDetector::UNKNOWN ? $browser : null,
-            'referrer_host' => $this->referrerHost($request),
+            ...$visitor,
         ]);
 
         $request->session()->put(ReferralVisit::SESSION_KEY, $visit->id);
-    }
-
-    /**
-     * Cloudflare's geolocation of the visitor, used in place of storing their IP. Cloudflare
-     * sends XX for unknown and T1 for Tor, both kept as-is.
-     */
-    private function country(Request $request): ?string
-    {
-        $country = strtoupper(trim((string) $request->header('CF-IPCountry')));
-
-        return preg_match('/^[A-Z0-9]{2}$/', $country) === 1 ? $country : null;
-    }
-
-    /**
-     * Host only — a full referrer URL can carry emails or tokens in its path or query.
-     */
-    private function referrerHost(Request $request): ?string
-    {
-        $host = parse_url((string) $request->headers->get('referer'), PHP_URL_HOST);
-
-        return is_string($host) && $host !== '' ? mb_substr(strtolower($host), 0, 255) : null;
     }
 }

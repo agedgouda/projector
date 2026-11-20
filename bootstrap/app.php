@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureUserCanAccessClient;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogRecordSaves;
+use App\Http\Middleware\RecordDemoActivity;
 use App\Http\Middleware\RecordReferralVisit;
 use App\Http\Middleware\RestrictDemoUsers;
 use App\Http\Middleware\SetOrganizationContext;
@@ -82,6 +83,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             RestrictDemoUsers::class,
             RecordReferralVisit::class,
+            RecordDemoActivity::class,
             SetOrganizationContext::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
