@@ -9,9 +9,19 @@ class CommentPolicy
 {
     use HandlesOrgPermissions;
 
+    /**
+     * The author, or an admin of the org that owns the commented task/document — never an
+     * admin of some other org.
+     */
     public function delete(User $user, Comment $comment): bool
     {
-        return $user->id === $comment->user_id || $this->isOrgAdmin($user);
+        if ($user->id === $comment->user_id) {
+            return true;
+        }
+
+        $client = $comment->commentable?->project?->client;
+
+        return $client !== null && $this->isOrgAdmin($user, $client);
     }
 
     /**

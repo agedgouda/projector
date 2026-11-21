@@ -69,6 +69,8 @@ class UserController extends Controller
             'role' => ['nullable', 'string', 'in:'.implode(',', self::ASSIGNABLE_ROLES)],
         ]);
 
+        Gate::authorize('manageUsers', Organization::findOrFail($validated['organization_id']));
+
         setPermissionsTeamId(null);
 
         if ($user->hasRole('super-admin')) {

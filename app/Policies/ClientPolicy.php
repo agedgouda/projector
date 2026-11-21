@@ -11,8 +11,7 @@ class ClientPolicy
 
     public function view(User $user, Client $client): bool
     {
-        // If the client belongs to the organization currently active in Wayfinder
-        return $client->organization_id === getPermissionsTeamId();
+        return $this->isOrgMember($user, $client);
     }
 
     public function create(User $user): bool

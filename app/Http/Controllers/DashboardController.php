@@ -49,6 +49,10 @@ class DashboardController extends Controller
             return redirect()->route('organization.setup');
         }
 
+        if (! $isSuperAdmin && ! $user->organizations->contains('id', $orgId)) {
+            $orgId = $user->organizations->first()?->id;
+        }
+
         // Super-admins have no org memberships, so fall back to the first organization
         // that has projects, or just the first organization if none have projects.
         if ($isSuperAdmin && ! $orgId) {

@@ -4,7 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
+/**
+ * @property-read Task|Document|null $commentable
+ */
 class Comment extends Model
 {
     protected $fillable = ['body', 'user_id', 'commentable_id', 'commentable_type'];
@@ -17,7 +21,10 @@ class Comment extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function commentable()
+    /**
+     * @return MorphTo<Model, $this>
+     */
+    public function commentable(): MorphTo
     {
         return $this->morphTo();
     }

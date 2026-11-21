@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -37,13 +38,23 @@ class HandleInertiaRequests extends Middleware
         $favoriteProjects = [];
 
         if ($user) {
-            $rawQueryOrgId = $request->query('org');
-            $queryOrgId = is_string($rawQueryOrgId) ? $rawQueryOrgId : null;
+            // Check super-admin against global (null) context since the role has team_id = null
+            setPermissionsTeamId(null);
+            $user->unsetRelation('roles');
+            $isSuperAdmin = $user->hasRole('super-admin');
 
-            $activeOrgId = $queryOrgId
-                           ?? $request->session()->get('active_org_id')
-                           ?? $request->cookie('last_org_id')
-                           ?? $user->organizations->first()?->id;
+            $queryOrgId = null;
+            $activeOrgId = null;
+
+            foreach (['query' => $request->query('org'), 'session' => $request->session()->get('active_org_id'), 'cookie' => $request->cookie('last_org_id')] as $source => $candidateOrgId) {
+                if ($this->canUseOrganization($user, $isSuperAdmin, $candidateOrgId)) {
+                    $activeOrgId = $candidateOrgId;
+                    $queryOrgId = $source === 'query' ? $candidateOrgId : null;
+                    break;
+                }
+            }
+
+            $activeOrgId ??= $user->organizations->first()?->id;
 
             // An explicit ?org= switch (e.g. the header org picker) needs to persist beyond
             // this one request — otherwise session('active_org_id'), which outranks the
@@ -54,14 +65,6 @@ class HandleInertiaRequests extends Middleware
                 cookie()->queue(cookie()->forever('last_org_id', $queryOrgId));
             }
 
-            setPermissionsTeamId($activeOrgId);
-
-            // Check super-admin against global (null) context since the role has team_id = null
-            setPermissionsTeamId(null);
-            $user->unsetRelation('roles');
-            $isSuperAdmin = $user->hasRole('super-admin');
-
-            // Restore org context
             setPermissionsTeamId($activeOrgId);
 
             if ($isSuperAdmin) {
@@ -191,5 +194,23 @@ class HandleInertiaRequests extends Middleware
                 'lifetime_minutes' => Config::integer('session.lifetime'),
             ],
         ];
+    }
+
+    /**
+     * Whether $orgId (from ?org=, the session or the cookie) may become the active org: one the
+     * user belongs to, or any existing org for a super-admin. Anything else is ignored, so a
+     * hand-edited ?org= or a cookie left over from a removed membership can't switch into it.
+     *
+     * @phpstan-assert-if-true string $orgId
+     */
+    private function canUseOrganization(User $user, bool $isSuperAdmin, mixed $orgId): bool
+    {
+        if (! is_string($orgId) || ! Str::isUuid($orgId)) {
+            return false;
+        }
+
+        return $isSuperAdmin
+            ? Organization::query()->whereKey($orgId)->exists()
+            : $user->organizations->contains('id', $orgId);
     }
 }
