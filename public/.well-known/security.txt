@@ -1,0 +1,4 @@
+Contact: mailto:security@projecthq.app
+Expires: 2027-11-20T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://projecthq.app/.well-known/security.txt
