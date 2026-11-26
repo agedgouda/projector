@@ -89,6 +89,11 @@ return [
         'retention_days' => env('RECORDING_RETENTION_DAYS', 30),
     ],
 
+    'apollo' => [
+        'key' => env('APOLLO_API_KEY'),
+        'base_url' => env('APOLLO_BASE_URL', 'https://api.apollo.io/api/v1'),
+    ],
+
     'turnstile' => [
         'site_key' => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),

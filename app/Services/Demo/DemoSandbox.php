@@ -29,18 +29,20 @@ class DemoSandbox
     public function __construct(private readonly DemoSamples $samples) {}
 
     /**
+     * @param  string|null  $organizationName  The visitor's own company (see DemoProspect), so the
+     *                                         sandbox reads as their agency's account.
      * @return array{user: User, project: Project}
      */
-    public function create(): array
+    public function create(?string $organizationName = null): array
     {
         $token = Str::lower(Str::random(12));
         $expiresAt = now()->addHours(self::LIFETIME_HOURS);
 
-        [$visitor, $projects] = DB::transaction(function () use ($token, $expiresAt): array {
+        [$visitor, $projects] = DB::transaction(function () use ($token, $expiresAt, $organizationName): array {
             // Created without model events so Organization's saving hook doesn't derive the slug
             // from the shared display name, which every sandbox would then collide on.
             $organization = new Organization([
-                'name' => 'Demo Agency',
+                'name' => Str::limit($organizationName ?? 'Demo Agency', 255, ''),
                 'slug' => "demo-{$token}",
                 'normalized_name' => "demo-{$token}",
                 'membership_tier' => Organization::TIER_DEMO,

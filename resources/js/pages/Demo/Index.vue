@@ -3,8 +3,8 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBrandLayout from '@/layouts/auth/AuthBrandLayout.vue';
-import { start } from '@/routes/demo';
-import { Form, Head } from '@inertiajs/vue3';
+import { prospect, start } from '@/routes/demo';
+import { Form, Head, router } from '@inertiajs/vue3';
 import { Check, Files } from 'lucide-vue-next';
 import { onMounted, ref } from 'vue';
 
@@ -13,6 +13,7 @@ const props = defineProps<{
     lifetimeHours: number;
     isSignedIn: boolean;
     turnstileSiteKey?: string | null;
+    company?: string | null;
 }>();
 
 const TURNSTILE_SCRIPT_SRC =
@@ -28,7 +29,36 @@ type TurnstileApi = {
 const turnstileApi = (): TurnstileApi | undefined =>
     (window as unknown as { turnstile?: TurnstileApi }).turnstile;
 
+/**
+ * An Apollo email link carries the address after the # (/demo#email=...), which the browser never
+ * sends to the server. Clear it from the address bar right away, then post it so the page can be
+ * personalized for that contact.
+ */
+const identifyProspect = (): void => {
+    const email = new URLSearchParams(window.location.hash.slice(1)).get(
+        'email',
+    );
+
+    if (!email) {
+        return;
+    }
+
+    window.history.replaceState(
+        window.history.state,
+        '',
+        window.location.pathname + window.location.search,
+    );
+
+    router.post(
+        prospect.url(),
+        { email },
+        { preserveScroll: true, preserveState: true, replace: true },
+    );
+};
+
 onMounted(() => {
+    identifyProspect();
+
     if (!props.turnstileSiteKey) {
         return;
     }
@@ -67,7 +97,11 @@ const resetTurnstile = (): void => {
 <template>
     <AuthBrandLayout
         title="Try Projector"
-        description="Explore a working demo account. No sign-up needed."
+        :description="
+            company
+                ? `Explore a working demo account set up for ${company}. No sign-up needed.`
+                : 'Explore a working demo account. No sign-up needed.'
+        "
     >
         <Head title="Demo" />
 

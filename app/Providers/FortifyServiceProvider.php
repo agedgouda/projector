@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Services\Demo\DemoProspect;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -82,9 +84,15 @@ class FortifyServiceProvider extends ServiceProvider
             ['status' => $request->session()->get('status')]
         ));
 
-        Fortify::registerView(fn () => Inertia::render('auth/Register', [
-            'turnstileSiteKey' => config('services.turnstile.site_key'),
-        ]));
+        Fortify::registerView(function (Request $request) {
+            $prospect = app(DemoProspect::class)->current($request);
+
+            return Inertia::render('auth/Register', [
+                'turnstileSiteKey' => config('services.turnstile.site_key'),
+                // Pre-filled for a visitor who came in from an Apollo email (see DemoProspect).
+                'prefill' => $prospect === null ? null : Arr::only($prospect, ['first_name', 'last_name', 'email']),
+            ]);
+        });
 
         Fortify::twoFactorChallengeView(fn (Request $request) => Inertia::render(
             $this->isMobileFlow($request) ? 'Mobile/TwoFactorChallenge' : 'auth/TwoFactorChallenge'

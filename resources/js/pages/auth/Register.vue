@@ -14,6 +14,11 @@ import { onMounted, ref } from 'vue';
 
 const props = defineProps<{
     turnstileSiteKey?: string | null;
+    prefill?: {
+        first_name: string | null;
+        last_name: string | null;
+        email: string;
+    } | null;
 }>();
 
 const showPassword = ref(false);
@@ -175,6 +180,7 @@ const resetTurnstile = (): void => {
                             :tabindex="1"
                             autocomplete="given-name"
                             name="first_name"
+                            :default-value="prefill?.first_name ?? undefined"
                             placeholder="Jane"
                         />
                         <InputError :message="errors.first_name" />
@@ -189,6 +195,7 @@ const resetTurnstile = (): void => {
                             :tabindex="2"
                             autocomplete="family-name"
                             name="last_name"
+                            :default-value="prefill?.last_name ?? undefined"
                             placeholder="Doe"
                         />
                         <InputError :message="errors.last_name" />
@@ -204,6 +211,7 @@ const resetTurnstile = (): void => {
                         :tabindex="3"
                         autocomplete="email"
                         name="email"
+                        :default-value="prefill?.email ?? undefined"
                         placeholder="email@example.com"
                     />
                     <InputError :message="errors.email" />

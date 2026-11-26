@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\IdentifyDemoProspectRequest;
 use App\Http\Requests\StartDemoRequest;
 use App\Models\DemoSession;
 use App\Models\ReferralVisit;
 use App\Models\User;
+use App\Services\Demo\DemoProspect;
 use App\Services\Demo\DemoSamples;
 use App\Services\Demo\DemoSandbox;
 use App\Services\Demo\DemoTracker;
@@ -23,7 +25,10 @@ use Inertia\Response;
  */
 class DemoController extends Controller
 {
-    public function __construct(private readonly DemoTracker $tracker) {}
+    public function __construct(
+        private readonly DemoTracker $tracker,
+        private readonly DemoProspect $prospect,
+    ) {}
 
     public function show(Request $request): Response|RedirectResponse
     {
@@ -44,7 +49,21 @@ class DemoController extends Controller
             'lifetimeHours' => DemoSandbox::LIFETIME_HOURS,
             'isSignedIn' => $user instanceof User,
             'turnstileSiteKey' => config('services.turnstile.site_key'),
+            'company' => $this->prospect->current($request)['company'] ?? null,
         ]);
+    }
+
+    /**
+     * Personalizes the demo for a guest who came from an Apollo email link. Always answers by
+     * going back to the page, whether or not a contact was found.
+     */
+    public function identify(IdentifyDemoProspectRequest $request): RedirectResponse
+    {
+        if (! $request->user() instanceof User) {
+            $this->prospect->identify($request, $request->string('email')->toString());
+        }
+
+        return back(fallback: route('demo.show'));
     }
 
     public function start(StartDemoRequest $request, DemoSandbox $sandbox): RedirectResponse
@@ -55,7 +74,7 @@ class DemoController extends Controller
             return back()->withErrors(['demo' => 'The demo is busy right now. Please try again tomorrow, or start a free trial.']);
         }
 
-        ['user' => $user] = $sandbox->create();
+        ['user' => $user] = $sandbox->create($this->prospect->current($request)['company'] ?? null);
 
         if (Auth::check()) {
             Auth::logout();
@@ -81,7 +100,8 @@ class DemoController extends Controller
 
             // Carried across the session reset so registering afterwards still counts as this
             // visitor's conversion (MarkDemoSessionRegistered, MarkReferralVisitConverted).
-            $trackingIds = $request->session()->only([DemoSession::SESSION_KEY, ReferralVisit::SESSION_KEY]);
+            // The Apollo prospect is carried too, so the sign-up form is still pre-filled.
+            $trackingIds = $request->session()->only([DemoSession::SESSION_KEY, ReferralVisit::SESSION_KEY, DemoProspect::SESSION_KEY]);
 
             Auth::logout();
             $request->session()->invalidate();
