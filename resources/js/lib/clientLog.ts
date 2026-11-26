@@ -55,9 +55,15 @@ const writePending = (reports: SaveReport[]): void => {
     }
 };
 
-const currentInertiaVersion = (): string | null => {
+/**
+ * The asset version the page was first loaded with. Inertia 3 puts the initial page object in a
+ * <script data-page="app" type="application/json"> element, not a data-page attribute on #app.
+ */
+export const currentInertiaVersion = (): string | null => {
     try {
-        const page = document.getElementById('app')?.dataset.page;
+        const page = document.querySelector(
+            'script[data-page="app"][type="application/json"]',
+        )?.textContent;
 
         return page ? (JSON.parse(page).version ?? null) : null;
     } catch {

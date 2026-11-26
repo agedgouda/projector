@@ -37,7 +37,7 @@
             }
         </style>
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title data-inertia>{{ config('app.name', 'Laravel') }}</title>
 
         {{-- Rendered server-side so crawlers see it without running JS; collapses ?ref=... variants. --}}
         @if (request()->routeIs('register'))

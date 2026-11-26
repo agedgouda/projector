@@ -1,4 +1,4 @@
-import { flushSaveReports } from '@/lib/clientLog';
+import { currentInertiaVersion, flushSaveReports } from '@/lib/clientLog';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { configureEcho } from '@laravel/echo-vue';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -62,15 +62,6 @@ router.on('finish', () => {
 const brandColor = getComputedStyle(document.documentElement)
     .getPropertyValue('--color-projector-primary-600')
     .trim();
-
-function currentInertiaVersion(): string | null {
-    try {
-        const page = document.getElementById('app')?.dataset.page;
-        return page ? (JSON.parse(page).version ?? null) : null;
-    } catch {
-        return null;
-    }
-}
 
 // A page chunk is code-split per Inertia page, so the first navigation to any given page
 // fetches its .js fresh — root cause not yet confirmed (a stale deploy hash isn't it: verified
