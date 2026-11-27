@@ -5,7 +5,7 @@ import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.v
 import ImportDocumentOptions from '@/pages/Projects/Partials/ImportDocumentOptions.vue';
 import projectRoutes from '@/routes/projects/index';
 import { Head } from '@inertiajs/vue3';
-import { AlertCircle } from 'lucide-vue-next';
+import { AlertCircle } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps<{

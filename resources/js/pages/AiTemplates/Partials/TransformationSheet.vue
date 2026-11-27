@@ -11,7 +11,7 @@ import {
 import aiTemplateRoutes from '@/routes/transformation-library';
 import { router, useForm } from '@inertiajs/vue3';
 import { useEventListener } from '@vueuse/core';
-import { Settings2, Wand2 } from 'lucide-vue-next';
+import { Settings2, Wand2 } from '@lucide/vue';
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import AiTemplateForm from './AiTemplateForm.vue';

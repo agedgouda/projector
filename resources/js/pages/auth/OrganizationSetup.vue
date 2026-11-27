@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Form, Head } from '@inertiajs/vue3';
-import { CheckCircle2 } from 'lucide-vue-next';
+import { CheckCircle2 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 
 const selectedTier = ref<'free' | 'pro'>('free');

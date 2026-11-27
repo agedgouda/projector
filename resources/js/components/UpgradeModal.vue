@@ -8,7 +8,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Sparkles } from 'lucide-vue-next';
+import { Sparkles } from '@lucide/vue';
 
 const props = defineProps<{
     open: boolean;

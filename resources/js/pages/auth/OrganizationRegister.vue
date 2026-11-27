@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Form, Head } from '@inertiajs/vue3';
-import { Eye, EyeOff } from 'lucide-vue-next';
+import { Eye, EyeOff } from '@lucide/vue';
 import { ref } from 'vue';
 
 defineProps<{

@@ -8,7 +8,7 @@ import mobileDocumentRoutes from '@/routes/mobile/documents';
 import mobileRecordRoutes from '@/routes/mobile/record';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertTriangle, Mic, RefreshCw, Square } from 'lucide-vue-next';
+import { AlertTriangle, Mic, RefreshCw, Square } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
 const props = defineProps<{

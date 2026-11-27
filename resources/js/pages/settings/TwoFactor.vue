@@ -10,7 +10,7 @@ import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { disable, enable, show } from '@/routes/two-factor';
 import { BreadcrumbItem } from '@/types';
 import { Form, Head } from '@inertiajs/vue3';
-import { ShieldBan, ShieldCheck } from 'lucide-vue-next';
+import { ShieldBan, ShieldCheck } from '@lucide/vue';
 import { onUnmounted, ref } from 'vue';
 
 interface Props {

@@ -5,12 +5,7 @@ import mobileOrganizationRoutes from '@/routes/mobile/organizations';
 import mobileProjectRoutes from '@/routes/mobile/projects';
 import mobileRecordRoutes from '@/routes/mobile/record';
 import { Head, Link } from '@inertiajs/vue3';
-import {
-    ChevronRight,
-    ChevronsUpDown,
-    FolderKanban,
-    Mic,
-} from 'lucide-vue-next';
+import { ChevronRight, ChevronsUpDown, FolderKanban, Mic } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps<{

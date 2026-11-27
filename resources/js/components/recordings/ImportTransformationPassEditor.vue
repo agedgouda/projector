@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { fieldsForListType, IGNORE } from '@/lib/taskListImportFields';
 import { usePage } from '@inertiajs/vue3';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import { computed } from 'vue';
 
 // One "pass" turns some or all of the same uploaded sheet into one record type — Tasks and

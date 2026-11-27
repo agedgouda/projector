@@ -10,7 +10,7 @@ import AuthBase from '@/layouts/AuthLayout.vue';
 import { register } from '@/routes';
 import { request } from '@/routes/password';
 import { Form, Head, usePage } from '@inertiajs/vue3';
-import { Eye, EyeOff } from 'lucide-vue-next';
+import { Eye, EyeOff } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const showPassword = ref(false);

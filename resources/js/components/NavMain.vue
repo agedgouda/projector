@@ -17,7 +17,7 @@ import {
 import { urlIsActive } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { ChevronRight } from 'lucide-vue-next';
+import { ChevronRight } from '@lucide/vue';
 
 defineProps<{
     items: NavItem[];

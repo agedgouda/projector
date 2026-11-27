@@ -13,7 +13,7 @@ import {
     priorityClasses,
 } from '@/lib/constants';
 import { FLAT_ROW_HOVER, FLAT_ROW_SELECTED } from '@/lib/flat-ui';
-import { ChevronDown, ChevronUp, MessageSquare, User2 } from 'lucide-vue-next';
+import { ChevronDown, ChevronUp, MessageSquare, User2 } from '@lucide/vue';
 import { ref } from 'vue';
 
 import { formatDateMdy, formatTimestampMdy } from '@/lib/utils';

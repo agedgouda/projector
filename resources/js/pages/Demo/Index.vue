@@ -5,7 +5,7 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBrandLayout from '@/layouts/auth/AuthBrandLayout.vue';
 import { prospect, start } from '@/routes/demo';
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Check, Files } from 'lucide-vue-next';
+import { Check, Files } from '@lucide/vue';
 import { onMounted, ref } from 'vue';
 
 const props = defineProps<{

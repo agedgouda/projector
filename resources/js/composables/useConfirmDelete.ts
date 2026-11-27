@@ -8,12 +8,12 @@ interface DeleteOptions {
     redirectRoute?: string;
 }
 
-export function useConfirmDelete() {
+export function useConfirmDelete<TId extends string | number = string>() {
     const isModalOpen = ref(false);
-    const itemToDelete = ref<{ id: string; name: string } | null>(null);
+    const itemToDelete = ref<{ id: TId; name: string } | null>(null);
     const deleteForm = useForm({});
 
-    const openModal = (item: { id: string; name: string }) => {
+    const openModal = (item: { id: TId; name: string }) => {
         itemToDelete.value = item;
         isModalOpen.value = true;
     };

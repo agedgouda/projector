@@ -10,7 +10,7 @@ import {
     FLAT_SEARCH_INPUT,
 } from '@/lib/flat-ui';
 import { router, usePage } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Search, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 
 const PER_PAGE = 8;

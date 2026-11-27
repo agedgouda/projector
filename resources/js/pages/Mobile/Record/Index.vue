@@ -4,7 +4,7 @@ import { formatProjectLabel } from '@/lib/utils';
 import mobileRoutes from '@/routes/mobile';
 import mobileRecordRoutes from '@/routes/mobile/record';
 import { Head, Link } from '@inertiajs/vue3';
-import { ChevronRight, FolderKanban } from 'lucide-vue-next';
+import { ChevronRight, FolderKanban } from '@lucide/vue';
 
 defineProps<{
     projects: Array<{ id: string; name: string; client_name: string | null }>;

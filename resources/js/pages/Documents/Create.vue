@@ -3,7 +3,7 @@
    1. Imports & Types
 ---------------------------- */
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { FilePlus2 } from 'lucide-vue-next';
+import { FilePlus2 } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

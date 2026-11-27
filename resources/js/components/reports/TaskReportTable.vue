@@ -16,7 +16,7 @@ import {
     ChevronsUpDown,
     ChevronUp,
     CornerDownRight,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 export interface TaskReportRow {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CalendarPrevProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
-import { ChevronLeft } from "lucide-vue-next"
+import { ChevronLeft } from "@lucide/vue"
 import { CalendarPrev, useForwardProps } from "reka-ui"
 import { computed } from "vue"
 import { buttonVariants } from "@/components/ui/button"

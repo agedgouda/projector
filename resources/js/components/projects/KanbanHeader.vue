@@ -17,7 +17,7 @@ import { kanbanDotClasses } from '@/lib/constants';
 import { KANBAN_UI } from '@/lib/kanban-theme';
 import projectRoutes from '@/routes/projects';
 import { router } from '@inertiajs/vue3';
-import { MoreVertical, Pencil, Plus, Trash2 } from 'lucide-vue-next';
+import { MoreVertical, Pencil, Plus, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 

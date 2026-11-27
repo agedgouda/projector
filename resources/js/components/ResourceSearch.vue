@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { Input } from '@/components/ui/input';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
-import { Search, X } from 'lucide-vue-next';
+import { Search, X } from '@lucide/vue';
 import { ref, watch } from 'vue';
 
 const props = defineProps<{

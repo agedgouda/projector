@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import organizationRoutes from '@/routes/organizations/index';
 import { useForm } from '@inertiajs/vue3';
-import { Pencil } from 'lucide-vue-next';
+import { Pencil } from '@lucide/vue';
 import { nextTick, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

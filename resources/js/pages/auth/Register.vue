@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBrandLayout from '@/layouts/auth/AuthBrandLayout.vue';
 import { login } from '@/routes';
 import { Form, Head } from '@inertiajs/vue3';
-import { Check, Eye, EyeOff } from 'lucide-vue-next';
+import { Check, Eye, EyeOff } from '@lucide/vue';
 import { onMounted, ref } from 'vue';
 
 const props = defineProps<{

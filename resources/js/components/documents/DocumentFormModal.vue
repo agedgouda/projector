@@ -2,7 +2,7 @@
 import { useDocumentEditor } from '@/composables/useDocumentEditor';
 import type { InertiaForm } from '@inertiajs/vue3';
 import { EditorContent } from '@tiptap/vue-3';
-import { Bold, Italic, List, ListOrdered, RefreshCw } from 'lucide-vue-next';
+import { Bold, Italic, List, ListOrdered, RefreshCw } from '@lucide/vue';
 import { computed, watch } from 'vue';
 
 // UI Components

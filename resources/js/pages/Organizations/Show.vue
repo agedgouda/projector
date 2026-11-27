@@ -34,7 +34,7 @@ import {
     SlidersHorizontal,
     UserPlus,
     Users,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import ConfigurationOverviewCard from './Partials/ConfigurationOverviewCard.vue';
 import OrganizationHeaderLogo from './Partials/OrganizationHeaderLogo.vue';

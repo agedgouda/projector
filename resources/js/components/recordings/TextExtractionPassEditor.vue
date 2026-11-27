@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { documentTypeLabel } from '@/lib/documentTypes';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import { computed } from 'vue';
 
 // The text-source counterpart to ImportTransformationPassEditor.vue — there's no column mapping

@@ -11,7 +11,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { generatePrompts } from '@/routes/transformation-library';
-import { Loader2, Sparkles } from 'lucide-vue-next';
+import { Loader2, Sparkles } from '@lucide/vue';
 import { ref, watch } from 'vue';
 
 const props = defineProps<{

@@ -10,7 +10,7 @@ import {
     SelectTrigger,
 } from '@/components/ui/select';
 import { mergeAssigneeOptions } from '@/lib/assignees';
-import { ChevronDown, RotateCcw, Search } from 'lucide-vue-next';
+import { ChevronDown, RotateCcw, Search } from '@lucide/vue';
 import { computed, reactive, watch } from 'vue';
 
 export interface TaskSearchFilters {

@@ -3,7 +3,7 @@ import AssigneeAvatar from '@/components/documents/AssigneeAvatar.vue';
 import PriorityDot from '@/components/documents/PriorityDot.vue';
 import TaskRowFields from '@/components/documents/TaskRowFields.vue';
 import type { AssigneeOption } from '@/lib/assignees';
-import { CheckSquare, RefreshCw } from 'lucide-vue-next';
+import { CheckSquare, RefreshCw } from '@lucide/vue';
 import { computed } from 'vue';
 
 // The ENTIRE visual/interactive content of a task row — icon through assignee — lives here

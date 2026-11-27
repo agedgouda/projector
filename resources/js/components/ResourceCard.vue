@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
-import { Trash2 } from 'lucide-vue-next';
+import { Trash2 } from '@lucide/vue';
 
 const props = defineProps<{
     title: string;

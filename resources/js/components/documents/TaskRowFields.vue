@@ -7,7 +7,7 @@ import {
     SelectTrigger,
 } from '@/components/ui/select';
 import { formatDateMdy } from '@/lib/utils';
-import { Calendar } from 'lucide-vue-next';
+import { Calendar } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps<{

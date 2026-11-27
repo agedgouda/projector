@@ -3,7 +3,7 @@ import PublicLayout from '@/layouts/PublicLayout.vue';
 import { formatDateMdy } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Calendar } from 'lucide-vue-next';
+import { ArrowLeft, Calendar } from '@lucide/vue';
 
 interface BlogPost {
     id: string;

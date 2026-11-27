@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusIcon } from 'lucide-vue-next';
+import { PlusIcon } from '@lucide/vue';
 import DocumentItem from './DocumentItem.vue';
 
 defineProps<{

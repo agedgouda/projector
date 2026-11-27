@@ -17,7 +17,7 @@ import {
     Settings2,
     User as UserIcon,
     Workflow,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed } from 'vue';
 
 import adminOrgRoutes from '@/routes/admin/organizations/index';

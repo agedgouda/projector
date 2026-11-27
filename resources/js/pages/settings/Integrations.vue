@@ -2,7 +2,7 @@
 import IntegrationsController from '@/actions/App/Http/Controllers/Settings/IntegrationsController';
 import { edit } from '@/routes/integrations';
 import { Form, Head } from '@inertiajs/vue3';
-import { Info } from 'lucide-vue-next';
+import { Info } from '@lucide/vue';
 
 import { Button } from '@/components/ui/button';
 import {

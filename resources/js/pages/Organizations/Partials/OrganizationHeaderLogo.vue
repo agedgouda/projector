@@ -2,7 +2,7 @@
 import { resizeImage } from '@/lib/resizeImage';
 import organizationLogoRoutes from '@/routes/organizations/logo/index';
 import { useForm } from '@inertiajs/vue3';
-import { Building2, Pencil, X } from 'lucide-vue-next';
+import { Building2, Pencil, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 interface Props {

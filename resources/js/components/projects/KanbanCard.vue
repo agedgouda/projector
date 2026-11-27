@@ -26,7 +26,7 @@ import {
 } from '@/lib/kanban-theme';
 import { formatDateMdy } from '@/lib/utils';
 import { usePage } from '@inertiajs/vue3';
-import { Calendar as CalendarIcon, Plus } from 'lucide-vue-next';
+import { Calendar as CalendarIcon, Plus } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps<{

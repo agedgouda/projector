@@ -16,7 +16,7 @@ import {
     ListChecks,
     Loader2,
     Sparkles,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import {
     computed,
     onBeforeUnmount,

@@ -3,7 +3,7 @@ import AiInstructionsPopover from '@/components/transcripts/AiInstructionsPopove
 import { Button } from '@/components/ui/button';
 import { useTranscriptionLimit } from '@/composables/useTranscriptionLimit';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
-import { FileAudio, FileStack, FileType, Loader2 } from 'lucide-vue-next';
+import { FileAudio, FileStack, FileType, Loader2 } from '@lucide/vue';
 import { ref, useTemplateRef } from 'vue';
 
 // Purely presentational — the Google-connect-redirect dance and the actual route calls stay

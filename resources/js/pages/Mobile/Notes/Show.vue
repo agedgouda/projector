@@ -4,7 +4,7 @@ import { kanbanDotClasses, priorityDotClasses } from '@/lib/constants';
 import mobileDocumentRoutes from '@/routes/mobile/documents';
 import mobileProjectRoutes from '@/routes/mobile/projects';
 import { Head, Link } from '@inertiajs/vue3';
-import { ChevronRight } from 'lucide-vue-next';
+import { ChevronRight } from '@lucide/vue';
 
 interface IndexItem {
     id: string;

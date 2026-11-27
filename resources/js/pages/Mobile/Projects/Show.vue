@@ -5,7 +5,7 @@ import mobileRoutes from '@/routes/mobile';
 import mobileNoteRoutes from '@/routes/mobile/notes';
 import mobileRecordRoutes from '@/routes/mobile/record';
 import { Head, Link } from '@inertiajs/vue3';
-import { ChevronRight, FileText, Mic, RefreshCw } from 'lucide-vue-next';
+import { ChevronRight, FileText, Mic, RefreshCw } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps<{

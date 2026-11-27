@@ -14,7 +14,7 @@ import organizationRoutes from '@/routes/organizations/index';
 import organizationLogoRoutes from '@/routes/organizations/logo/index';
 import organizationPdfBrandingRoutes from '@/routes/organizations/pdf-branding/index';
 import { useForm } from '@inertiajs/vue3';
-import { HelpCircle } from 'lucide-vue-next';
+import { HelpCircle } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

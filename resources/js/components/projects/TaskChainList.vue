@@ -3,7 +3,7 @@ import TaskRowContent from '@/components/documents/TaskRowContent.vue';
 import type { AssigneeOption } from '@/lib/assignees';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import { followersByPredecessor, orderAsChains } from '@/lib/taskChains';
-import { ChevronRight, GripVertical, Search } from 'lucide-vue-next';
+import { ChevronRight, GripVertical, Search } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import draggable from 'vuedraggable';
 

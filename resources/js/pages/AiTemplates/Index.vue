@@ -14,7 +14,7 @@ import {
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-import { Copy, Edit2, PlusIcon, Search, Trash2 } from 'lucide-vue-next';
+import { Copy, Edit2, PlusIcon, Search, Trash2 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import TransformationSheet from './Partials/TransformationSheet.vue';
@@ -133,7 +133,7 @@ const {
     openModal,
     closeModal,
     executeDelete,
-} = useConfirmDelete();
+} = useConfirmDelete<number>();
 
 const handleDelete = () => {
     if (!itemToDelete.value) return;
@@ -352,7 +352,7 @@ const typeLabel = (type: string): string => {
                                 title="Delete template"
                                 @click.stop="
                                     openModal({
-                                        id: String(item.id),
+                                        id: item.id,
                                         name: item.name,
                                     })
                                 "

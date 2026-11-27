@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { RefreshCw } from 'lucide-vue-next';
+import { RefreshCw } from '@lucide/vue';
 
 withDefaults(
     defineProps<{

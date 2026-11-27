@@ -9,12 +9,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { formatRoleName } from '@/lib/utils';
 import roleRoutes from '@/routes/roles/index';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import {
-    ShieldPlus,
-    Trash2,
-    User as UserIcon,
-    UserMinus,
-} from 'lucide-vue-next';
+import { ShieldPlus, Trash2, User as UserIcon, UserMinus } from '@lucide/vue';
 import { ref } from 'vue';
 
 const props = defineProps<{

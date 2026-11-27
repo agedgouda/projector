@@ -9,13 +9,7 @@ import { goToLogin } from '@/lib/sessionExpiry';
 import tusRoutes from '@/routes/projects/browser-recordings/tus';
 import projectDocumentsRoutes from '@/routes/projects/documents/index';
 import { router } from '@inertiajs/vue3';
-import {
-    AlertTriangle,
-    Download,
-    Mic,
-    RotateCcw,
-    Square,
-} from 'lucide-vue-next';
+import { AlertTriangle, Download, Mic, RotateCcw, Square } from '@lucide/vue';
 import * as tus from 'tus-js-client';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 

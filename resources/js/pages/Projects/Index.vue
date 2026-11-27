@@ -8,7 +8,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import projectRoutes from '@/routes/projects/index';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
-import { Search, X } from 'lucide-vue-next';
+import { Search, X } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 

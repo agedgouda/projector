@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { router } from '@inertiajs/vue3';
-import { ArrowLeft } from 'lucide-vue-next';
+import { ArrowLeft } from '@lucide/vue';
 
 const props = defineProps<{
     title?: string;

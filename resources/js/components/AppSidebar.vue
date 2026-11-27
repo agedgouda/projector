@@ -38,7 +38,7 @@ import {
     TriangleAlert,
     Upload,
     Users,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<AppPageProps>();

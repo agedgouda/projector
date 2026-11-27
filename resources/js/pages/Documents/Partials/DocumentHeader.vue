@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit2, Save, Trash2, X } from 'lucide-vue-next';
+import { ArrowLeft, Edit2, Save, Trash2, X } from '@lucide/vue';
 
 defineProps<{
     project: Project;

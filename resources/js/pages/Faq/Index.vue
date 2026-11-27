@@ -34,7 +34,7 @@ import {
     Workflow,
     X,
     type LucideIcon,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 interface FaqItem {

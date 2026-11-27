@@ -5,7 +5,7 @@ import adminOrgRoutes from '@/routes/admin/organizations/index';
 import organizationRoutes from '@/routes/organizations/index';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/vue3';
-import { Search } from 'lucide-vue-next';
+import { Search } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

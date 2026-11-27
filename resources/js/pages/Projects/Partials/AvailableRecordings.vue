@@ -6,7 +6,7 @@ import { type ImportTypeChoice } from '@/composables/transcripts/useDocumentImpo
 import { useTranscriptActions } from '@/composables/transcripts/useTranscriptActions';
 import { INTAKE_KEY } from '@/composables/useWorkflow';
 import { type CustomPrompt } from '@/lib/constants';
-import { Download } from 'lucide-vue-next';
+import { Download } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const props = withDefaults(

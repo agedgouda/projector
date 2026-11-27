@@ -11,7 +11,7 @@ import { register } from '@/routes';
 import { request } from '@/routes/password';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-import { Eye, EyeOff } from 'lucide-vue-next';
+import { Eye, EyeOff } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const showPassword = ref(false);

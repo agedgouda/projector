@@ -24,7 +24,7 @@ import {
     FileSpreadsheet,
     Sheet,
     Upload,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, reactive, ref } from 'vue';
 
 const props = defineProps<{

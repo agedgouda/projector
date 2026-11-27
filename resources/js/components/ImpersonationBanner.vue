@@ -2,7 +2,7 @@
 import { destroy as stopImpersonating } from '@/actions/App/Http/Controllers/ImpersonationController';
 import { Button } from '@/components/ui/button';
 import { router, usePage } from '@inertiajs/vue3';
-import { UserCog } from 'lucide-vue-next';
+import { UserCog } from '@lucide/vue';
 
 const page = usePage<AppPageProps>();
 

@@ -4,7 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDateMdy } from '@/lib/utils';
 import projectRoutes from '@/routes/projects/index';
 import { usePage } from '@inertiajs/vue3';
-import { Coffee } from 'lucide-vue-next';
+import { Coffee } from '@lucide/vue';
 import { computed } from 'vue';
 
 // Demo of dashboard redesign "option 2", now iterated to: one card per project/subproject

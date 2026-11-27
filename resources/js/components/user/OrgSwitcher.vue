@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import organizationRoutes from '@/routes/organizations/index';
 import { Link } from '@inertiajs/vue3';
-import { Building2, Check, Plus } from 'lucide-vue-next';
+import { Building2, Check, Plus } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const props = defineProps<{

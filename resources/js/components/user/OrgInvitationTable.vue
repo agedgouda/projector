@@ -6,7 +6,7 @@ import {
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import UserInfo from '@/components/UserInfo.vue';
 import { Link, router } from '@inertiajs/vue3';
-import { Link2, Pencil, Trash2 } from 'lucide-vue-next';
+import { Link2, Pencil, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 

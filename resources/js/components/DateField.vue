@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { cn, formatDateMdy } from '@/lib/utils';
 import { parseDate, type DateValue } from '@internationalized/date';
-import { Calendar as CalendarIcon } from 'lucide-vue-next';
+import { Calendar as CalendarIcon } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 
 // A single shared date-editing control, replacing the native `<input type="date">` used

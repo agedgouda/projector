@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import UpgradeModal from '@/components/UpgradeModal.vue';
 import { usePage } from '@inertiajs/vue3';
-import { PlusIcon } from 'lucide-vue-next';
+import { PlusIcon } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

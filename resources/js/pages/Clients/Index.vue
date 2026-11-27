@@ -4,7 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import clientRoutes from '@/routes/clients/index';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import { Building2 } from 'lucide-vue-next';
+import { Building2 } from '@lucide/vue';
 
 const props = defineProps<{
     clients: Client[];

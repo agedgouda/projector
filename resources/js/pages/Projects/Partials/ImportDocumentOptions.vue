@@ -32,7 +32,7 @@ import {
 import AvailableRecordings from '@/pages/Projects/Partials/AvailableRecordings.vue';
 import transcriptRoutes from '@/routes/projects/transcripts/index';
 import axios from 'axios';
-import { Loader2 } from 'lucide-vue-next';
+import { Loader2 } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 

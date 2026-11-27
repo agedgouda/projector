@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import IconTile from '@/components/IconTile.vue';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
-import { ChevronDown } from 'lucide-vue-next';
+import { ChevronDown } from '@lucide/vue';
 import type { Component } from 'vue';
 
 withDefaults(

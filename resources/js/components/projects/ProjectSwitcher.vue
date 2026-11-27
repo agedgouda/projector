@@ -19,7 +19,7 @@ import {
     toggleProjectFavorite,
     useFavoriteProjectIds,
 } from '@/composables/useFavoriteProject';
-import { FolderOpen, Folders, Plus, Star } from 'lucide-vue-next';
+import { FolderOpen, Folders, Plus, Star } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 // Import the form component

@@ -9,7 +9,7 @@ import { formatDateMdy } from '@/lib/utils';
 import mobileNoteRoutes from '@/routes/mobile/notes';
 import { Head } from '@inertiajs/vue3';
 import DOMPurify from 'dompurify';
-import { Calendar, RefreshCw, User as UserIcon } from 'lucide-vue-next';
+import { Calendar, RefreshCw, User as UserIcon } from '@lucide/vue';
 
 interface DocumentItem {
     id: string;

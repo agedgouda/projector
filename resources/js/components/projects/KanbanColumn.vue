@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useKanbanPermissions } from '@/composables/kanban/useKanbanPermissions';
 import type { AssigneeOption } from '@/lib/assignees';
 import { KANBAN_UI } from '@/lib/kanban-theme';
-import { Plus } from 'lucide-vue-next';
+import { Plus } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import draggable from 'vuedraggable';
 import KanbanCard from './KanbanCard.vue';

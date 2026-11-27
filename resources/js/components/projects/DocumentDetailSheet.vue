@@ -44,7 +44,7 @@ import {
     Plus,
     Trash2,
     X,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, nextTick, reactive, ref, useTemplateRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
 

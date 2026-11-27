@@ -13,7 +13,7 @@ import {
     Plus,
     RefreshCw,
     X,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { watch } from 'vue';
 
 // UI Components

@@ -9,7 +9,7 @@ import {
     ListOrdered,
     Loader2,
     Paperclip,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { ref } from 'vue';
 
 // Same toolbar/editor shape as CommentSection.vue's own new-comment composer — kept as a

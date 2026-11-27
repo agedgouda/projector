@@ -2,7 +2,7 @@
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import RecordingsList from '@/components/recordings/RecordingsList.vue';
 import { useOrgTranscriptActions } from '@/composables/transcripts/useOrgTranscriptActions';
-import { Download } from 'lucide-vue-next';
+import { Download } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps<{

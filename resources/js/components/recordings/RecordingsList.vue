@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useTranscriptionLimit } from '@/composables/useTranscriptionLimit';
 import { FLAT_ROW_HOVER } from '@/lib/flat-ui';
 import { formatDate } from '@/lib/utils';
-import { AlertCircle, Loader2, Trash2, Video } from 'lucide-vue-next';
+import { AlertCircle, Loader2, Trash2, Video } from '@lucide/vue';
 import { computed, reactive } from 'vue';
 
 const props = withDefaults(

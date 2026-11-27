@@ -15,7 +15,7 @@ import {
 } from '@/composables/kanban/useKanbanQueries';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { getPriorityStyles } from '@/lib/kanban-theme';
-import { ListFilter, Search } from 'lucide-vue-next';
+import { ListFilter, Search } from '@lucide/vue';
 import KanbanRowCollapsible from './KanbanRowCollapsible.vue';
 
 // Dashboard2 demo only — identical to KanbanBoard.vue except it renders KanbanRowCollapsible

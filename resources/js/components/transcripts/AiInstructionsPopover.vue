@@ -5,7 +5,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles } from 'lucide-vue-next';
+import { Sparkles } from '@lucide/vue';
 
 const props = defineProps<{
     modelValue: string | undefined;

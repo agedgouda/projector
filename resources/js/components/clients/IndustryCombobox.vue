@@ -13,7 +13,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import { Check, ChevronsUpDown } from 'lucide-vue-next';
+import { Check, ChevronsUpDown } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const INDUSTRIES = [

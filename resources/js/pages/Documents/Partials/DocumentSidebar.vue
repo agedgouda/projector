@@ -38,7 +38,7 @@ import {
     FileType,
     GitBranch,
     RefreshCw,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

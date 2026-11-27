@@ -30,7 +30,7 @@ import ClientEntryForm from '@/pages/Clients/Partials/ClientEntryForm.vue';
 import projectRoutes from '@/routes/projects/index';
 import projectLogoRoutes from '@/routes/projects/logo/index';
 import { router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-vue-next';
+import { AlertTriangle, Loader2, Plus, Trash2 } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 

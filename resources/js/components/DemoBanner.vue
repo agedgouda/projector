@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { exit } from '@/routes/demo';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Sparkles } from 'lucide-vue-next';
+import { Sparkles } from '@lucide/vue';
 import { computed } from 'vue';
 
 const page = usePage<AppPageProps>();

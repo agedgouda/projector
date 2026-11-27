@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import PieChart from '@/components/dashboard/PieChart.vue';
 import { Link } from '@inertiajs/vue3';
-import { ChevronDown, ExternalLink } from 'lucide-vue-next';
+import { ChevronDown, ExternalLink } from '@lucide/vue';
 import { ref } from 'vue';
 
 // A card starts collapsed to just its "All" pie — the subproject breakdown and both

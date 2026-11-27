@@ -25,7 +25,7 @@ import importTransformationRoutes from '@/routes/projects/import-transformations
 import transformationLibraryRoutes from '@/routes/transformation-library';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-import { Loader2 } from 'lucide-vue-next';
+import { Loader2 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import ImportTransformationPassEditor from './ImportTransformationPassEditor.vue';

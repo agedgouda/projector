@@ -3,7 +3,7 @@ import MobileLayout from '@/layouts/MobileLayout.vue';
 import mobileRoutes from '@/routes/mobile';
 import mobileOrganizationRoutes from '@/routes/mobile/organizations';
 import { Head, router } from '@inertiajs/vue3';
-import { Building2, Check } from 'lucide-vue-next';
+import { Building2, Check } from '@lucide/vue';
 
 defineProps<{
     organizations: Array<{ id: string; name: string }>;

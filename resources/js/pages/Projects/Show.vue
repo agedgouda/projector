@@ -15,7 +15,7 @@ import ImportTaskListOptions from '@/pages/Projects/Partials/ImportTaskListOptio
 import { Deferred, router, usePage } from '@inertiajs/vue3';
 import { onKeyStroke, useDebounceFn, useEventListener } from '@vueuse/core';
 import axios from 'axios';
-import { PlusIcon, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
+import { PlusIcon, RefreshCw, ShieldAlert, Upload } from '@lucide/vue';
 import {
     computed,
     onBeforeUnmount,

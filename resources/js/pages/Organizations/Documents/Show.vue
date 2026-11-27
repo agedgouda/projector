@@ -8,7 +8,7 @@ import statusMeetingsRoutes from '@/routes/status-meetings/index';
 import { type BreadcrumbItem } from '@/types';
 import { Deferred, Head, router, useForm, usePage } from '@inertiajs/vue3';
 import DOMPurify from 'dompurify';
-import { ArrowLeft, Edit2, Trash2, X } from 'lucide-vue-next';
+import { ArrowLeft, Edit2, Trash2, X } from '@lucide/vue';
 import { ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 

@@ -38,7 +38,7 @@ import {
 import organizationRoutes from '@/routes/organizations/index';
 import organizationPdfBrandingRoutes from '@/routes/organizations/pdf-branding/index';
 import { Form, router, useForm } from '@inertiajs/vue3';
-import { ChevronDown, HelpCircle } from 'lucide-vue-next';
+import { ChevronDown, HelpCircle } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

@@ -13,7 +13,7 @@ import pendingImportRoutes from '@/routes/import/pending';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
-import { AlertCircle, ArrowLeft, Files, Search, X } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Files, Search, X } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { toast } from 'vue-sonner';
 

@@ -4,7 +4,7 @@ import { kanbanDotClasses } from '@/lib/constants';
 import { KANBAN_UI } from '@/lib/kanban-theme';
 import projectRoutes from '@/routes/projects/index';
 import { Link } from '@inertiajs/vue3';
-import { ExternalLink } from 'lucide-vue-next';
+import { ExternalLink } from '@lucide/vue';
 import { computed } from 'vue';
 import KanbanColumn from './KanbanColumn.vue';
 import KanbanHeader from './KanbanHeader.vue';

@@ -27,7 +27,7 @@ import {
     Plus,
     RefreshCw,
     Sparkles,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 

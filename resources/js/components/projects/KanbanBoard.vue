@@ -19,7 +19,7 @@ import type { AssigneeOption } from '@/lib/assignees';
 import { kanbanDotClasses } from '@/lib/constants';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { getPriorityStyles } from '@/lib/kanban-theme';
-import { ListFilter, Search } from 'lucide-vue-next';
+import { ListFilter, Search } from '@lucide/vue';
 import KanbanRow from './KanbanRow.vue';
 
 defineProps<{

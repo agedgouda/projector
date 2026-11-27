@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import recordingRoutes from '@/routes/projects/documents/recording';
 import { router } from '@inertiajs/vue3';
-import { AlertTriangle, Download, RotateCcw } from 'lucide-vue-next';
+import { AlertTriangle, Download, RotateCcw } from '@lucide/vue';
 import { ref } from 'vue';
 
 export interface RecordingProblem {

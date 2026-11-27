@@ -32,7 +32,7 @@ import {
     Paperclip,
     Send,
     Trash2,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 

@@ -4,7 +4,7 @@ import { promote } from '@/actions/App/Http/Controllers/UserController';
 import UserInfo from '@/components/UserInfo.vue';
 import userRoutes from '@/routes/users/index';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { ShieldAlert } from 'lucide-vue-next';
+import { ShieldAlert } from '@lucide/vue';
 
 import {
     Select,

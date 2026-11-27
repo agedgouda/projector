@@ -4,7 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import projectRoutes from '@/routes/projects/index';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/vue3';
-import { ArrowLeft } from 'lucide-vue-next';
+import { ArrowLeft } from '@lucide/vue';
 
 interface PreselectedClient {
     id: string;

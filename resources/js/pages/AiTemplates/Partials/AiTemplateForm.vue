@@ -12,7 +12,7 @@ import {
     List,
     ListOrdered,
     Sparkles,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import GeneratePromptsModal from './GeneratePromptsModal.vue';

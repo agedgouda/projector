@@ -42,7 +42,7 @@ import {
     FileType,
     Search,
     Table2,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 
 const props = defineProps<{

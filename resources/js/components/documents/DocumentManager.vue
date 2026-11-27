@@ -5,7 +5,7 @@ import { useProjectState } from '@/composables/useProjectState';
 import { mergeAssigneeOptions } from '@/lib/assignees';
 import { FLAT_SEARCH_ICON, FLAT_SEARCH_INPUT } from '@/lib/flat-ui';
 import { usePage } from '@inertiajs/vue3';
-import { Search } from 'lucide-vue-next';
+import { Search } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
